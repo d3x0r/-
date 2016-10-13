@@ -32,7 +32,7 @@
 
 const normal_punctuation=("\'\"\\({[<>]}):@%/,;!?=*&$^~#`");
 //static CTEXTSTR not_punctuation;
-console.log( normal_punctuation )
+//console.log( normal_punctuation )
 
 const tab = "\t";
 const space = " ";

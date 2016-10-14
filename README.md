@@ -38,15 +38,77 @@ RNG.saltbuf = [] // the array that is used to communicate salt when more random 
 
 ----
 
-( there's another way of safe encoding strings by passing them through encodeURI/decodeURI  that's why my escape algorithm is so strange )
-also strtoab and ab2str routines sucked comparitively.
-
 Crypted Object
 
 crypted_object.js usage
    (requires salty_random_generator.js)
+   
+```
+var cryptObj = require( "./crypted_object" );
+
+// encode/decode to a text representation
+var s = cryptObj.encryptObject( { some: "object" } );
+// '{"some":"S:object"}'
+var o = cryptObj.decryptObject( s );
+
+// encode/decode to a pseodu-random representation
+var s = cryptObj.encryptObject( { some: "object" }, ( salt )=>{ salt.push( "add RNG seed" ) } );
+// 'ŔĐȔŪƶ͍ȏȷȽͿʄuƇɺ˯ňϱ\u0011_'
+var o = cryptObj.decryptObject( s, ( salt )=>{ salt.push( "add RNG seed" } );
+
 ```
 
+The method used is about 4x faster than the 'standard' ab2str (arrayBuffer to string)
+The method used is about 2x faster than the 'standard' str2ab (arrayBuffer from string)
 
 
+
+---
+
+Text Object
+
+   text.js usage
+   
+```
+    var text = require( 'text.js' );
+    var someText = Text( "some sort of text string" );
+    var words = text.Parse( [Text object or String that gets converted to Text] [,punctuation [, filter_space [, bTabs,[  bSpaces]]]] ) );
+/*   
+ *      punctuation is a string of punctuation type characters (except . which is always treated as elipses ) *
+ *      filter_Space is a string of space type characters
+ *      bTabs is a boolean whether to keep tabs or count them.
+ *      bSpaces is a boolean wheter to keep spaces or count them. // unimplmented
+ *
+ *
+ *   String( someText ) === "some sort of text string"
+ *   String( text.Parse( someText ) ) === "some sort of text string"
+ */
+     var word = words;
+     while( word ) {
+       // process word.text
+       word = word.next();
+     }
+ ```
+ 
+ text Properties
+ ```
+    tabs   - count of tabs before the text on the segment
+    spaces  - count of spaces before the text on the segment (after tabs)
+    flags   - optional flags indiciting attributes of the text
+    text    - the text of the current segment
+    next    - next text segment
+    pred    - prior text segment
+    indirect - this segment shouldn't have 'text' but instead this is a list of segments which should be considered as the content of this semgent.
+```
+Text Methods
+```
+    append(segment)   - (incomplete) links the passed segment after the referenced 'this' segment.  incomplete, because if the thing being added is multiple segments, doesn't link the end segment; also if the segment being appended to is in the middle of a list of segments, this should insert the list of segments between 'here' and 'there'.
+    break()    - after the current segment, unlink all following segments, return the list of segments removed.
+    breakBefore() - before the current segment, unlink this and all following segments, return the prior segment which this was broken from.
+    breakAndSpliceTo(start) - remove leading segments, and relink this after the segment passed as start.  (incomplete, no checking for start/end of segments for proper phrase linking.
+    forEach(cb)   - for each segment from here until the end, call the callback with each text segment.
+    toString()    - rewinds to the start of the string, and results with the full, unparsed string.
+    clone()       - duplicate a segment's contents; does not duplicate links and other segments attached
+    Next()        - safer accessor than using 'null' of a segment; (should also, but does not)handle stepping through indirect segments
+    first()       - access the first segment of this text phrase.
 ```

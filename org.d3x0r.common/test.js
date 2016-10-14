@@ -20,7 +20,7 @@ function dumpObj( o ) {
     var keys = Object.keys( o );
     console.log( "keys : " + keys);
     for( var i = 0; i < keys.length; i++ )
-        console.log( "%s %s", keys[i], o[keys[i]] )
+        console.log( keys[i], o[keys[i]] )
 }
 
 var random = new Date().valueOf();
@@ -29,7 +29,7 @@ function keyGen( key ) {
         key.push( random) ;
 }
 
-var tmp = { from: "user@domain.com", date: new Date(), msg : "message goes here"
+var tmp = { from: "тест Строка.user@domain.com", date: new Date(), msg : "message goes here"
 		, group_id:1234
 		, buf:new ArrayBuffer(15)
 		, array:[10,34,23]

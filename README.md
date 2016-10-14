@@ -1,7 +1,6 @@
-# -
 Test Grounds; some common core routines I have...
 
-Salty Random Genertor
+# Salty Random Genertor
 
    Takes some salt (some bits of either known or entropic valus) and generates a stream of bits from it.  
 When the stream runs out of bits, the salt callback is invoked for more entropy and more bits are computed.
@@ -38,7 +37,7 @@ RNG.saltbuf = [] // the array that is used to communicate salt when more random 
 
 ----
 
-Crypted Object
+#Crypted Object
 
 crypted_object.js usage
    (requires salty_random_generator.js)
@@ -65,7 +64,7 @@ The method used is about 2x faster than the 'standard' str2ab (arrayBuffer from 
 
 ---
 
-Text Object
+#Text Object
 
    text.js usage
    

@@ -35,3 +35,18 @@ I think it might technically allows you to get 0 or less bits and return an empt
 RNG.compute() // function that takes salt and generates some bits
 RNG.saltbuf = [] // the array that is used to communicate salt when more random bits are required.
 
+
+----
+
+( there's another way of safe encoding strings by passing them through encodeURI/decodeURI  that's why my escape algorithm is so strange )
+also strtoab and ab2str routines sucked comparitively.
+
+Crypted Object
+
+crypted_object.js usage
+   (requires salty_random_generator.js)
+```
+
+
+
+```

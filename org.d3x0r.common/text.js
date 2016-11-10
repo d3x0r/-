@@ -207,7 +207,7 @@ exports.Parse = function TextParse( input, punctuation, filter_space, bTabs, bSp
 				{
 					outdata = SegAppend( outdata, SET_SPACES( word ) );
 				}
-				outdata = SegAppend( outdata, SegCreate( 0 ) ); // add a line-break packet
+				outdata = SegAppend( outdata, Text() ); // add a line-break packet
 				break;
 			case ' ':
 				collapse();

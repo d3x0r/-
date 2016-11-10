@@ -85,8 +85,10 @@ function replacer(key,val) {
 	}
   else if( val ) {
     var type = val && Object.getPrototypeOf( val );
+    var ptype = Object.getPrototypeOf(type);
 
-		if( ( ( type && type.__proto__ && type.__proto__.constructor.name ) === "TypedArray" )
+console.log( "not in node?", ( ( type && ptype && ptype.constructor.name ) === "TypedArray" ));
+		if( ( ( type && ptype && ptype.constructor.name ) === "TypedArray" )
 		   || (val instanceof ArrayBuffer && val.constructor == ArrayBuffer) ) {
     	//console.log( "buffer? ", val, val.buffer, type.constructor.name );
       if( type.constructor === Uint8Array )

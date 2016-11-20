@@ -1,0 +1,24 @@
+{
+  "graph": {
+    "ha6twFGFj9JtzvgxvmJcEw6XbFIF1Ah9dRPzWDYSCV4=": {
+      "_": {
+        "#": "ha6twFGFj9JtzvgxvmJcEw6XbFIF1Ah9dRPzWDYSCV4=",
+        ">": {
+          "eggs": 1476983985361
+        }
+      },
+      "eggs": true
+    },
+    "bacon": {
+      "_": {
+        "#": "bacon",
+        ">": {
+          "plate": 1476983985361
+        }
+      },
+      "plate": {
+        "#": "ha6twFGFj9JtzvgxvmJcEw6XbFIF1Ah9dRPzWDYSCV4="
+      }
+    }
+  }
+}

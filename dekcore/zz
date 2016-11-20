@@ -1,0 +1,778 @@
+config is  .
+Schedule loadKeys with config.start
+defer bigBang
+parsing {"Λ":"5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=","hostname":"Panther-PC","root":".","debug":true,"addresses":[],"friends":[],"timeOffset":25200000}
+config.resume.... [ [Function: loadKeys], [Function: BigBang] ]
+Load Keys
+config.defer....
+fc.reload... 
+got deferred... [ [Function: BigBang] ]
+clear deferred 
+making_key [object Object]
+authority_key [object Object]
+string core/id.json
+storing object :  Map {
+  '3QT5I0SFtRvSMSAn-qAqEV7cq4fuuP9s6aHROfP56-s=' => { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+  'Λ': '3QT5I0SFtRvSMSAn-qAqEV7cq4fuuP9s6aHROfP56-s=',
+  authby: 
+   { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+     'Λ': '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+     authby: [Circular],
+     requested: 1,
+     trusted: false,
+     invalid: false,
+     authonly: true,
+     created: 1476988125782,
+     timeOffset: 25200000 },
+  requested: 0,
+  trusted: true,
+  invalid: false,
+  authonly: true,
+  created: 1476988125782,
+  timeOffset: 25200000 },
+  '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=' => { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+  'Λ': '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+  authby: 
+   { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+     'Λ': '3QT5I0SFtRvSMSAn-qAqEV7cq4fuuP9s6aHROfP56-s=',
+     authby: [Circular],
+     requested: 0,
+     trusted: true,
+     invalid: false,
+     authonly: true,
+     created: 1476988125782,
+     timeOffset: 25200000 },
+  requested: 1,
+  trusted: false,
+  invalid: false,
+  authonly: true,
+  created: 1476988125782,
+  timeOffset: 25200000 },
+  toString: [Function],
+  'Λ': '3QT5I0SFtRvSMSAn-qAqEV7cq4fuuP9s6aHROfP56-s=',
+  'AcgoN8MAF8CWVVW1Bt6wf0JwpvlRIG-LHPTt0EaiZsU=': 
+   { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+     'Λ': 'AcgoN8MAF8CWVVW1Bt6wf0JwpvlRIG-LHPTt0EaiZsU=',
+     authby: 
+      { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+        'Λ': '3QT5I0SFtRvSMSAn-qAqEV7cq4fuuP9s6aHROfP56-s=',
+        authby: [Object],
+        requested: 0,
+        trusted: true,
+        invalid: false,
+        authonly: true,
+        created: 1476988125782,
+        timeOffset: 25200000 },
+     requested: 0,
+     trusted: false,
+     invalid: false,
+     authonly: true,
+     created: 1476988757838,
+     timeOffset: 25200000,
+     toString: [Function: toString] } } [ 'toString',
+  'Λ',
+  'AcgoN8MAF8CWVVW1Bt6wf0JwpvlRIG-LHPTt0EaiZsU=' ]
+config.resume.... [ [Function: BigBang] ]
+Creating the void....
+local authkey request...
+create a new local authority
+The Void  config.run.Λ 5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=
+Attempt to get ID for  fdXIU269BsyJwpuEdVxujSLFiSWZxGNg0rznRFY4kLM= { 'Λ': '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+  hostname: 'Panther-PC',
+  root: '.',
+  debug: true,
+  addresses: [],
+  friends: [],
+  timeOffset: 25200000,
+  commit: [Function: commit],
+  toString: [Function: toString] }
+making_key {"maker":"5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=","Λ":"fdXIU269BsyJwpuEdVxujSLFiSWZxGNg0rznRFY4kLM=","requested":0,"trusted":false,"invalid":false,"authonly":true,"created":1476988757843,"timeOffset":25200000}
+authority_key [object Object]
+no such key
+MOOSE  config.run.Λ 5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=
+Attempt to get ID for  xwREUi6YThHprXUQuuDr5zFvL2xwL0YWKYhXflXRAEw= { 'Λ': '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+  hostname: 'Panther-PC',
+  root: '.',
+  debug: true,
+  addresses: [],
+  friends: [],
+  timeOffset: 25200000,
+  commit: [Function: commit],
+  toString: [Function: toString] }
+making_key {"xwREUi6YThHprXUQuuDr5zFvL2xwL0YWKYhXflXRAEw=":null,"within":"null,"attached_to": ["xwREUi6YThHprXUQuuDr5zFvL2xwL0YWKYhXflXRAEw="],"contains": ["null"],"created_by":"xwREUi6YThHprXUQuuDr5zFvL2xwL0YWKYhXflXRAEw=}
+authority_key [object Object]
+no such key
+ZPath resolves... M:\javascript\dekcore\startup.js
+Script called with M:/javascript/dekcore/startup.js
+run  var core = {}; 
+            	var fs = this.require( 'fs' );
+                var names = fs.readdirSync( "." );
+                console.log( names );
+                (core['M:/javascript/dekcore/startup.js'] = this.require("M:/javascript/dekcore/startup.js"));
+[ 'ca-cert.pem',
+  'ca-key.pem',
+  'clean',
+  'cluster.js',
+  'cluster.js~',
+  'command_stream_filter',
+  'conf',
+  'config.js',
+  'config.js~',
+  'core',
+  'data.json',
+  'discovery.js',
+  'discovery.js~',
+  'Entity',
+  'file_cluster.js',
+  'file_cluster.js~',
+  'gundb.js',
+  'gundemo',
+  'guntest.js',
+  'guntest.json',
+  'hello.js',
+  'id_generator.js',
+  'id_generator.js~',
+  'id_manager.js',
+  'id_manager.js~',
+  'mk-dummykey',
+  'node_modules',
+  'package.json',
+  'package.json~',
+  'persistantEntity.js',
+  'reference',
+  'relations.js',
+  'Sentience',
+  'startup.js',
+  'startup.js~',
+  'tests',
+  'tst',
+  'void.js',
+  'void.js~',
+  'zz' ]
+Hello
+clear deferred 
+Wait for config
+{ address: '2001:470:d:579:3285:a9ff:fe90:3444',
+  netmask: 'ffff:ffff:ffff:ffff::',
+  family: 'IPv6',
+  mac: '30:85:a9:90:34:44',
+  scopeid: 0,
+  internal: false }
+done setting up dsicver? 0
+{ address: '192.168.173.13',
+  netmask: '255.255.255.0',
+  family: 'IPv4',
+  mac: '30:85:a9:90:34:44',
+  internal: false,
+  broadcast: '192.168.173.255' }
+done setting up dsicver? 0
+{ address: '192.168.136.1',
+  netmask: '255.255.255.0',
+  family: 'IPv4',
+  mac: '00:50:56:c0:00:01',
+  internal: false,
+  broadcast: '192.168.136.255' }
+done setting up dsicver? 0
+{ address: '192.168.44.1',
+  netmask: '255.255.255.0',
+  family: 'IPv4',
+  mac: '00:50:56:c0:00:08',
+  internal: false,
+  broadcast: '192.168.44.255' }
+done setting up dsicver? 0
+{ address: '::1',
+  netmask: 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
+  family: 'IPv6',
+  mac: '00:00:00:00:00:00',
+  scopeid: 0,
+  internal: true }
+done setting up dsicver? 0
+{ address: '127.0.0.1',
+  netmask: '255.0.0.0',
+  family: 'IPv4',
+  mac: '00:00:00:00:00:00',
+  internal: true,
+  broadcast: '127.255.255.255' }
+done setting up dsicver? 0
+Run is completed... setup discover
+Done??
+setting timeout.
+server listening 2001:470:d:579:3285:a9ff:fe90:3444:3213
+server listening 192.168.173.13:3213
+server listening 192.168.136.1:3213
+server listening 192.168.44.1:3213
+server listening ::1:3213
+server listening 127.0.0.1:3213
+i'm all alone. 5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=
+start cluster... does exports fail?
+here EventEmitter {
+  domain: null,
+  _events: {},
+  _eventsCount: 0,
+  _maxListeners: undefined,
+  Worker: 
+   { [Function: Worker]
+     super_: 
+      { [Function: EventEmitter]
+        EventEmitter: [Circular],
+        usingDomains: false,
+        defaultMaxListeners: [Getter/Setter],
+        init: [Function],
+        listenerCount: [Function] } },
+  isWorker: false,
+  isMaster: true,
+  workers: {},
+  settings: {},
+  schedulingPolicy: 1,
+  SCHED_NONE: 1,
+  SCHED_RR: 2,
+  setupMaster: [Function],
+  fork: [Function],
+  disconnect: [Function] }
+fork.
+fork.
+fork.
+fork.
+fork.
+fork.
+fork.
+fork.
+config is  .
+Schedule loadKeys with config.start
+config is  .
+defer bigBang
+Schedule loadKeys with config.start
+config is  .
+Schedule loadKeys with config.start
+parsing {"Λ":"5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=","hostname":"Panther-PC","root":".","debug":true,"addresses":[],"friends":[],"timeOffset":25200000}
+defer bigBang
+config.resume.... [ [Function: loadKeys], [Function: BigBang] ]
+Load Keys
+config.defer....
+fc.reload... 
+got deferred... [ [Function: BigBang] ]
+clear deferred 
+making_key [object Object]
+defer bigBang
+authority_key [object Object]
+string core/id.json
+parsing {"Λ":"5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=","hostname":"Panther-PC","root":".","debug":true,"addresses":[],"friends":[],"timeOffset":25200000}
+parsing {"Λ":"5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=","hostname":"Panther-PC","root":".","debug":true,"addresses":[],"friends":[],"timeOffset":25200000}
+config is  .
+Schedule loadKeys with config.start
+config.resume.... [ [Function: loadKeys], [Function: BigBang] ]
+storing object :  Map {
+  '3QT5I0SFtRvSMSAn-qAqEV7cq4fuuP9s6aHROfP56-s=' => { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+  'Λ': '3QT5I0SFtRvSMSAn-qAqEV7cq4fuuP9s6aHROfP56-s=',
+  authby: 
+   { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+     'Λ': '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+     authby: [Circular],
+     requested: 1,
+     trusted: false,
+     invalid: false,
+     authonly: true,
+     created: 1476988125782,
+     timeOffset: 25200000 },
+  requested: 0,
+  trusted: true,
+  invalid: false,
+  authonly: true,
+  created: 1476988125782,
+  timeOffset: 25200000 },
+  '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=' => { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+  'Λ': '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+  authby: 
+   { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+     'Λ': '3QT5I0SFtRvSMSAn-qAqEV7cq4fuuP9s6aHROfP56-s=',
+     authby: [Circular],
+     requested: 0,
+     trusted: true,
+     invalid: false,
+     authonly: true,
+     created: 1476988125782,
+     timeOffset: 25200000 },
+  requested: 1,
+  trusted: false,
+  invalid: false,
+  authonly: true,
+  created: 1476988125782,
+  timeOffset: 25200000 },
+  toString: [Function],
+  'Λ': '3QT5I0SFtRvSMSAn-qAqEV7cq4fuuP9s6aHROfP56-s=',
+  'eCOHVM4YLlh9umsQDznUN1v8FM3FLmHxzmdFWaS5tdI=': 
+   { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+     'Λ': 'eCOHVM4YLlh9umsQDznUN1v8FM3FLmHxzmdFWaS5tdI=',
+     authby: 
+      { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+        'Λ': '3QT5I0SFtRvSMSAn-qAqEV7cq4fuuP9s6aHROfP56-s=',
+        authby: [Object],
+        requested: 0,
+        trusted: true,
+        invalid: false,
+        authonly: true,
+        created: 1476988125782,
+        timeOffset: 25200000 },
+     requested: 0,
+     trusted: false,
+     invalid: false,
+     authonly: true,
+     created: 1476988758142,
+     timeOffset: 25200000,
+     toString: [Function: toString] } } [ 'toString',
+  'Λ',
+  'eCOHVM4YLlh9umsQDznUN1v8FM3FLmHxzmdFWaS5tdI=' ]
+Load Keys
+config.resume.... [ [Function: BigBang] ]
+config.defer....
+config.resume.... [ [Function: loadKeys], [Function: BigBang] ]
+fc.reload... 
+Creating the void....
+got deferred... [ [Function: BigBang] ]
+clear deferred 
+Load Keys
+config.defer....
+fc.reload... 
+got deferred... [ [Function: BigBang] ]
+clear deferred 
+Wait for config
+local authkey request...
+create a new local authority
+The Void  config.run.Λ 5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=
+making_key [object Object]
+authority_key [object Object]
+Attempt to get ID for  2N809KBXXifDUUzCyeaPKGBiPmPCQxBJZ36Arbl1xTc= { 'Λ': '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+  hostname: 'Panther-PC',
+  root: '.',
+  debug: true,
+  addresses: [],
+  friends: [],
+  timeOffset: 25200000,
+  commit: [Function: commit],
+  toString: [Function: toString] }
+making_key {"maker":"5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=","Λ":"2N809KBXXifDUUzCyeaPKGBiPmPCQxBJZ36Arbl1xTc=","requested":0,"trusted":false,"invalid":false,"authonly":true,"created":1476988758149,"timeOffset":25200000}
+authority_key [object Object]
+string core/id.json
+no such key
+MOOSE  config.run.Λ 5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=
+defer bigBang
+Attempt to get ID for  BURr6vOBpaYQqXyO3H2NU6crBvII7v2iWdxRsHI2zXw= { 'Λ': '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+  hostname: 'Panther-PC',
+  root: '.',
+  debug: true,
+  addresses: [],
+  friends: [],
+  timeOffset: 25200000,
+  commit: [Function: commit],
+  toString: [Function: toString] }
+making_key {"BURr6vOBpaYQqXyO3H2NU6crBvII7v2iWdxRsHI2zXw=":null,"within":"null,"attached_to": ["BURr6vOBpaYQqXyO3H2NU6crBvII7v2iWdxRsHI2zXw="],"contains": ["null"],"created_by":"BURr6vOBpaYQqXyO3H2NU6crBvII7v2iWdxRsHI2zXw=}
+authority_key [object Object]
+no such key
+ZPath resolves... M:\javascript\dekcore\startup.js
+Script called with M:/javascript/dekcore/startup.js
+run  var core = {}; 
+            	var fs = this.require( 'fs' );
+                var names = fs.readdirSync( "." );
+                console.log( names );
+                (core['M:/javascript/dekcore/startup.js'] = this.require("M:/javascript/dekcore/startup.js"));
+storing object :  Map {
+  '3QT5I0SFtRvSMSAn-qAqEV7cq4fuuP9s6aHROfP56-s=' => { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+  'Λ': '3QT5I0SFtRvSMSAn-qAqEV7cq4fuuP9s6aHROfP56-s=',
+  authby: 
+   { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+     'Λ': '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+     authby: [Circular],
+     requested: 1,
+     trusted: false,
+     invalid: false,
+     authonly: true,
+     created: 1476988125782,
+     timeOffset: 25200000 },
+  requested: 0,
+  trusted: true,
+  invalid: false,
+  authonly: true,
+  created: 1476988125782,
+  timeOffset: 25200000 },
+  '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=' => { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+  'Λ': '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+  authby: 
+   { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+     'Λ': '3QT5I0SFtRvSMSAn-qAqEV7cq4fuuP9s6aHROfP56-s=',
+     authby: [Circular],
+     requested: 0,
+     trusted: true,
+     invalid: false,
+     authonly: true,
+     created: 1476988125782,
+     timeOffset: 25200000 },
+  requested: 1,
+  trusted: false,
+  invalid: false,
+  authonly: true,
+  created: 1476988125782,
+  timeOffset: 25200000 },
+  toString: [Function],
+  'Λ': '3QT5I0SFtRvSMSAn-qAqEV7cq4fuuP9s6aHROfP56-s=',
+  'T_zq2FqtELP4Hofni5Vbb-ZdBzNR19jvUeczy23PPnU=': 
+   { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+     'Λ': 'T_zq2FqtELP4Hofni5Vbb-ZdBzNR19jvUeczy23PPnU=',
+     authby: 
+      { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+        'Λ': '3QT5I0SFtRvSMSAn-qAqEV7cq4fuuP9s6aHROfP56-s=',
+        authby: [Object],
+        requested: 0,
+        trusted: true,
+        invalid: false,
+        authonly: true,
+        created: 1476988125782,
+        timeOffset: 25200000 },
+     requested: 0,
+     trusted: false,
+     invalid: false,
+     authonly: true,
+     created: 1476988758151,
+     timeOffset: 25200000,
+     toString: [Function: toString] } } [ 'toString',
+  'Λ',
+  'T_zq2FqtELP4Hofni5Vbb-ZdBzNR19jvUeczy23PPnU=' ]
+config.resume.... [ [Function: BigBang] ]
+Creating the void....
+parsing {"Λ":"5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=","hostname":"Panther-PC","root":".","debug":true,"addresses":[],"friends":[],"timeOffset":25200000}
+[ 'ca-cert.pem',
+  'ca-key.pem',
+  'clean',
+  'cluster.js',
+  'cluster.js~',
+  'command_stream_filter',
+  'conf',
+  'config.js',
+  'config.js~',
+  'core',
+  'data.json',
+  'discovery.js',
+  'discovery.js~',
+  'Entity',
+  'file_cluster.js',
+  'file_cluster.js~',
+  'gundb.js',
+  'gundemo',
+  'guntest.js',
+  'guntest.json',
+  'hello.js',
+  'id_generator.js',
+  'id_generator.js~',
+  'id_manager.js',
+  'id_manager.js~',
+  'mk-dummykey',
+  'node_modules',
+  'package.json',
+  'package.json~',
+  'persistantEntity.js',
+  'reference',
+  'relations.js',
+  'Sentience',
+  'startup.js',
+  'startup.js~',
+  'tests',
+  'tst',
+  'void.js',
+  'void.js~',
+  'zz' ]
+Hello
+clear deferred 
+local authkey request...
+create a new local authority
+Wait for config
+The Void  config.run.Λ 5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=
+config.resume.... [ [Function: loadKeys], [Function: BigBang] ]
+Attempt to get ID for  _5bm9ZGABMgCAqr3GDF6OTTdMi3dgD7hTYjycHgmyFU= { 'Λ': '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+  hostname: 'Panther-PC',
+  root: '.',
+  debug: true,
+  addresses: [],
+  friends: [],
+  timeOffset: 25200000,
+  commit: [Function: commit],
+  toString: [Function: toString] }
+Load Keys
+config.defer....
+fc.reload... 
+making_key {"maker":"5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=","Λ":"_5bm9ZGABMgCAqr3GDF6OTTdMi3dgD7hTYjycHgmyFU=","requested":0,"trusted":false,"invalid":false,"authonly":true,"created":1476988758158,"timeOffset":25200000}
+authority_key [object Object]
+no such key
+got deferred... [ [Function: BigBang] ]
+clear deferred 
+MOOSE  config.run.Λ 5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=
+making_key [object Object]
+authority_key [object Object]
+Attempt to get ID for  Cuqjvd37kl1MmB8q765uxJ1BgWYD5bTUfD8gFk26Gmw= { 'Λ': '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+  hostname: 'Panther-PC',
+  root: '.',
+  debug: true,
+  addresses: [],
+  friends: [],
+  timeOffset: 25200000,
+  commit: [Function: commit],
+  toString: [Function: toString] }
+making_key {"Cuqjvd37kl1MmB8q765uxJ1BgWYD5bTUfD8gFk26Gmw=":null,"within":"null,"attached_to": ["Cuqjvd37kl1MmB8q765uxJ1BgWYD5bTUfD8gFk26Gmw="],"contains": ["null"],"created_by":"Cuqjvd37kl1MmB8q765uxJ1BgWYD5bTUfD8gFk26Gmw=}
+authority_key [object Object]
+no such key
+ZPath resolves... M:\javascript\dekcore\startup.js
+Script called with M:/javascript/dekcore/startup.js
+run  var core = {}; 
+            	var fs = this.require( 'fs' );
+                var names = fs.readdirSync( "." );
+                console.log( names );
+                (core['M:/javascript/dekcore/startup.js'] = this.require("M:/javascript/dekcore/startup.js"));
+string core/id.json
+[ 'ca-cert.pem',
+  'ca-key.pem',
+  'clean',
+  'cluster.js',
+  'cluster.js~',
+  'command_stream_filter',
+  'conf',
+  'config.js',
+  'config.js~',
+  'core',
+  'data.json',
+  'discovery.js',
+  'discovery.js~',
+  'Entity',
+  'file_cluster.js',
+  'file_cluster.js~',
+  'gundb.js',
+  'gundemo',
+  'guntest.js',
+  'guntest.json',
+  'hello.js',
+  'id_generator.js',
+  'id_generator.js~',
+  'id_manager.js',
+  'id_manager.js~',
+  'mk-dummykey',
+  'node_modules',
+  'package.json',
+  'package.json~',
+  'persistantEntity.js',
+  'reference',
+  'relations.js',
+  'Sentience',
+  'startup.js',
+  'startup.js~',
+  'tests',
+  'tst',
+  'void.js',
+  'void.js~',
+  'zz' ]
+Hello
+clear deferred 
+Wait for config
+storing object :  Map {
+  '3QT5I0SFtRvSMSAn-qAqEV7cq4fuuP9s6aHROfP56-s=' => { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+  'Λ': '3QT5I0SFtRvSMSAn-qAqEV7cq4fuuP9s6aHROfP56-s=',
+  authby: 
+   { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+     'Λ': '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+     authby: [Circular],
+     requested: 1,
+     trusted: false,
+     invalid: false,
+     authonly: true,
+     created: 1476988125782,
+     timeOffset: 25200000 },
+  requested: 0,
+  trusted: true,
+  invalid: false,
+  authonly: true,
+  created: 1476988125782,
+  timeOffset: 25200000 },
+  '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=' => { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+  'Λ': '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+  authby: 
+   { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+     'Λ': '3QT5I0SFtRvSMSAn-qAqEV7cq4fuuP9s6aHROfP56-s=',
+     authby: [Circular],
+     requested: 0,
+     trusted: true,
+     invalid: false,
+     authonly: true,
+     created: 1476988125782,
+     timeOffset: 25200000 },
+  requested: 1,
+  trusted: false,
+  invalid: false,
+  authonly: true,
+  created: 1476988125782,
+  timeOffset: 25200000 },
+  toString: [Function],
+  'Λ': '3QT5I0SFtRvSMSAn-qAqEV7cq4fuuP9s6aHROfP56-s=',
+  '9W8iCRBLk2AIn-TJT6PBEcdH7cwL5FM7viftde_QJbU=': 
+   { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+     'Λ': '9W8iCRBLk2AIn-TJT6PBEcdH7cwL5FM7viftde_QJbU=',
+     authby: 
+      { maker: '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+        'Λ': '3QT5I0SFtRvSMSAn-qAqEV7cq4fuuP9s6aHROfP56-s=',
+        authby: [Object],
+        requested: 0,
+        trusted: true,
+        invalid: false,
+        authonly: true,
+        created: 1476988125782,
+        timeOffset: 25200000 },
+     requested: 0,
+     trusted: false,
+     invalid: false,
+     authonly: true,
+     created: 1476988758164,
+     timeOffset: 25200000,
+     toString: [Function: toString] } } [ 'toString',
+  'Λ',
+  '9W8iCRBLk2AIn-TJT6PBEcdH7cwL5FM7viftde_QJbU=' ]
+config.resume.... [ [Function: BigBang] ]
+Creating the void....
+local authkey request...
+create a new local authority
+The Void  config.run.Λ 5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=
+Attempt to get ID for  PtpD-USUrK_8S466TutZDGYyDnhDrdsYtjY9GFZth68= { 'Λ': '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+  hostname: 'Panther-PC',
+  root: '.',
+  debug: true,
+  addresses: [],
+  friends: [],
+  timeOffset: 25200000,
+  commit: [Function: commit],
+  toString: [Function: toString] }
+making_key {"maker":"5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=","Λ":"PtpD-USUrK_8S466TutZDGYyDnhDrdsYtjY9GFZth68=","requested":0,"trusted":false,"invalid":false,"authonly":true,"created":1476988758173,"timeOffset":25200000}
+authority_key [object Object]
+no such key
+MOOSE  config.run.Λ 5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=
+Attempt to get ID for  iKiSfAuVYgSkCJSfZ6s1eqoFjlXblldVGkl0Xnk1fFs= { 'Λ': '5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=',
+  hostname: 'Panther-PC',
+  root: '.',
+  debug: true,
+  addresses: [],
+  friends: [],
+  timeOffset: 25200000,
+  commit: [Function: commit],
+  toString: [Function: toString] }
+making_key {"iKiSfAuVYgSkCJSfZ6s1eqoFjlXblldVGkl0Xnk1fFs=":null,"within":"null,"attached_to": ["iKiSfAuVYgSkCJSfZ6s1eqoFjlXblldVGkl0Xnk1fFs="],"contains": ["null"],"created_by":"iKiSfAuVYgSkCJSfZ6s1eqoFjlXblldVGkl0Xnk1fFs=}
+authority_key [object Object]
+no such key
+ZPath resolves... M:\javascript\dekcore\startup.js
+Script called with M:/javascript/dekcore/startup.js
+run  var core = {}; 
+            	var fs = this.require( 'fs' );
+                var names = fs.readdirSync( "." );
+                console.log( names );
+                (core['M:/javascript/dekcore/startup.js'] = this.require("M:/javascript/dekcore/startup.js"));
+[ 'ca-cert.pem',
+  'ca-key.pem',
+  'clean',
+  'cluster.js',
+  'cluster.js~',
+  'command_stream_filter',
+  'conf',
+  'config.js',
+  'config.js~',
+  'core',
+  'data.json',
+  'discovery.js',
+  'discovery.js~',
+  'Entity',
+  'file_cluster.js',
+  'file_cluster.js~',
+  'gundb.js',
+  'gundemo',
+  'guntest.js',
+  'guntest.json',
+  'hello.js',
+  'id_generator.js',
+  'id_generator.js~',
+  'id_manager.js',
+  'id_manager.js~',
+  'mk-dummykey',
+  'node_modules',
+  'package.json',
+  'package.json~',
+  'persistantEntity.js',
+  'reference',
+  'relations.js',
+  'Sentience',
+  'startup.js',
+  'startup.js~',
+  'tests',
+  'tst',
+  'void.js',
+  'void.js~',
+  'zz' ]
+Hello
+clear deferred 
+Wait for config
+config is  .
+{ address: '2001:470:d:579:3285:a9ff:fe90:3444',
+  netmask: 'ffff:ffff:ffff:ffff::',
+  family: 'IPv6',
+  mac: '30:85:a9:90:34:44',
+  scopeid: 0,
+  internal: false }
+Schedule loadKeys with config.start
+done setting up dsicver? 0
+{ address: '192.168.173.13',
+  netmask: '255.255.255.0',
+  family: 'IPv4',
+  mac: '30:85:a9:90:34:44',
+  internal: false,
+  broadcast: '192.168.173.255' }
+done setting up dsicver? 0
+{ address: '192.168.136.1',
+  netmask: '255.255.255.0',
+  family: 'IPv4',
+  mac: '00:50:56:c0:00:01',
+  internal: false,
+  broadcast: '192.168.136.255' }
+done setting up dsicver? 0
+{ address: '192.168.44.1',
+  netmask: '255.255.255.0',
+  family: 'IPv4',
+  mac: '00:50:56:c0:00:08',
+  internal: false,
+  broadcast: '192.168.44.255' }
+done setting up dsicver? 0
+{ address: '::1',
+  netmask: 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
+  family: 'IPv6',
+  mac: '00:00:00:00:00:00',
+  scopeid: 0,
+  internal: true }
+done setting up dsicver? 0
+{ address: '127.0.0.1',
+  netmask: '255.0.0.0',
+  family: 'IPv4',
+  mac: '00:00:00:00:00:00',
+  internal: true,
+  broadcast: '127.255.255.255' }
+done setting up dsicver? 0
+Run is completed... setup discover
+Done??
+i'm all alone. 5kC5Bqw7bcetuwDpSTqL7QId3Vcr0Z7WBjmrcFY7Gaw=
+start cluster... does exports fail?
+cluster worker starting...
+Started Script Services
+defer bigBang
+events.js:160
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: write ENOTSUP
+    at exports._errnoException (util.js:1026:11)
+    at ChildProcess.target._send (internal/child_process.js:654:20)
+    at ChildProcess.target.send (internal/child_process.js:538:19)
+    at sendHelper (cluster.js:751:15)
+    at send (cluster.js:534:12)
+    at cluster.js:509:7
+    at SharedHandle.add (cluster.js:99:3)
+    at queryServer (cluster.js:501:12)
+    at Worker.onmessage (cluster.js:450:7)
+    at ChildProcess.<anonymous> (cluster.js:765:8)

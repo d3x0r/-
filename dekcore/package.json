@@ -1,0 +1,8 @@
+{
+  "name"    : "DekCore",
+  "version" : "0.0.1",
+  "main"    : "void.js",
+  "dependencies" : { "gun" : "github:amark/gun#0.5" 
+  	, "pem" : "^0"
+  	}
+}

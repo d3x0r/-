@@ -17,37 +17,37 @@
 //                returns a ArrayBuffer that is that many bits of randomness...
 
 
+try {
 var crypto = require( 'crypto' );
+var compute = (s)=>{ return crypto.createHash('sha256').update(s).digest() }
+} catch( err ) {
+var crypto = require( './forge-sha256.js' );
+var compute = (s)=>{ return crypto.forge_sha256(s); }
+}
+
 
 function MASK_TOP_MASK(length) {
-   //console.log( "mask is " + ((0xFFFFFFFF) >>> (32-(length))).toString(16) );
-   //return (0xFFFFFFFF) >>> (32-(length))
-   //console.log( "top mask is " + ((0xFF) >>> (8-(length))).toString(16) );
    return (0xFF) >>> (8-(length))
  };
 
 function MY_MASK_MASK(n, length) {
-  //console.log( "aligned mask is ", ( ( MASK_TOP_MASK(length) << ((n)&0x3) ) & 0xFF) .toString(16) );
   return (MASK_TOP_MASK(length) << ((n)&0x3)) & 0xFF;
 }
 function MY_GET_MASK(v,n,mask_size)  {
-     //console.log( "bit start is " + n + " size is " + mask_size, " data is ", v[n>>3].toString(16) );
         return (v[(n)>>3] & MY_MASK_MASK(n,mask_size) ) >>> (((n))&0x3)
 }
 
 exports.SaltyRNG = function( f ) {
   var RNG = {
      getSalt : f,
-     compute : ()=>{ return crypto.createHash('sha256') },
+     compute : compute,
      saltbuf : [],
      entropy : 0,
      available : 0,
      used : 0,
      reset() {
-       //this.compute.
-       this.entropy = this.compute().update( "test" ).digest();
-       //console.log( "data : ", typeof( this.entropy ), this.entropy );
-       this.available = 0;//this.entropy.words.length * 32;
+       this.entropy = this.compute( "test" );
+       this.available = 0;
        this.used = 0;
      },
      getBits( count ) {
@@ -91,12 +91,10 @@ exports.SaltyRNG = function( f ) {
        		}
        		else
        		{
-     				tmp = MY_GET_MASK( this.entropy, this.used, get_bits );
-            //console.log( "mask is ", tmp.toString(16), " at ", this.used );
+      			tmp = MY_GET_MASK( this.entropy, this.used, get_bits );
        			this.used += get_bits;
        			if( partial_bits )
        			{
-              //console.log( "partial " + partial_bits )
        				tmp = partial_tmp | ( tmp << partial_bits );
        				partial_bits = 0;
        			}
@@ -104,20 +102,6 @@ exports.SaltyRNG = function( f ) {
        			bits -= get_bits;
        		}
        	} while( bits );
-        /*
-        {
-        // debug logging, make long hex string for random buffer data
-          var str = "";
-
-          for( var x = 0; x < (_bits/32); x++ ) {
-             var val = result[x].toString(16);
-             console.log( "val ", val.length, "which is leading : ", "00000000".substr(  val.length ))
-             str += "00000000".substr( val.length ) + val
-          }
-          console.log( "randomness is ", str );
-          console.log( "randomness is ", result[0] );
-        }
-        */
         return resultBuffer;
       }
     }

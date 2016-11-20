@@ -4,58 +4,41 @@
 
 var SRG = require( './salty_random_generator.js' );
 
-function ab2str(buf) {
-	//console.log( "what is buf?", buf, typeof( buf ) );
-    return String.fromCharCode.apply(null, new Uint8Array(buf));
-}
-
-function str2ab(str,skip) {
-  var n = 0;
-  var buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
-  var bufView = new Uint16Array(buf);
-  for (var i=skip, strLen=str.length; i < strLen; i++) {
-    bufView[n++] = str.charCodeAt(i);
-  }
-  return buf;
-}
-
 function encodeString( data ) {
 			var n = 0;
-			var string = "";
-			for( n = 0; n < data.bytes_used; n++ ) {
-				var val = data[n];
+      var string = "";
+      var dataView = new Uint8Array(data);
+      //console.log( "Encode:", data)
+      var len = data.byteLength;
+      //console.log( data.bytes_used)
+			for( n = 0; n < data.byteLength; n++ ) {
+				var val = dataView[n];
+        //console.log( "val : ", val)
 				if( !val )
-					string += "\\0";
-				else {
-					var out = String.fromCodePoint( val );
-					if( out === "\\" )
-						string += "\\/";
-					else if( out === "/" )
-						string += "\\|";
-					else
-						string += out;
-				}
-			}
-
-			
-			var array = new ArrayBuffer(string.length);
-			var escape = false;
+          string += "0";
+        else if( val === 48 )
+          string += "\\0";
+        else if( val === 92 )
+          string += "\\\\";
+        else string += String.fromCharCode( val );
+      }
+      return string;
+      /*
+			var array = new Uint8Array(len);
 			var out = 0;
-			for( n = 0; n < string.length; n++ )
-				{ var val = string.codePointAt( n );
-					if( escape ) {
-						if( val === 48 )
-							val = 0;
-						escape = false;
-					}else {
-						if( val == 92 ) {
-							escape = true;
-							continue;
-						}
+			for( n = 0; n < data.byteLength; n++ )
+				{ var val = data[n];
+          if( !val ) {
+              array[out++] = 92;
+              array[out++] = 48;
+          } else if( !val ) {
+              array[out++] = 92;
+              array[out++] = 92;
 					}
-					array[out++] = val;
-				 };
-				return array;
+					else array[out++] = val;
+				};
+				return array.buffer;
+        */
 }
 
 function decodeString( string, skip ){
@@ -69,13 +52,15 @@ function decodeString( string, skip ){
 			var buffer = new ArrayBuffer(bytes);
 			bytes = 0;
 			for( var n = skip; n < string.length; n++ ){
-				if( string[n] === '\\' ) {
+        if( string[n] === '0' )
+          buffer[bytes++] = 0;
+				else if( string[n] === '\\' ) {
 					if( string[n+1] === '0' )
-						buffer[bytes++] = 0;
-					else if( string[n+1] === '/' )
+						buffer[bytes++] = '0';
+					else if( string[n+1] === '\\' )
 						buffer[bytes++] = '\\';
-					else if( string[n+1] === '|' )
-						buffer[bytes++] = '/';
+					//else if( string[n+1] === '|' )
+					//	buffer[bytes++] = '/';
 					else
 						throw new Error( "Invalid encoding" );
 					n++;
@@ -100,8 +85,10 @@ function replacer(key,val) {
 	}
   else if( val ) {
     var type = val && Object.getPrototypeOf( val );
+    var ptype = Object.getPrototypeOf(type);
 
-		if( ( ( type && type.__proto__ && type.__proto__.constructor.name ) === "TypedArray" )
+console.log( "not in node?", ( ( type && ptype && ptype.constructor.name ) === "TypedArray" ));
+		if( ( ( type && ptype && ptype.constructor.name ) === "TypedArray" )
 		   || (val instanceof ArrayBuffer && val.constructor == ArrayBuffer) ) {
     	//console.log( "buffer? ", val, val.buffer, type.constructor.name );
       if( type.constructor === Uint8Array )
@@ -122,8 +109,10 @@ function replacer(key,val) {
          return "F32:" + encodeString( val.buffer );
       else if( type.constructor === Float64Array )
   	     return "F64:" + encodeString( val.buffer );
-      else
+      else {
+          //console.log( "val is ", val );
          return "AB:" + encodeString( val );
+       }
     }
   }
   return val;
@@ -198,14 +187,12 @@ exports.decryptObject = function( str, salt ) {
     for (var i=0; i < l; i++) {
         bufView[i] = str.charCodeAt(i);
     }
-
     let s;
-    if( salt ) { 
+    if( salt ) {
         let output = new ArrayBuffer( (l) * 2 );
         let outview = new Uint16Array( output );
         for( let i = 0; i < l; i++ ) { outview[i] = bufView[ i ] ^ RNG.getBits( 10 ); }
         s = String.fromCharCode.apply(null, outview );
-        //console.log( "decode ", s );
     }else
         s = String.fromCharCode.apply(null, bufView );
     let obj = JSON.parse( s, reviver );

@@ -110,7 +110,7 @@ exports.SaltyRNG = function( f ) {
     RNG.saltbuf.length = 0;
     if( typeof( RNG.getSalt) === 'function')
         RNG.getSalt( RNG.saltbuf );
-    RNG.entropy = RNG.compute().update( RNG.entropy.join() + RNG.saltbuf.join() ).digest();
+    RNG.entropy = RNG.compute( RNG.entropy.join() + RNG.saltbuf.join() );
     RNG.available = RNG.entropy.length * 8;
     RNG.used = 0;
   };

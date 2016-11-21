@@ -18,14 +18,17 @@ window.onload = ()=> {
     //});
 };
 
-//var more_script = require( "test" );
+var more_script = require( "test.js" );
 
-require( "test.js", (response)=>{
-    var f = eval( response );
-    
-} );
 
-function require(theUrl, callback)
+
+
+function require( name ) { _require( name, (response)=>{
+	    var f = eval( response );    
+	} ) 
+};
+
+function _require(theUrl, callback)
 {
     var xmlHttp = new XMLHttpRequest();
     xmlHttp.onreadystatechange = function() {

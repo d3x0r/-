@@ -1,11 +1,10 @@
 
-const cluster = require('cluster');
+//const cluster = require('cluster');
 
 var config = require ('./config.js');
 
 //-------------- Second Void Method
 
-var config = require( "./config.js" );
 var Entity = require( "./Entity/entity.js" );
 var shell = require( "./Sentience/shell.js" );
 var text = require( "../org.d3x0r.common/text.js" )
@@ -18,20 +17,16 @@ function BigBang() {
 		Void = o;
                 
 		Entity( Void, "MOOSE", "Master Operator of System Entites.", (o)=>{
-	console.log( "ZPath resolves...", require.resolve( "./startup.js" ) );
-	var path = require.resolve( "./startup.js" ).replace( /\\/g, "/" );
+                	o.command = require('./Sentience/shell.js').Filter( o.sandbox );
+
+ 		       console.log( "ZPath resolves...", require.resolve( "./startup.js" ) );
+		  	var path = require.resolve( "./startup.js" ).replace( /\\/g, "/" );
                         shell.Script( o.sandbox, text.Text( path ) );
 		})
 	} );
 }
 
-if( cluster.isMaster ) {
-	console.log( "defer bigBang")
-	config.start( BigBang );
-	//------------- some initial startup modes
-}else {
-	
-}
+//------------- some initial startup modes
 setTimeout( waitrun,10 );
 
 
@@ -42,18 +37,11 @@ function waitrun(){
 	console.log( "wait some more then try again" );
         setTimeout(  waitrun, 10 );
     }
-    else
-        try { 
-		if( cluster.isMaster ) {
-        		run(); 
-                }else {
-                	run2();
-                }
-        } catch(err) {
-            console.log( "Run Failed : ", err);
-            run3();
-        }
-        console.log( "Done??" );
+    else {
+	config.start( BigBang );
+      	run(); 
+        
+    }
 }
 
 function run2() {
@@ -73,11 +61,12 @@ function run2() {
 
 function run3() {
     var discoverer = require( "./discovery.js" );
-    var Cluster = require( './cluster.js' ).Cluster();
+    //var Cluster = require( './cluster.js' ).Cluster();
     discoverer.discover( { timeout: 1000
         , ontimeout : ()=>{
             console.log( "i'm all alone. but all I can do is wait" );
-            Cluster.start();
+            //Cluster.start();
+            require( "./https_server.js" ).Server();
         }
         , onconnect : ( sock ) => {
             console.log( "possible addresses ...", config.run.addresses );
@@ -89,17 +78,20 @@ function run3() {
 }
 
 function run() {
-    var Cluster = require( './cluster.js' ).Cluster();
+    //var Cluster = require( './cluster.js' ).Cluster();
     var idMan = require( "./id_manager.js");
     var vfs = require( "./file_cluster.js" );
     var discoverer = require( "./discovery.js" );
     discoverer.discover( { timeout: 1000
         , ontimeout : ()=>{
-            console.log( "i'm all alone.", config.run.Λ )
-            Cluster.start();
+            console.log( "i'm all alone.", config.run.Λ, idMan.localAuthKey )
             // really all of my keys are on my config.run key anyway
             //   so this shouldn't be done here?
-            //idMan.SetKeys( idMan.ID( config.run.Λ ) );
+            idMan.SetKeys( idMan.ID( idMan.localAuthKey ) );
+            require( "./https_server.js" ).Server();
+            //discoverer.discover( 
+            //	{ onquery:()=>{return "YouAre"; } 
+            //);
         }
         , onconnect : ( sock ) => {
             var idGen = require( "./id_generator.js");

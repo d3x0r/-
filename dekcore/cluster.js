@@ -22,25 +22,9 @@ exports.Cluster = ()=>{
 
     function startCluster() {
 	    console.log( "start cluster... does exports fail?" );
-        if (cluster.isMaster) {
-	      // Fork workers.
-              console.log( "here", cluster);
-
-              for (var i = 0; i < numCPUs; i++) {
-	              console.log( "fork." );
-                cluster.fork();
-              }
-
-              cluster.on('exit', (worker, code, signal) => {
-                  if( exports.Cluster.isMaster )
-                    cluster.fork();
-                else
-                	console.log(`worker ${worker.process.pid} died`);
-              });
-        } else {
             console.log( "cluster worker starting..." );
+            
             scriptServer();
-        }
     }
 
     return mycluster;

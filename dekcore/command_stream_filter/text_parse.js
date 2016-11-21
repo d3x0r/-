@@ -41,3 +41,6 @@ parse.prototype._flush = (callback) => { console.log( "stream flush?" ); callbac
 function Filter() {
 	return filter_base.Filter(  new parse() );
 }
+
+
+

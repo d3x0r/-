@@ -63,7 +63,7 @@ function loadConfig() {
 loadConfig();
 
 exports.start = function(callback) {
-    if( config.Λ ){
+    if( config.run.Λ ){
         if( config.starts.length ) {
             config.starts.forEach( (cb)=>{cb();});
             config.starts = [];
@@ -95,7 +95,7 @@ function resume() {
             break;
         }
      }
-     config.starts = null
+     config.starts = []
      if( config.start_deferred )
         config.starts = config.starts_deferred;
         console.log( "clear deferred ")

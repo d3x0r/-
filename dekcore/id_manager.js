@@ -36,15 +36,26 @@ function stackTrace() {
     }
 }
 
-function Key(maker_key) {
+function Key(maker_key,askey) {
+
+var key = null;
+	if( typeof( maker_key ) === "object" ) {
+		if( maker_key.Λ ) 
+	    		key = maker_key;
+	        else
+        		throw new Error( "Object, but not a valid one." );
+	}
+        else {
+	console.log( "key type", typeof maker_key );
+	console.log( "key is ", Object.keys( maker_key ));//.prototype.constructor.name )
     //console.log(" Someone making a Key()", maker_key )
 
     var real_key;
     if( maker_key.Λ ) real_key = keys.get( maker_key.Λ );
     else              real_key = keys.get( maker_key );
     if( real_key )    maker_key = real_key.Λ;
-
-    var key = { maker : maker_key
+    
+	key = { maker : maker_key
             , Λ : idGen()
             , authby : null
             , requested : 0  // count
@@ -53,8 +64,9 @@ function Key(maker_key) {
             , authonly : true // don't send copies to other things
             , created : new Date().getTime()
             , timeOffset : config.run.timeOffset
-            , toString : ()=> {
-                //console.log( " tostring of ", key);
+    	}
+    }
+    key.toString = ()=> {
                 if( !mystring ){
                     var _a = key.authby;
                     key.authby = key.authby.Λ;
@@ -66,10 +78,9 @@ function Key(maker_key) {
                 }
                 return mystring;
             }
-        };
 
         var mystring;
-        keys[key.Λ] = key;
+        keys.set( key.Λ, key );
         //console.log( "generated key ", key.Λ )
         return key;
 }
@@ -137,8 +148,8 @@ exports.ID = ID; function ID( making_key, authority_key, callback )  {
     else
         authority_key = keys.get( authority_key.Λ );
 
-    console.log( `making_key ${making_key}` );
-    console.log( `authority_key ${authority_key}` );
+    console.log( `making_key ${making_key.toString()}` );
+    console.log( `authority_key ${authority_key.toString()}` );
     
     if( making_key === authority_key )
         throw new Error( "Invalid source keys" );
@@ -151,8 +162,8 @@ exports.ID = ID; function ID( making_key, authority_key, callback )  {
         }
     var newkey = Key( making_key );
     newkey.authby = authority_key;
-    if( making_key === authority_key )
-    	newkey.
+    //if( making_key === authority_key )
+    	//newkey.
     keys.set(newkey.Λ, newkey );
         if( authority_key )
             newkey.authby = authority_key
@@ -214,7 +225,11 @@ function loadKeyFragments( o ) {
         fc.reloadFrom( o, (error, files)=>{
 
             if( error ){
-                    console.log(" koadfrom directoryerror: " + error)
+	    	if( error.code === 'ENOENT' ) {
+                	return;
+                	//saveKeys();
+                }
+                    console.log("loadfrom directoryerror: ", error, Object.keys( error ))
             }
             else if( files.length === 0 ) {
                 console.log( "no files...")
@@ -302,8 +317,9 @@ function loadKeys() {
                   var keyids;
                   ( keyids = Object.keys( loaded_keys.keys ) ).forEach( (keyid,val)=>{
                       //console.log( "key and val ", key, val );
-                      var key;
-                      keys.set( keyid, key = loaded_keys.keys[keyid] );
+                      var key = Key( loaded_keys.keys[keyid] );
+                      //keys.set( keyid, key = loaded_keys.keys[keyid] );
+                      //key.toString = 
                   } );
                   keyids.forEach( (keyid,val)=>{
                       //console.log( "key and val ", key, val );
@@ -401,7 +417,7 @@ function setKeys( runkey ) {
         {
             console.log( "Key_frags ... these should be on the disk....")
             //console.log( key_frags );
-        //key_frags.forEach( (a)=>{
+            //key_frags.forEach( (a)=>{
             //    console.log(" doing store IN", key_frags, a  );
                 //fc.store( key_frags, a );
         //} )

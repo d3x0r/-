@@ -54,11 +54,14 @@ var idMan = require( '../id_manager.js');
 var fc = require( '../file_cluster.js');
 var config = require( '../config.js');
 var vm = require( 'vm' );
+const fs = require( 'fs' );
+const stream = require( 'stream' );
+const util = require( 'util' );
+const process = require( 'process' );
 var all_entities = new WeakMap();
 var objects = new Map();
 
 module.exports = exports = Entity
-
 
 //Λ
 
@@ -111,9 +114,12 @@ function Entity( obj, name, description, callback ){
         , decription : description
         , command : null
         , sandbox : vm.createContext( {
-            require : require
+            require : sandboxRequire
+            , process : process
+            , Buffer : Buffer
+            , module : { name: name, parent : null, children : [], root : ".", exports: {} }
             , now : new Date().toString()
-            , process: process
+            , me : o
             , console : {
                 log : function(){
                     console.log.apply( console, arguments)
@@ -298,6 +304,7 @@ function Entity( obj, name, description, callback ){
              }
          }
     }
+    o.sandbox.global = o.sandbox;
     if( o.within )
         o.within.contains.set( o, o )
     console.log( "Attempt to get ID for ", (obj||createdVoid).Λ, config.run  )
@@ -320,6 +327,60 @@ function Entity( obj, name, description, callback ){
         else callback(o);
 
     } )
+
+    function sandboxRequire( src ) {
+        console.log( "require ", src );
+        //console.log( "module", o );
+        if( src == 'fs' ) return fs;
+        if( src == 'stream' ) return stream;                    
+        if( src == 'util' ) return util;
+        if( src == 'vm' ) return vm;
+
+        var rootPath = "";
+        var p = o.sandbox.module;
+        while( p ) {
+            rootPath = p.root + "/" + rootPath;
+            p = p.parent;
+        }
+        //console.log( "working root is ", rootPath );
+        try {
+            var file = fs.readFileSync( o.sandbox.module.root +"/" + src, {encoding:'utf8'} );
+        }catch(err) {
+            console.log( "File failed... is it a HTTP request?", err );
+            return undefined;
+        }
+        //console.log( o.sandbox.module.name, "at", rootPath,"is loading", src );
+        //var names = fs.readdirSync( "." );
+        //console.log( names );
+        var pathSplita = src.lastIndexOf( "/" );
+        var pathSplitb = src.lastIndexOf( "\\" );
+        if( pathSplita > pathSplitb )
+            var pathSplit = pathSplita;
+        else
+            var pathSplit = pathSplitb;
+        if( src.startsWith( "./" ) )
+            rootPath = rootPath + src.substr(2,pathSplit-2 );
+        else                        
+            rootPath = rootPath + src.substr(0,pathSplit );
+        //console.log( "set root", rootPath );
+        
+        var code = `(function(){${file}})()`;
+        var oldModule = o.sandbox.module;
+        var thisModule = { name : src.substr( pathSplit+1 ), parent : o.sandbox.module, children:[], root : rootPath, exports:{} };
+        oldModule.children.push( thisModule );
+        o.sandbox.module = thisModule;
+        o.sandbox.exports = thisModule.exports;
+        vm.runInContext(code, o.sandbox 
+            , { filename:src, lineOffset:0, columnOffset:0, displayErrors:true, timeout:100} )
+        //console.log( "result exports for ", src
+        //               , thisModule.name
+        // 		 , thisModule.exports 
+        //           );
+        o.sandbox.module = oldModule;
+        o.sandbox.exports = oldModule.exports;
+        //console.log( "active base module is ... ")
+        return thisModule.exports;
+    }
 }
 
 
@@ -403,3 +464,4 @@ function sanityCheck( object ) {
         console.log( object );
     }
 }
+

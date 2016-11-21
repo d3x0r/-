@@ -1,49 +1,20 @@
 "use strict";
 
 var fs = require( 'fs');
-const numCPUs = require('os').cpus().length;
+const url = require( 'url' );
 const crypto = require( 'crypto');
 const tls = require( 'tls');
-const cluster = require('cluster');
 const https = require( 'https')
 const path = require('path');
+const ws = require( 'ws' );
+const WebSocketServer   = ws.Server
+
 
 var config = require( './config.js');
 var keyManager = require( "./id_manager.js" );
 // server listening 0.0.0.0:41234
 
-exports.Cluster = ()=>{
-     var mycluster  ={
-        ID : config.run.Λ
-        , isMaster : true
-        , start: startCluster
-    };
-    Object.assign( mycluster, require( 'cluster' ))
-
-    function startCluster() {
-	    console.log( "start cluster... does exports fail?" );
-        if (cluster.isMaster) {
-	      // Fork workers.
-              //console.log( "here", cluster);
-
-              for (var i = 0; i < numCPUs; i++) {
-                cluster.fork();
-              }
-
-              cluster.on('exit', (worker, code, signal) => {
-                  if( exports.Cluster.isMaster )
-                    cluster.fork();
-                else
-                	console.log(`worker ${worker.process.pid} died`);
-              });
-        } else {
-            console.log( "cluster worker starting..." );
-            scriptServer();
-        }
-    }
-
-    return mycluster;
-};
+exports.Server = scriptServer;
 
 function scriptServer() {
     console.log( "Started Script Services");
@@ -61,7 +32,13 @@ function scriptServer() {
       //req.connection.Socket.
       //console.log( "got request", req );
 
+	if( req.upgrade ) {
+        	console.log( "is upgrade, how to switch here?" );
+                
+        }
       console.log( "got request" + req.url );
+      
+      
       var filePath = '.' + req.url;
       if (filePath == './')
           filePath = './index.html';
@@ -93,7 +70,7 @@ function scriptServer() {
       if( req.url=== '/' )   {
           console.log( "something   ");
             res.writeHead(200);
-            res.end('<HTML><head><script src="hello.js"></script></head></HTML>');
+            res.end('<HTML><head><script src="login/login.js"></script></head></HTML>');
         }
         else {
             let relpath;
@@ -134,10 +111,30 @@ function scriptServer() {
             });
         }
     });
-    server.listen( 8000, () => {
-        console.log( "bind success");
-        }
-    );
+    new WebSocketServer( { server:  server.listen( 8000, () => {
+		        console.log( "bind success");
+        	}
+    	)
+    } ).on( 'connection', webSockConnect );
+}
+
+
+function webSockConnect( wss ) {
+	console.log( "wss received:", Object.keys( wss ), wss.upgradeReq.url);
+        var rawUrl = wss.upgradeReq.url;
+      	var _url = url.parse( rawUrl );
+        console.log( "switch on ", _url.pathname );
+	wss.on( 'message', function ( msg ) {
+        	console.log( "message event:", msg );
+                wss.send( "Loud and Clear" );
+                } );
+	wss.on( 'close', function ( msg ) {
+        	console.log( "closed", msg );
+                } );
+	wss.on( 'error', function ( msg ) {
+        	console.log( "error", msg );
+                } );
+        
 }
 
 function GetFrom( path ) {

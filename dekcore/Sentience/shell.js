@@ -10,7 +10,7 @@ exports.Script = Script;
 //exports.
 
 function Filter( sandbox ) {
-console.log( "Path resolves...", require.resolve( "./startup.js" ) );
+    //console.log( "Path resolves...", require.resolve( "./startup.js" ) );
     var filter = stream.Filter( sandbox );
     {
         filter.RegisterCommand( "create", (args,argarray)=>{
@@ -47,11 +47,22 @@ function Script( sandbox, src ) {
         {
             var code = `var core = {}; 
             	var fs = this.require( 'fs' );
-                var names = fs.readdirSync( "." );
-                console.log( names );
-                (core['${src}'] = this.require("${src}"));`;
+                try {
+                var file = fs.readFileSync( "${src}", {encoding:'utf8'} );
+                }catch(err) {
+                   console.log( "File failed... is it a HTTP request?", err );
+                }
+                //var names = fs.readdirSync( "." );
+                //console.log( names );
+                (core['${src}'] = eval( file ) );`;
             console.log( "run ", code)
-            return vm.runInContext(code, sandbox /*, { filename:"", lineOffset:"", columnOffset:"", displayErrors:true, timeout:10} */)
+            //return 
+            try {
+            vm.runInContext(code, sandbox 
+            		, { filename:src, lineOffset:0, columnOffset:0, displayErrors:true, timeout:500} )
+            } catch( err ) {
+            	console.log( "script faulted.... exception timeout", err );
+            }
             console.log( "and then we continue?");
         }
     }

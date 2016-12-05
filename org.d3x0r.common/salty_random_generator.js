@@ -18,11 +18,15 @@
 
 
 try {
+  throw  "no";
 var crypto = require( 'crypto' );
-var compute = (s)=>{ return crypto.createHash('sha256').update(s).digest() }
+var compute = (s)=>{
+    return crypto.createHash('sha256').update(s).digest()
+   }
 } catch( err ) {
 var crypto = require( './forge-sha256.js' );
-var compute = (s)=>{ return crypto.forge_sha256(s); }
+var compute = (s)=>{ 
+    return crypto.forge_sha256(s.toString()); }
 }
 
 
@@ -60,7 +64,7 @@ exports.SaltyRNG = function( f ) {
      getBuffer ( bits ) {
        let _bits = bits;
       let resultIndex = 0;
-      let resultBuffer = new ArrayBuffer( 4 * ( ( bits + 31 ) >> 5 ) );
+      let resultBuffer = new ArrayBuffer( ( bits + 7 ) >> 3 );
       let result = new Uint8Array( resultBuffer );
       //console.log( "buffer is ", resultBuffer.byteLength );
       {
@@ -110,7 +114,8 @@ exports.SaltyRNG = function( f ) {
     RNG.saltbuf.length = 0;
     if( typeof( RNG.getSalt) === 'function')
         RNG.getSalt( RNG.saltbuf );
-    RNG.entropy = RNG.compute().update( RNG.entropy.join() + RNG.saltbuf.join() ).digest();
+    var newbuf = Buffer.concat( [ RNG.entropy, new Buffer( RNG.saltbuf.join() ) ] );
+    RNG.entropy = RNG.compute( newbuf );
     RNG.available = RNG.entropy.length * 8;
     RNG.used = 0;
   };

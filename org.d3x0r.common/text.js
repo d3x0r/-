@@ -92,9 +92,8 @@ exports.Parse = function TextParse( input, punctuation, filter_space, bTabs, bSp
     if( !punctuation ) punctuation = normal_punctuation;
 	if (!input)        // if nothing new to process- return nothing processed.
 		return null;
-	if( typeof( input ) === 'string' ){ var input = Text( input );
-        //console.log( "had to create input", newinput, input )
-    }
+	if( typeof( input ) === 'string' ){ input = Text( input ); }
+	if( Object.getPrototypeOf( input).constructor.name === 'Buffer' ){ input = Text( input.toString() ); }
 
 	var out = { collect: Text()
 	          , getText:()=>{
@@ -129,7 +128,7 @@ exports.Parse = function TextParse( input, punctuation, filter_space, bTabs, bSp
 
 	function collapse() {
 		if( out.collect.text.length > 0 ) {
-			outdata = SegAppend( ooutdata, SET_SPACES( out.getText() ) );
+			outdata = SegAppend( outdata, SET_SPACES( out.getText() ) );
 		}
 	}
 	function defaultChar() {
@@ -172,7 +171,8 @@ exports.Parse = function TextParse( input, punctuation, filter_space, bTabs, bSp
 	while( input )
 	{
 		//Log1( ("Assuming %d spaces... "), spaces );
-		for (index=0;(codePoint = input.text.codePointAt( index )),
+		//console.log( "input is : ",input, typeof input, Object.getPrototypeOf(input).constructor.name );
+		for (index=0;(codePoint = (input.text).codePointAt( index )),
                    (index < input.text.length); index++) // while not at the
                                          // end of the line.
 		{

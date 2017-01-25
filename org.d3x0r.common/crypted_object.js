@@ -87,7 +87,7 @@ function replacer(key,val) {
     var type = val && Object.getPrototypeOf( val );
     var ptype = Object.getPrototypeOf(type);
 
-console.log( "not in node?", ( ( type && ptype && ptype.constructor.name ) === "TypedArray" ));
+	//console.log( "not in node?", ( ( type && ptype && ptype.constructor.name ) === "TypedArray" ));
 		if( ( ( type && ptype && ptype.constructor.name ) === "TypedArray" )
 		   || (val instanceof ArrayBuffer && val.constructor == ArrayBuffer) ) {
     	//console.log( "buffer? ", val, val.buffer, type.constructor.name );

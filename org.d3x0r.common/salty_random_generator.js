@@ -64,7 +64,7 @@ exports.SaltyRNG = function( f ) {
      getBuffer ( bits ) {
        let _bits = bits;
       let resultIndex = 0;
-      let resultBuffer = new ArrayBuffer( ( bits + 7 ) >> 3 );
+      let resultBuffer = new ArrayBuffer( ( ( ( ( ( bits + 7 ) >> 3 ) + 3 ) / 4 )|0 ) * 4 );
       let result = new Uint8Array( resultBuffer );
       //console.log( "buffer is ", resultBuffer.byteLength );
       {

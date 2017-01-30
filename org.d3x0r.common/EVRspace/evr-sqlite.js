@@ -1,34 +1,37 @@
 
 var vfs = require( "sack.vfs" );
-var sqlDb = vfs.Sqlite( "graphdb" );
+var sqlDb = vfs.Sqlite( "graph.db" );
+
+console.log( "tables:", sqlDb.do( "select * from sqlite_master" ) );
 
 function createTables( prefix ) {
 	var names = { nodes : `${prefix}evr_nodes`
                     , node_links : `${prefix}evr_node_links`
                     , node_props : `${prefix}evr_node_props`
                     };
-sqlDb.makeTable( `create ${names.nodes} ( key char PRIMARY KEY, text char, state char )` );
-sqlDb.makeTable( `create ${names.node_links} table evr_node_links `
-	+"( parent char PRIMARY KEY"
+sqlDb.makeTable( `create table ${names.nodes} ( nodeKey char PRIMARY KEY, text char, state char )` );
+sqlDb.makeTable( `create table ${names.node_links} `
+	+"( parent char"
         +", child char"
+        +", INDEX fowardMap(parent)"
         +", INDEX reverseMap(child)"
-        +", CONSTRAINT `parent_link` FOREIGN KEY (`parent`) REFERENCES `evr_nodes`(`key`) ON DELETE CASCASE ON UPDATE CASCADE"
-        +", CONSTRAINT `child_link` FOREIGN KEY (`child`) REFERENCES `evr_nodes`(`key`) ON DELETE CASCASE ON UPDATE CASCADE"
+        +", CONSTRAINT `fk_parent_link` FOREIGN KEY (`parent`) REFERENCES `evr_nodes` (`nodeKey`) ON DELETE CASCADE ON UPDATE CASCADE"
+        +", CONSTRAINT `fk_child_link` FOREIGN KEY (`child`) REFERENCES `evr_nodes` (`nodeKey`) ON DELETE CASCADE ON UPDATE CASCADE"
         +")"
         );
 
 
 sqlDb.makeTable( `create table ${names.node_props} `
-	+"( key char PRIMARY KEY"
+	+"( nodeKey char"
         +", name char"
         +", value char"
         +", state char"
-        +", INDEX reverseMap(key,name)"
-        +", CONSTRAINT `evr_node_link` FOREIGN KEY (`key`) REFERENCES `evr_nodes`(`key`) ON DELETE CASCASE ON UPDATE CASCADE"
+        +", INDEX propertyMap(key,name)"
+        +", CONSTRAINT `fk_evr_node_link` FOREIGN KEY (`nodeKey`) REFERENCES `evr_nodes` (`nodeKey`) ON DELETE CASCADE ON UPDATE CASCADE"
         +")"
         );
-        
-}
+        return names;
+}	
 
 var maps = [];
 
@@ -47,13 +50,20 @@ function driver( op, evr, node, field ) {
 		} else 
 			readPath( sqlOpts.names, node );
         	readProperties( sqlOpts.names, node );
+		readPaths( sqlOpts.names, node );
         } else if( op === "write" ) {
+        	var sqlOpts = evr.opts.sql;
 		if( field )
-			writeProperty( evr, node, field );
+			writeProperty( sqlOpts.names, node, field );
 
 		// can also get write events on nodes; which I don't think I care about?
+        } else if( op === "onMap" ) {
+        	var sqlOpts = evr.opts.sql;
+		readProperties( sqlOpts.names, node );
+		readPaths( sqlOpts.names, node );
 	} else if( op === "timeout" ) {
 		// field is actually a callback in this case
+	console.log( "is node empty?", node.isEmpty );
 		if( !node.isEmpty ) {
 			// not will not fire; it has data.
 			// cancel further events, and for timeout, send cancelTimeout to prior events.
@@ -71,7 +81,8 @@ function driver( op, evr, node, field ) {
 }
 
 function readProperties( names, node ) {
-	var props = sqlDb.do( `select * from ${names.evr_props} where key='${node.key}'` );
+	var props = sqlDb.do( `select * from ${names.node_props} where nodeKey='${node.key}'` );
+	console.log( "Read Properties:", props );
 	if( props.length > 0 ) {
 		props.forEach( (prop)=>{	
 			var newProp = node.getProp( prop.name, prop.value );
@@ -81,8 +92,21 @@ function readProperties( names, node ) {
 	}
 }
 
+function readPaths( names, node ) {
+	var paths = sqlDb.do( `select n.nodeKey nodeKey,n.text text from ${names.node_links} l join ${names.nodes} n on l.child=n.nodeKey where parent='${node.key}'` );
+	console.log( "Read Paths:", paths );
+	if( props.length > 0 ) {
+		paths.forEach( (path)=>{	
+			var newPath = node.get( path.text, path.nodeKey );
+			newPath.tick = path.state;
+			newPath.state = "commited";
+		} );
+	}
+}
+
+
 function readNode( names, node ) {
-	var dbNode = sqlDb.do( `select * from ${names.evr_nodes} where key='${node.key}'` );
+	var dbNode = sqlDb.do( `select * from ${names.nodes} where nodeKey='${node.key}'` );
         if( dbNode.length > 0 ) {
         	if( node.text !== dbNode[0].text ) {
                 	throw new Error( ["Database sync error, name of node and name given by application is wrong", node.text, dbNode[0].text].join( " " )  );
@@ -94,7 +118,7 @@ function readNode( names, node ) {
 		}
         } else {
 		node.tick = Date.now();
-		sqlDb.do( `insert into ${names.evr_names} (key,text,state)values('${node.key}','${node.text}','${node.tick}')` );
+		sqlDb.do( `insert into ${names.nodes} (nodeKey,text,state)values('${node.key}','${node.text}','${node.tick}')` );
 		return true;
 	}
 	return false;
@@ -102,9 +126,9 @@ function readNode( names, node ) {
 
 
 function readPath( names, node ) {
-	var dbNode = sqlDb.do( `select l.child,n.state as key from ${names.evr_links}l join ${names.evr_nodes}n on l.child=n.key where l.parent=${node.parent.key} and n.text='${node.text}'` );
+	var dbNode = sqlDb.do( `select l.child as key,n.state as state from ${names.node_links} l join ${names.nodes} n on l.child=n.nodeKey where l.parent='${node.parent.key}' and n.text='${node.text}'` );
         if( dbNode.length > 0 ) {
-        	if( node.state && node.key !== dbNode[0].key ) {                                  
+        	if( node.state && node.key !== dbNode[0].nodeKey ) {                                  
                 	throw new Error( ["Database sync error, name of node and name given by application is wrong", node.text, dbNode[0].text].join( " " )  );
                 }
         	if( !node.tick ) {
@@ -114,7 +138,7 @@ function readPath( names, node ) {
         } else {
 		// use readNode to do the insert of the child node
 		if( readNode( names, node ) )
-			sqlDb.do( `insert into ${names.evr_links} (parent,child)values('${node.parent.key}','${node.key}')` );
+			sqlDb.do( `insert into ${names.node_links} (parent,child)values('${node.parent.key}','${node.key}')` );
 		else {
 			// the key existed... and this is a child node....
 			// not sure how that can happen.
@@ -125,5 +149,11 @@ function readPath( names, node ) {
 
 
 function writeProperty( names, node, field ) {
-	
+	console.log( "insert into property table..." );
+	if( node.state == "added" ) {
+		sqlDb.do( `insert into ${names.node_props} (nodeKey,name,value,state)values('${node.key}','${field.name}','${field.value}','${field.tick}')`);
+	} else {
+		sqlDb.do( `update ${names.node_props} set value='${field.value}',state=${field.tick} where nodeKey='${node.key}' and name='${field.name}'`);
+	}
+	node.state == "committed";
 }

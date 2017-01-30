@@ -88,20 +88,20 @@ map['root'] = {
 				maps : [],
 				_tick : 0,
 				get isEmpty() {
-					return ( Object.keys(_).length === 0 );
+					return ( Object.keys(this._).length === 0 );
 				},
         			set tick(val) {
-					if( val > _tick ) _tick = val;
+					if( val > this._tick ) this._tick = val;
 		                        drivers.forEach( ( cb )=>cb( "write", evr, o ) );
 				},
         			get tick() {
-					return _tick;
+					return this._tick;
 				},
 	        	        get value() {
                         		return this._;
         	                },
 
-                		get(name) {
+                		get(name,key) {
 					if( typeof name === "object" ) {
 						return evr.objectMap(name);
 					}
@@ -111,7 +111,7 @@ map['root'] = {
 							throw new Error( "Path already exists as a property; replacing a value with an object is not allowed.\n"+"existing field:" + this.fields[name] );
 						// this key is subject to change
 						// the initial state of "added" allows this key to be overwritten by a driver
-                                		return makeObject( this, makeKey(), name );
+                                		return makeObject( this, key||makeKey(), name );
                                 	}
         	                        return o;
                 	        },
@@ -121,6 +121,8 @@ map['root'] = {
 					       	if( ( n = drivers.findIndex( ( cb )=>cb( "timeout", evr, o, cbNot ) ) ) >= 0 )
 							for( var d = 0; d < n; d++ ) 
 								cb( "cancelTimeout", evr, o, cbNot )
+						if( o.opts.emitNot )
+							cbNot( o );
 					} else {
 						cbNot( o );
 					}	
@@ -143,7 +145,8 @@ map['root'] = {
 					return o;
         	                },
 				map(cb) {
-					o.maps.push( cb );
+					o.maps.push( cb );					
+		                        drivers.forEach( ( cb )=>cb( "onMap", evr, o ) );
 					return o;
 				},
 				on(cb) {
@@ -174,14 +177,18 @@ map['root'] = {
         	return o;
 	
                 function parseObject( obj, into ) {
+				console.log( "parsey:", obj );
                 	var keys = Object.keys( obj );
                         keys.forEach( (key)=>{
+				console.log( "Writing key:", key );
 		        	if( typeof  obj[key] === "object" ) {
                                 	var newObj = makeObject( into, makeKey(), key );
                                         parseObject( obj[key], newObj );
                                 }
                                 else {
+			console.log( "Wriing prop..." );
 			        	var field = into.getProp( key, obj[key] );
+console.log( "wrote prop?" );
                                 }
                                 
                         } );

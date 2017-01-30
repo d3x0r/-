@@ -20,7 +20,7 @@ var test = {
 	 tester:null,
 	file:null,
 	x:0, y:0,
-	 root:null,
+	 root:0,
 	 pRoot:null,
 	 paint:0,
 } ;
@@ -63,6 +63,7 @@ function  drawdata() {return {
 	 icon : null,
      path : [],
 	 pathway : [],
+	 checked : [],
 	 prior : null,
 	 step : 0,
 	 paint : 0,
@@ -147,7 +148,15 @@ function something( node, data, v )
 					     ,node.point[vRight], node.point[vForward]
 					    , dest.point[vRight], dest.point[ vForward ] );
         
-		ctx.lineWidth = 3;
+			ctx.lineWidth = 3;
+			/*
+			var a = [0,0,0];
+			var b = [0,0,0];
+			addscaled( a, link.data.plane.o, link.data.plane.t, link.data.plane.ends[0] )
+			addscaled( b, link.data.plane.o, link.data.plane.t, link.data.plane.ends[1] )
+            DrawLine( a, b, c );
+			*/
+
             DrawLine( node.point, dest.point, c );
 		
 			// draw the perpendicular lines at caps ( 2d perp only)
@@ -276,10 +285,15 @@ function doDraw( )
         data.path = [];
         data.pathway = [];
         data.bounds = [];
+		data.checked = [];
+		if( !test.pRoot )
+			test.pRoot = test.web.nodes[test.root];
 		{
 			var v = [test.x,0,test.y];
 			if( test.web.root )
-				FindNearest( data.path, data.pathway, data.bounds, test.web.root, v, 0 );
+				FindNearest( data.path, data.pathway, data.bounds, data.checked
+							, test.pRoot
+							, v, 0 );
 			//console.log( ("Draw.") );
 		}
 
@@ -287,65 +301,73 @@ function doDraw( )
         test.web.nodes.forEach( (node)=>{
             something( node, data, v );
         })
-		data.path = [];
 	}
 }
 
-/*
-static int OnKeyCommon( ("VWeb Tester") )( PSI_CONTROL pc, uint32_t key )
+//document.body.onkeypress =
+document.body.onkeydown = (key )=>
 {
-	if( IsKeyPressed(key) && KEY_CODE(key) == KEY_SPACE )
+	if( key.code == "Space" )
 		update_pause = 0;
-	if( IsKeyPressed(key) && KEY_CODE(key) == KEY_N )
+	if( key.code == "KeyN" )
 	{
 		test.root++;
-		test.pRoot = GetUsedSetMember( SPACEWEB_NODE, &test.web.nodes, test.root );
+		test.pRoot = test.web.nodes[test.root];
 		if( !test.pRoot )
 		{
 			test.root = 0;
-			test.pRoot = GetUsedSetMember( SPACEWEB_NODE, &test.web.nodes, test.root );
+			test.pRoot = test.web.nodes[test.root];
 		}
-		SmudgeCommon( pc );
+		doDraw();
 	}
 	return 0;
 }
-*/
 
-	var cycle;
+	var cycle = 0;
 function MoveWeb( )
 {
 	var node;
-	var v;
+	var v = [0,0,0];
 	var idx;
 	//return;
+	/*
 	update_pause -= 50;
 	if( update_pause < 0 )
 		update_pause = 0;
 	if( update_pause > 0 )
 		return;
-
+*/
 	// 500 has some issues.
 	//	if( cycle >= 500 )
 	//if( cycle > 300 )
-		update_pause = 150000;
+//		update_pause = 150000;
 	//else
 	//   update_pause = 1000;
 	cycle++;
+	var tick = Date.now();
 	console.log( ("cycle %d"), cycle );
     test.nodes.forEach( (node,idx)=>{
-		if( idx %10 == 0 )
+		//if( idx %10 == 0 )
 		{
-			v[vRight] = (rand() %13)-6;
-			v[vForward] = (rand() %13)-6;
-			v[vUp] = (rand() %13)-6;
+			v[vRight] = (Math.random()*13)-6;
+			v[vForward] = (Math.random()*13)-6;
+			v[vUp] = 0;// (Math.random()*13)-6;
 			v = add( v, node.point );
+			//console.log( "move ...", v )
 			node.move( v );
 		}
 		//break;
     })
+	var tick2 = Date.now();
+	console.log( "took some time to move all those.... ", (tick2 - tick)/test.nodes.length );
     doDraw();
+	//setTimeout( MoveWeb, 250 )
 }
 
+setTimeout( MoveWeb, 250 )
+function animate() {
+
+}
 
 
 function main()
@@ -366,10 +388,15 @@ function main()
 			for( y = 0; y < 400; y += 50 )
 			{
                 var v = [];
-				v[vRight] = (rand()%500);
-				v[vForward] = (rand()%500);
+				v[vRight] = (Math.random()*500);
+				v[vForward] = (Math.random()*500);
 				v[vUp] = 0;
-				test.web.insert( v, 0 );
+				var data;
+				test.nodes.push( test.web.insert( v, data = { d:new THREE.Matrix4() } ) );
+				data.d.rotateOrtho( Math.random() * 2 * Math.PI, 0,2 )
+				//d.rotateOrtho( Math.random() * 2 * Math.PI, 0,1 )
+				//d.rotateOrtho( Math.random() * 2 * Math.PI, 1,2 )
+
 			}
 	}
     /*

@@ -54,7 +54,7 @@ var Text = exports.Text = function Text( def ) {
             , next: null
         	, pred: null
             , indirect : null
-        	, append : (seg)=>{ if( seg ) { seg.pred = text; text.next = seg; } return seg; }
+			, append : (seg)=>{ if( seg ) { var end=text;while( end.next)end=end.next;seg.pred = text; end.next = seg; } return seg; }
             , break : ()=>{ var result; if( result = text.next ) { text.next = null; result.pred = null; return result } return null; }
             , breakBefore : ()=>{ var result; if( result = text.pred ) { text.pred = null; result.next = null; return result } return null; }
             , breakAndSpliceTo : (start)=>{ var result; if( result = text.pred ) { text.pred = start; result.next = null; start.next = text; return result } return null; }

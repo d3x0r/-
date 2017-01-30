@@ -1,6 +1,6 @@
 
 var EVR = require( "./evr.js" );
-var evrsqlite = require( "./evr-sqlite.js" );
+//var evrsqlite = require( "./evr-sqlite.js" );
 var evr = EVR();
 //------------------------- Test Code --------------------------
 
@@ -15,9 +15,11 @@ users.not( ()=>{
 
 
 function getData( val, field ) {
-	if( typeof( val ) === "object" )
+	if( typeof( val ) === "object" ) {
+		var _this = evr.get( val )
+		_this.map( getData );
 		console.log( "path event:", field, val );
-	else
+	} else
 		console.log( "field event:", field, val );
 }
 

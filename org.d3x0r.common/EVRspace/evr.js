@@ -34,7 +34,11 @@ function makeEVR( cb ) {
 	var evr = {
 		objectMap : new WeakMap(),
 		graph : new Map(),
-		get : (n)=>{ return makeObject( null, n ); },
+		get : (n)=>{ 
+     			if( typeof n === "object" ) {
+       				return evr.objectMap.get(n);
+       			}
+                	return makeObject( null, n ); },
                 opts : cb || {}
 	}
         evrMaps.push( evr );
@@ -63,6 +67,7 @@ map['root'] = {
 	
         function makeObject( p, key, text ) {
         	if( !text ) text = key;
+		//console.trace( "Makeing object:", text )
 	        //if( !p ) console.log( "Making root:", text );
                 //else console.log( "Making sub in:", p.text, text );
         	var o = evr.graph.get(key);
@@ -97,6 +102,9 @@ map['root'] = {
         	                },
 
                 		get(name) {
+					if( typeof name === "object" ) {
+						return evr.objectMap(name);
+					}
                         		var o = this.members[name];
 	                        	if( !o ) {
 						if( this.fields[name] )
@@ -136,13 +144,10 @@ map['root'] = {
         	                },
 				map(cb) {
 					o.maps.push( cb );
-					//cb( o.value );
 					return o;
 				},
 				on(cb) {
 					o.maps.push( cb );
-					//fields.
-					//cb( o.value );
 				},
                 	}
 			o.path = o.get;
@@ -152,7 +157,7 @@ map['root'] = {
                                 p._[text] = o._;
                         }
 	                evr.graph.set( key, o );
-
+			evr.objectMap.set( o._, o );
 			// ask drivers to read this; 
 			// at this point one of several things can happen
 			//  1) an immediate data driver will populate this node with its properties and it's member objects
@@ -164,7 +169,7 @@ map['root'] = {
 			//  3) there's no drivers, and this is done.
                         drivers.forEach( ( cb )=>cb( "read", evr, o ) );
 			if( p )
-				p.maps.forEach( (cb)=>cb( o._, text ) );
+				p.maps.forEach( (cb)=>cb( o._, text, o ) );
 	        }
         	return o;
 	

@@ -37,7 +37,7 @@ var maps = [];
 
 var evr = require( "./evr.js" );
 
-evr( driver );
+evr.addLocalStorage( driver );
 function driver( op, evr, node, field ) {
 	if( op === "init" ) {
         	var sqlOpts = evr.opts.sql = evr.opts.sql || { prefix: "" };

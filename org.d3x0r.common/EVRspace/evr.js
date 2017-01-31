@@ -3,6 +3,13 @@
 
 module.exports=exports=makeEVR
 
+makeEVR.on = (a,b)=>{ handleEvents(_events,a,b) } ;
+makeEVR.once = handleEvent;
+makeEVR.emit = emitEvents;
+makeEVR.addLocalStorage = addLocalStorage;
+makeEVR.addRemoteStorage = addRemoteStorage;
+//makeEVR.
+
 var rng = require( '../salty_random_generator.js' ).SaltyRNG( (salt)=>{ salt.length = 0; salt.push( Date.now() ) } );
 
 //const charset = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_";
@@ -19,17 +26,11 @@ function  makeKey() {
         return res;
 }
 
-var drivers = [];
+var localDrivers = [];
+var remoteDrivers = [];
 var evrMaps = [];
 
-function makeEVR( cb ) {
-	if( typeof cb === "function" ) {
-        	drivers.push( cb );
-                evrMaps.forEach( (evr)=>{ 
-                	cb( "init", evr );
-                } );
-                return;
-        }
+function makeEVR( opts ) {
         
 	var evr = {
 		objectMap : new WeakMap(),
@@ -39,10 +40,14 @@ function makeEVR( cb ) {
        				return evr.objectMap.get(n);
        			}
                 	return makeObject( null, n ); },
-                opts : cb || {}
+                opts : opts || {},
+		on(a,b) { handleEvents( evr._events, a, b ) },
+		emit(a,b) { emitEvents( evr._events, a, b ) },
+		once(a,b) { handleEvent( evr._events, a, b ) },
 	}
         evrMaps.push( evr );
-       	drivers.forEach( ( cb )=>cb( "init", evr ) );
+       	localDrivers.forEach( ( cb )=>cb( "init", evr ) );
+       	remoteDrivers.forEach( ( cb )=>cb( "init", evr ) );
 
 /*
 on one side, the mesh can be a simple linear object
@@ -66,6 +71,7 @@ map['root'] = {
 
 	
         function makeObject( p, key, text ) {
+		if( !key ) { key = p; p = null; }
         	if( !text ) text = key;
 		//console.trace( "Makeing object:", text )
 	        //if( !p ) console.log( "Making root:", text );
@@ -74,8 +80,8 @@ map['root'] = {
         
 	        if( !o ) { 
                 	o = {
-        	        	_ : {},
-                                key : key,
+        	        	_ : {}, // this is this object that this node represents
+                                key : key, 
                                 text : text,
 	        	        fields : {},  // these are property members of this object (tick,value...)
                         	parent : p,
@@ -124,7 +130,8 @@ map['root'] = {
 						if( o.opts.emitNot )
 							cbNot( o );
 					} else {
-						cbNot( o );
+						if( o.isEmpty )
+							cbNot( o );
 					}	
 					return o;
 				},
@@ -132,7 +139,7 @@ map['root'] = {
 					var p = this.fields[name];
 					if( !p ) {
 						if( this.members[name] )
-							throw new Error( "Property already exists as an object; replacing an object with a value is not allowed."+"existing object:" + this.fields[name] );
+							throw new Error( "Property already exists as an object; replacing an object with a value is not allowed."+"existing object:" + this.members[name] );
 	               	                	return makeObjectProperty( this, name, initialValue ); 
 					}
 					return p;
@@ -198,7 +205,12 @@ map['root'] = {
                                 	, field : field
                                         , value : initial
 					, state : "added"
-                                        , tick : Date.now() };
+                                        , tick : Date.now() 
+					, update( val, tick ) {						
+						f.value = val;
+						f.tick = tick;
+					}
+					};
 	        	Object.defineProperty( node._, field, {
                                		get: function(){
                                                	return o[field].value;
@@ -227,8 +239,49 @@ map['root'] = {
         
        	return evr;
 }
+
+
+
+function addLocalStorage( cb ) {
+        	localDrivers.push( cb );
+                evrMaps.forEach( (evr)=>{ 
+                	cb( "init", evr );
+                } );
+}
+function addRemoteStorage( cb ) {
+        	remoteDrivers.push( cb );
+                evrMaps.forEach( (evr)=>{ 
+                	cb( "init", evr );
+                } );
+}
+
         
-        
+var _events = {};
+
+function handleEvent( _events, event, cb ) {
+	var z = _events[event] = _events[event] || [];
+	var ev;
+	z.push( ev={ once:true, cb:cb, off(){ this.cb=null } } );
+	return ev;
+}        
+
+function handleEvents( _events, event, cb ) {
+	var z = _events[event] = _events[event] || [];
+	var event;
+	z.push( ev = { once:false, cb:cb, off(){ this.cb=null } } );
+	return ev;
+			
+}        
+
+function emitEvents( _events, event, data ) {
+	var event = _events[event];
+	if( event ) {
+		event.forEach( (cb)=>{ if(cb.cb)cb.cb( data ); if( cb.once ) cb.cb = null; } );
+	}	
+}        
+
+
+
 /*
 	
 Object.defineRevisionedProperty = ( object, name )=>{

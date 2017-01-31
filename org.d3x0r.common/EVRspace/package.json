@@ -1,0 +1,13 @@
+{
+  "name": "evr",
+  "version": "0.0.0001",
+  "description": "Node.js (Exotic Vacuum R)(Encrypted Volume R)",
+  "main": "evr.js",
+  "private": true,
+  "scripts": {
+    "test": "node evrtests.js",
+    "install" : "cmake-js compile"
+  },
+  "dependencies": {
+  }
+}

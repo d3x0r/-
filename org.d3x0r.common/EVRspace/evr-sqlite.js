@@ -41,36 +41,48 @@ evr( driver );
 function driver( op, evr, node, field ) {
 	if( op === "init" ) {
         	var sqlOpts = evr.opts.sql = evr.opts.sql || { prefix: "" };
+		sqlOpts.creatingKey = null;
+                sqlOpts.creatingProperty = null; 
         	maps.push( evr );
                 sqlOpts.names = createTables( sqlOpts.prefix );
         } else if( op === "read" ) {
         	var sqlOpts = evr.opts.sql;
+		if( sqlOpts.creatingKey === node.key )  {
+			return;
+		}
+
 		if( !node.parent ) {
-			readNode( sqlOpts.names, node );
+			readNode( sqlOpts, node );
 		} else 
-			readPath( sqlOpts.names, node );
-        	readProperties( sqlOpts.names, node );
-		readPaths( sqlOpts.names, node );
+			readPath( sqlOpts, node );
+        	readProperties( sqlOpts, node );
+		readPaths( sqlOpts, node );
         } else if( op === "write" ) {
         	var sqlOpts = evr.opts.sql;
-		if( field )
-			writeProperty( sqlOpts.names, node, field );
+		if( field ) {
+                	//console.log( "got write on ", node, field );
 
+			// this might as well just be ... 'on next write, ignore it.' ???
+			if( ( sqlOpts.creatingProperty === field.field )
+			   // && ( sqlOpts.creatingKey === node.key )
+			   )
+        	        	return;
+			writeProperty( sqlOpts.names, node, field );
+		}
 		// can also get write events on nodes; which I don't think I care about?
         } else if( op === "onMap" ) {
         	var sqlOpts = evr.opts.sql;
-		readProperties( sqlOpts.names, node );
-		readPaths( sqlOpts.names, node );
+		readProperties( sqlOpts, node );
+		readPaths( sqlOpts, node );
 	} else if( op === "timeout" ) {
 		// field is actually a callback in this case
-	console.log( "is node empty?", node.isEmpty );
+		console.log( "is node empty?", node.isEmpty );
 		if( !node.isEmpty ) {
 			// not will not fire; it has data.
 			// cancel further events, and for timeout, send cancelTimeout to prior events.
 			return true;
 		}
 		// if it was empty, some other driver might add to it; but I should inidicate if noone does to call the event.
-		
 	} else if( op === "cancelTimeout" ) {
 		// field is actually a callback in this case
 		if( node.isEmpty ) {
@@ -80,11 +92,14 @@ function driver( op, evr, node, field ) {
 	}
 }
 
-function readProperties( names, node ) {
+function readProperties( sqlOpts, node ) {
+	var names = sqlOpts.names;
 	var props = sqlDb.do( `select * from ${names.node_props} where nodeKey='${node.key}'` );
-	console.log( "Read Properties:", props );
+	//console.log( "Read Properties:", props );
 	if( props.length > 0 ) {
 		props.forEach( (prop)=>{	
+                	sqlOpts.creatingKey = node.key;
+                	sqlOpts.creatingProperty = prop.name;
 			var newProp = node.getProp( prop.name, prop.value );
 			newProp.tick = prop.state;
 			newProp.state = "commited";
@@ -92,12 +107,18 @@ function readProperties( names, node ) {
 	}
 }
 
-function readPaths( names, node ) {
+function readPaths( sqlOpts, node ) {
+	var names = sqlOpts.names;
 	var paths = sqlDb.do( `select n.nodeKey nodeKey,n.text text from ${names.node_links} l join ${names.nodes} n on l.child=n.nodeKey where parent='${node.key}'` );
-	console.log( "Read Paths:", paths );
-	if( props.length > 0 ) {
+	//console.log( "Read Paths:", paths );
+	if( paths.length > 0 ) {
 		paths.forEach( (path)=>{	
+			sqlOpts.creatingKey = path.nodeKey;
+			sqlOpts.creatingTick = path.state;
 			var newPath = node.get( path.text, path.nodeKey );
+			// short out recursive write of this.
+			sqlOpts.creatingKey = null;
+
 			newPath.tick = path.state;
 			newPath.state = "commited";
 		} );
@@ -105,7 +126,8 @@ function readPaths( names, node ) {
 }
 
 
-function readNode( names, node ) {
+function readNode( sqlOpts, node ) {
+	var names = sqlOpts.names;
 	var dbNode = sqlDb.do( `select * from ${names.nodes} where nodeKey='${node.key}'` );
         if( dbNode.length > 0 ) {
         	if( node.text !== dbNode[0].text ) {
@@ -125,7 +147,8 @@ function readNode( names, node ) {
 }
 
 
-function readPath( names, node ) {
+function readPath( sqlOpts, node ) {
+	var names = sqlOpts.names;
 	var dbNode = sqlDb.do( `select l.child as key,n.state as state from ${names.node_links} l join ${names.nodes} n on l.child=n.nodeKey where l.parent='${node.parent.key}' and n.text='${node.text}'` );
         if( dbNode.length > 0 ) {
         	if( node.state && node.key !== dbNode[0].nodeKey ) {                                  
@@ -137,7 +160,7 @@ function readPath( names, node ) {
 		}
         } else {
 		// use readNode to do the insert of the child node
-		if( readNode( names, node ) )
+		if( readNode( sqlOpts, node ) )
 			sqlDb.do( `insert into ${names.node_links} (parent,child)values('${node.parent.key}','${node.key}')` );
 		else {
 			// the key existed... and this is a child node....
@@ -149,11 +172,10 @@ function readPath( names, node ) {
 
 
 function writeProperty( names, node, field ) {
-	console.log( "insert into property table..." );
-	if( node.state == "added" ) {
-		sqlDb.do( `insert into ${names.node_props} (nodeKey,name,value,state)values('${node.key}','${field.name}','${field.value}','${field.tick}')`);
+	if( field.state == "added" ) {
+		sqlDb.do( `insert into ${names.node_props} (nodeKey,name,value,state)values('${node.key}','${field.field}','${field.value}','${field.tick}')`);
 	} else {
-		sqlDb.do( `update ${names.node_props} set value='${field.value}',state=${field.tick} where nodeKey='${node.key}' and name='${field.name}'`);
+		sqlDb.do( `update ${names.node_props} set value='${field.value}',state=${field.tick} where nodeKey='${node.key}' and name='${field.field}'`);
 	}
 	node.state == "committed";
 }

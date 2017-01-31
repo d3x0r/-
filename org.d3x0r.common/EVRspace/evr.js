@@ -210,12 +210,14 @@ console.log( "wrote prop?" );
 						f.tick = Date.now();
 						f.state =  "modified";
 						// dispatch changed value to map.
+			                        drivers.forEach( ( cb )=>cb( "write", evr, o, f ) );
 						f.node.maps.forEach( (cb)=>cb( f.value, f.field ) );
-			                        drivers.forEach( ( cb )=>cb( "write", evr, o, field ) );
 					},
 	                                enumerable : true,
 					configurable : false,                                                
 	                	} );
+
+                        drivers.forEach( ( cb )=>cb( "write", evr, node, f ) );
 
 			// dispatch changed value to map.
 			f.node.maps.forEach( (cb)=>cb( f.value, f.field ) );

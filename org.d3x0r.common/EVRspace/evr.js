@@ -177,18 +177,16 @@ map['root'] = {
         	return o;
 	
                 function parseObject( obj, into ) {
-				console.log( "parsey:", obj );
+			//console.log( "parse:", obj );
                 	var keys = Object.keys( obj );
                         keys.forEach( (key)=>{
-				console.log( "Writing key:", key );
+				//console.log( "Writing key:", key );
 		        	if( typeof  obj[key] === "object" ) {
                                 	var newObj = makeObject( into, makeKey(), key );
                                         parseObject( obj[key], newObj );
                                 }
                                 else {
-			console.log( "Wriing prop..." );
 			        	var field = into.getProp( key, obj[key] );
-console.log( "wrote prop?" );
                                 }
                                 
                         } );

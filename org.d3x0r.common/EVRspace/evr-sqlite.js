@@ -9,10 +9,11 @@ function createTables( prefix ) {
                     , node_links : `${prefix}evr_node_links`
                     , node_props : `${prefix}evr_node_props`
                     };
-sqlDb.makeTable( `create table ${names.nodes} ( nodeKey char PRIMARY KEY, text char, state char )` );
+sqlDb.makeTable( `create table ${names.nodes} ( nodeKey char PRIMARY KEY )` );
 sqlDb.makeTable( `create table ${names.node_links} `
 	+"( parent char"
         +", child char"
+		+", text char, state char" // what this link is called; and a revision id
         +", INDEX fowardMap(parent)"
         +", INDEX reverseMap(child)"
         +", CONSTRAINT `fk_parent_link` FOREIGN KEY (`parent`) REFERENCES `evr_nodes` (`nodeKey`) ON DELETE CASCADE ON UPDATE CASCADE"
@@ -47,16 +48,16 @@ function driver( op, evr, node, field ) {
                 sqlOpts.names = createTables( sqlOpts.prefix );
         } else if( op === "read" ) {
         	var sqlOpts = evr.opts.sql;
-		if( sqlOpts.creatingKey === node.key )  {
-			return;
-		}
+			if( sqlOpts.creatingKey === node.key )  {
+				return;
+			}
 
-		if( !node.parent ) {
-			readNode( sqlOpts, node );
-		} else 
-			readPath( sqlOpts, node );
-        	readProperties( sqlOpts, node );
-		readPaths( sqlOpts, node );
+			if( !node.parent ) {
+				readNode( sqlOpts, node );
+			} else 
+				readPath( sqlOpts, node );
+			readProperties( sqlOpts, node );
+			readPaths( sqlOpts, node );
         } else if( op === "write" ) {
         	var sqlOpts = evr.opts.sql;
 		if( field ) {
@@ -109,7 +110,7 @@ function readProperties( sqlOpts, node ) {
 
 function readPaths( sqlOpts, node ) {
 	var names = sqlOpts.names;
-	var paths = sqlDb.do( `select n.nodeKey nodeKey,n.text text from ${names.node_links} l join ${names.nodes} n on l.child=n.nodeKey where parent='${node.key}'` );
+	var paths = sqlDb.do( `select child nodeKey,text from ${names.node_links} l where parent='${node.key}'` );
 	//console.log( "Read Paths:", paths );
 	if( paths.length > 0 ) {
 		paths.forEach( (path)=>{	
@@ -126,21 +127,20 @@ function readPaths( sqlOpts, node ) {
 }
 
 
-function readNode( sqlOpts, node ) {
+function readNode( sqlOpts, node, iKnowItDoesntExist ) {
 	var names = sqlOpts.names;
+	var makeit = true;
 	var dbNode = sqlDb.do( `select * from ${names.nodes} where nodeKey='${node.key}'` );
-        if( dbNode.length > 0 ) {
-        	if( node.text !== dbNode[0].text ) {
-                	throw new Error( ["Database sync error, name of node and name given by application is wrong", node.text, dbNode[0].text].join( " " )  );
-                }
-        	if( !node.tick ) {
-                	node.tick = dbNode[0].state;			
-		}else {
-			
+	if( dbNode.length > 0 ) {
+		makeit = false;
+		if( !node.tick ) {
+				node.tick = dbNode[0].state;			
+		} else {
 		}
-        } else {
+	}
+	else {
 		node.tick = Date.now();
-		sqlDb.do( `insert into ${names.nodes} (nodeKey,text,state)values('${node.key}','${node.text}','${node.tick}')` );
+		sqlDb.do( `insert into ${names.nodes} (nodeKey)values('${node.key}')` );
 		return true;
 	}
 	return false;
@@ -149,16 +149,16 @@ function readNode( sqlOpts, node ) {
 
 function readPath( sqlOpts, node ) {
 	var names = sqlOpts.names;
-	var dbNode = sqlDb.do( `select l.child as key,n.state as state from ${names.node_links} l join ${names.nodes} n on l.child=n.nodeKey where l.parent='${node.parent.key}' and n.text='${node.text}'` );
-        if( dbNode.length > 0 ) {
-        	if( node.state && node.key !== dbNode[0].nodeKey ) {                                  
-                	throw new Error( ["Database sync error, name of node and name given by application is wrong", node.text, dbNode[0].text].join( " " )  );
-                }
-        	if( !node.tick ) {
+	var dbNode = sqlDb.do( `select l.child as key,state from ${names.node_links} l where l.parent='${node.parent.key}' and l.text='${node.text}'` );
+	if( dbNode.length > 0 ) {
+		if( node.state && node.key !== dbNode[0].nodeKey ) {                                  
+				throw new Error( ["Database sync error, name of node and name given by application is wrong", node.text, dbNode[0].text].join( " " )  );
+			}
+		if( !node.tick ) {
 			node.key = dbNode[0].key;
-                	node.tick = dbNode[0].state;			
+			node.tick = dbNode[0].state;			
 		}
-        } else {
+	} else {
 		// use readNode to do the insert of the child node
 		if( readNode( sqlOpts, node ) )
 			sqlDb.do( `insert into ${names.node_links} (parent,child)values('${node.parent.key}','${node.key}')` );

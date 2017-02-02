@@ -34,19 +34,28 @@ sqlDb.makeTable( `create table ${names.node_props} `
         return names;
 }	
 
-var maps = [];
-
+//var maps = [];
 var evr = require( "./evr.js" );
 
 evr.addLocalStorage( driver );
 function driver( op, evr, node, field ) {
 	if( op === "init" ) {
-        	var sqlOpts = evr.opts.sql = evr.opts.sql || { prefix: "" };
+        var sqlOpts = evr.opts.sql = evr.opts.sql || { prefix: "" };
 		sqlOpts.creatingKey = null;
-                sqlOpts.creatingProperty = null; 
-        	maps.push( evr );
-                sqlOpts.names = createTables( sqlOpts.prefix );
-        } else if( op === "read" ) {
+        sqlOpts.creatingProperty = null; 
+        //maps.push( evr );
+        sqlOpts.names = createTables( sqlOpts.prefix );
+	}  else if( op === "updateKey" ) {
+		// node's ID was updated...
+		// field parameter in this case is the old key
+		sqlDb.do( "update ${evr.opts.names.nodes} set nodeKey='${node.key}' where nodeKey='${field}'")
+	}  else if( op === "initNode" ) {
+       	var nodeOpts = node.opts.bio = node.opts.bio || { };
+		nodeOpts.reqMsg = null;
+		nodeOpts.resMsg = null;
+		nodeOpts.state = "added";
+	
+    } else if( op === "read" ) {
         	var sqlOpts = evr.opts.sql;
 			if( sqlOpts.creatingKey === node.key )  {
 				return;
@@ -58,18 +67,31 @@ function driver( op, evr, node, field ) {
 				readPath( sqlOpts, node );
 			readProperties( sqlOpts, node );
 			readPaths( sqlOpts, node );
+        } else if( op === "initField" ) {
+			var fieldOpts = field.opts.sql = field.opts.sql || {};
+			nodeOpts.state = "added";
+			if( field ) {
+				//console.log( "got write on ", node, field );
+				// this might as well just be ... 'on next write, ignore it.' ???
+				if( ( sqlOpts.creatingProperty === field.field )
+					// && ( sqlOpts.creatingKey === node.key )
+					)
+							return;
+				writeProperty( sqlOpts.names, node, field );
+			}
+			
         } else if( op === "write" ) {
         	var sqlOpts = evr.opts.sql;
-		if( field ) {
-                	//console.log( "got write on ", node, field );
+			if( field ) {
+						//console.log( "got write on ", node, field );
 
-			// this might as well just be ... 'on next write, ignore it.' ???
-			if( ( sqlOpts.creatingProperty === field.field )
-			   // && ( sqlOpts.creatingKey === node.key )
-			   )
-        	        	return;
-			writeProperty( sqlOpts.names, node, field );
-		}
+				// this might as well just be ... 'on next write, ignore it.' ???
+				if( ( sqlOpts.creatingProperty === field.field )
+				// && ( sqlOpts.creatingKey === node.key )
+				)
+							return;
+				writeProperty( sqlOpts.names, node, field );
+			}
 		// can also get write events on nodes; which I don't think I care about?
         } else if( op === "onMap" ) {
         	var sqlOpts = evr.opts.sql;
@@ -103,7 +125,7 @@ function readProperties( sqlOpts, node ) {
                 	sqlOpts.creatingProperty = prop.name;
 			var newProp = node.getProp( prop.name, prop.value );
 			newProp.tick = prop.state;
-			newProp.state = "commited";
+			newProp.opts.sql.state = "commited";
 		} );
 	}
 }
@@ -121,7 +143,7 @@ function readPaths( sqlOpts, node ) {
 			sqlOpts.creatingKey = null;
 
 			newPath.tick = path.state;
-			newPath.state = "commited";
+			newPath.opts.sql.state = "commited";
 		} );
 	}
 }
@@ -160,9 +182,10 @@ function readPath( sqlOpts, node ) {
 		}
 	} else {
 		// use readNode to do the insert of the child node
-		if( readNode( sqlOpts, node ) )
+		if( readNode( sqlOpts, node ) ) {
 			sqlDb.do( `insert into ${names.node_links} (parent,child)values('${node.parent.key}','${node.key}')` );
-		else {
+			node.opts.sql.state = "commited";
+		} else {
 			// the key existed... and this is a child node....
 			// not sure how that can happen.
 			throw new Error( "Fix me." );
@@ -172,10 +195,10 @@ function readPath( sqlOpts, node ) {
 
 
 function writeProperty( names, node, field ) {
-	if( field.state == "added" ) {
+	if( field.opts.sql.state == "added" ) {
 		sqlDb.do( `insert into ${names.node_props} (nodeKey,name,value,state)values('${node.key}','${field.field}','${field.value}','${field.tick}')`);
 	} else {
 		sqlDb.do( `update ${names.node_props} set value='${field.value}',state=${field.tick} where nodeKey='${node.key}' and name='${field.field}'`);
 	}
-	node.state == "committed";
+	field.opts.sql.state = "committed";
 }

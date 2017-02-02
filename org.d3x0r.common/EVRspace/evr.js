@@ -41,35 +41,14 @@ function makeEVR( opts ) {
        			}
                 	return makeObject( null, n ); },
                 opts : opts || {},
+		_events : {},
 		on(a,b) { handleEvents( evr._events, a, b ) },
-		emit(a,b) { emitEvents( evr._events, a, b ) },
+		emit(a,b) { emitEvents( evr._events, evr, a, b ) },
 		once(a,b) { handleEvent( evr._events, a, b ) },
 	}
         evrMaps.push( evr );
-       	localDrivers.forEach( ( cb )=>cb( "init", evr ) );
-       	remoteDrivers.forEach( ( cb )=>cb( "init", evr ) );
+	emitDriverEvent( "init", evr )
 
-/*
-on one side, the mesh can be a simple linear object
-root : { 
-    users : {
-    	1 : {
-        	name : "bob" 
-        }
-    },
-    orgs : {
-    	1 : { 
-        	name : "First Org";
-        }
-    },
-}
-
-map['root'] = {
-	node = root;
-}
-*/
-
-	
         function makeObject( p, key, text ) {
 		if( !key ) { key = p; p = null; }
         	if( !text ) text = key;
@@ -77,7 +56,17 @@ map['root'] = {
 	        //if( !p ) console.log( "Making root:", text );
                 //else console.log( "Making sub in:", p.text, text );
         	var o = evr.graph.get(key);
-        
+	        if( !o && p ) { 
+			o = p.members[text];
+			if( o ) {
+				var oldKey = o.key;
+				console.log( "Rekeying object...", o, "to", key );
+				evr.graph.delete( oldKey );
+				evr.graph.set( key, o );
+				o.key = key;
+	                        emitDriverEvent( "updateKey", evr, o, oldKey );
+			}
+		}
 	        if( !o ) { 
                 	o = {
         	        	_ : {}, // this is this object that this node represents
@@ -98,7 +87,7 @@ map['root'] = {
 				},
         			set tick(val) {
 					if( val > this._tick ) this._tick = val;
-		                        drivers.forEach( ( cb )=>cb( "write", evr, o ) );
+		                        emitDriverEvent( "write", evr, o );
 				},
         			get tick() {
 					return this._tick;
@@ -122,11 +111,8 @@ map['root'] = {
         	                        return o;
                 	        },
 				not(cbNot) {
-					if( drivers.length ) {
-						var n;
-					       	if( ( n = drivers.findIndex( ( cb )=>cb( "timeout", evr, o, cbNot ) ) ) >= 0 )
-							for( var d = 0; d < n; d++ ) 
-								cb( "cancelTimeout", evr, o, cbNot )
+					if( localDrivers.length || remoteDrivers.length ) {
+						emitAbortableDriverEvent( "timeout", "cancelTimeout", evr, o, cbNot );
 						if( o.opts.emitNot )
 							cbNot( o );
 					} else {
@@ -153,7 +139,7 @@ map['root'] = {
         	                },
 				map(cb) {
 					o.maps.push( cb );					
-		                        drivers.forEach( ( cb )=>cb( "onMap", evr, o ) );
+		                        emitDriverEvent( "onMap", evr, o );
 					return o;
 				},
 				on(cb) {
@@ -168,6 +154,7 @@ map['root'] = {
                         }
 	                evr.graph.set( key, o );
 			evr.objectMap.set( o._, o );
+			
 			// ask drivers to read this; 
 			// at this point one of several things can happen
 			//  1) an immediate data driver will populate this node with its properties and it's member objects
@@ -177,10 +164,15 @@ map['root'] = {
 			//
 			//  .not can be used to allow the delay of 2 to come back.
 			//  3) there's no drivers, and this is done.
-                        drivers.forEach( ( cb )=>cb( "read", evr, o ) );
+                        emitDriverEvent( "initNode", evr, o );
 			if( p )
 				p.maps.forEach( (cb)=>cb( o._, text, o ) );
-	        }
+	        } else {  // if( !o )  so this is already existed...
+			if( key != o.key ) {
+
+				o.key = key;
+			}
+		}
         	return o;
 	
                 function parseObject( obj, into ) {
@@ -204,8 +196,8 @@ map['root'] = {
 		        var f = o[field] = { node : node
                                 	, field : field
                                         , value : initial
-					, state : "added"
                                         , tick : Date.now() 
+					, opts : {}
 					, update( val, tick ) {						
 						f.value = val;
 						f.tick = tick;
@@ -218,16 +210,18 @@ map['root'] = {
 	                                set : function(val) {
                                                	f.value = val;
 						f.tick = Date.now();
-						f.state =  "modified";
+
 						// dispatch changed value to map.
-			                        drivers.forEach( ( cb )=>cb( "write", evr, o, f ) );
+			                        emitDriverEvent( "write", evr, o, f );
 						f.node.maps.forEach( (cb)=>cb( f.value, f.field ) );
 					},
 	                                enumerable : true,
 					configurable : false,                                                
 	                	} );
 
-                        drivers.forEach( ( cb )=>cb( "write", evr, node, f ) );
+			// drivers may commit initial value here... initField allows different operations
+			// than a normal 'write' from above, which can count on already being initliazed.
+			emitDriverEvent( "initField", evr, o, f );
 
 			// dispatch changed value to map.
 			f.node.maps.forEach( (cb)=>cb( f.value, f.field ) );
@@ -244,20 +238,20 @@ map['root'] = {
 
 function addLocalStorage( cb ) {
         	localDrivers.push( cb );
+		// for all existing evr, allow the driver to initialize for it.
                 evrMaps.forEach( (evr)=>{ 
                 	cb( "init", evr );
                 } );
 }
 function addRemoteStorage( cb ) {
         	remoteDrivers.push( cb );
+		// for all existing evr, allow the driver to initialize for it.
                 evrMaps.forEach( (evr)=>{ 
                 	cb( "init", evr );
                 } );
 }
 
         
-var _events = {};
-
 function handleEvent( _events, event, cb ) {
 	var z = _events[event] = _events[event] || [];
 	var ev;
@@ -273,10 +267,30 @@ function handleEvents( _events, event, cb ) {
 			
 }        
 
-function emitEvents( _events, event, data ) {
+function emitDriverEvent( ...args ) {
+        localDrivers.forEach( ( cb )=>cb( ...args ) );
+        remoteDrivers.forEach( ( cb )=>cb( ...args ) );
+}
+
+function emitAbortableDriverEvent( initial,abort, ...args ) {
+	var n;
+     	if( ( n = localDrivers.findIndex( ( cb )=>cb( initial, ...args ) ) ) >= 0 )
+		for( var d = 0; d < n; d++ ) 
+			localDrivers[d].cb( abort, ...args )
+
+     	else if( ( n = remoteDrivers.findIndex( ( cb )=>cb( initial, ...args ) ) ) >= 0 ) {		
+		localDrivers.forEach(cb=>cb.cb( abort, ...args ))
+		for( var d = 0; d < n; d++ ) 
+			remoteDrivers[d].cb( abort, ...args )
+	}
+
+}
+
+function emitEvents( _events, event, evr, data ) {
 	var event = _events[event];
+	console.trace( "emit with", data );
 	if( event ) {
-		event.forEach( (cb)=>{ if(cb.cb)cb.cb( data ); if( cb.once ) cb.cb = null; } );
+		event.forEach( (cb)=>{ if(cb.cb)cb.cb( evr, data ); if( cb.once ) cb.cb = null; } );
 	}	
 }        
 

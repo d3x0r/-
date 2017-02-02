@@ -1,11 +1,13 @@
 "use strict";
 
+//console.log( "using require: ", require, module )
 const fs = require( 'fs');
 var config = require( './config.js' );
-console.log( "config is ", config.run.root );
+console.log( "config is ", config.run.root, "and which require ?" );
+
 const fc = require( config.run.root + '/file_cluster.js')
 const Entity = require( config.run.root + '/Entity/entity.js')
-
+console.log( "get id_generator...")
 var idGen = require( "./id_generator.js").generator;
 var key_frags = new Map();
 // key_frags[key] = keys
@@ -14,72 +16,81 @@ var key_frags = new Map();
 //}
 var keys = new Map();
 var mkey;
-keys.toString = ()=>{
-    var leader = `{"Λ":"${keys.Λ}"
-        ,"mkey":"${mkey&&mkey.Λ}"
-        ,"keys":`;
-    var footer = '}';
-    var buffer = null;
-    keys.forEach( (key,index,mem)=>{
-        if( !buffer ) buffer = '{'; else buffer += '\n,';
-        buffer += '"' + key.Λ +'":' +  key.toString()  ;
-    });
-    if( buffer ) buffer += '}';
-    return leader + buffer + footer;
-}
 
-function stackTrace() {
-    try {
-        throw new Error( "stack trace" )
-    }catch( err ) {
-        console.log( err.stack );
+function initKeys() {
+    keys.toString = ()=>{
+        var leader = `{"Λ":"${keys.Λ}"
+            ,"mkey":"${mkey&&mkey.Λ}"
+            ,"keys":`;
+        var footer = '}';
+        var buffer = null;
+        keys.forEach( (key,index,mem)=>{
+            if( !buffer ) buffer = '{'; else buffer += '\n,';
+            buffer += '"' + key.Λ +'":' +  key.toString()  ;
+        });
+        if( buffer ) buffer += '}';
+        return leader + buffer + footer;
     }
 }
+ initKeys();
 
-function Key(maker_key,askey) {
 
-var key = null;
-	if( typeof( maker_key ) === "object" ) {
-		if( maker_key.Λ ) 
-	    		key = maker_key;
-	        else
-        		throw new Error( "Object, but not a valid one." );
-	}
-        else {
-	console.log( "key type", typeof maker_key );
-	console.log( "key is ", Object.keys( maker_key ));//.prototype.constructor.name )
-    //console.log(" Someone making a Key()", maker_key )
-
-    var real_key;
-    if( maker_key.Λ ) real_key = keys.get( maker_key.Λ );
-    else              real_key = keys.get( maker_key );
-    if( real_key )    maker_key = real_key.Λ;
-    
-	key = { maker : maker_key
-            , Λ : idGen()
+function keyProto( Λ, o ) {
+	var key = o||{ maker : null
+            , Λ : Λ
             , authby : null
             , requested : 0  // count
             , trusted : false // boolean
             , invalid : false // fail all auth and do not persist
             , authonly : true // don't send copies to other things
             , created : new Date().getTime()
-            , timeOffset : config.run.timeOffset
-    	}
-    }
+            , time : config.run.timeOffset
+    	};
+    ["made", "authed"].forEach( prop=>{
+        Object.defineProperty( key, prop, { enumerable:false, writable:true,configurable:false, value:[]} );
+    })
+
+    //var mystring;
     key.toString = ()=> {
-                if( !mystring ){
-                    var _a = key.authby;
-                    key.authby = key.authby.Λ;
-                    //var _m = key.maker;
-                    //key.maker = key.maker.Λ;
-                    mystring = JSON.stringify( key );
+                //if( !mystring ){
+                	var _a = key.authby;
+                    if( !_a ) key.authby = key.Λ;  
+                    else key.authby = key.authby.Λ;
+
+                    //console.log( "debug keytostring:", key.maker );
+                    var mystring = JSON.stringify( key );
+                    //console.log( mystring );
                     key.authby = _a;
                     //key.maker = _m;
-                }
+                //}
                 return mystring;
             }
 
-        var mystring;
+    return key;    
+}
+
+var pendingMakers = [];
+
+function Key(maker_key,askey) {
+
+    var key = null;
+    var real_key;
+    if( typeof( maker_key ) !== "string" && "Λ" in maker_key ) real_key = keys.get( maker_key.Λ );
+    else              real_key = keys.get( maker_key );
+    if( real_key )    maker_key = real_key.Λ;
+    //console.log( "maker", maker_key );
+    
+    key = keyProto( idGen() );
+    key.maker = maker_key; // always by name here (real key is maker)
+
+    //console.log( "raw key is:", key.Λ, key.maker, maker_key );
+    if( real_key ) {
+        //console.log( "maker now has ", real_key.made.length +1, "keys")
+        real_key.made.push( key );
+    }
+    else {
+        pendingMakers.push( {maker:maker_key, key:key } );
+    }
         keys.set( key.Λ, key );
         //console.log( "generated key ", key.Λ )
         return key;
@@ -92,7 +103,7 @@ function KeyFrag( fragof ) {
         , keys : []
         , toString : ()=>{
             var mystring;
-            if( !mystring )
+            //if( !mystring )
                 mystring = keys.toString();
             return mystring;
         }
@@ -105,51 +116,95 @@ exports.Auth = ( key ) => {
     return false;
 }
 
+exports.authBy = ( key, auth ) => {
+    auth = keys.get(auth);
+    if( !auth ) return false;
+    if( keys.get(key) ) {
+        do {
+            if( key.maker === maker )
+                return true;
+            if( key.invalid )
+                return false;
+            key = key.authby;
+        } while( key );
+    }
+    return false;
+}
+
+exports.madeFrom = ( key, maker ) => {
+    let _maker = keys.get(maker);
+    if( !_maker ) return false;
+    if( keys.get(key) ) {
+        do {
+            if( key.maker === maker )
+                return true;
+            //if( key.maker.Λ === maker )
+            //    return true;
+            if( key.invalid )
+                return false;
+            key = key.maker;
+        } while( key );
+    }
+    return false;
+}
+
 var local_authkey;
 Object.defineProperty( exports, "localAuthKey", { get : function() { 
-console.log( "local authkey request..." );
+    //console.log( "local authkey request..." );
 	if( local_authkey ) 
         	return local_authkey; 
-        console.log( "create a new local authority" );
+    //console.log( "create a new local authority", config.run.Λ );
 	local_authkey = Key( config.run.Λ ) 
-	local_authkey.authby = config.run.Λ;
-        return local_authkey;
+    // this is one of those illegal operations.
+    local_authkey.authby = keys.get( config.run.Λ );
+    return local_authkey;
 } } );   
 
 Object.defineProperty( exports, "publicAuthKey", { get : function() { 
-console.log( "public authkey request..." );
+    //console.log( "public authkey request..." );
 	if( local_authkey ) 
         	return local_authkey; 
-        console.log( "create a new public authority" );
+    //console.log( "create a new public authority" );
         
 	//local_authkey = Key( config.run.Λ ) 
 	//local_authkey.authby = config.run.Λ;
 } } );
 
-
+exports.delete = function deleteKey( key ) {
+    key = ( typeof key === 'object' && 'Λ' in key )?key:keys.get( key );
+    if( key ) {
+        keys.delete( key );
+        key.made.forEach( (m)=>{ deleteKey(m) } );
+        key.authed.forEach( (a)=>{ deleteKey(a) } );
+    }
+}
 
 exports.ID = ID; function ID( making_key, authority_key, callback )  {
     //stackTrace();
-    //console.log( "Making a key...... ")
+    //console.log( "Making a key...... ", making_key.Λ, authority_key )
     //console.log( config.run.Λ );
     //console.log( keys[making_key.Λ] );
     if( !making_key ) throw new Error( "Must specify at least the maker of a key" );
     if( !keys.get( config.run.Λ) ){
-        console.log( "waiting for config...")
-        config.start( ()=>{ ID( making_key, authority_key, callback ); } );
+        console.trace( "ID() waiting for config...", config.run )
+        config.start( ()=>{ setTimeout( ()=>{ID( making_key, authority_key, callback ); }, 100 ) } );
         return;
     }
     if( !authority_key )
         authority_key = keys.get(config.run.Λ)
+    
     if( !making_key.Λ )
         making_key = keys.get( making_key );
+    else
+    	making_key = keys.get( making_key.Λ );
+        
     if( !authority_key.Λ )
         authority_key = keys.get( authority_key );
     else
         authority_key = keys.get( authority_key.Λ );
 
-    console.log( `making_key ${making_key.toString()}` );
-    console.log( `authority_key ${authority_key.toString()}` );
+    //console.log( `making_key ${making_key.toString()}` );
+    //console.log( `authority_key ${authority_key.toString()}` );
     
     if( making_key === authority_key )
         throw new Error( "Invalid source keys" );
@@ -162,15 +217,16 @@ exports.ID = ID; function ID( making_key, authority_key, callback )  {
         }
     var newkey = Key( making_key );
     newkey.authby = authority_key;
-    //if( making_key === authority_key )
-    	//newkey.
-    keys.set(newkey.Λ, newkey );
+    //console.log( "authkey", newkey.Λ, authority_key )
+
+    authority_key.authed.push( newkey );
+
         if( authority_key )
             newkey.authby = authority_key
-        //console.log( "made a new key", keys );
+        //console.log( "made a new key", newkey.Λ );
         if( callback )
             callback( newkey );
-        return newkey;
+        return newkey.Λ;
 }
 
 function validateKey( key, next, callback ) {
@@ -184,13 +240,13 @@ function validateKey( key, next, callback ) {
     if( ID )
     {
         //console.log( "validate key had a key find", ID)
-        if( ID.trusted )
-            return true;
-        if( ID.key == key )
-            return false;
-        ID.requested++;
         if( ID.invalid )
             return false;
+        if( ID.trusted )
+            return true;
+        //if( ID.key == key )
+        //    return false;
+        ID.requested++;
         if( key === config.run.Λ ) {
             console.log( "validate success because key is config.run")
             return true;
@@ -211,19 +267,85 @@ function validateKey( key, next, callback ) {
     }
     return false;
 }
+function isKeyCreator( key, next, callback ) {
+    let ID;
+    if( !key ) {
+        return false;
+    }
+    if( key.Λ ) ID = keys.get(key.Λ);
+    else ID=keys.get(key);
+    //console.log( "validate key ", ID )
+    if( ID )
+    {
+        //console.log( "validate key had a key find", ID)
+        if( ID.invalid )
+            return false;
+        if( ID.trusted )
+            return true;
+        //if( ID.key == key )
+        //    return false;
+        ID.requested++;
+        if( key === config.run.Λ ) {
+            console.log( "validate success because key is config.run")
+            return true;
+        }
+        if( ID.maker === ID.Λ )
+            return true;
+        return isKeyCreator( next( ID ), next );//.maker ) && validateKey( ID.authby );
+    }
+    else {
+        // requestKey and callback?
+
+        if( callback ) {
+            callback( yesno );
+        }
+        console.log( "no such key" )
+        //exports.ID( config.run.Λ );
+        //return true;
+    }
+    return false;
+}
 
 function saveKeys(callback) {
     var fileName = "core/id.json"
     fc.store( fileName, keys, callback );
 }
 
+function TrackKeyFrags() {
+                            let frag = key_frags[0];
+                        
+                        if( !frag ) {
+                            var fixup =  ()=>{ 
+                                if( typeof Entity !== "Object" )
+                                    config.start( fixup );
+                                    key_frags = Entity.create( config.run ).create( keys ); 
+                                    //key_frags.Λ = Key( config.run.Λ ).Λ;
+                                    //frag = KeyFrag( config.run.Λ );
+                                    //frag_ent = Entity( frag  );
+                                    //frag_ent.value = keys;
+                                    //key_frags.store( frag_ent );
+
+                                    //key_frags.push( frag );
+                                    //frag.keys = keys;
+                                    fc.store( config.run, key_frags );
+                                    saveKeys();
+                             };
+                        // keys is a valid type to pass to create
+                        // but is any value.
+                            if( typeof Entity !== "function" )
+                                config.start( fixup );
+                            else
+                                fixup();
+                        }
+
+} 
 
 function loadKeyFragments( o ) {
 
         var result;
         console.log( 'loadkeyFragment',  o )
         fc.reloadFrom( o, (error, files)=>{
-
+            console.log( "got files?", files );
             if( error ){
 	    	if( error.code === 'ENOENT' ) {
                 	return;
@@ -236,7 +358,7 @@ function loadKeyFragments( o ) {
                 return;
             }
         //var fileName = fs.;
-        console.log( "loading fragments ", files );
+        //console.log( "loading fragments ", files );
         if( !error )
         fc.reload( files, (error, buffer )=> {
             console.log( "reload id : ", error, " ", buffer)
@@ -260,40 +382,47 @@ function loadKeyFragments( o ) {
 }
 
 function loadKeys() {
-    console.log( "Load Keys")
+    //console.log( "Load Keys")
     var result;
     var fileName = "core/id.json";
+    console.log( "CONFIG DEFER.... " );
     config.defer(); // save any OTHER config things for later...
 
-    /*
-     * if every run invalidates keys I created?
-    keys.Λ = config.run.Λ;
-    var runKey = Key( config.run.Λ );
-    runKey.Λ = config.run.Λ;
-    keys.set( config.run.Λ, runKey );
-    */
+    console.log( "RELOAD STATIC FILE....")
 
-    console.log( "fc.reload... ")
+    //console.log( "fc.reload... ")
     fc.reload( fileName, (error, buffer )=> {
         if( error ) {
-            console.log( "Reload failed", error, keys.size )
+            //console.log( "Reload failed", error, keys.size )
                 //if( keys.size === 1 ) {
                     //let newkey =  idGen.generator();
                     //console.log(  newkey.toString() );
-                    console.log( "new id generator id created" );
-
                     var runKey = Key( config.run.Λ );
+                    Object.defineProperty( config.run, "authed", { enumerable:false, writable:true,configurable:false, value:[]} );
                     runKey.trusted = true;
                     keys.Λ = runKey.Λ;//config.run.Λ;
-                    keys.set( keys.Λ, runKey );
+                    //console.log( "2 set key ", keys.Λ)
+                    //keys.set( keys.Λ, runKey );
+                    
 
                     var runKey2 = Key( config.run.Λ );
                     // generated a ID but throw it away; create config.run key record.
                     runKey2.Λ = config.run.Λ;
                     runKey2.authby = runKey;
                     runKey.authby = runKey2;
-                    keys.set( config.run.Λ, runKey2 );
+                    
+                    //console.log( "3 set key ", runKey2.Λ)
+                    //keys.set( runKey2.Λ, runKey2 );
                     mkey = runKey2;
+
+                    pendingMakers.forEach( (p,index)=>{ 
+                            if( p.maker===runKey2.Λ )
+                                runKey2.made.push( p.key );
+                            if( p.maker===runKey.Λ )
+                                runKey.made.push( p.key );
+                            // pendingMakers[index] = null 
+                        } 
+                            )
 
 /*
                     var newkey = Key(newkey);
@@ -309,24 +438,39 @@ function loadKeys() {
                 //}
                 saveKeys();
             }else {
+              //console.log( "GOT FILE BACK???")
               var data = fc.Utf8ArrayToStr( buffer );
+              //console.log( "...", data.length );
               try {
-                  //console.log( "data to parse ", data);
+                  //console.log( "json parse?")
                   var loaded_keys = JSON.parse( data );
+                  //console.log( "data to parse ", loaded_keys);
                   keys.Λ = loaded_keys.Λ;
                   var keyids;
-                  ( keyids = Object.keys( loaded_keys.keys ) ).forEach( (keyid,val)=>{
-                      //console.log( "key and val ", key, val );
-                      var key = Key( loaded_keys.keys[keyid] );
-                      //keys.set( keyid, key = loaded_keys.keys[keyid] );
+                  ( keyids = Object.keys( loaded_keys.keys ) ).forEach( (keyid)=>{
+                      //console.log( "key and val ", keyid, val );
+                      var key = keyProto( keyid, loaded_keys.keys[keyid] );
+                      //console.log( "recover key", keyid )
+                      keys.set( keyid, key );
                       //key.toString = 
                   } );
-                  keyids.forEach( (keyid,val)=>{
-                      //console.log( "key and val ", key, val );
+                  keyids.forEach( (keyid)=>{
                       var key = keys.get( keyid );
-                      key.authby = keys.get( key.authby );
+                      if( !key.maker ){
+                          console.log( "Bad Key:", keyid, key );
+                          return;
+                      } 
+                      var maker = keys.get( key.maker );
+                      //console.log( "key and val ", keyid, key );
+                      //console.log( "maker failed?", maker, key.maker )
+                      maker.made.push( key );
+                      if( key.authby = keys.get( key.authby ) )
+                        key.authby.authed.push( key );
+                        //console.log( "recover  key authby ", key, key.authby )
                   } );
                   mkey = keys.get( loaded_keys.mkey );
+
+                  Object.defineProperty( config.run, "authed", { enumerable:false, writable:true,configurable:false, value:[]} );
 
                   //console.log( "new keys after file is ... ", keys );
                   //console.log( "new mkey after file is ... ", mkey );
@@ -342,41 +486,28 @@ function loadKeys() {
                     //console.log( Object.keys( keys ).length)
                     //console.log( "NEED  A KEY")
                     var key = Key( config.run.Λ );
-                    key.authby = key.Λ;
+                    key.authby = key;
                     key.trusted = true;
-                    console.log( "created root key", key );
+                    //console.log( "created root key", key );
                     mkey = key;
-                    keys.set( key.Λ,  key );
-                    console.log( keys )
-                    keys.first = keys[key.Λ];
-                    console.log( "new keys after file is ... ", keys );
+                    //keys.set( key.Λ,  key );
+                    //console.log( keys )
+                    keys.first = keys.get( key.Λ );
+                    //console.log( "new keys after file is ... ", keys );
+
+                    console.log( "first run key set")
+                    keys.set( config.run.Λ, config.run );
 
                     ID( key, config.run.Λ, (runkey)=>{
-                        console.log( "created root key", runkey );
-                        runkey.authby = key.Λ;
+                        //console.log( "created root key", runkey );
+                        runkey.authby = key;
                         //console.log( "throwing away ", runkey.Λ );
-                        delete keys[runkey.Λ];
-                        keys[config.run.Λ] = runkey;
+                        keys.delete( runkey.Λ );
+                        console.log( "replace run key set")
+                        keys.set( config.run.Λ, runkey );
                         runkey.Λ = config.run.Λ;
                         mkey = key;
                         //console.log( "new keys ", Object.keys(keys) );
-                        let frag = key_frags[0];
-                        if( !frag ) {
-                        // keys is a valid type to pass to create
-                        // but is any value.
-                            key_frags = Entity( config.run ).create( keys );
-                        //key_frags.Λ = Key( config.run.Λ ).Λ;
-                        //frag = KeyFrag( config.run.Λ );
-                        //frag_ent = Entity( frag  );
-                        //frag_ent.value = keys;
-                        //key_frags.store( frag_ent );
-
-                        //key_frags.push( frag );
-                        //frag.keys = keys;
-                            console.log( "Initial Write?")
-                            fc.store( config.run, key_frags );
-                            saveKeys();
-                        }
                     } );
                     //console.log( "fragment keys is a function??", key_frags[0] )
                     //key_frags.keys[frag.Λ] = key.Λ;
@@ -385,7 +516,7 @@ function loadKeys() {
                 //#endif
                 if( keys.size < 100 )
                 {
-                    //console.log( "manufacture some keys......-----------")
+                    //console.log( "manufacture some keys......-----------", mkey )
                     //Key( keys. )
                     ID( mkey, mkey.authby, (key)=>{
                         //console.log( "newkey:", key)
@@ -405,12 +536,38 @@ function saveKeyFragments( ) {
 
 }
 
-exports.SetKeys = setKeys;
+exports.setRunKey = setRunKey;
+
+function setRunKey( key ) {
+    if( config.run.Λ !== key ) {
+        //console.log( "Set new run key: ", key );
+        var oldkey = keys.get( config.run.Λ );
+        // delete old key from map
+        keys.delete( oldkey.Λ );
+        //console.log( "old run key: ", oldkey );
+        config.run.Λ = oldkey.Λ = key;
+        //console.log( "config.run is now? ", config.run.Λ )
+        //console.log( "old key made: ", oldkey.made )
+        //console.log( "old key authed: ", oldkey.authed )
+        oldkey.made.forEach( m=>m.maker=key );
+        //oldkey.authed.forEach( m=>m.authby=key );
+        //console.log( "old key made: ", oldkey.made )
+        // setup new key
+        keys.set( key, oldkey );
+        saveKeys();
+    }
+
+}
+
+exports.setKeys = setKeys;
 function setKeys( runkey ) {
-    console.log( "O is config.run");
+
+    console.log( "Load Key Fragments; decided that these keys are the root......")
+    //console.log( "O is config.run");
     loadKeyFragments( config.run );
     if( !key_frags || !key_frags.size ) {
-        console.log( 'need some keys')
+        // no fragments
+        //console.log( 'need some keys')
     }
     else {
         if( key_frags.size == 1 )
@@ -420,16 +577,14 @@ function setKeys( runkey ) {
             //key_frags.forEach( (a)=>{
             //    console.log(" doing store IN", key_frags, a  );
                 //fc.store( key_frags, a );
-        //} )
-        //fc.store( key_frags, key_frags.keys );
+            //} )
+            //fc.store( key_frags, key_frags.keys );
+        } else {
+            console.log( "recovered key_frags", key_frags.size, " plus one ");
         }
-    else {
-        console.log( "recovered key_frags", key_frags.size, " plus one ");
-    }
     }
 }
 
-
 //function
-console.log( "Schedule loadKeys with config.start")
+//console.log( "Schedule loadKeys with config.start")
 config.start( loadKeys );

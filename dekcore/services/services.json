@@ -1,0 +1,7 @@
+[{name:"Firewall", 
+	{ sources: "firewall/firewall.js" }
+ },
+ {name:"Auth", 
+	{ sources: "auth/auth.js"}
+ }
+]

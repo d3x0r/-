@@ -65,39 +65,42 @@ loadConfig();
 exports.start = function(callback) {
     if( config.run.Λ ){
         if( config.starts.length ) {
-            config.starts.forEach( (cb)=>{cb();});
-            config.starts = [];
+            //console.log( "Defer callback..." );
+	        config.starts.push( callback );
+            //config.starts.forEach( (cb)=>{cb();});
+            //config.starts = [];
+            return;
         }
-        console.log( "config.start....")
+        //console.log( "config.start....")
         callback();
     }
     config.starts.push( callback );
 }
 exports.defer = function() {
-    console.log( "config.defer....")
+    //console.log( "config.defer....")
     config.start_deferred = true;
     config.starts_deferred = config.starts;
 }
 
 exports.resume = resume;
 function resume() {
-    console.log( "config.resume....", config.starts )
+    //console.log( "config.resume....", config.starts )
     while( config.starts.length ) {
          if( config.start_deferred ) break;
          //console.log( "run thing ", config.starts[0].toString())
-         var run = config.starts.shift();
-         run();
-         //config.starts[0]();
+         var startProc = config.starts.shift();
+         startProc();
+         
          if( config.start_deferred ) {
-             console.log( "got deferred...", config.starts)
+            //console.log( "got deferred...", config.starts)
             config.starts_deferred = config.starts;
             //console.log( "run thing ", config.starts[0].toString())
             break;
         }
-     }
-     config.starts = []
-     if( config.start_deferred )
-        config.starts = config.starts_deferred;
-        console.log( "clear deferred ")
+    }
+    config.starts = []
+    if( config.start_deferred )
+       config.starts = config.starts_deferred;
+    //console.log( "clear deferred ")
     config.start_deferred = false;
 }

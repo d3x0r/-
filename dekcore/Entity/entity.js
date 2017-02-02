@@ -1,10 +1,8 @@
 "use strict";
-
-/*
-This is to
-*/
-//var
+const events =  require('events');
+const ee =  events.EventEmitter;
 var objects = [];
+
 
 // Entity events
 //  on( 'create', (self)=>{  } )
@@ -52,16 +50,25 @@ var objects = [];
 //
 var idMan = require( '../id_manager.js');
 var fc = require( '../file_cluster.js');
+console.log( 'to require config?')
 var config = require( '../config.js');
 var vm = require( 'vm' );
 const fs = require( 'fs' );
+//const vfs = require( 'sack.vfs' );
 const stream = require( 'stream' );
 const util = require( 'util' );
 const process = require( 'process' );
+const netRequire = require( '../node/node/myRequire.js' );
 var all_entities = new WeakMap();
 var objects = new Map();
 
-module.exports = exports = Entity
+var entity = module.exports = exports = {
+        create : Entity,
+        theVoid : null,
+        getObjects : getObjects,
+        getEntity : getEntity,
+        netRequire : netRequire
+}
 
 //Λ
 
@@ -81,7 +88,41 @@ function EntityExists( key, within ) {
 var createdVoid = false;
 var base_require;
 
+function sealSandbox( sandbox ) {
+    ["events", "console", "Buffer", "require", "process","fs","vm"].forEach( key=>{
+        Object.defineProperty( sandbox, key, { enumerable:false, writable:true,configurable:false} );
+    })
+
+}
+
+function sealEntity( o ) {
+    ["Λ", "container","contents","attach","create"
+       , "has_value","loaded"
+       ,"attached_to", "created_by",""
+        , "assign", "detach","rebase","debase","drop","store","fromString","toString"
+            //,"nearObjects"
+            ,"sandbox"
+        , "EventEmitter","usingDomains","defaultMaxListeners","init","listenerCount","requested"
+        , "addListener", "removeListener", "removeAllListeners"
+        ].forEach( key=>{
+        Object.defineProperty( o, key, { enumerable:false, writable:true,configurable:false} );
+    })
+}
+
+
+
 function Entity( obj, name, description, callback ){
+    if( !name && !description ) {
+        var all = all_entities.get( obj );
+        var named = objects.get( obj );
+        obj = named || all || obj;
+        return obj;
+    }
+    if( typeof( obj ) === "string" ){
+        //console.log( "resolve obj as entity ID")
+        obj = objects.get( obj );
+        //console.log( "resolve obj as entity ID", obj)
+    }
     if( obj && !obj.Λ ) {
         base_require = require;
         obj = null;
@@ -90,65 +131,75 @@ function Entity( obj, name, description, callback ){
         console.log( "All Entities", all_entities );
         console.log( "Objects", objects );
         console.log( "invalid object is ", obj);
-        throw { msg : "Invalid creator object making this one", o: obj };
+        throw new Error( { msg : "Invalid creator object making this one", o: obj } );
     }
     if( !config.run.Λ ) {
-        console.log( "had to wait for config.run", name, description )
+        //console.log( "had to wait for config.run", name, description )
         config.start( ()=>{Entity(obj,name,description, callback)} )
         return;
     }
     if( !obj ) {
         createdVoid = idMan.localAuthKey;
     }
-    console.log( `${name}  config.run.Λ`, config.run.Λ)
     var o = {
         Λ : null
         , within : obj
         , attached_to: new Map()//[]
         , contains : new Map()//[]
-        , created_by : obj||o
+        , created_by : null
         , loaded : false
         , has_value : false
         , value : null
         , name : name
         , decription : description
         , command : null
-        , sandbox : vm.createContext( {
-            require : sandboxRequire
-            , process : process
-            , Buffer : Buffer
-            , module : { name: name, parent : null, children : [], root : ".", exports: {} }
-            , now : new Date().toString()
-            , me : o
-            , console : {
-                log : function(){
-                    console.log.apply( console, arguments)
-                }
+        , permissions : { allow_file_system : true }
+        , sandbox : null
+        , get container() { return o.within; }
+        , create( name,desc, cb, value ) {
+            if( typeof desc === 'function' )  {
+                cb = desc; desc = null;
             }
-
-        })
-        ,  get container() { return o.within; }
-        , create( value ) {
-            var newo = Entity( findContainer( o ) );
-            newo.value = value;
+            Entity( o, name, desc, (newo)=>{
+            	newo.value = value;
+                if( cb ) cb( newo )
+            } );
         }
+        ,look() {
+            var done = [];
+            console.log( "exec look...")
+            getObjects(o, null, true, (o)=>{
+                done.push({name:o.name,ref:o.Λ});
+                //netRequire.sack.Δ()
+            })
+            console.log( "err...")
+            //while( !done.length )
+            //    netRequire.sack.Λ();
+            return done;
+        }
+        ,getObjects : (...args)=>getObjects( o, ...args )
         ,get contents() { return o.contains; }
         ,get nearObjects() {
-                //console.log( "getting near objects")
-            return {holding:o.attached_to
-                , contains:o.contains
-                , near:( ()=>{
+            //console.log( "getting near objects")
+            var near= new Map();
+            near.set( "holding", o.attached_to );
+                near.set( "contains", o.contains );
+                near.set( "near", ( ()=>{
                     var result = new Map();
-                    o.within.contains.forEach( (nearby)=>{
-                        if( nearby !== o ){
-                            result.set(nearby,nearby);
-                        }
-                    } );
-                    o.within.attached_to.forEach( (nearby)=>{
-                        result.set(nearby,nearby);
-                    } );
-                    return result;
-                 })() }
+                    if( o.within ) {
+	                    o.within.contains.forEach( (nearby)=>{
+        	                if( nearby !== o ){
+                	            result.set(nearby,nearby);
+                        	}
+	                    } );
+        	            o.within.attached_to.forEach( (nearby)=>{
+                	        result.set(nearby,nearby);
+	                    } );
+        	            return result;
+                    }
+                })() );
+                //console.log( "near" );
+                return near;
              }
         , assign : (object)=>{
             o.value = object;
@@ -162,8 +213,8 @@ function Entity( obj, name, description, callback ){
                 if( isFromAtoB === undefined )
                     if( o.Λ !== a.Λ ) {
                         if( a.within ){
-                            a.attached_to[o.Λ]=o;
-                            o.attached_to[a.Λ]=a;
+                            a.attached_to.set(o.Λ,o);
+                            o.attached_to.set(a.Λ,a);
                             o.emit( 'attached', a );
                             a.emit( 'attached', o );
                         }
@@ -186,8 +237,8 @@ function Entity( obj, name, description, callback ){
              if (o.Λ === a.within.Λ === b.within.Λ ) {
                  a.within = null;
                  if( o.Λ !== a.Λ ) {
-                 delete a.attached_to[a.Λ];
-                 delete o.attached_to[b.Λ];
+                    a.attached_to.delete(a.Λ);
+                    o.attached_to.delete(b.Λ);
                 }
                 else {
                     throw ""
@@ -205,17 +256,31 @@ function Entity( obj, name, description, callback ){
           }
           , debase( a ) {
                 if( a.within )
-                    if( a.attached_to.length ) {
+                    if( a.attached_to.size ) {
+                        a.attached_to.forEach( (key,val)=>{
+                            if( val.within ){
+                                a.within = null;
+                                throw "attempt to debase failed...";
+                            }
+                        })
                         if( a.attached_to[0].within ) {
                             a.within = null;
                             throw "attempt to debase failed...";
                         }
-                        a.attached_to[0].within = a.within;
-                        a.within.contains[a.attached_to[0].Λ] = a.attached_to[0];
-                        delete a.within.contains[a.Λ];
+                        try {
+                            // just ned to get the first element...
+                            // so we throwup here (*puke*)
+                            a.attached_to.forEach( (key,val)=>{
+                                key.within = a.within;
+                                a.within.contains.set( key, val );
+                                a.within.contains.delete(a.Λ);
+                                throw 0;
+                            } )
+                        } catch(err){ if( err ) throw err; }
                         a.within = null;
                     }
                 else {
+                    // already debased (that is, this isn't the thing within)
                     return;
                 }
           }
@@ -227,7 +292,7 @@ function Entity( obj, name, description, callback ){
             if( outer )
              if( a.within ) {
 
-                 delete a.within.contains[a.Λ];
+                 a.within.contains.delete(a.Λ);
                  a.within = o.within;
                  o.within.emit( 'contained', a );
              }
@@ -246,12 +311,12 @@ function Entity( obj, name, description, callback ){
                         a.within = o;
                     }
             }
-             if( o.within )
+            if( o.within )
             {
-                o.within.contains[a.Λ] = a;
+                o.within.contains.set( a.Λ, a );
                 a.within = o.within;
             }
-            delete o.contains[a.Λ];
+             o.contains.delete(a.Λ);
              var attachments = []
              var ac = getAttachments( a );
          }
@@ -304,47 +369,209 @@ function Entity( obj, name, description, callback ){
              }
          }
     }
-    o.sandbox.global = o.sandbox;
-    if( o.within )
-        o.within.contains.set( o, o )
-    console.log( "Attempt to get ID for ", (obj||createdVoid).Λ, config.run  )
+    o.created_by = obj||o;
+    //console.log( "Attempt to get ID for ", (obj||createdVoid).Λ, config.run  )
     all_entities.set( o, o );
-    Object.assign( o, require('events').EventEmitter )
+
+    Object.assign( o, ee.prototype );ee.call( o );
+    //console.log( "Object should have emitter properties?!", Object.getPrototypeOf( o ) )
 
     idMan.ID( obj||createdVoid, config.run, (key)=>{
         //console.log( "object now has an ID", o, key );
         o.Λ = key.Λ;
-        o.created_by = obj || o;
-        objects.set( key.Λ, o );
-        o.attached_to.set( o.Λ, o );
-        //o.sandbox["me"] = o;
-        Object.defineProperty( o.sandbox, "me", { get:()=>{ return o; } } );
-        Object.defineProperty( o.sandbox, "room", { get: ()=>{ return o.container }} )
-        if( obj )
-            obj.sandbox
+
+        //console.log( "create sandbox here, after getting ID")
+        o.sandbox = vm.createContext( makeSystemSandbox( o.Λ === key.Λ ) );
+        o.sandbox.entity = makeEntityInterface(o);
+        sealSandbox( o.sandbox );
+
         if( !callback )
-            ;//throw( "How are ou going to get your object?");
+            throw( "How are you going to get your object?");
         else callback(o);
 
+        if( o.within )
+            o.within.contains.set( o.Λ, o );
+        objects.set( key.Λ, o );
+        o.attached_to.set( o.Λ, o );
+
+        sealEntity( o );
+
+        if( !o.within ) o.within = o;
+
+        o.within.emit( "created", o );
+        o.within.emit( "inserted", o );
+        o.within.contains.forEach( near=>(near!==o)?near.emit( "joined", o ):0 );
     } )
 
+    function getObjects( me, src, all, callback ){
+        var object = src&&src[0];
+        var count = 0;
+        //var all = false;
+        var run = true;
+        var tmp;
+        //console.trace( "args", me, "src",src, "all",all, "callback:",callback )
+        if( typeof all === 'function' ) {
+            callback = all;
+            all = false;
+        }
+        if( object && object.text == 'all' && object.next && object.next.text == '.' ) {
+            all = true;
+            object = object.next.next;
+        }
+        if( object && ( tmp = Number( object.text ) ) && object.next && object.next.text == '.' ) {
+            object = object.next.next;
+            count = tmp;
+        }
+        //var command = src.break();
+        //console.log( "get objects for ", me.name, object&&object.text)
+        me.nearObjects.forEach( function(value,key){
+            console.log( "checking key:", key )
+            if( run ) value.forEach( function ( value,member ){
+                if( value === me ) return;
+                if( !object || value.name === object.text ){
+                    //console.log( "found object", value.name )
+                    if( count ){
+                        count--;
+                        return;
+                    }
+                    if( run ){
+                    console.log( "and so key is ", key )
+                        callback( value, key );
+                    }
+                    run = all;
+                }
+            });
+        })
+    }
+
+    function makeSystemSandbox( local ) {
+        if( config.run.Λ === o.Λ )
+            var theVoid = true;
+        else
+            var theVoid = false;
+
+        if( !local )
+        {
+            console.log( "hmm... I want this to be because my ID was from someone else...")
+        }
+
+        //if( config.run.Λ === o.Λ )
+        //    theVoid = true;
+        //if( config.run.Λ === o.created_by.Λ )
+        //    local = true;
+
+        var sandbox = {
+                require : local?sandboxRequire:netRequire.require
+                , process : process
+                , Buffer : Buffer
+                , module : { filename: "internal"
+                        , file: "memory://"
+                        , parent : null
+                        , paths : [local?__dirname+"/..":"."]
+                        , exports: {}
+                        , loaded : false
+                        , rawData : ''
+                      }
+                , get now() { return new Date().toString() }
+                , get me() { return o.Λ; }
+                //, get room() { return o.within; }
+                , console : {
+                    log : (...args)=>console.log( ...args )
+                }
+                , io : {
+                    addProtocol : entity.addProtocol
+                }
+                , events : {}
+                , on : ( event, callback ) =>{
+                    sandbox.emit( "newListener", event, callback )
+                    if( !(event in sandbox.events) )
+                        sandbox.events[event] = [callback];
+                    else
+                        sandbox.events[event].push( callback );
+                }
+                , off( event, callback ){
+                    if( event in sandbox.events ) {
+                        var i = sandbox.events[event].find( (cb)=>cb===callback );
+                        if( i >= 0 )
+                            sandbox.events[event].splice( i, 1 );
+                        else
+                            throw new Error( "Event already removed? or not added?", event, callback );
+                    }
+                    else
+                        throw new Error( "Event does not exist", event, callback );
+                    sandbox.emit( "removeListener", event, callback )
+                }
+                , addListener : null
+                , emit( event, ...args ){
+                    if( event in sandbox.events )
+                        return sandbox.events[event].find( (evt)=>cb(...args) );
+                }
+                , send(target, msg ) {
+                    //o.Λ
+                    //console.log( "entity in this context:", target, msg );
+                    var o = objects.get( target.Λ||target );
+                    o.emit(  )
+                    entity.gun.get( target.Λ||target ).put( { from:o.Λ, msg : msg } );
+                }
+        };
+        sandbox.addListener = sandbox.on;
+        sandbox.removeListener = sandbox.off;
+        sandbox.removeAllListeners = (name)=>{
+            Object.keys( sandbox.events ).forEach( event=>delete sandbox.events[event] );
+        };
+        return sandbox;
+    }
+
+    function firstEvents( sandbox ) {
+        sandbox.on( "newListener", (event,cb)=>{
+            if( event === "message" ) {
+                console.log( "listen for self",o.Λ )
+                sandbox.io.gun.map( cb );
+                return true;
+            }
+        });
+        return false;
+    }
+
+    function makeEntityInterface( o ) {
+        var i = {
+            get name() { return o.name; },
+            get description() { return o.description; },
+            get value() { return o.value; },
+            get inventory() {
+                var i = { in: [], on:[] };
+                //o.getObjects( o, filter, true, (near,where)=>{if( where === "contains" ) result.push( {name:near.name,Λ:near.Λ} ) } );
+                o.contains.forEach( ( near )=>{ i.in.push( {name:near.name,Λ:near.Λ} ) } );
+                o.attached_to.forEach( ( near )=>{ if( near !== o ) i.on.push( {name:near.name,Λ:near.Λ} ) } );
+                return i;
+            },
+            look : ()=> { return o.look(); },
+            create : (name,desc,callback)=>{ o.create( name, desc,callback ) }
+            //get value() { return o.value; }
+        }
+        return i;
+    }
+
     function sandboxRequire( src ) {
-        console.log( "require ", src );
-        //console.log( "module", o );
-        if( src == 'fs' ) return fs;
-        if( src == 'stream' ) return stream;                    
+        console.log( "sandboxRequire ", src );
+        //console.log( "module", o.sandbox.module );
+        if( src === "entity.js" ) return exports;
+        if( src === "shell.js" ) return exports.Sentience;
+        if( src === "text.js" ) return text;
+
+        if( o.permissions.allow_file_system && src == 'fs' ) return fs;
+        if( o.permissions.allow_file_system && src == 'stream' ) return stream;
         if( src == 'util' ) return util;
         if( src == 'vm' ) return vm;
+        if( src == 'events' ) return events;
 
         var rootPath = "";
-        var p = o.sandbox.module;
-        while( p ) {
-            rootPath = p.root + "/" + rootPath;
-            p = p.parent;
-        }
+        // resolves path according to relative path of parent modules and resolves ".." and "." parts
+        var root = netRequire.resolvePath( src, o.sandbox.module );
+        //console.log( "root could bd", root );
         //console.log( "working root is ", rootPath );
         try {
-            var file = fs.readFileSync( o.sandbox.module.root +"/" + src, {encoding:'utf8'} );
+            var file = fs.readFileSync( root, {encoding:'utf8'} );
         }catch(err) {
             console.log( "File failed... is it a HTTP request?", err );
             return undefined;
@@ -360,21 +587,28 @@ function Entity( obj, name, description, callback ){
             var pathSplit = pathSplitb;
         if( src.startsWith( "./" ) )
             rootPath = rootPath + src.substr(2,pathSplit-2 );
-        else                        
+        else
             rootPath = rootPath + src.substr(0,pathSplit );
         //console.log( "set root", rootPath );
-        
+
         var code = `(function(){${file}})()`;
         var oldModule = o.sandbox.module;
-        var thisModule = { name : src.substr( pathSplit+1 ), parent : o.sandbox.module, children:[], root : rootPath, exports:{} };
-        oldModule.children.push( thisModule );
+        var thisModule =  { filename: root
+                        , file: netRequire.stripPath( root )
+                        , parent : o.sandbox.module
+                        , paths : [netRequire.stripFile( root)]
+                        , exports: {}
+                        , loaded : false }
+
+//        { name : src.substr( pathSplit+1 ), parent : o.sandbox.module, paths:[], root : rootPath, exports:{} };
+        //oldModule.children.push( thisModule );
         o.sandbox.module = thisModule;
         o.sandbox.exports = thisModule.exports;
-        vm.runInContext(code, o.sandbox 
+        vm.runInContext(code, o.sandbox
             , { filename:src, lineOffset:0, columnOffset:0, displayErrors:true, timeout:100} )
         //console.log( "result exports for ", src
         //               , thisModule.name
-        // 		 , thisModule.exports 
+        // 		 , thisModule.exports
         //           );
         o.sandbox.module = oldModule;
         o.sandbox.exports = oldModule.exports;
@@ -434,7 +668,6 @@ function isContainer( obj, checked, c ){
             return recurse( content, checked, c  );
         }return false;
     }
-    return false;
 }
 
 
@@ -450,7 +683,22 @@ function getAttachments( obj, checked ){
     throw "Detached Object";
 }
 
+function getObjects( o, filter, all, callback ) {
+    if( typeof all === 'function' ) {
+        callback = all;
+        all = null;
+    }
+    o = objects.get(o);
+    if( o )
+        o.getObjects( filter, all, e=>{callback(e.sandbox)})
+}
 
+function getEntity( ref ) {
+    var o = objects.get(o);
+    if( o ) return o;
+    return null;
+
+}
 
 function sanityCheck( object ) {
     var s = JSON.stringify( object );
@@ -464,4 +712,3 @@ function sanityCheck( object ) {
         console.log( object );
     }
 }
-

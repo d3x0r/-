@@ -60,7 +60,7 @@ function makeEVR( opts ) {
 			o = p.members[text];
 			if( o ) {
 				var oldKey = o.key;
-				console.log( "Rekeying object...", o, "to", key );
+				console.trace( "Rekeying object...", o, "to", key, p.members, text );
 				evr.graph.delete( oldKey );
 				evr.graph.set( key, o );
 				o.key = key;
@@ -274,21 +274,23 @@ function emitDriverEvent( ...args ) {
 
 function emitAbortableDriverEvent( initial,abort, ...args ) {
 	var n;
-     	if( ( n = localDrivers.findIndex( ( cb )=>cb( initial, ...args ) ) ) >= 0 )
+     	if( ( n = localDrivers.findIndex( ( cb )=>cb( initial, ...args ) ) ) >= 0 ) {
+		//console.log( "a abortable driver stopped at ", n );
 		for( var d = 0; d < n; d++ ) 
 			localDrivers[d].cb( abort, ...args )
-
-     	else if( ( n = remoteDrivers.findIndex( ( cb )=>cb( initial, ...args ) ) ) >= 0 ) {		
+	} else if( ( n = remoteDrivers.findIndex( ( cb )=>cb( initial, ...args ) ) ) >= 0 ) {		
+		//console.log( "b abortable driver stopped at ", n );
 		localDrivers.forEach(cb=>cb.cb( abort, ...args ))
 		for( var d = 0; d < n; d++ ) 
 			remoteDrivers[d].cb( abort, ...args )
 	}
+	//console.log( "c abortable driver stopped at ", n );
 
 }
 
 function emitEvents( _events, event, evr, data ) {
 	var event = _events[event];
-	console.trace( "emit with", data );
+	//console.trace( "emit with", data );
 	if( event ) {
 		event.forEach( (cb)=>{ if(cb.cb)cb.cb( evr, data ); if( cb.once ) cb.cb = null; } );
 	}	

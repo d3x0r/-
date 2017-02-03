@@ -63,6 +63,8 @@ function driver( op, evr, node, field ) {
 		evr.emit( "out", msg );
 
 	} else if( op === "timeout" ) {
+		var evrOpts = evr.opts;
+		evrOpts.emitNot = false; // a timeout will be in place, prevent default emit.
 		var nodeOpts = node.opts.bio;
 		// field in this case is a callback for onTimeout accepting no args
 		if( !nodeOpts.timeout )

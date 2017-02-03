@@ -39,6 +39,7 @@ var evr = require( "./evr.js" );
 
 evr.addLocalStorage( driver );
 function driver( op, evr, node, field ) {
+	console.log( "sql seriver got:", op )
 	if( op === "init" ) {
         var sqlOpts = evr.opts.sql = evr.opts.sql || { prefix: "" };
 		sqlOpts.creatingKey = null;
@@ -68,8 +69,9 @@ function driver( op, evr, node, field ) {
 			readProperties( sqlOpts, node );
 			readPaths( sqlOpts, node );
         } else if( op === "initField" ) {
+			var sqlOpts = evr.opts.sql;
 			var fieldOpts = field.opts.sql = field.opts.sql || {};
-			nodeOpts.state = "added";
+			fieldOpts.state = "added";
 			if( field ) {
 				//console.log( "got write on ", node, field );
 				// this might as well just be ... 'on next write, ignore it.' ???
@@ -77,7 +79,7 @@ function driver( op, evr, node, field ) {
 					// && ( sqlOpts.creatingKey === node.key )
 					)
 							return;
-				writeProperty( sqlOpts.names, node, field );
+				writeProperty( sqlOpts, node, field );
 			}
 			
         } else if( op === "write" ) {
@@ -90,12 +92,14 @@ function driver( op, evr, node, field ) {
 				// && ( sqlOpts.creatingKey === node.key )
 				)
 							return;
-				writeProperty( sqlOpts.names, node, field );
+				writeProperty( sqlOpts, node, field );
 			}
 		// can also get write events on nodes; which I don't think I care about?
         } else if( op === "onMap" ) {
         	var sqlOpts = evr.opts.sql;
+			console.log( "read properties of node so it's not empty?")
 		readProperties( sqlOpts, node );
+			console.log( "read paths of node so it's not empty?")
 		readPaths( sqlOpts, node );
 	} else if( op === "timeout" ) {
 		// field is actually a callback in this case
@@ -117,8 +121,9 @@ function driver( op, evr, node, field ) {
 
 function readProperties( sqlOpts, node ) {
 	var names = sqlOpts.names;
+	//var props = sqlDb.do( `select * from ${names.node_props}` );
 	var props = sqlDb.do( `select * from ${names.node_props} where nodeKey='${node.key}'` );
-	//console.log( "Read Properties:", props );
+	console.log( "Read Properties:", props );
 	if( props.length > 0 ) {
 		props.forEach( (prop)=>{	
                 	sqlOpts.creatingKey = node.key;
@@ -133,7 +138,7 @@ function readProperties( sqlOpts, node ) {
 function readPaths( sqlOpts, node ) {
 	var names = sqlOpts.names;
 	var paths = sqlDb.do( `select child nodeKey,text from ${names.node_links} l where parent='${node.key}'` );
-	//console.log( "Read Paths:", paths );
+	console.log( "Read Paths:", paths );
 	if( paths.length > 0 ) {
 		paths.forEach( (path)=>{	
 			sqlOpts.creatingKey = path.nodeKey;
@@ -194,7 +199,9 @@ function readPath( sqlOpts, node ) {
 }
 
 
-function writeProperty( names, node, field ) {
+function writeProperty( sqlOpts, node, field ) {
+	var names = sqlOpts.names;
+	console.log( "Added property; commit...", node )
 	if( field.opts.sql.state == "added" ) {
 		sqlDb.do( `insert into ${names.node_props} (nodeKey,name,value,state)values('${node.key}','${field.field}','${field.value}','${field.tick}')`);
 	} else {

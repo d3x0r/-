@@ -24,7 +24,7 @@ var users = object.path( "users" );
 
 users.map( (v,f)=>{getData(evra,v,f)} );
 users.not( ()=>{
-	console.log( "not ran..." );
+	console.trace( "not ran..." );
 	users.put( { 1 : { name: 'bob' }, 2 : { name : 'alice' } } );
 } );
 

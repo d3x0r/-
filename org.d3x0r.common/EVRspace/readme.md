@@ -1,4 +1,12 @@
 
+EVR  (Work in progress, no solid defintion)
+    Exotic Vaccuum Reactor
+    Encrypted Volume Repository
+    EVR Space (just there's always space?)
+    
+    Endless Variation 
+
+
 
 EVR API
     
@@ -26,6 +34,7 @@ EVR API
         None.
 
 
+--EVR Instance
 
     var evr = EVR();
 

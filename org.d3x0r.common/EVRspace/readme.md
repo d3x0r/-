@@ -8,7 +8,7 @@ EVR  (Work in progress, no solid defintion)
 
 
 
-EVR API
+#EVR API
     
     var EVR = require( "evr" );
 
@@ -34,7 +34,7 @@ EVR API
         None.
 
 
---EVR Instance
+##EVR Instance
 
     var evr = EVR();
 
@@ -51,11 +51,13 @@ EVR API
         emit   ( eventType, callback )
             generate events for a specific graph.
 
-    evr Internal
+    EVR Instance Internals
         evr.graph
             a map from node.key to node.
         evr.objectMap 
             a map from node._ to node.
+
+##EVR Node/Link
 
     EVR Node Methods / EVR Link Methods
         get  ( path, key )
@@ -119,7 +121,7 @@ EVR API
 
 
 
-Driver Events
+##Driver Events
 
     init  (evr)
         Initialize driver for a graph.

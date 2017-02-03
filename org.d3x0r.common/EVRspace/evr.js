@@ -49,6 +49,35 @@ function makeEVR( opts ) {
         evrMaps.push( evr );
 	emitDriverEvent( "init", evr )
 
+	function makeObjectLink( text, parent, child ) {
+		return {
+                        text : text,
+			get key() { return child.key },
+			isEmpty:child.isEmpty,
+			get : child.get,
+			not(cb) { child.not(cb); return this; },
+			getProp(name,value) { child.getProp(name,value); return this; },
+			put(obj) { 
+				if( Object.getPrototypeOf(obj) === Object.GetPrototypeOf( this ) ) {
+					var oldChild = this.child;
+					this.child = obj;
+					emitDriverEvent( "replace", evr, this.parent, oldChild, obj );
+					this.parent.maps.forEach( (cb)=>cb( o._, this.text, obj ) );
+				}
+				else child.put( obj );
+				return this;
+			},
+			map(cb) { child.map(cb); return this; },
+			on(cb) { child.on(cb); return this; },
+			get tick() { return child.tick },
+			set tick( val ) { child.tick = val },
+			get value() { return child.value },
+
+			parent : parent,
+			child: child ,
+		};
+	}
+
         function makeObject( p, key, text ) {
 		if( !key ) { key = p; p = null; }
         	if( !text ) text = key;
@@ -71,9 +100,8 @@ function makeEVR( opts ) {
                 	o = {
         	        	_ : {}, // this is this object that this node represents
                                 key : key, 
-                                text : text,
 	        	        fields : {},  // these are property members of this object (tick,value...)
-                        	parent : p,
+                        	//parent : p,
         	                members : {},  // these are object members of this object.
  				opts : {// a state space drivers use for their state data on this node.
 					emitNot : true // node local option indicating it is new and empty
@@ -106,9 +134,9 @@ function makeEVR( opts ) {
 							throw new Error( "Path already exists as a property; replacing a value with an object is not allowed.\n"+"existing field:" + this.fields[name] );
 						// this key is subject to change
 						// the initial state of "added" allows this key to be overwritten by a driver
-                                		return makeObject( this, key||makeKey(), name );
+						return makeObjectLink( this, makeObject( this, key||makeKey(), name ) );
                                 	}
-        	                        return o;
+					return makeObjectLink( this, o );
                 	        },
 				not(cbNot) {
 					if( localDrivers.length || remoteDrivers.length ) {
@@ -297,62 +325,3 @@ function emitEvents( _events, event, evr, data ) {
 }        
 
 
-
-/*
-	
-Object.defineRevisionedProperty = ( object, name )=>{
-	var __name = "__"+name;
-	var _name = "_"+name;
-	var _name_state = "_"+name+"_state";
-	var _name_live = "_"+name+"_live";
-	var Zname = " "+name;
-	object[__name] = [];
-	object[_name] = undefined;
-        var state = "unset";
-        
-        if( !("getVersion" in object ) ) {
-        	object.getVersion = (field,vers)=>{
-                	return object[" "+field](vers);
-                }
-        }
-        
-	Object.defineProperty( object, name, {
-        	enumerable : true,
-        	get : function(){ return object[_name]; },
-                set : function(value)  { 
-                		object[__name].push( object[_name] ); 
-	                        object[_name] = value; 
-                                if( object[_name_live] < 0 )
-                                	object[_name_live] = object[__name].length-1;
-                                object[_name_state] = "modified";
-                        }
-                } );
-	Object.defineProperty( object, name+"_Commit", {
-        	value : function() {
-                	object[_name_live] = -1;
-                }
-	        });
-	Object.defineProperty( object, _name_state, {
-        	value : state
-	        });
-	Object.defineProperty( object, Zname, {
-        	value : function( a,b,c ) {
-                	if( Number.isInteger(a) ) {
-                        	if( a )
-	                        	return object[__name][object[__name].length-(a)];
-                                else
-	                        	return object[_name];
-                        }
-                        return object[__name].length;
-                }
-                } );
-	Object.defineProperty( object, _name, {
-        	enumerable : false,
-                } );
-	Object.defineProperty( object, __name, {
-        	enumerable : false,
-                } );
-        	
-}
-
-*/

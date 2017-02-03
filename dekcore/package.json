@@ -2,7 +2,7 @@
   "name"    : "DekCore",
   "version" : "0.0.1",
   "main"    : "void.js",
-  "dependencies" : { "gun" : "github:amark/gun#0.5" 
+  "dependencies" : { "gun" : "github:d3x0r/gun#0.4-websocket-migration" 
   	, "pem" : "^0"
   	}
 }

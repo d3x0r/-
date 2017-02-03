@@ -14,6 +14,52 @@ var states = {
     , getCommandArgs : 3
 };
 
+    var stree = {};
+function updateCommands( commands, newcmd ) {
+    var cmd = commands[newcmd];
+    var id = newcmd;
+    {
+        var other;
+        var thisCmd = {id:id, cmd: cmd};
+        var n = 0;
+        if( !( other = stree[id[0]] ) ) {
+            stree[id[0]] = thisCmd;
+        }
+        else {
+            if( "multi" in other ) {
+                thisCmd.multi = other.multi;
+            }
+            else {
+                thisCmd.multi = other.multi = [];
+            }
+            other.multi.push( thisCmd );
+            if( cmd.opts.min > 1 ) {
+                var maxN = 0;
+                console.log( "This has already ")
+                thisCmd.multi.forEach( (cmd)=>{
+                    for( n = cmd.opts.min-1; n < id.length; n++ ) {
+                        if( id[n] !== other.id[n] )
+                            break;
+                    }
+                    if( n > maxN )
+                        maxN = n;
+                })
+                n = maxN;
+            }else {
+                for( n = cmd.opts.min-1; n < id.length; n++ ) {
+                    if( id[n] !== other.id[n] )
+                        break;
+                }
+            }
+            cmd.opts.min = other.cmd.opts.min = n+1;
+            cmd.opts.helpText = "["+id.substr(0,cmd.opts.min) +"]"+id.substr(cmd.opts.min);
+            other.cmd.opts.helpText = "["+other.id.substr(0,other.cmd.opts.min) +"]"+other.id.substr(other.cmd.opts.min);
+            stree[id.substr(0,n)] = thisCmd;
+            stree[other.id.substr(0,n)] = other;
+        }
+    }
+}
+
 function read_command(sandbox, options) {
     options = options || {};
     options.decodeStrings = false;
@@ -21,21 +67,24 @@ function read_command(sandbox, options) {
     this.state = { state : states.getCommand, command : null, args : [], words : null };
     this.slashes = 0;
     this.commands = {};
+    this.commands.forEach = (cb)=>Object.keys(this.commands).forEach( x=>cb(this.commands[x],x))
+    Object.defineProperty( this.commands, "forEach", {enumerable:false})
     this.sandbox = sandbox || vm.createContext( {
         require : require
         , now : new Date().toString()
-        ,console : {
-            log : function(){
-                console.log.apply( console, arguments)
-            }
-        }
+        ,console : console
     });
     this.processCommand = processCommand;
     this.processCommandLine = processCommandLine;
     this._processCommand = _processCommand;
     //this.sandbox.GLOBAL=this.sandbox;
-    this.RegisterCommand = ( name, code ) => {
-        this.commands[name] = code;
+    this.RegisterCommand = ( name, opts, code ) => {
+        opts = opts || {description:"NO DESCRIPTION"};
+        opts.min = 1;
+        opts.helpText = "["+name.substr(0,opts.min) +"]"+name.substr(opts.min);
+        this.commands[name] = { opts:opts,code:code };
+        updateCommands( this.commands, name );
+
     };
 }
 
@@ -46,10 +95,11 @@ function finishPhrase( cur, endToken )
     var word = cur.here;
     //console.log( `Finish ${word} @${endToken}` )
     for( ; word; ) {
-        var nextEndToken;
+        var nextEndToken = null;
         //console.log( `word ${word.text}`)
         var check;
-        for( check = cur; check; check = check.prior ) {
+        // contained closures should close outers... 
+        for( check = cur; check; check = null/*check.prior*/ ) {
             //console.log( "check ", word.text, "vs ", check.token)
             if( word.text === check.token ) {
                 if( check !== cur ) {
@@ -75,7 +125,7 @@ function finishPhrase( cur, endToken )
                     //console.log( "returning to prior point....", word)
                     if( word )
                         return word;
-                        console.log( "return cur.ere")
+                    console.log( "return cur.here (no words)")
                     return cur.here;
                 }
             }
@@ -95,22 +145,33 @@ function finishPhrase( cur, endToken )
         //    nextEndToken = '>';
         if( nextEndToken )
         {
+            //console.log( "word in is", word.text );
             var next = word.break();
             var phrase;
             var result;
-            //console.log( `Found a token ${word.text} to group and set indirect to `, next&&next.text );
-            word.indirect = next;
-
-            result = finishPhrase( phrase = {prior: cur, token:nextEndToken, here:next, parent:word} , nextEndToken )
-            if( result )
-                word = result;
+            if( !next ) {
+                console.log( "open token at end of line... fail.");
+            }
             else {
-                //console.log( "Failed to find mate before outer closure ")
-                // un-break word from it's next.
-                // clear indirect... and move to the next word.
-                word.indirect = null;
-                word.next = next;
-                next.pred = word;
+                //console.log( `Found a token ${word.text} to group and set indirect to `, next&&next.text );
+                word.indirect = next;
+
+                result = finishPhrase( phrase = {prior: cur, token:nextEndToken, here:next, parent:word} , nextEndToken )
+                // clear this so we don't re-search.
+                nextEndToken = null;
+                if( result ) {
+                    // there is more after this?
+                    //console.log( result )
+                    //word.append( result );
+                    word = result;
+                } else {
+                    console.log( "Failed to find mate before outer closure ")
+                    // un-break word from it's next.
+                    // clear indirect... and move to the next word.
+                    //word.indirect = null;
+                    word.next = next;
+                    next.pred = word;
+                }
             }
         }
         //console.log( `stepping next ${word.text} ${word&&word.next&&word.next.text}`)
@@ -119,7 +180,7 @@ function finishPhrase( cur, endToken )
     }
     if( cur.parent ) {
         //throw "Failed to find matching token in words";
-        console.log( "failed to find matching token return null", cur.here.text, word.text, cur )
+        console.log( "failed to find matching token return null", cur.here && cur.here.text, word && word.text, cur )
         return null;
     }
     //console.log( "return phrases...")
@@ -140,14 +201,22 @@ read_command.prototype._transform = function(chunk, encoding, callback) {
 
 function processCommand( chunk )
 {
-    var word = text.Text( JSON.parse( chunk ) );
+    var word = text.Parse( chunk );
+    buildPhrases( word );
     //console.log( "processCommand : ", this )
-    this._processCommand( word );
+    // this.commands, this.sandbox, this.filter?
+    var next = word.break();
+    while( word ) {
+        this._processCommand( word );
+        if( word = next )
+            next = word.break();
+    }
+    this._processCommand( {text:null} );
 }
 
 function processCommandLine( line ){
     var word = line;
-    console.log( "processCommand : ", line.toString() )
+    //console.log( "processCommandLine : ", line.toString() )
     var next = word.break();
     while( word ) {
         this._processCommand( word );
@@ -159,17 +228,13 @@ function processCommandLine( line ){
 
 function _processCommand ( word )
 {
-    console.log( "processCommand : ", word )
-    //var word = text.Text( JSON.parse( chunk ) );
-    var saveword = ()=>{
+    //console.log( "processCommand segment : ", word.text )
+    const saveword = ()=>{
         if( !this.state.words ) this.state.words = word;
         else this.state.words = this.state.words.append( word );
-        this.state.args.push( word );
-        //console.log( " 1 args is now ", this.state.args );
-        //console.log( `text is ${text}`, Object.keys( word ));
     }
     if( word.text === '/' ) {
-        //console.log( "fond slash")
+        //console.log( "found slash")
         if( this.state.state === states.getCommand ) {
             this.state.state = states.getCommandWord;
             this.slashes = 0;
@@ -177,12 +242,11 @@ function _processCommand ( word )
             this.slashes++;
         } else {
             saveword();
+            this.state.args.push( word );
         }
-    }
-    else if( this.slashes) {
-
-    }
-    else switch( this.state.state )
+    } else if( this.slashes) {
+       console.log( "has slashses extra - is a relay command?" );
+    } else switch( this.state.state )
     {
     case states.getCommandWord:
         //console.log( `find ${word.text} in `,Object.keys( this.commands))
@@ -192,43 +256,53 @@ function _processCommand ( word )
             //console.log( "found command?")
         } else {
             this.state.state = states.getCommand;
+            this.push( "/" );
             this.push( word.text );
             if( this.slashes ) {
                 //state = states.getCommand;
             }
+            this.state.command = null;
         }
         break;
     case states.getCommandArgs:
         //if( this.state.words )
         //    console.log( "getting args - word ", this.state.words.toString() )
         if( word.text  ) {
-            if( !this.state.words ) this.state.words = word;
-            else this.state.words = this.state.words.append( word );
-            this.state.args.push( word );
+            if( !word.spaces && this.state.words ) {
+                // if there's already words, and there's no space, then 
+                // just add this (and return)
+                this.state.words = this.state.words.append( word );
+                return;
+            }
+            
+            saveword();
+            if( this.state.words && this.state.words.pred && this.state.words.pred.indirect ) {
+                // console.log( "terminator of prior indirect...")
+                // spaces at end of indirect are internal to the indirect; and should be ignored.
+                // (check for space would follow)
+                return;
+            }
+
+            // word breaks create arguments.
+            if( word.spaces && this.state.words ) {
+                this.state.args.push( word );
+            }
             //console.log( "2 args is now ", this.state.args );
         } else if( this.state.command ) {
-            console.log( "args is ", this.state.words&&this.state.words.first().toString() );//this.state.args);//, " and command is still ", this.state.command.toString() )
+	        //console.log( "dispatch command." );
+            //console.log( "args is ", this.state.words&&this.state.words.first().toString() );//this.state.args);//, " and command is still ", this.state.command.toString() )
+            //console.log( "collected args: ", this.state.args );
+            this.state.args.forEach( (arg)=>{arg.breakBefore();arg.spaces=0;arg.tabs=0;} )
             if( this.state.words )
             {
                 var args =  this.state.words.first();
-                /*
-                try {
-                    var phrases = buildPhrases(args );
-                    //console.log( `call with phrases? ${phrases}`)
-                    console.log( "3 args is now ", this.state.args );
-                    this.state.result = this.state.command( phrases
-                                        , this.state.args );//this.state.args );
-                }catch( err )
-                */
                 {
                     //console.log( `call with unphrased args? ${args}`)
-                    console.log( "4 args is now ", this.state.args );
-                    this.state.result = this.state.command( args
-                                        , this.state.args );//this.state.args );
+                    //console.log( "4 args is now ", this.state.args );
+                    this.result = this.state.command.code( this.state.args );
                 }
             }else {
-                this.state.result = this.state.command( null
-                                    , this.state.args );//this.state.args );
+                this.result = this.state.command.code( null, this.state.args );//this.state.args );
             }
             this.state.words = null;
             this.state.slashes = 0;
@@ -246,6 +320,7 @@ function _processCommand ( word )
         }
         break;
     }
+    return 
 }
 
 

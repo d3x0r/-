@@ -15,13 +15,13 @@ module.exports = exports = {
             console.log( "Nothing to store?");
             return;
         }
-        console.log( typeof filename, filename )
-        console.log( 'storing object : ', object, Object.keys( object ) );
+        //console.log( typeof filename )
+        //console.log( 'storing object : ', object, Object.keys( object ) );
         //console.log( 'storing object : ', object.toString() );
         //console.log( "storing into : ", filename );
         if( typeof( filename ) == 'string' )
              fileName = filename
-             else {
+        else {
                  if( filename.Λ && !object )
                     if( !(fileName = filename.ΛfsName )){
                         console.log( "Init name")
@@ -41,19 +41,18 @@ module.exports = exports = {
                             console.log( "filename isn't self identified - contains multiple things?", fileName );
                         }
                     }
-                 if( !filename && object && object.Λ ) {
+                if( !filename && object && object.Λ ) {
                      console.log( "object is also a thing" );
                     if( !(fileName = object.ΛfsName ))
                     console.log( "Init name")
                         fileName =  object.ΛfsName = GetFilename( object );
-                    }
+                }
                  //fileName = getpath( filename, object );
-             }
+        }
                  //console.log( " store filestat of ", fileName);
-                 fs.stat(fileName, (error, stats)=>{
+            fs.stat(fileName, (error, stats)=>{
                      //console.log( "Write to" ,fileName,error  );
-                     if( error )
-                         mkdir( fileName, ()=>{
+                     var f =  ()=>{
 
                              fs.open(fileName, "w", (error, fd)=>{
                                  var buffer;// = JSON.stringify( object );
@@ -67,14 +66,18 @@ module.exports = exports = {
                                      //console.log( "write : JSON : ", buffer, buffer.length );
                                      fs.write(fd, buffer
                                          , (error, bytesWritten, buffer)=>{
-                                                console.log( "write had errror: ", error );
-                                                fs.close(fd);
+                                                if( error ) { console.log( "write had errror: ", error ); }
+                                               	fs.close(fd, (err)=>{ if( err ) console.log( "close had an error?", err ) } );
                                                 if( callback ) callback();
                                       });
                                  }
-                             } );
-                     });
-                   });
+                             });
+                     };
+                     if( error )
+                         mkdir( fileName,f );
+                   else f();
+                          
+                });
     }
     , reloadFrom: ( pathobject, callback )=> {
         if( pathobject.Λ )
@@ -98,7 +101,7 @@ module.exports = exports = {
         fs.stat(fileName, function(error, stats) {
             var fileData;
             if( !stats ) {
-                console.log( "no such file")
+                //console.log( "no such file")
                 callback( true );
             } else {
                 fs.readFile(fileName, function(err, data) {
@@ -108,11 +111,7 @@ module.exports = exports = {
                     var readBuf = new Uint8Array( buffer );
                     for( var n = 0; n < stats.size; n++ )
                         readBuf[n] = data[n];
-                    //console.log( "return reloaded buffer...", fileName, " ", error )
-                    //bytesRead = fs.readSync(fd, readBuf, 0, buffer.length, 0 );
-                     //console.log( "read completed ", bytesRead );
                     callback( false, buffer, data );
-                    //fs.close(fd);
                 });
             }
         });
@@ -136,12 +135,12 @@ exports.Utf8ArrayToStr = function(typedArray) {
         out += String.fromCharCode(c);
         break;
       case 12: case 13:
-        // 110x xxxx  
+        // 110x xxxx   10xx xxxx
         char2 = array[i++];
         out += String.fromCharCode(((c & 0x1F) << 6) | (char2 & 0x3F));
         break;
       case 14:
-        // 1110 xxxx 
+        // 1110 xxxx  10xx xxxx  10xx xxxx
         char2 = array[i++];
         char3 = array[i++];
         out += String.fromCharCode(((c & 0x0F) << 12) |
@@ -176,9 +175,9 @@ function GetObjectFilename( oid )
         }
     //if( oid )
     //    oid.fs
-    console.log( oid );;
+    console.log( "object filename from: ", oid );;
     var char =  leader.join( oid._.substring( 0, 5 ) + "/" + oid._.substring( 5,10 ) + "/" +  oid._.substring( 10 ));
-    console.log( char);
+    console.log( "joined filename:", char);
     return char;
 }
 

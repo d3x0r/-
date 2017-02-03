@@ -6,35 +6,67 @@ const crypto = require( 'crypto');
 const tls = require( 'tls');
 const https = require( 'https')
 const path = require('path');
+
+//------ setup websocket compatibility
 const ws = require( 'ws' );
-const WebSocketServer   = ws.Server
+const WebSocket = ws.Client;
+const WebSocketServer = ws.Server;
+
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";  // enable wss for gun without mods....
+const Gun = require('gun'); 
+//require('gun/lib/file.js');
+//require('gun/lib/wsp/server.js');
+//require('gun/lib/wsp/server-push.js');
+//require('gun/lib/S3.js'); 
 
 
-var config = require( './config.js');
-var keyManager = require( "./id_manager.js" );
+//const WebSocketServer   = ws.Server
+
+var services = [];
+
+//var config = require( './config.js');
+//var keyManager = require( "./id_manager.js" );
 // server listening 0.0.0.0:41234
 
 exports.Server = scriptServer;
+exports.Service = addService;
+exports.addProtocol = addProtocol;
 
-function scriptServer() {
-    console.log( "Started Script Services");
+//exports.Gun = Gun;
+var ID = require( './id_generator.js' );
+
+exports.Gun = Gun;
+exports.gun = Gun(  { uuid : ID.generator, file : null } );;
+
+exports.gun.on( "get", (a,b,c)=>console.log("gun get:", a,b,c) )
+exports.gun.on( "put", (a,b,c)=>console.log("gun put:", a,b,c) )
+
+Gun.on( "get", (a,b,c)=>console.log("GUN get:", a,b,c) )
+Gun.on( "put", (a,b,c)=>console.log("GUN put:", a,b,c) )
+
+var wsServer = null;
+
+function addService( name, serviceHandler ) {
+	if( !( name in services ) )
+    		services[name] = serviceHandler;
+        else
+        	throw new Error( "Duplicate declaration of a service handler" );
+}
+
+function scriptServer( port ) {
+    if( !port ) port = 8000;
+
+    console.log( "Starting Script Services on port", port );
     var privateKey = fs.readFileSync('ca-key.pem').toString();
     var certificate = fs.readFileSync('ca-cert.pem').toString();
     var option = {key: privateKey, cert: certificate};
     var credentials = tls.createSecureContext ();
-    //var server = tls.createServer( option,
-        var server = https.createServer( option,
-
-  // Workers can share any TCP connection
-  // In this case it is an HTTP server
+    var server = https.createServer( option,
 //  var server = http.createServer(
         (req, res) => {
-      //req.connection.Socket.
-      //console.log( "got request", req );
 
-	if( req.upgrade ) {
+	    if( req.upgrade ) {
         	console.log( "is upgrade, how to switch here?" );
-                
         }
       console.log( "got request" + req.url );
       
@@ -111,38 +143,71 @@ function scriptServer() {
             });
         }
     });
-    new WebSocketServer( { server:  server.listen( 8000, () => {
+    server.listen( port, () => {
 		        console.log( "bind success");
-        	}
-    	)
-    } ).on( 'connection', webSockConnect );
-}
-
-
-function webSockConnect( wss ) {
-	console.log( "wss received:", Object.keys( wss ), wss.upgradeReq.url);
-        var rawUrl = wss.upgradeReq.url;
-      	var _url = url.parse( rawUrl );
-        console.log( "switch on ", _url.pathname );
-	wss.on( 'message', function ( msg ) {
-        	console.log( "message event:", msg );
-                wss.send( "Loud and Clear" );
-                } );
-	wss.on( 'close', function ( msg ) {
-        	console.log( "closed", msg );
-                } );
-	wss.on( 'error', function ( msg ) {
-        	console.log( "error", msg );
-                } );
-        
-}
-
-function GetFrom( path ) {
-    res.pipe(file);
-    let path1=path.lastIndexOf( "/");
-    //let path2=path.lastIndexOf( "\")
-    var file = fs.createWriteStream(path);
-    var request = http.get("http://" + authority + "//" + path, function(response) {
-        response.pipe( file );
+    } );
+    /*
+    exports.gun.wsp(server, ()=>{
+        console.log( "want a websocket?")
     });
+    */
+    wsServer = new WebSocketServer( {
+        server: server, // ws npm
+        httpserver: server, // websocket npm 
+        autoAcceptConnections : false // want to handle the request
+    })
+    wsServer.acceptResource = null;
+    //wsServer.on('request',validateWebSock )
+    wsServer.on('connection',validateWebSock )
 }
+
+//---------------------- Websocket Protocol Interface -----------------------
+
+var protocols = [];
+var peers = [];
+function addProtocol( protocol, connect ) {
+    protocols.push( { name:protocol, connect:connect });
+}
+
+function validateWebSock( req ) {
+    //console.log( "connect?", req.upgradeReq.headers, req.upgradeReq.url )
+    wsServer.acceptingProtocol = null;
+    var proto = req.upgradeReq.headers['sec-websocket-protocol'];
+    if( !protocols.find( p=>{
+            //if( p.name === req.protocolFullCaseMap[req.requestedProtocols[0]] ) {
+            if( p.name === req.upgradeReq.headers['sec-websocket-protocol'] ) {
+                console.log( "accept websock:", p )
+                //wsServer.acceptingProtocol = p;
+                p.connect(req);
+                //req.accept( req.requestedProtocols[0], null );
+                return true;
+            }
+            return false;
+        } ) 
+      ) {
+          console.log( "unkown protocol:", proto )
+          req.close();
+      }
+      //req.reject( "Unknown Protocol" );
+}
+
+addProtocol( "gunDb", (conn)=>{
+    //console.log( "connected gundb, add peer")
+    peers.push( conn );
+    exports.gun.on('out', (msg)=>{
+        msg = JSON.stringify({headers:{},body:msg});
+        peers.forEach( (p)=>{ try { p.send( msg ) }catch  (err) {console.log( "Peer is bad... maybe closing?", err );} })
+    })
+
+    conn.on( 'message',(msg)=>{
+            console.log( "gundb is getting", msg );
+            exports.gun.on('in',msg.body)
+        })
+    conn.on( 'close', (reason,desc)=>{
+        // gunpeers gone.
+        var i = peers.findIndex( p=>p===conn );
+        if( i >= 0 )
+            peers.splice( i, 1 );
+    })
+})
+

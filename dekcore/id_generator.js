@@ -1,6 +1,6 @@
 "use strict";
 
-var RNG = require( "../org.d3x0r.common/salty_random_generator").SaltyRNG( getSalt );
+var RNG = require( "../org.d3x0r.common/salty_random_generator.js").SaltyRNG( getSalt );
 
 function getSalt (saltbuf) {
     saltbuf.length = 0;
@@ -9,13 +9,13 @@ function getSalt (saltbuf) {
 
 exports.generator = function() {
     // this is an ipv6 + UUID
-        return base64ArrayBuffer( RNG.getBuffer(8*(16+16)) );
+    return base64ArrayBuffer( RNG.getBuffer(8*(16+16)) );
 }
 
 // Converts an ArrayBuffer directly to base64, without any intermediate 'convert to string then
 // use window.btoa' step. According to my tests, this appears to be a faster approach:
 // http://jsperf.com/encoding-xhr-image-data/5
-
+// doesn't have to be reversable....
 function base64ArrayBuffer(arrayBuffer) {
   var base64    = ''
   var encodings = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
@@ -47,24 +47,18 @@ function base64ArrayBuffer(arrayBuffer) {
   // Deal with the remaining bytes and padding
   if (byteRemainder == 1) {
     chunk = bytes[mainLength]
-
     a = (chunk & 252) >> 2 // 252 = (2^6 - 1) << 2
-
     // Set the 4 least significant bits to zero
     b = (chunk & 3)   << 4 // 3   = 2^2 - 1
-
     base64 += encodings[a] + encodings[b] + '=='
   } else if (byteRemainder == 2) {
     chunk = (bytes[mainLength] << 8) | bytes[mainLength + 1]
-
     a = (chunk & 64512) >> 10 // 64512 = (2^6 - 1) << 10
     b = (chunk & 1008)  >>  4 // 1008  = (2^6 - 1) << 4
-
     // Set the 2 least significant bits to zero
     c = (chunk & 15)    <<  2 // 15    = 2^4 - 1
-
     base64 += encodings[a] + encodings[b] + encodings[c] + '='
   }
-
+  //console.log( "dup?", base64)
   return base64
 }

@@ -17,6 +17,7 @@ users.not( ()=>{
 
 function getData( val, field ) {
 	if( typeof( val ) === "object" ) {
+		console.log( "")
 		var _this = evr.get( val )
 		_this.map( getData );
 		console.log( "path event:", field, val );

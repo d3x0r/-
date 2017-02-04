@@ -1,4 +1,12 @@
 
+EVR  (Work in progress, no solid defintion)
+    Exotic Vaccuum Reactor
+    Encrypted Volume Repository
+    EVR Space (just there's always space?)
+    
+    Endless Variation 
+
+
 
 EVR API
     
@@ -25,7 +33,7 @@ EVR API
     EVR Events
         None.
 
-
+--EVR Instance
 
     var evr = EVR();
 
@@ -42,7 +50,7 @@ EVR API
         emit   ( eventType, callback )
             generate events for a specific graph.
 
-    evr Internal
+    EVR Instance Internal
         evr.graph
             a map from node.key to node.
         evr.objectMap 
@@ -68,12 +76,13 @@ EVR API
             if the node is empty, emit the callback.
             returns 'this'  (if called from link, returns link, if from node, returns node.)
 
-        map   (cb)
+        map   (cb)   cb( val, field )
             define a callback to be called when fields in this node are created/modified.
             triggers drivers to readahead.
+            if the map returns an object as the value, the object may not be FULLY loaded, and will have to be further mapped to make sure it has its content.
             returns 'this'.  (if called from link, returns link, if from node, returns node.)
 
-        on    (cb)
+        on    (cb)    cb( val, field )
             define a callback to be called when fields in this node are created/modified.
             does not trigger drivers.
             returns 'this'.  (if called from link, returns link, if from node, returns node.)

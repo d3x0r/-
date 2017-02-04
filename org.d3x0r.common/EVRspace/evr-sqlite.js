@@ -2,6 +2,7 @@
 var vfs = require( "sack.vfs" );
 var sqlDb = vfs.Sqlite( "graph.db" );
 
+console.log( "init:", sqlDb.do( "PRAGMA foreign_keys = ON" ) )
 console.log( "tables:", sqlDb.do( "select * from sqlite_master" ) );
 
 function createTables( prefix ) {
@@ -39,7 +40,7 @@ var evr = require( "./evr.js" );
 
 evr.addLocalStorage( driver );
 function driver( op, evr, node, field ) {
-	console.log( "sql seriver got:", op )
+	//console.log( "sql driver got:", op )
 	if( op === "init" ) {
         var sqlOpts = evr.opts.sql = evr.opts.sql || { prefix: "" };
 		sqlOpts.creatingKey = null;
@@ -51,21 +52,23 @@ function driver( op, evr, node, field ) {
 		// field parameter in this case is the old key
 		sqlDb.do( "update ${evr.opts.names.nodes} set nodeKey='${node.key}' where nodeKey='${field}'")
 	}  else if( op === "initNode" ) {
-       	var nodeOpts = node.opts.bio = node.opts.bio || { };
-		nodeOpts.reqMsg = null;
-		nodeOpts.resMsg = null;
+       	var nodeOpts = node.opts.sql = node.opts.sql || { };
 		nodeOpts.state = "added";
-	
+	}  else if( op === "initLink" ) {
+       	var linkOpts = node.opts.sql = node.opts.sql || { };
+		linkOpts.state = "added";
     } else if( op === "read" ) {
         	var sqlOpts = evr.opts.sql;
 			if( sqlOpts.creatingKey === node.key )  {
 				return;
 			}
-
+			//console.trace( "node has parent?", node.text, node.parent )
 			if( !node.parent ) {
 				readNode( sqlOpts, node );
-			} else 
+			} else {
+				var linkOpts = node.opts.sql = node.opts.sql || { state:"added" };
 				readPath( sqlOpts, node );
+			}
 			readProperties( sqlOpts, node );
 			readPaths( sqlOpts, node );
         } else if( op === "initField" ) {
@@ -78,7 +81,8 @@ function driver( op, evr, node, field ) {
 				if( ( sqlOpts.creatingProperty === field.field )
 					// && ( sqlOpts.creatingKey === node.key )
 					)
-							return;
+					return;
+				//console.log( "node is ", node, "\n FIELD IS", field)
 				writeProperty( sqlOpts, node, field );
 			}
 			
@@ -91,20 +95,22 @@ function driver( op, evr, node, field ) {
 				if( ( sqlOpts.creatingProperty === field.field )
 				// && ( sqlOpts.creatingKey === node.key )
 				)
-							return;
+					return;
 				writeProperty( sqlOpts, node, field );
 			}
 		// can also get write events on nodes; which I don't think I care about?
         } else if( op === "onMap" ) {
         	var sqlOpts = evr.opts.sql;
-			console.log( "read properties of node so it's not empty?")
-		readProperties( sqlOpts, node );
-			console.log( "read paths of node so it's not empty?")
-		readPaths( sqlOpts, node );
+			console.log( "onMap; reload properties and paths of old object?", node )
+			//console.log( "read properties of node so it's not empty?")
+			readProperties( sqlOpts, node );
+			//console.log( "read paths of node so it's not empty?")
+			readPaths( sqlOpts, node );
 	} else if( op === "timeout" ) {
 		// field is actually a callback in this case
 		console.log( "is node empty?", node.isEmpty );
 		if( !node.isEmpty ) {
+			node.opts.emitNot = false;
 			// not will not fire; it has data.
 			// cancel further events, and for timeout, send cancelTimeout to prior events.
 			return true;
@@ -123,7 +129,7 @@ function readProperties( sqlOpts, node ) {
 	var names = sqlOpts.names;
 	//var props = sqlDb.do( `select * from ${names.node_props}` );
 	var props = sqlDb.do( `select * from ${names.node_props} where nodeKey='${node.key}'` );
-	console.log( "Read Properties:", props );
+	//console.log( "Read Properties:", props );
 	if( props.length > 0 ) {
 		props.forEach( (prop)=>{	
                 	sqlOpts.creatingKey = node.key;
@@ -138,7 +144,7 @@ function readProperties( sqlOpts, node ) {
 function readPaths( sqlOpts, node ) {
 	var names = sqlOpts.names;
 	var paths = sqlDb.do( `select child nodeKey,text from ${names.node_links} l where parent='${node.key}'` );
-	console.log( "Read Paths:", paths );
+	//console.log( "Read Paths:", paths );
 	if( paths.length > 0 ) {
 		paths.forEach( (path)=>{	
 			sqlOpts.creatingKey = path.nodeKey;
@@ -174,26 +180,30 @@ function readNode( sqlOpts, node, iKnowItDoesntExist ) {
 }
 
 
-function readPath( sqlOpts, node ) {
+function readPath( sqlOpts, nodeLink ) {
 	var names = sqlOpts.names;
-	var dbNode = sqlDb.do( `select l.child as key,state from ${names.node_links} l where l.parent='${node.parent.key}' and l.text='${node.text}'` );
+	var dbNode = sqlDb.do( `select l.child as key,state from ${names.node_links} l where l.parent='${nodeLink.parent.key}' and l.text='${nodeLink.text}'` );
 	if( dbNode.length > 0 ) {
-		if( node.state && node.key !== dbNode[0].nodeKey ) {                                  
-				throw new Error( ["Database sync error, name of node and name given by application is wrong", node.text, dbNode[0].text].join( " " )  );
+		if( nodeLink.tick && node.key !== dbNode[0].nodeKey ) {                                  
+				throw new Error( ["Database sync error, name of node and name given by application is wrong", nodeLink.text, dbNode[0].text].join( " " )  );
 			}
-		if( !node.tick ) {
-			node.key = dbNode[0].key;
-			node.tick = dbNode[0].state;			
+		if( !nodeLink.tick ) {
+			nodeLink.key = dbNode[0].key;
+			nodeLink.tick = dbNode[0].state;			
 		}
 	} else {
 		// use readNode to do the insert of the child node
-		if( readNode( sqlOpts, node ) ) {
-			sqlDb.do( `insert into ${names.node_links} (parent,child)values('${node.parent.key}','${node.key}')` );
-			node.opts.sql.state = "commited";
+		if( readNode( sqlOpts, nodeLink ) ) {
+			//console.trace( "Creating link with name: ", nodeLink.text );
+			sqlDb.do( `insert into ${names.node_links} (parent,child,text)values('${nodeLink.parent.key}','${nodeLink.key}','${nodeLink.text}')` );
+			nodeLink.opts.sql.state = "commited";
 		} else {
+
+			sqlDb.do( `insert into ${names.node_links} (parent,child,text)values('${nodeLink.parent.key}','${nodeLink.key}','${nodeLink.text}')` );
+			nodeLink.opts.sql.state = "commited";
 			// the key existed... and this is a child node....
 			// not sure how that can happen.
-			throw new Error( "Fix me." );
+			//throw new Error( "Fix me." );
 		}
 	}
 }
@@ -201,7 +211,7 @@ function readPath( sqlOpts, node ) {
 
 function writeProperty( sqlOpts, node, field ) {
 	var names = sqlOpts.names;
-	console.log( "Added property; commit...", node )
+	//console.log( "Added property; commit...", node )
 	if( field.opts.sql.state == "added" ) {
 		sqlDb.do( `insert into ${names.node_props} (nodeKey,name,value,state)values('${node.key}','${field.field}','${field.value}','${field.tick}')`);
 	} else {

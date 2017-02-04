@@ -3,12 +3,12 @@ var EVR = require( "./evr.js" );
 var evr = EVR();
 //------------------------- Test Code --------------------------
 
-// gun.get( "root Mesh" );
 var object = evr.get( "root Mesh" );
 //console.log( "root is", object );
 var users = object.path( "users" );
 users.map( getData );
 users.not( ()=>{
+	console.log( "NOT fired..." );
 	users.put( { 1 : { name: 'bob' }, 2 : { name : 'alice' } } );
 } );
 

@@ -30,6 +30,9 @@ var localDrivers = [];
 var remoteDrivers = [];
 var evrMaps = [];
 
+var nodeProto = null;
+var linkProto = null;
+
 function makeEVR( opts ) {
         
 	var evr = {
@@ -50,42 +53,55 @@ function makeEVR( opts ) {
 	emitDriverEvent( "init", evr )
 
 	function makeObjectLink( text, parent, child ) {
+		
 		return {
                         text : text,
-			get key() { return child.key },
-			isEmpty:child.isEmpty,
-			get : child.get,
-			not(cb) { child.not(cb); return this; },
-			getProp(name,value) { child.getProp(name,value); return this; },
+			get key() { return this.child.key },
+			get isEmpty() { return this.child.isEmpty },
+			path(path) { return this.child.path(path) },
+			get(path,key) { return this.child.get(path,key); },
+			not(cb) { this.child.not(cb); return this; },
+			getProp(name,value) { this.child.getProp(name,value); return this; },
 			put(obj) { 
-				if( Object.getPrototypeOf(obj) === Object.GetPrototypeOf( this ) ) {
+				if( Object.getPrototypeOf(obj) === linkProto ) {
+					console.log( "it's a link....", obj, linkProto, Object.getPrototypeOf(obj) )
+					var oldChild = this.child;
+					this.child = obj.child;
+					emitDriverEvent( "replace", evr, this.parent, oldChild, obj );
+					this.parent.maps.forEach( (cb)=>cb( o._, this.text, obj.child ) );
+				}
+				else if( Object.getPrototypeOf(obj) === nodeProto ) {
+					console.log( "it's a node....")
 					var oldChild = this.child;
 					this.child = obj;
 					emitDriverEvent( "replace", evr, this.parent, oldChild, obj );
 					this.parent.maps.forEach( (cb)=>cb( o._, this.text, obj ) );
-				}
-				else child.put( obj );
+					
+				} else this.child.put( obj );
 				return this;
 			},
-			map(cb) { child.map(cb); return this; },
-			on(cb) { child.on(cb); return this; },
-			get tick() { return child.tick },
-			set tick( val ) { child.tick = val },
-			get value() { return child.value },
+			map(cb) { this.child.map(cb); return this; },
+			on(cb) { this.child.on(cb); return this; },
+			get tick() { return this.child.tick },
+			set tick( val ) { this.child.tick = val },
+			get value() { return this.child.value },
 
 			parent : parent,
-			child: child ,
+			child: child,
+			tick: 0,
+			opts : {},
 		};
+		return link;
 	}
 
-        function makeObject( p, key, text ) {
+        function makeObject( p, key ) {
 		if( !key ) { key = p; p = null; }
-        	if( !text ) text = key;
-		//console.trace( "Makeing object:", text )
-	        //if( !p ) console.log( "Making root:", text );
-                //else console.log( "Making sub in:", p.text, text );
+		//console.trace( "Makeing object:", key )
+	        //if( !p ) console.log( "Making root:", key );
+                //else console.log( "Making sub in:", p.key, key );
         	var o = evr.graph.get(key);
 	        if( !o && p ) { 
+			/*
 			o = p.members[text];
 			if( o ) {
 				var oldKey = o.key;
@@ -95,6 +111,7 @@ function makeEVR( opts ) {
 				o.key = key;
 	                        emitDriverEvent( "updateKey", evr, o, oldKey );
 			}
+			*/
 		}
 	        if( !o ) { 
                 	o = {
@@ -124,19 +141,47 @@ function makeEVR( opts ) {
                         		return this._;
         	                },
 
+				path(name) {
+					var parts = name.split( "." );
+					var n = o;
+					console.log( "path(", name, ")")
+					parts.forEach( part=>( n = n.get( part ) ) );
+					return n;
+				},
                 		get(name,key) {
 					if( typeof name === "object" ) {
 						return evr.objectMap(name);
 					}
-                        		var o = this.members[name];
-	                        	if( !o ) {
+                        		var o = null;
+					var oLink = this.members[name];
+					//console.log( "Get " , name  );
+	                        	if( !oLink ) {
 						if( this.fields[name] )
 							throw new Error( "Path already exists as a property; replacing a value with an object is not allowed.\n"+"existing field:" + this.fields[name] );
 						// this key is subject to change
 						// the initial state of "added" allows this key to be overwritten by a driver
-						return makeObjectLink( this, makeObject( this, key||makeKey(), name ) );
+						//console.log( "Creating a new member with", name )
+						oLink = makeObjectLink( name, this, makeObject( this, key||makeKey() ) );
+
+						this.members[name] = oLink;
+						this._[name] = oLink.child._;
                                 	}
-					return makeObjectLink( this, o );
+					else {
+						//console.log( "need to return a new link to this object with this as a parent.", name );
+						oLink = makeObjectLink( name, this, oLink.child );
+						this.members[name] = oLink;
+						this._[name] = oLink.child._;
+					}
+
+					if( !linkProto )
+						linkProto = Object.prototype.toString.call(oLink);//bject.getPrototypeOf( link );
+
+					if( p )
+						p.maps.forEach( (cb)=>cb( o._, name, oLink ) );
+
+					emitDriverEvent( "initLink", evr, oLink );
+					emitDriverEvent( "read", evr, oLink );
+					return oLink;
                 	        },
 				not(cbNot) {
 					if( localDrivers.length || remoteDrivers.length ) {
@@ -147,7 +192,7 @@ function makeEVR( opts ) {
 						if( o.isEmpty )
 							cbNot( o );
 					}	
-					return o;
+					return this;
 				},
 	        		getProp(name,initialValue) {
 					var p = this.fields[name];
@@ -163,7 +208,7 @@ function makeEVR( opts ) {
                 	                	throw new Error( "Invalid parameter type to put" );
 	                	        }
                                 	parseObject( obj, this );
-					return o;
+					return this;
         	                },
 				map(cb) {
 					o.maps.push( cb );					
@@ -174,12 +219,15 @@ function makeEVR( opts ) {
 					o.maps.push( cb );
 				},
                 	}
-			o.path = o.get;
+			if( !nodeProto )
+				nodeProto = Object.prototype.toString.call(o);// Object.getPrototypeOf( o );
 
-                        if( p ) {
-                        	p.members[text] = o;
-                                p._[text] = o._;
-                        }
+			if( !p ) {
+				emitDriverEvent( "initLink", evr, o );
+				emitDriverEvent( "read", evr, o );
+			}
+			//console.log( "protos:", Object.keys( nodeProto ), linkProto&&Object.keys(linkProto) )
+
 	                evr.graph.set( key, o );
 			evr.objectMap.set( o._, o );
 			
@@ -192,12 +240,9 @@ function makeEVR( opts ) {
 			//
 			//  .not can be used to allow the delay of 2 to come back.
 			//  3) there's no drivers, and this is done.
-                        emitDriverEvent( "initNode", evr, o );
-			if( p )
-				p.maps.forEach( (cb)=>cb( o._, text, o ) );
+                        emitDriverEvent( "initNode", evr, o, p );
 	        } else {  // if( !o )  so this is already existed...
 			if( key != o.key ) {
-
 				o.key = key;
 			}
 		}
@@ -209,7 +254,16 @@ function makeEVR( opts ) {
                         keys.forEach( (key)=>{
 				//console.log( "Writing key:", key );
 		        	if( typeof  obj[key] === "object" ) {
-                                	var newObj = makeObject( into, makeKey(), key );
+                                	var newObj = makeObject( into, makeKey() );
+					oLink = makeObjectLink( key, into, newObj );
+					into.members[key] = oLink;
+					into._[key] = newObj._;
+					//console.log( "so there's a core object out there, now write this?")
+
+					// commit this member into the object for everyone else...
+			                emitDriverEvent( "initLink", evr, oLink );
+					emitDriverEvent( "read", evr, oLink );
+
                                         parseObject( obj[key], newObj );
                                 }
                                 else {
@@ -249,7 +303,8 @@ function makeEVR( opts ) {
 
 			// drivers may commit initial value here... initField allows different operations
 			// than a normal 'write' from above, which can count on already being initliazed.
-			emitDriverEvent( "initField", evr, o, f );
+
+			emitDriverEvent( "initField", evr, node, f );
 
 			// dispatch changed value to map.
 			f.node.maps.forEach( (cb)=>cb( f.value, f.field ) );

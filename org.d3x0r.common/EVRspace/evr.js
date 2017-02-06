@@ -49,51 +49,52 @@ function makeEVR( opts ) {
 	function makeObjectLink( text, parent, child ) {
 		if( this.constructor !== makeObjectLink ) return new makeObjectLink( text, parent,child);
 
-		Object.assign(this, {
-			text : text,
-			get key() { return this.child.key },
-			get isEmpty() { return this.child.isEmpty },
-			path(path) { return this.child.path(path) },
-			get(path,key) { return this.child.get(path,key); },
-			not(cb) { this.child.not(cb); return this; },
+		this.text = text;
+		this.parent = parent;
+		this.child = child;
+		this.tick = 0;
+		this.opts = {};
+	}
+
+	Object.defineProperty( makeObjectLink.prototype, "key", { get() { return this.child.key } } );
+	Object.defineProperty( makeObjectLink.prototype, "isEmpty", { get() { return this.child.isEmpty } } );
+	Object.defineProperty( makeObjectLink.prototype, "tick", { get() { return this.child.tick },
+			set( val ) { this.child.tick = val } 
+		} );
+	Object.defineProperty( makeObjectLink.prototype, "value", { get() { return this.child.value } } );
+
+	makeObjectLink.prototype.toString = function() { return "LINK from:" + this.parent + " called " + this.text + " to " + this.child; };
+	makeObjectLink.prototype.path = function(path) { return this.child.path(path) };
+	makeObjectLink.prototype.get = function(path,key) { return this.child.get(path,key); };
+	makeObjectLink.prototype.not = function(cb) { this.child.not(cb); return this; };
 			//getProp(name,value) { this.child.getProp(name,value); return this; },
-			put(obj) { 
+	makeObjectLink.prototype.put = function(obj) { 
 				if( obj.constructor === makeObjectLink ) {
-					console.log( "it's a link....", obj )
+					console.log( "a it's a link....", obj.toString() )
 					var oldChild = this.child;
 					this.child = obj.child;
 					emitDriverEvent( "replace", evr, this.parent, oldChild, obj );
-					this.parent.maps.forEach( (cb)=>cb( o._, this.text, obj.child ) );
+					this.parent.maps.forEach( (cb)=>cb( this.child._, this.text, obj.child ) );
 				}
 				else if( obj.constructor === makeObject ) {
-					console.log( "it's a node....")
+					console.log( "a it's a node....")
 					var oldChild = this.child;
 					this.child = obj;
 					emitDriverEvent( "replace", evr, this.parent, oldChild, obj );
-					this.parent.maps.forEach( (cb)=>cb( o._, this.text, obj ) );
+					this.parent.maps.forEach( (cb)=>cb( this.child._, this.text, obj ) );
 					
 				} else {
 					//console.log( "GOT PASSED AN OBJECT TO PARSE????", obj )
 					this.child.put( obj );
 				}
 				return this;
-			},
-			map(cb) { this.child.map(cb); return this; },
-			on(cb) { this.child.on(cb); return this; },
-			get tick() { return this.child.tick },
-			set tick( val ) { this.child.tick = val },
-			get value() { return this.child.value },
+			};
+	makeObjectLink.prototype.map = function(cb) { this.child.map(cb); return this; };
+	makeObjectLink.prototype.on = function(cb) { this.child.on(cb); return this; };
 
-			parent : parent,
-			child: child,
-			tick: 0,
-			opts : {},
-		} );
-
-	}
 
 	function makeGuide(  ) {
-		return {
+		var g = {
 			get key() { throw new Error( "'key' on a delay resolving map is not supported") },
 			get isEmpty() { 
 				this.script.push( { f : "isEmpty" } );
@@ -127,38 +128,73 @@ function makeEVR( opts ) {
 			set tick( val ) { throw new Error( "'tick' on a delay resolving map is not supported") },
 			get value() { throw new Error( "'value' on a delay resolving map is not supported") },
 			run( newLink ) {
-				runVm( { guide:this, ip:0 }, newLink )
+				runVm( { guide:this, ip:0, emitted : true }, newLink )
 			},
+			firstRun : true,
 			script : [],
 		};
+		//g.map(); // push the first map into the script too.
+		return g;
 	}
 
 
+function runVmOnObjectMembers( sandbox, o ) {
+		Object.keys( o.members ).forEach( member=>{
+			var link = o.members[member];
+			runVm( sandbox, link );
+		})
+		Object.keys( o.fields ).forEach( member=>{
+			var f = o.fields[member];
+			runVm( sandbox, f );
+		})
+}
+
 function runVm( sandbox, o ) {
 	var guide = sandbox.guide;
-	console.log( "sandbox:", sandbox, o )
+	if( guide.firstRun ) {
+		// first run, the o passed is the root object
+		// for which we need to do an initial scan of that object
+		// with an implied root; later, the object will be 
+		// the new link or property in this root object...
+		guide.firstRun = false;
+		runVmOnObjectMembers( sandbox, o );
+		return;
+	}
+	//console.trace( "sandbox:", sandbox, o )
 	if( sandbox.ip < guide.script.length ) {
 		var stmt = guide.script[sandbox.ip];
+		//console.log( "Doing statement:", stmt, o )
 		var outSandbox = { 
 			guide : guide,
 			ip : sandbox.ip+1,
+			emitted : false,
 			run(newLink) { return runVm( outSandbox, newLInk ); }
 		};
 		if( stmt.f === "path") {
 			var part = sandbox.part || 0;
-			if( o.text === stmt.args[1][part] ) {
+			if( stmt.args[1][part] in o.child.members ) {
+				//console.log( "Path part found in members" );
 				if( (part+1) < stmt.args[1].length ) {
+					//console.log( "next child now has a new sandbox..." );
 					outSandbox.part = part+1;
 					outSandbox.ip = sandbox.ip; // stay on this same node; check next part
 					//return runVm( outSandbox, o );
 				}
+				o.child.guideContexts.push( outSandbox );
+				runVmOnObjectMembers( outSandbox, o.child );
 			}
-			else
+			else {
+				console.log( "path part was not found...(yet)" );
 				outSandbox = undefined;
+			}
 		}
 		else if( stmt.f === "get") {
-			if( o.text === stmt.args[0] ) {
-				// just allow stepping closer
+			if( stmt.args[0] in o.child.members ) {
+				o.child.guideContexts.push( outSandbox );
+				runVmOnObjectMembers( outSandbox, o.child );
+			}
+			else if( stmt.args[0] in o.fields ) {
+
 			}
 			else
 				outSandbox = undefined;
@@ -166,12 +202,15 @@ function runVm( sandbox, o ) {
 		else if( stmt.f === "map") {
 			var valProto = Object.getPrototypeOf( o );
 			if( valProto.constructor === makeObjectLink ){
-
+				if( stmt.args[0] )
+					o.map( stmt.args[0] );
+				o.child.guideContexts.push( outSandbox );
+				runVmOnObjectMembers( outSandbox, o.child )
 			} else if( valProto.constructor === makeObject ) {
 				if( stmt.args[0] )
 					o.map( stmt.args[0] );
-				else
-					o.guideContexts.push( outSandbox );
+				o.guideContexts.push( outSandbox );
+				runVmOnObjectMembers( outSandbox, o )
 			} else if( valProto.constructor === makeObjectProperty ) {
 
 			}
@@ -192,6 +231,8 @@ function runVm( sandbox, o ) {
 			}
 		}
 		else if( stmt.f === "on") {
+			//console.log( "on called with a ")
+			stmt.args[0]( o.value, o.text )
 		}
 
 		return outSandbox;
@@ -316,6 +357,8 @@ function runVm( sandbox, o ) {
 
 			emitDriverEvent( "initField", evr, node, f );
 			// dispatch changed value to map.
+
+			f.node.guideContexts.forEach( context=> context.run( o ) );
 			f.node.maps.forEach( (cb)=>cb( f.value, f.text ) );
 		}
 
@@ -326,9 +369,7 @@ function runVm( sandbox, o ) {
 			f.value = val;
 			f.tick = tick;
 			emitDriverEvent( "write", evr, o, f );
-			f.node.guideContexts.forEach( context=> {
-				var newContext = context.run( o );
-			} );
+			f.node.guideContexts.forEach( context=>context.run( o ) );
 			f.node.maps.forEach( (cb)=>cb( f.value, f.text ) );
 		}
 	}
@@ -338,6 +379,9 @@ function runVm( sandbox, o ) {
 	makeObjectProperty.prototype.map = function() { throw new Error( "fields cannot be mapped; try .value instead" ); }
 	makeObjectProperty.prototype.not = function(cb) { if( f.value === undefined ) cb( ); }
 	makeObjectProperty.prototype.on = function(cb) { cb( this.value, this.text ) }
+	makeObjectProperty.prototype.toString = function() {
+		return "FIELD " + this.text + "=" + this.value + "  @" + this.tick;
+	}
 	makeObjectProperty.prototype.put = function(val) { 
 		if( typeof value === "object" ) {
 			throw new Error( "For now properties cannot turn into objects...");
@@ -355,18 +399,47 @@ function runVm( sandbox, o ) {
 			var valProto = Object.getPrototypeOf( val );
 			if( typeof  val === "object" ) {
 				if( valProto.constructor === makeObjectLink ) {
-					console.log( "it's a link....", obj )
-					var oldChild = this.child;
-					this.child = val.child;
-					emitDriverEvent( "replace", evr, this.parent, oldChild, obj );
+					var target = into.members[key];
+					if( !target ) {
+						target = into.fields[key];
+						if( !target ) {
+							oLink = makeObjectLink( key, into, val.child );
+							into.members[key] = oLink;
+							into._[key] = val.child._;
+							into.maps.forEach( (cb)=>cb( into._[key], key, obj ) );
+							// commit this member into the object for everyone else...
+							emitDriverEvent( "initLink", evr, oLink );
+							emitDriverEvent( "read", evr, oLink );
+							return; // return is only forEach() continue
+
+						}
+					}
+					console.log( "b it's a link....", val.toString() )
+					var oldChild = target.child;
+					target.child = val.child;
+					emitDriverEvent( "replace", evr, target.parent, oldChild, obj );
 					into.maps.forEach( (cb)=>cb( into._[key], key, obj.child ) );
 				}
 				else if( valProto.constructor === makeObject ) {
-					//console.log( "This proto:",Object.getPrototypeOf( this ).constructor )
-					if( Object.getPrototypeOf( this ).constructor === makeObject ) {
+					var target = into.members[key];
+					if( !target ) {
+						target = into.fields[key];
+						if( !target ) {
+							oLink = makeObjectLink( key, into, val );
+							into.members[key] = oLink;
+							into._[key] = val._;
+							into.maps.forEach( (cb)=>cb( into._[key], key, obj ) );
+							// commit this member into the object for everyone else...
+							emitDriverEvent( "initLink", evr, oLink );
+							emitDriverEvent( "read", evr, oLink );
+							return; // return is only forEach() continue
+						}
+					}
+					//console.log( "This proto:",Object.getPrototypeOf( target ).constructor )
+					if( Object.getPrototypeOf( target ).constructor === makeObject ) {
 						throw new Error( "cannot immediatel substitute one object for another...")
-					} else if ( Object.getPrototypeOf( this ).constructor === makeObjectLink ) {
-						console.log( "it's a node....", valProto )
+					} else if ( Object.getPrototypeOf( target ).constructor === makeObjectLink ) {
+						console.log( " b it's a node.... into a node link", valProto )
 						var oldChild = this.child;
 						this.child = val;
 						emitDriverEvent( "replace", evr, this.parent, oldChild, obj );
@@ -415,6 +488,9 @@ function runVm( sandbox, o ) {
 	}	
 
 
+	makeObject.prototype.toString = function() {
+		return "OBJECT " + this.key + "{" + Object.keys(this.members).join(",") + "}  {" + Object.keys(this.fields).join(",") + "}";
+	}
 	Object.defineProperty( makeObject.prototype, "isEmpty", { get() {
 				return ( Object.keys(this._).length === 0 );
 	}} );
@@ -510,9 +586,12 @@ function runVm( sandbox, o ) {
 		if( !cb ) {
 			var guide = makeGuide();
 			this.guides.push( guide );
+			var obj = this;
+			//console.trace( "made object?:", obj );
+			setImmediate( function(){ guide.run( obj )} );
 			return guide;
 		}else {
-			console.log( "saved callback for map in", this )
+			console.log( "saved callback for map in", this.toString() )
 			this.maps.push( cb );					
 			emitDriverEvent( "onMap", evr, this );
 		}

@@ -22,10 +22,20 @@ function driver( op, evr, node, field ) {
 		var nodeOpts = node.opts.bio = node.opts.bio || { };
 		nodeOpts.reqMsg = null;
 		nodeOpts.resMsg = null;
+
+		nodeOpts.msg = { op:"get", key:node.key, tick:node.tick };
+		
+		evr.emit( "out", nodeOpts.msg );
+		//evr.emit( "out", msg );
+	}  else if( op === "initLink" ) {
+		var msg;
+       	var linkOpts = node.opts.bio = node.opts.bio || { };
+		nodeOpts.reqMsg = null;
+		nodeOpts.resMsg = null;
 		if( !node.parent ) 
-			nodeOpts.msg = { op:"get", key:node.key, text:node.text, tick:node.tick };
+			linkOpts.reqMsg = { op:"get", key:node.key, text:node.text, tick:node.tick };
 		else
-			nodeOpts.msg = { op:"get", parent:node.parent.key, key:node.key, text:node.text, tick:node.tick };
+			linkOpts.reqMsg = { op:"get", parent:node.parent.key, key:node.key, text:node.text, tick:node.tick };
 		
 		evr.emit( "out", nodeOpts.msg );
 		//evr.emit( "out", msg );

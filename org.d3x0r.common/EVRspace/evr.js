@@ -3,9 +3,11 @@
 
 module.exports=exports=makeEVR
 
+var _events; // global events on all EVR 
+
 makeEVR.on = (a,b)=>{ handleEvents(_events,a,b) } ;
-makeEVR.once = handleEvent;
-makeEVR.emit = emitEvents;
+makeEVR.once = (a,b)=>{ handleEvent(_events,a,b) };
+makeEVR.emit = (a,b)=>{ emitEvents(_events,a,b) ;
 
 makeEVR.addLocalStorage = addLocalStorage;
 makeEVR.addRemoteStorage = addRemoteStorage;
@@ -15,7 +17,7 @@ var rng = require( '../salty_random_generator.js' ).SaltyRNG( (salt)=>{ salt.len
 
 //const charset = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_";
 const charset = ["0","1","2","3","4","5","6","7","8","9","a","b","c","d","e","f","g"
-		,"h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x"
+				,"h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x"
 				,"y","z","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O"
 				,"P","Q","R","S","T","U","V","W","X","Y","Z","-","_"];
 
@@ -477,7 +479,6 @@ function makeEVR( opts ) {
 						throw new Error( "THis never happens.")
 				} else {
 					//console.log( "GOT PASSED AN OBJECT TO PARSE????", obj )
-
 					// makeObject may return an existing object....
 					// but a new link is created...
 					var newObj;
@@ -685,6 +686,14 @@ function handleEvents( _events, event, cb ) {
 			
 }		
 
+function emitEvents( _events, event, evr, data ) {
+	var event = _events[event];
+	//console.trace( "emit with", data );
+	if( event ) {
+		event.forEach( (cb)=>{ if(cb.cb)cb.cb( evr, data ); if( cb.once ) cb.cb = null; } );
+	}	
+}		
+
 function emitDriverEvent( ...args ) {
 		localDrivers.forEach( ( cb )=>cb( ...args ) );
 		remoteDrivers.forEach( ( cb )=>cb( ...args ) );
@@ -705,13 +714,5 @@ function emitAbortableDriverEvent( initial,abort, ...args ) {
 	//console.log( "c abortable driver stopped at ", n );
 
 }
-
-function emitEvents( _events, event, evr, data ) {
-	var event = _events[event];
-	//console.trace( "emit with", data );
-	if( event ) {
-		event.forEach( (cb)=>{ if(cb.cb)cb.cb( evr, data ); if( cb.once ) cb.cb = null; } );
-	}	
-}		
 
 

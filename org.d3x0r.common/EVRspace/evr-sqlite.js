@@ -69,7 +69,7 @@ function driver( op, evr, node, field ) {
 				var linkOpts = node.opts.sql = node.opts.sql || { state:"added" };
 				readPath( sqlOpts, node );
 			}
-			readProperties( sqlOpts, node );
+			readProperties( sqlOpts, evr, node );
 			readPaths( sqlOpts, node );
         } else if( op === "initField" ) {
 			var sqlOpts = evr.opts.sql;
@@ -103,7 +103,7 @@ function driver( op, evr, node, field ) {
         	var sqlOpts = evr.opts.sql;
 			console.log( "onMap; reload properties and paths of old object?", node )
 			//console.log( "read properties of node so it's not empty?")
-			readProperties( sqlOpts, node );
+			readProperties( sqlOpts, evr, node );
 			//console.log( "read paths of node so it's not empty?")
 			readPaths( sqlOpts, node );
 	} else if( op === "timeout" ) {
@@ -122,10 +122,12 @@ function driver( op, evr, node, field ) {
 			field();
 			return true;
 		}
+	} else {
+		console.log( "Unknown Driver Op:", op )
 	}
 }
 
-function readProperties( sqlOpts, node ) {
+function readProperties( sqlOpts, evr, node ) {
 	var names = sqlOpts.names;
 	//var props = sqlDb.do( `select * from ${names.node_props}` );
 	var props = sqlDb.do( `select * from ${names.node_props} where nodeKey='${node.key}'` );
@@ -134,9 +136,11 @@ function readProperties( sqlOpts, node ) {
 		props.forEach( (prop)=>{	
                 	sqlOpts.creatingKey = node.key;
                 	sqlOpts.creatingProperty = prop.name;
-			var newProp = node.getProp( prop.name, prop.value );
+					
+			var newProp = evr.makeObjectProperty( node, prop.name, prop.value );
 			newProp.tick = prop.state;
 			newProp.opts.sql.state = "commited";
+			evr.driverEmit( "read", evr, node );
 		} );
 	}
 }
@@ -155,6 +159,8 @@ function readPaths( sqlOpts, node ) {
 
 			newPath.tick = path.state;
 			newPath.opts.sql.state = "commited";
+
+
 		} );
 	}
 }

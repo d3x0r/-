@@ -14,12 +14,12 @@ function driver( op, evr, node, field ) {
 
 	}  else if( op === "initField" ) {
 		var msg;
-       	var fieldOpts = field.opts.bio = field.opts.bio || { };
+		var fieldOpts = field.opts.bio = field.opts.bio || { };
 		fieldOpts.state = "inital";
 		evr.emit( "out", { op:"add", key:node.key, field:field.field, value:field.value } );
 	}  else if( op === "initNode" ) {
 		var msg;
-       	var nodeOpts = node.opts.bio = node.opts.bio || { };
+		var nodeOpts = node.opts.bio = node.opts.bio || { };
 		nodeOpts.reqMsg = null;
 		nodeOpts.resMsg = null;
 		if( !node.parent ) 
@@ -30,13 +30,13 @@ function driver( op, evr, node, field ) {
 		evr.emit( "out", nodeOpts.msg );
 		//evr.emit( "out", msg );
 	} else if( op === "updateKey" ) {
-       	var nodeOpts = node.opts.bio;
+		var nodeOpts = node.opts.bio;
 		nodeOpts.msg.key = node.key;
 		nodeOpts.msg.oldKey = field;
 		evr.emit( "out", nodeOpts.msg )
 	} else if( op === "read" ) {
 		var msg;
-       	var nodeOpts = node.opts.bio = evr.opts.bio || { msg : null };
+		var nodeOpts = node.opts.bio = evr.opts.bio || { msg : null };
 		if( !node.parent ) 
 			nodeOpts.msg = { op:"get", key:node.key, text:node.text, tick:node.tick };
 		else
@@ -47,7 +47,7 @@ function driver( op, evr, node, field ) {
 	} else if( op === "write" ) {
 		//var sqlOpts = evr.opts.sql;
 		if( field ) {
-	       	var fieldOpts = field.opts.bio = field.opts.bio || { msg : null };
+			var fieldOpts = field.opts.bio = field.opts.bio || { msg : null };
 			if( !fieldOpts.msg )
 				fieldOpts.msg = { op : "write", key:node.key, field:field.field, value:field.value, tick:field.tick };
 			else {

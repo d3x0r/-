@@ -50,7 +50,7 @@ function driver( op, evr, node, field ) {
 	}  else if( op === "updateKey" ) {
 		// node's ID was updated...
 		// field parameter in this case is the old key
-		sqlDb.do( "update ${evr.opts.names.nodes} set nodeKey='${node.key}' where nodeKey='${field}'")
+		sqlDb.do( "update ${evr.opts.names.nodes} set nodeKey=${makeSqlValue(node.key)} where nodeKey=${makeSqlValue(field)}")
 	}  else if( op === "initNode" ) {
        	var nodeOpts = node.opts.sql = node.opts.sql || { };
 		nodeOpts.state = "added";
@@ -69,7 +69,7 @@ function driver( op, evr, node, field ) {
 				var linkOpts = node.opts.sql = node.opts.sql || { state:"added" };
 				readPath( sqlOpts, node );
 			}
-			readProperties( sqlOpts, node );
+			readProperties( sqlOpts, evr, node );
 			readPaths( sqlOpts, node );
         } else if( op === "initField" ) {
 			var sqlOpts = evr.opts.sql;
@@ -103,7 +103,7 @@ function driver( op, evr, node, field ) {
         	var sqlOpts = evr.opts.sql;
 			console.log( "onMap; reload properties and paths of old object?", node )
 			//console.log( "read properties of node so it's not empty?")
-			readProperties( sqlOpts, node );
+			readProperties( sqlOpts, evr, node );
 			//console.log( "read paths of node so it's not empty?")
 			readPaths( sqlOpts, node );
 	} else if( op === "timeout" ) {
@@ -122,28 +122,32 @@ function driver( op, evr, node, field ) {
 			field();
 			return true;
 		}
+	} else {
+		console.log( "Unknown Driver Op:", op )
 	}
 }
 
-function readProperties( sqlOpts, node ) {
+function readProperties( sqlOpts, evr, node ) {
 	var names = sqlOpts.names;
 	//var props = sqlDb.do( `select * from ${names.node_props}` );
-	var props = sqlDb.do( `select * from ${names.node_props} where nodeKey='${node.key}'` );
+	var props = sqlDb.do( `select * from ${names.node_props} where nodeKey=${makeSqlValue(node.key)}` );
 	//console.log( "Read Properties:", props );
 	if( props.length > 0 ) {
 		props.forEach( (prop)=>{	
                 	sqlOpts.creatingKey = node.key;
                 	sqlOpts.creatingProperty = prop.name;
-			var newProp = node.getProp( prop.name, prop.value );
+					
+			var newProp = evr.makeObjectProperty( node, prop.name, prop.value );
 			newProp.tick = prop.state;
 			newProp.opts.sql.state = "commited";
+			evr.driverEmit( "read", evr, node );
 		} );
 	}
 }
 
 function readPaths( sqlOpts, node ) {
 	var names = sqlOpts.names;
-	var paths = sqlDb.do( `select child nodeKey,text from ${names.node_links} l where parent='${node.key}'` );
+	var paths = sqlDb.do( `select child nodeKey,text from ${names.node_links} l where parent=${makeSqlValue(node.key)}` );
 	//console.log( "Read Paths:", paths );
 	if( paths.length > 0 ) {
 		paths.forEach( (path)=>{	
@@ -155,6 +159,8 @@ function readPaths( sqlOpts, node ) {
 
 			newPath.tick = path.state;
 			newPath.opts.sql.state = "commited";
+
+
 		} );
 	}
 }
@@ -163,7 +169,7 @@ function readPaths( sqlOpts, node ) {
 function readNode( sqlOpts, node, iKnowItDoesntExist ) {
 	var names = sqlOpts.names;
 	var makeit = true;
-	var dbNode = sqlDb.do( `select * from ${names.nodes} where nodeKey='${node.key}'` );
+	var dbNode = sqlDb.do( `select * from ${names.nodes} where nodeKey=${makeSqlValue(node.key)}` );
 	if( dbNode.length > 0 ) {
 		makeit = false;
 		if( !node.tick ) {
@@ -173,7 +179,7 @@ function readNode( sqlOpts, node, iKnowItDoesntExist ) {
 	}
 	else {
 		node.tick = Date.now();
-		sqlDb.do( `insert into ${names.nodes} (nodeKey)values('${node.key}')` );
+		sqlDb.do( `insert into ${names.nodes} (nodeKey)values(${makeSqlValue(node.key)})` );
 		return true;
 	}
 	return false;
@@ -182,7 +188,7 @@ function readNode( sqlOpts, node, iKnowItDoesntExist ) {
 
 function readPath( sqlOpts, nodeLink ) {
 	var names = sqlOpts.names;
-	var dbNode = sqlDb.do( `select l.child as key,state from ${names.node_links} l where l.parent='${nodeLink.parent.key}' and l.text='${nodeLink.text}'` );
+	var dbNode = sqlDb.do( `select l.child as key,state from ${names.node_links} l where l.parent=${makeSqlValue(nodeLink.parent.key)} and l.text=${makeSqlValue(nodeLink.text)}` );
 	if( dbNode.length > 0 ) {
 		if( nodeLink.tick && node.key !== dbNode[0].nodeKey ) {                                  
 				throw new Error( ["Database sync error, name of node and name given by application is wrong", nodeLink.text, dbNode[0].text].join( " " )  );
@@ -195,11 +201,11 @@ function readPath( sqlOpts, nodeLink ) {
 		// use readNode to do the insert of the child node
 		if( readNode( sqlOpts, nodeLink ) ) {
 			//console.trace( "Creating link with name: ", nodeLink.text );
-			sqlDb.do( `insert into ${names.node_links} (parent,child,text)values('${nodeLink.parent.key}','${nodeLink.key}','${nodeLink.text}')` );
+			sqlDb.do( `insert into ${names.node_links} (parent,child,text)values(${makeSqlValue(nodeLink.parent.key)},${makeSqlValue(nodeLink.key)},${makeSqlValue(nodeLink.text)})` );
 			nodeLink.opts.sql.state = "commited";
 		} else {
 
-			sqlDb.do( `insert into ${names.node_links} (parent,child,text)values('${nodeLink.parent.key}','${nodeLink.key}','${nodeLink.text}')` );
+			sqlDb.do( `insert into ${names.node_links} (parent,child,text)values(${makeSqlValue(nodeLink.parent.key)},${makeSqlValue(nodeLink.key)},${makeSqlValue(nodeLink.text)})` );
 			nodeLink.opts.sql.state = "commited";
 			// the key existed... and this is a child node....
 			// not sure how that can happen.
@@ -213,9 +219,31 @@ function writeProperty( sqlOpts, node, field ) {
 	var names = sqlOpts.names;
 	//console.log( "Added property; commit...", node )
 	if( field.opts.sql.state == "added" ) {
-		sqlDb.do( `insert into ${names.node_props} (nodeKey,name,value,state)values('${node.key}','${field.field}','${field.value}','${field.tick}')`);
+		sqlDb.do( `insert into ${names.node_props} (nodeKey,name,value,state)values(${makeSqlValue(node.key)},${makeSqlValue(field.field)},${makeSqlValue(field.value)},${makeSqlValue(field.tick)})`);
 	} else {
-		sqlDb.do( `update ${names.node_props} set value='${field.value}',state=${field.tick} where nodeKey='${node.key}' and name='${field.field}'`);
+		sqlDb.do( `update ${names.node_props} set value=${makeSqlValue(field.value)},state=${Number(field.tick)} where nodeKey=${makeSqlValue(node.key)} and name=${makeSqlValue(field.field)}`);
 	}
 	field.opts.sql.state = "committed";
+}
+
+
+
+function makeSqlValue(  CTEXTSTR blob )
+{
+	var n = 0;
+
+	var result = "'";
+
+	while( n < blob.length )
+	{	
+		var thischar;
+		if( ( thischar= blob.charAt(n)) === "'" )
+			result += "'";
+		result += thischar;
+		n++;
+	}
+
+	result += "'";
+
+	return result;
 }

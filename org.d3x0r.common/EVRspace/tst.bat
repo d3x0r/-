@@ -13,4 +13,4 @@ node "evrtest+sql.js" >err2.2.txt 2>&1
 goto :eof
 
 :3
-node "evrtest+bio.js" >err.3.txt 2>&1
+node "evrtest+bio.js" "./evrTest-2Mesh.js" >err.3.txt 2>&1

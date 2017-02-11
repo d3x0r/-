@@ -103,13 +103,14 @@ drvr.put( dflt );
 
 */
 
-var Gun = require( "gun" );
+//var Gun = require( "gun" );
+var Gun = require( "./evr" );
 
-//var Gun = require( "./evr" );
 var gun = Gun();
 
 var root2 = gun.get( "root2" );
 root2.put( dflt );
+
 root2.map().path( "sites" ).map().path( "users" ).map().on( showMeTheData );
 
 

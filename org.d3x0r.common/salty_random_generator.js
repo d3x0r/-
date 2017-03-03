@@ -163,7 +163,11 @@ exports.SaltyRNG = function( f ) {
 
 //------------------ SHA256 support
 
+/* Taken from https://github.com/brillout/forge-sha256
+ * which itself is taken from https://github.com/digitalbazaar/forge/tree/3b7826f7c2735c42b41b7ceaaadaad570e92d898
+ */
 
+// this is just the working bits of the above.
 
 var K = new Uint32Array([
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b,

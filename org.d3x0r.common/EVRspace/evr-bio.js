@@ -23,7 +23,7 @@ function driver( op, evr, node, field ) {
 		nodeOpts.reqMsg = null;
 		nodeOpts.resMsg = null;
 
-		nodeOpts.msg = { op:"get", key:node.key, tick:node.tick };
+		nodeOpts.msg = { op:"get", key:node.key, tick:node.tick, init : true };
 		
 		evr.emit( "out", nodeOpts.msg );
 		//evr.emit( "out", msg );

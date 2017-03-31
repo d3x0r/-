@@ -217,19 +217,24 @@ function readPath( sqlOpts, nodeLink ) {
 
 function writeProperty( sqlOpts, node, field ) {
 	var names = sqlOpts.names;
-	//console.log( "Added property; commit...", node )
+	//console.log( "Added property; commit...", node, field )
 	if( field.opts.sql.state == "added" ) {
-		sqlDb.do( `insert into ${names.node_props} (nodeKey,name,value,state)values(${makeSqlValue(node.key)},${makeSqlValue(field.field)},${makeSqlValue(field.value)},${makeSqlValue(field.tick)})`);
+		sqlDb.do( `insert into ${names.node_props} (nodeKey,name,value,state)values(${makeSqlValue(node.key)},${makeSqlValue(field.text)},${makeSqlValue(field.value)},${makeSqlValue(field.tick)})`);
 	} else {
-		sqlDb.do( `update ${names.node_props} set value=${makeSqlValue(field.value)},state=${Number(field.tick)} where nodeKey=${makeSqlValue(node.key)} and name=${makeSqlValue(field.field)}`);
+		sqlDb.do( `update ${names.node_props} set value=${makeSqlValue(field.value)},state=${Number(field.tick)} where nodeKey=${makeSqlValue(node.key)} and name=${makeSqlValue(field.text)}`);
 	}
 	field.opts.sql.state = "committed";
 }
 
+//---------------------------------------------
+// utility functions
 
-
-function makeSqlValue(  CTEXTSTR blob )
+// return a quoted SQL string (escape characters appropriately)
+// if blob is NULL result with SQL NULL value.
+function makeSqlValue(   blob )
 {
+	if( !blob ) return 'NULL';
+	return "'" + sqlDb.escape( blob ) + "'";
 	var n = 0;
 
 	var result = "'";
@@ -247,3 +252,26 @@ function makeSqlValue(  CTEXTSTR blob )
 
 	return result;
 }
+
+// benchmark the above function; to see if javascript was as fast.
+// called external escape function was 2x the speed.
+function bench() {
+	var now = Date.now();
+	var n = 0;
+	while( n < 4000000 ) {
+		sqlDb.escape( "Some Arbitrary string that is fialry long ' and has some \0 strange values in 'it'" );
+		n++;
+	}
+	var end = Date.now();
+	console.log( "did ", n, end - now );
+
+	var now = Date.now();
+	var n = 0;
+	while( n < 4000000 ) {
+		makeSqlValue( "Some Arbitrary string that is fialry long ' and has some \0 strange values in 'it'" );
+		n++;
+	}
+	var end = Date.now();
+	console.log( "did ", n, end - now );
+}
+//bench();

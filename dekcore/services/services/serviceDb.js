@@ -1,63 +1,10 @@
 "use strict"
 
-var gunPeer = "wss://localhost:8000/unusedPath";
 
-var crypto = require('crypto')
-var idGen = require( '../../id_generator.js' ).generator;
-var server = require( '../../https_server.js')
-var WebSocket = require( 'websocket' );
-
-server.Server( 8001 )
-server.addProtocol( "serviceAuth", setupServiceAuth );
-
-//var idMan = require( '../utils/id_manager.js')
-
-var prime_length = 256;
-var diffHell = crypto.createDiffieHellman(prime_length);
-
-diffHell.generateKeys('base64');
-console.log("Public Key : " ,diffHell.getPublicKey('base64'));
-console.log("Private Key : " ,diffHell.getPrivateKey('base64'));
-
-console.log("Public Key : " ,diffHell.getPublicKey('hex'));
-console.log("Private Key : " ,diffHell.getPrivateKey('hex'));
+io.addProtocol( "serviceAuth", setupServiceAuth );
 
 var gunWs = null;
 var gunWsConn = null;
-
-server.Gun.on( 'out', (msg)=>{
-        if( gunWsConn ) {
-                msg = JSON.stringify({headers:{}, body: msg});
-                gunWsConn.send(msg)
-        }
-})
-
-function openGunWebSock() {
-        console.log( "New Websocket for gun...")
-    gunWs = new WebSocket.client( {tlsOptions:{rejectUnauthorized:false}});
-    gunWs.on( "connect", (ws)=>{
-		console.log( "connected ok on Gun Client.")
-        gunWsConn = ws;
-        gunWsConn.on( "message", (msg)=>{
-                //console.log( "receive on gun1",msg ); 
-                msg=JSON.parse(msg.utf8Data);
-                server.gun.on('in', msg.body); 
-        })
-        gunWsConn.on( "close", (msg)=>{
-                //console.log( "Gun connection closed, auto reconnect")
-                gunWsConn = null;
-                setTimeout( openGunWebSock, 5000 );
-        })
-        gunWsConn.on( "error", (err)=>{
-                console.log( "SOME WEBSOCKERROR:", err)
-        })
-    });
-    gunWs.on( "connectFailed", (ws)=>{
-        //console.log( "Gun connection failed connect, auto reconnect")
-        setTimeout( openGunWebSock, 5000 );
-    });
-    gunWs.connect( gunPeer, ["gunDb"] );
-}
 
 
 
@@ -144,7 +91,7 @@ function setupServiceAuth( ws ) {
 	});
 }
 
-openGunWebSock();
+//openGunWebSock();
 
 
 DB.connect = (gun)=>{

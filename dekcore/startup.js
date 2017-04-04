@@ -6,7 +6,6 @@ function buildPiping(){
     var newline = require(  './command_stream_filter/strip_newline.js' );
     var monitor = require( './command_stream_filter/monitor_filter.js' );
     var commandFilter = require( './command_stream_filter/command.js');
-
     var shell = io.command;
     var nl = newline.Filter();
     var cmd = commandFilter.Filter();
@@ -29,3 +28,15 @@ entity.create( "Command And Control", (o)=>{
 
 
 } )
+
+
+entity.create( "Command And Control-HTTP", "http MOOSE console", "webShell/shellServer.js" );
+
+var services = null;
+entity.create( "Services", "Service Directory Manager and authenticator", "services/services/serviceService.js", (o)=>{services = o } )
+var firewall = entity.create( "Firewall", "Your basic iptable rule manager", "services/firewall/firewallService.js", (o)=>{
+    services.store( firewall );
+} )
+
+//firewall.run(  )
+

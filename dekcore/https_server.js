@@ -1,6 +1,8 @@
 "use strict";
 
-var fs = require( 'fs');
+//var fs = require( 'fs');
+var vfs = require( 'sack.vfs');
+var vol = vfs.Volume();
 const url = require( 'url' );
 const crypto = require( 'crypto');
 const tls = require( 'tls');
@@ -57,8 +59,8 @@ function scriptServer( port ) {
     if( !port ) port = 8000;
 
     console.log( "Starting Script Services on port", port );
-    var privateKey = fs.readFileSync('ca-key.pem').toString();
-    var certificate = fs.readFileSync('ca-cert.pem').toString();
+    var privateKey = vol.read('ca-key.pem').toString();
+    var certificate = vol.read('ca-cert.pem').toString();
     var option = {key: privateKey, cert: certificate};
     var credentials = tls.createSecureContext ();
     var server = https.createServer( option,
@@ -166,11 +168,13 @@ function scriptServer( port ) {
 var protocols = [];
 var peers = [];
 function addProtocol( protocol, connect ) {
+	console.log( "Adding protcol:", protocol );
     protocols.push( { name:protocol, connect:connect });
 }
 
 function validateWebSock( req ) {
     //console.log( "connect?", req.upgradeReq.headers, req.upgradeReq.url )
+   console.log( protocols );
     wsServer.acceptingProtocol = null;
     var proto = req.upgradeReq.headers['sec-websocket-protocol'];
     if( !protocols.find( p=>{

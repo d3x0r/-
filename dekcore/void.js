@@ -111,7 +111,7 @@ function run() {
         , onquery : (msg, self,raddr,addr) => {
         	var parts = msg.split( " " );
                 if( parts[0] === config.run.Λ )  {// is a message from myself.
-                    console.log( "From myself - ignore")
+                    //console.log( "From myself - ignore")
                     return null;
                 }
                 //console.log( "msg ", parts )

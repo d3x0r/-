@@ -64,6 +64,8 @@ var all_entities = new WeakMap();
 var objects = new Map();
 
 const _debugPaths = false;
+var drivers = [];
+
 
 var entity = module.exports = exports = {
         create : Entity,
@@ -354,8 +356,7 @@ function Entity( obj, name, description, callback ){
              }
          }
          , run( command ) {
-              	vm.runInContext( command, sandbox, { filename:"run()", lineOffset:"0", columnOffset:"0", displayErrors:true, timeout:10} )
-             
+            vm.runInContext( command, sandbox, { filename:"run()", lineOffset:"0", columnOffset:"0", displayErrors:true, timeout:10} )             
          }
          , addProtocol(p,cb) {
 	        entity.addProtocol( this.Λ + p, cb );
@@ -365,6 +366,7 @@ function Entity( obj, name, description, callback ){
              this.attached_to.forEach( (member)=>{if( attached ) attached += '","'; else attached = ' ["'; attached+= member.Λ})
              if( attached ) attached += '"]';
              else attached = '[]';
+
              var contained = null;
              this.contains.forEach( (member)=>{if( contained ) contained += '","'; else contained = ' ["'; contained+= member.Λ})
              if( contained ) contained += '"]';
@@ -460,7 +462,7 @@ function Entity( obj, name, description, callback ){
                         return;
                     }
                     if( run ){
-                    console.log( "and so key is ", key )
+                        console.log( "and so key is ", key )
                         callback( value, key );
                     }
                     run = all;
@@ -508,7 +510,29 @@ function Entity( obj, name, description, callback ){
                     log : (...args)=>console.log( ...args )
                 }
                 , io : {
-                    addProtocol(p,cb) { return o.addProtocol(p,cb);}
+                    addProtocol(p,cb) { return o.addProtocol(p,cb);},
+                    addDriver(name, iName, interface) {
+                        var caller = {};
+                        var keys = Object.keys(interface);
+                        keys.forEach( key=>{
+                            var constPart = `${iName}[${key}](`;
+                            caller[key] = function(...argsIn) {
+                                var args = "";
+                                argsIn.forEach( arg=>{
+                                    if( args.length ) args += ",";
+                                    args += JSON.stringify( arg )
+                                })
+                                args += ")";
+                                vm.runInContext( constPart + args, sandbox )
+                            }
+                        })
+                        drivers.push( { name: name, iName:iName, orig: interface, interface: caller } );
+                    },
+                    openDriver(name) {
+                        var driver = drivers.find( d=>d.name === name );
+                        if( driver )
+                            return driver.interface;
+                    }
                 }
                 , events : {}
                 , on : ( event, callback ) =>{
@@ -578,11 +602,13 @@ function Entity( obj, name, description, callback ){
             },
             look() { return o.look(); },
             create(name,desc,callback) { o.create( name, desc,callback ) },
-	    store(a) {
+	        store(a) {
                    a = objects.get(a.Λ);
                    o.store(a);
             },
-            
+            run(statement) {
+                o.run( statement );
+            },
             //get value() { return o.value; }
         }
         return i;

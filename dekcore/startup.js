@@ -30,12 +30,23 @@ entity.create( "Command And Control", (o)=>{
 } )
 
 
+
 entity.create( "Command And Control-HTTP", "http MOOSE console", "webShell/shellServer.js" );
 
 var services = null;
-entity.create( "Services", "Service Directory Manager and authenticator", "services/services/serviceService.js", (o)=>{services = o } )
-var firewall = entity.create( "Firewall", "Your basic iptable rule manager", "services/firewall/firewallService.js", (o)=>{
-    services.store( firewall );
+var firewall = null;
+var auth = null;
+entity.create( "Services", "Service Directory Manager and authenticator", "services/services/serviceService.js", (o)=>{
+  services = o;
+  entity.create( "Firewall", "Your basic iptable rule manager", "services/firewall/firewallService.js", (o)=>{
+    firewall = o;
+    services.run( 'io.firewall = io.openDriver( "firewall" );' );
+    entity.create( "auth", "User authentication service", "services/auth/authService.js", (o)=>{
+      auth = o;
+      auth.run( 'io.firewall = io.openDriver( "firewall" );' );
+    })
+} )
+
 } )
 
 //firewall.run(  )

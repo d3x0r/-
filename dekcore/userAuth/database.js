@@ -32,24 +32,15 @@ var users = null;
 var permissions = null;
 
 db.do( 'PRAGMA foreign_keys=ON' );
-db.makeTable( "create table org ( org_id INTEGER PRIMARY KEY AUTOINCREMENT"
-	+", name char )" );
-db.makeTable( "create table site ( site_id INTEGER PRIMARY KEY AUTOINCREMENT"
-	+", org_id int"
-	+", localName char"
-	+", address char"
-	+", CONSTRAINT a FOREIGN KEY( org_id ) REFERENCES org(org_id))" );
-db.makeTable( "create table charity ( charity_id INTEGER PRIMARY KEY AUTOINCREMENT"
-	+", site_id int"
-	+", name char"
-	+", CONSTRAINT a FOREIGN KEY( site_id ) REFERENCES site(site_id))" );
+
 db.makeTable( "create table user ( user_id INTEGER PRIMARY KEY AUTOINCREMENT"
 	+", site_id int"
 	+", charity_id int"
 	+", name char"
+	+", email char"
 	+", passHash char"
-	+", CONSTRAINT b FOREIGN KEY( site_id ) REFERENCES site(site_id)"
-	+", CONSTRAINT c FOREIGN KEY( charity_id ) REFERENCES charity(charity_id))" );
+	+")" 
+        );
 db.makeTable( "create table permission ( perm_id INTEGER PRIMARY KEY AUTOINCREMENT"
 	+", name char" );
 db.makeTable( "create table userPerm ( user_perm_id INTEGER PRIMARY KEY AUTOINCREMENT"
@@ -72,13 +63,11 @@ permissions = db.do( 'select * from permission')
 //console.log( "permissions:", permissions )
 
 if( permissions.length === 0 ) {
-	db.do( 'insert into org (name)values("eQube International")')
-	db.do( 'insert into site (org_id,localName,address)values(last_insert_rowid(),"Master Control", "5001 W Diablo Dr")')
-	db.do( 'insert into user (site_id,name,passHash)values(last_insert_rowid(),"eqube",encrypt("password"))')
+	db.do( 'insert into user (name,email,passHash)values("rootke",encrypt("password"))')
 	var userId = db.do( "select last_insert_rowid() id" );
-		db.do( 'insert into permission(name)values ("manager users"),("login allowed"),("create site"),("create user"),("login")' );
-		permissions = db.do( 'select * from permission' );
-		var vals = ""
+	db.do( 'insert into permission(name)values ("manager users"),("login allowed"),("create site"),("create user"),("login")' );
+	permissions = db.do( 'select * from permission' );
+	var vals = ""
 	permissions.forEach( (perm)=>{ vals += `${vals.length?",":""}(${userId[0].id},${perm.perm_id})` })
 	db.do( "insert into userPerm (user_id,perm_id) values" + vals )
 }

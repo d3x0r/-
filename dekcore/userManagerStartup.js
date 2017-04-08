@@ -10,12 +10,17 @@ io.addProtocol( "C&C", (conn)=>{
 
 function basicServices( msg ) {
     console.log( msg );
+try {
     var m = JSON.parse( msg );
+console.log( "Got messsage:", m );
     if( m.op === "login" ) {
         console.log( "A remote user connected....",  m.key );
         var loginState = io.gun.get( m.key );
         loginState.map( userState );
     }
+} catch(err) {
+// json parsing probably failed.
+}
 }
 
 function userState( val, field ) {

@@ -1,21 +1,5 @@
 "use strict"
 
-var crypto = require('crypto')
-var idGen = require( '../../id_generator.js' ).generator;
-
-//var idMan = require( '../utils/id_manager.js')
-
-var prime_length = 256;
-var diffHell = crypto.createDiffieHellman(prime_length);
-
-diffHell.generateKeys('base64');
-console.log("Public Key : " ,diffHell.getPublicKey('base64'));
-console.log("Private Key : " ,diffHell.getPrivateKey('base64'));
-
-console.log("Public Key : " ,diffHell.getPublicKey('hex'));
-console.log("Private Key : " ,diffHell.getPrivateKey('hex'));
-
-
 function hash(v) {
 		console.log( "hash", v );
   var shasum = crypto.createHash('sha1');
@@ -29,7 +13,6 @@ var DB = exports = module.exports = {};
 
 var vfs = require( 'sack.vfs');
 
-var vol = idGen();
 var opdb = vfs.Sqlite( `option.db` );
 var vol = opdb.op( "vol", idGen() );
 console.log( "op:", vol, opdb );

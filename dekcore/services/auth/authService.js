@@ -1,11 +1,11 @@
 
-console.log( "Firewall service begins.", entity.name );
-var firewall = require( "./firewallDb.js" );
+console.log( "Auth service begins.", entity.name );
+//var firewall = require( "./firewallDb.js" );
 
-var firewallInterface;
+var authInterface;
 
-io.addDriver( "firewall", "firewallInterface", firewallInterface = {
-    block( target ) {
+io.addDriver( "auth", "authInterface", authInterface = {
+    redirect(  ) {
         // block the specified address.
     },
     route( target, port ) {
@@ -14,7 +14,7 @@ io.addDriver( "firewall", "firewallInterface", firewallInterface = {
     },
 } );
 
-io.addProtocol( "firewall" );
+io.addProtocol( "auth" );
 
 on( 'contained', function( newContent ){
     

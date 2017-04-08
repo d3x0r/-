@@ -22,36 +22,9 @@
 //         restore( o ) 
 //                use object to restore RNG state.
 
-/*
-try {
-//  throw  "no";
-var crypto = require( 'crypto' );
-var compute = (s)=>{
-    return crypto.createHash('sha256').update(s).digest()
-   }
-} catch( err ) {
-var crypto = require( './forge-sha256.js' );
-if( !("forge_sha256" in crypto) ) 
-  crypto.forge_sha256 =forge_sha256;
-//var compute = (s)=>{ 
-/*
-var SHA256 = require('./algo/SHA256')
-var sha256 = new SHA256
-
-module.exports = function (m) {
-  var h = new Uint8Array(32)
-  sha256.update(m).finish(h).clean()
-  return h
-}
-
-//    return crypto.forge_sha256(s.toString()); }
-
-}
-*/
-
 function MASK_TOP_MASK(length) {
    return (0xFF) >>> (8-(length))
- };
+};
 
 function MY_MASK_MASK(n, length) {
   return (MASK_TOP_MASK(length) << ((n)&0x7)) & 0xFF;

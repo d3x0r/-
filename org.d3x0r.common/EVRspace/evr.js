@@ -133,7 +133,11 @@ function makeEVR( opts ) {
 			set tick( val ) { throw new Error( "'tick' on a delay resolving map is not supported") },
 			get value() { throw new Error( "'value' on a delay resolving map is not supported") },
 			run( newLink ) {
-				return runVm( { stmt:this.script[0], guide:this, ip:0, emitted : true }, newLink )
+				// trim useless tail statements...
+				
+				// returns sandbox that were put on the newLink
+				if( this.script.length > 0 )
+					return runVm( new Sandbox( guide, null ), newLink )
 			},
 			firstRun : true,
 			script : [],
@@ -147,13 +151,56 @@ function makeEVR( opts ) {
 
 		Object.keys( o.members ).forEach( member=>{
 			var link = o.members[member];
-			runVm( sandbox, link );
+			var newSandbox = runVm( sandbox, link );
+			if( newSandbox ) {
+				// link should already have this sandbox.
+				sandbox.branches.push( newSandbox );
+			}
 		})
 		Object.keys( o.fields ).forEach( member=>{
 			var f = o.fields[member];
-			runVm( sandbox, f );
+			var newSandbox = runVm( sandbox, f );
+			if( newSandbox ) {
+				// link should already have this sandbox.
+				sandbox.branches.push( newSandbox );
+			}
 		})
 	}
+
+	function Sandbox( guide, oldSandbox ) {
+		if( this.constructor !== Sandbox ) return new Sandbox( guide, oldSandbox );
+
+		this.guide = guide;
+
+		this.statementSandbox = {};
+		this.nodeSandbox = {}; // scratch space for this state
+		this.priorSandbox = oldSandbox;
+		this.priorOn = oldSandbox.thisOn; // the previous On returned a value, and this will be it... 
+
+		this.thisOn = oldSandbox.thisOn; // this has to be copied, if this is an On, this will get updated....
+
+		if( oldSandbox ) {
+			this.chainSandbox = oldSandbox.chainSandbox;
+			this.stmt = guide.script[this.ip = oldSandbox.ip+1];
+			this.ip = oldSandbox.ip+1;
+			this.part = 0;
+		} else {
+			this.chainSandbox = {};
+			this.stmt = guide.script[this.ip = 0];
+			this.part = 0;
+		}
+		this.emitted = false;
+		this.branches = [];
+
+	}
+	Sandbox.prototype.run = function(newLink) { 
+		return runVm( this, newLink ); 
+	};
+	Sandbox.prototype.isOnRun = function(newLink) { 
+		if( stmt.f === "on" ) {
+			return runVm( this, newLink ); 
+		}
+	};
 
 	function runVm( sandbox, o ) {
 		var guide = sandbox.guide;
@@ -166,29 +213,17 @@ function makeEVR( opts ) {
 			runVmOnObjectMembers( sandbox, o );
 			return;
 		}
+		var ip = sandbox.ip;
 
 		//console.trace( "sandbox:", sandbox, o )
-		if( sandbox.ip < guide.script.length ) {
-			var stmt = sandbox.stmt;
+		while( ip < guide.script.length ) {
+			var stmt = guide.script[ip];
 			//console.log( "Doing statement:", stmt, o )
-			var outSandbox = { 
-				stmt : guide.script[sandbox.ip+1],
-				guide : guide,
-				ip : sandbox.ip+1,
-				emitted : false,
-				run(newLink) { 
-					return runVm( this, newLink ); 
-				},
-				isOnRun(newLink) { 
-					if( stmt.f === "on" ) {
-						return runVm( this, newLink ); 
-					}
-				}
-			};
 			if( stmt.f === "path") {
 				var part = sandbox.part || 0;
+				
 				if( stmt.args[1][part] in o.child.members ) {
-
+				        outSandbox = new Sandbox( guide, sandbox );
 					//console.log( "Path part found in members" );
 					if( (part+1) < stmt.args[1].length ) {
 						//console.log( "next child now has a new sandbox..." );
@@ -250,7 +285,11 @@ function makeEVR( opts ) {
 			else if( stmt.f === "on") {
 				//console.log( "on called with a ")				
 				console.log( "Calling 'on' with", o );
-				stmt.args[0]( o.value, o.text )
+				//if( !sandbox.priorOnSandbox ) {
+				//	var prior = sandbox; while( prior ) { if( prior.stmt.f === "on" ) break; prior = prior.priorSandbox };
+				//	sandbox.priorOnSandbox = prior;
+				//}
+				sandbox.thisOn = stmt.args[0]( o.value, o.text, sandbox.priorOn )
 			}
 			else if( stmt.f === "not") {
 				// not can change the context; mostly it just updates the IP.
@@ -278,7 +317,7 @@ function makeEVR( opts ) {
 			}
 
 			return outSandbox;
-		}
+		} // else this sandbox cannot run, it has no instructruction, and was added to no node...
 	}
 
 

@@ -32,6 +32,8 @@ function makeKey() {
 
 var localDrivers = [];
 var remoteDrivers = [];
+var localDriversDirect = [];
+var remoteDriversDirect = [];
 var evrMaps = [];
 
 
@@ -710,20 +712,42 @@ function makeEVR(opts) {
 }
 
 
+function validateDriver( d ) {
+	var methods = ["init","updateKey","initNode","initLink","read","initField","write","onMap","timeout","cancalTimeout"];
+	methods.forEach( m=>{ if( !(m in d) ) d[m] = ()=>0 } );
+}
 
 function addLocalStorage(cb) {
-	localDrivers.push(cb);
-	// for all existing evr, allow the driver to initialize for it.
-	evrMaps.forEach((evr) => {
-		cb("init", evr);
-	});
+	if( typeof cb === "function" ) {
+		localDrivers.push(cb);
+		// for all existing evr, allow the driver to initialize for it.
+		evrMaps.forEach((evr) => {
+			cb("init", evr);
+		});
+	} else {
+		validateDriver(cb);
+		localDriversDirect.push(cb);
+		evrMaps.forEach((evr) => {
+			cb.init(evr);
+		});
+	}
 }
+
+
 function addRemoteStorage(cb) {
-	remoteDrivers.push(cb);
-	// for all existing evr, allow the driver to initialize for it.
-	evrMaps.forEach((evr) => {
-		cb("init", evr);
-	});
+	if( typeof cb === "function" ) {
+		remoteDrivers.push(cb);
+		// for all existing evr, allow the driver to initialize for it.
+		evrMaps.forEach((evr) => {
+			cb("init", evr);
+		});
+	} else {
+		validateDriver(cb);
+		remoteDriversDirect.push(cb);
+		evrMaps.forEach((evr) => {
+			cb.init(evr);
+		});
+	}
 }
 
 
@@ -749,16 +773,18 @@ function handleEvents(_events, event, cb) {
 }
 
 function emitEvents(_events, event, evr, data) {
-	var event = _events[event];
+	var doEvent = _events[event];
 	//console.trace( "emit with", data );
-	if (event) {
-		event.forEach((cb) => { if (cb.cb) cb.cb(evr, data); if (cb.once) cb.cb = null; });
+	if (doEvent) {
+		doEvent.forEach((cb) => { if (cb.cb) { cb.cb(evr, data); if (cb.once) cb.cb = null; }});
 	}
 }
 
-function emitDriverEvent(...args) {
-	localDrivers.forEach((cb) => cb(...args));
-	remoteDrivers.forEach((cb) => cb(...args));
+function emitDriverEvent(op,...args) {
+	localDrivers.forEach((cb) => cb(op,...args));
+	localDriversDirect.forEach((cb) => cb[op](...args));
+	remoteDrivers.forEach((cb) => cb(op,...args));
+	remoteDriversDirect.forEach((cb) => cb[op](...args));
 }
 
 function emitAbortableDriverEvent(initial, abort, ...args) {
@@ -767,11 +793,24 @@ function emitAbortableDriverEvent(initial, abort, ...args) {
 		//console.log( "a abortable driver stopped at ", n );
 		for (var d = 0; d < n; d++)
 			localDrivers[d].cb(abort, ...args)
+	} else if ((n = localDriversDirect.findIndex((cb) => cb[initial](...args))) >= 0) {
+		//console.log( "a abortable driver stopped at ", n );
+		localDrivers.forEach(cb => cb.cb(abort, ...args))
+		for (var d = 0; d < n; d++)
+			localDriversDirect[d].cb[abort](...args)
 	} else if ((n = remoteDrivers.findIndex((cb) => cb(initial, ...args))) >= 0) {
 		//console.log( "b abortable driver stopped at ", n );
 		localDrivers.forEach(cb => cb.cb(abort, ...args))
+		localDriversDirect.forEach(cb => cb.cb[abort]( ...args))
 		for (var d = 0; d < n; d++)
 			remoteDrivers[d].cb(abort, ...args)
+	} else if ((n = remoteDriversDirect.findIndex((cb) => cb[initial](...args))) >= 0) {
+		//console.log( "b abortable driver stopped at ", n );
+		localDrivers.forEach(cb => cb.cb(abort, ...args))
+		localDriversDirect.forEach(cb => cb.cb[abort](...args))
+		remoteDrivers.forEach(cb => cb.cb(abort, ...args))
+		for (var d = 0; d < n; d++)
+			remoteDriversDirect[d].cb[abort]( ...args)
 	}
 	//console.log( "c abortable driver stopped at ", n );
 

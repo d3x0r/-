@@ -224,20 +224,6 @@ function makeEVR(opts) {
 		while( ip < guide.script.length ) {
 			var stmt = guide.script[ip];
 			//console.log( "Doing statement:", stmt, o )
-			var outSandbox = {
-				stmt: guide.script[sandbox.ip + 1],
-				guide: guide,
-				ip: sandbox.ip + 1,
-				emitted: false,
-				run(newLink) {
-					return runVm(this, newLink);
-				},
-				isOnRun(newLink) {
-					if (stmt.f === "on") {
-						return runVm(this, newLink);
-					}
-				}
-			};
 			if (stmt.f === "path") {
 				var part = sandbox.part || 0;
 				

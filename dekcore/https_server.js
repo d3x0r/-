@@ -1,5 +1,5 @@
 "use strict";
-
+const webRoot = "./uiRoot";
 //var fs = require( 'fs');
 var vfs = require( 'sack.vfs');
 var vol = vfs.Volume();
@@ -25,10 +25,6 @@ const Gun = require('gun');
 //const WebSocketServer   = ws.Server
 
 var services = [];
-
-//var config = require( './config.js');
-//var keyManager = require( "./id_manager.js" );
-// server listening 0.0.0.0:41234
 
 exports.Server = scriptServer;
 exports.Service = addService;
@@ -107,9 +103,9 @@ function scriptServer( port ) {
             res.end('<HTML><head><script src="login/login.js"></script></head></HTML>');
         }
         else {
-            let relpath;
+            let relpath = webRoot + req.url.substring(1,req.url.length);
             console.log( "serving a relative...", req.url );
-            fs.access( relpath = req.url.substring(1,req.url.length), (err)=>{
+            fs.access( relpath, (err)=>{
                 if( !err ) {
                     console.log( "Existed as a file...", relpath );
                     fs.readFile(relpath, function(error, content) {

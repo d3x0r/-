@@ -172,12 +172,13 @@ exports.Parse = function TextParse(input, punctuation, filter_space, bTabs, bSpa
 	while (input) {
 		//Log1( ("Assuming %d spaces... "), spaces );
 		//console.log( "input is : ",input, typeof input, Object.getPrototypeOf(input).constructor.name );
-		for (index = 0; (codePoint = (input.text).codePointAt(index)),
-			(index < input.text.length); index++) // while not at the
+		for( var character of  input.text )
+		//for (index = 0; (codePoint = (input.text).codePointAt(index)),
+		//	(index < input.text.length); index++) // while not at the
 		// end of the line.
 		{
-			var character = String.fromCodePoint(codePoint);
-			if (codePoint > 0xFFFF) index++;
+			//var character = String.fromCodePoint(codePoint);
+			//if (codePoint > 0xFFFF) index++;
 			if (elipses && character != '.') {
 				outdata = SegAppend(outdata, SET_SPACES(out.getText()));
 				elipses = false;

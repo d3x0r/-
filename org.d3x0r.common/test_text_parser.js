@@ -18,6 +18,7 @@ if( command ) {
 				// would pass a wordref to this point?
 				var x = command.next.next;
 				var s = "";
+				// this conversion is not supposed to be accurate; it's just looking at text, not spacing.
 				while( x ) { s += (s.length?" ":"") + x.text; x = x.next;} 
 				console.log( s );
 			}

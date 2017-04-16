@@ -84,14 +84,13 @@ function BigBang() {
 setTimeout( waitrun,10 );
 
 function waitrun(){
-    console.log( "Wait for config");
     if( !config.run.Λ)
     {
-	    console.log( "wait some more then try again" );
+	console.log( "wait some more then try again" );
         setTimeout(  waitrun, 10 );
     }
     else {
-	    config.start( BigBang );
+        config.start( BigBang );
       	run();
     }
 }
@@ -116,19 +115,19 @@ function run() {
                 }
                 //console.log( "msg ", parts )
                 if( parts[1] === "WhoAmI" ) {
-
-                	if( idMan.Auth( parts[0] ) ) {
+                    if( idMan.Auth( parts[0] ) ) {
                       	// I know this ID....
                           console.log( "I know this ID?")
-                        var e = Entity.getEntity( parts[0] );
-                        if( e )  {
-                            d.send( config.run.Λ + " YouAre " + e.Λ, raddr, addr );
-                        } else {
+                          var e = Entity.getEntity( parts[0] );
+                          if( e )  {
+                              var key = idMan.xor( idMan.xor( e.Λ, config.run.Λ ), parts[2] );
+                              d.send( parts[2] + " YouAre " + key, raddr, addr );
+                          } else {
                             // this is no longer valid; entity does not exist already.
                             // delete this key ( and all descendents keys )
                             idMan.delete( parts[0] );
                             reassign( parts, raddr, addr );
-                        }
+                          }
                     }
                     else {
                         reassign( parts, raddr, addr );
@@ -165,13 +164,17 @@ function run() {
                 o.sandbox.io.gun = https.gun.get( o.Λ );
                 o.sandbox.io.command = { processCommandLine : (args)=>{
                         args.break();
-                        gun.get( o.Λ ).put( { exec: args })
+                        io.gun.put( { exec: args })
                 } };
 
                 //o.sandbox.io.gun.map( (val, field)=>{ console.log( "(Void)remote entity event:", field, val )});
                 //o.sandbox.io.gun.put( {msg: "Hello" } );
-                    reassignments.find( (r)=>r.o===parts[0] ).n = o.Λ;
-                    d.send( config.run.Λ + " YouAre " + o.Λ, raddr, addr );
+		var d3o1 = idMan.dexor( parts[0], config.run.Λ, 3, 4 );
+		var merge1 = idMan.xor( config.run.Λ, o.Λ );
+		var merge2 = idMan.xor( merge1, parts[0] );
+                reassignments.find( (r)=>r.o===parts[0] ).n = merge1;
+		
+                d.send( parts[2] + " YouAre " + merge2, raddr, addr );
 
                     //reassignments.splice( , 1 );
                 } );

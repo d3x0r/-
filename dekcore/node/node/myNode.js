@@ -5,15 +5,16 @@ const discoverer = require( "../../discovery.js" );
 const config = require( "../../config.js" );
 const idGen = require( "../../id_generator.js");
 const idMan = require( "../../id_manager.js" );
-const text=require('../../../org.d3x0r.common/text.js')
+//const text=require('../../../org.d3x0r.common/text.js')
 const Gun = require( "gun" );
 const WebSocket = require( 'ws' );
 
 var gun = null;//Gun();
 
+// should cache responses
 var remoteRequire = require( './myRequire.js');
 remoteRequire.provide( "id_manager.js", idMan )
-remoteRequire.provide( "text.js", text )
+//remoteRequire.provide( "text.js", text )
 
 
 var discoverRun;
@@ -62,6 +63,7 @@ function run2() {
 function x( parts,raddr ) {
         //console.log( raddr.address, addr );
         idMan.setRunKey( parts );
+        idMan.setRunKey( parts );
         config.run.commit();
         
         var addr = `wss://${raddr.address}:8000/unused`;
@@ -109,6 +111,7 @@ function x( parts,raddr ) {
                                 
                         }
                 }
+
                 {
                         var ws = o.sandbox.io.ether.ws;
                         ws.on( 'open', ()=>{
@@ -126,8 +129,10 @@ function x( parts,raddr ) {
                 }
 
                 //console.log( "Try to require shell?")
-                var shell = remoteRequire.require( "/Sentience/shell.js" );
-                o.sandbox.command = shell.Filter( o.sandbox );
+
+                //var shell = remoteRequire.require( "/Sentience/shell.js" );
+                //o.sandbox.command = shell.Filter( o.sandbox );
+
                 /*
                 o.sandbox.command.processCommandLine = (args)=>{
                         args.break();
@@ -139,7 +144,7 @@ function x( parts,raddr ) {
                         });
 
                 ////var path = require.resolve( "nodeStartup.js" ).replace( /\\/g, "/" );
-                shell.Script( o.sandbox, text.Text("startup.js") );
+                //shell.Script( o.sandbox, text.Text("startup.js") );
         })
 }
 

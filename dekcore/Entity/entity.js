@@ -63,7 +63,7 @@ const netRequire = require( '../node/node/myRequire.js' );
 var all_entities = new WeakMap();
 var objects = new Map();
 
-const _debugPaths = false;
+const _debugPaths = true;
 var drivers = [];
 
 
@@ -511,9 +511,9 @@ function Entity( obj, name, description, callback ){
                 }
                 , io : {
                     addProtocol(p,cb) { return o.addProtocol(p,cb);},
-                    addDriver(name, iName, interface) {
+                    addDriver(name, iName, iface) {
                         var caller = {};
-                        var keys = Object.keys(interface);
+                        var keys = Object.keys(iface);
                         keys.forEach( key=>{
                             var constPart = `${iName}[${key}](`;
                             caller[key] = function(...argsIn) {
@@ -526,12 +526,12 @@ function Entity( obj, name, description, callback ){
                                 vm.runInContext( constPart + args, sandbox )
                             }
                         })
-                        drivers.push( { name: name, iName:iName, orig: interface, interface: caller } );
+                        drivers.push( { name: name, iName:iName, orig: iface, iface: caller } );
                     },
                     openDriver(name) {
                         var driver = drivers.find( d=>d.name === name );
                         if( driver )
-                            return driver.interface;
+                            return driver.iface;
                     }
                 }
                 , events : {}

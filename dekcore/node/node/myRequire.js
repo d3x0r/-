@@ -193,7 +193,7 @@ function resolvePath( base, myModule ) {
         ) {
 	var p = moduleParent.paths[0];
 	
-	//console.log( "path is ", tmp, moduleParent.paths);
+	console.log( "path is ", tmp, moduleParent.paths);
       if( tmp[1] == '/' )
         tmp = (p.length?p + "/":"") + tmp.substr( 2 );
       else
@@ -203,14 +203,14 @@ function resolvePath( base, myModule ) {
   }
   do
   {
-      //console.log( "build", tmp )
+      console.log( "build", tmp )
       let x = tmp.indexOf( "/../" );
       if( x < 0 )x = tmp.indexOf( "/..\\" );
       if( x < 0 )x = tmp.indexOf( "\\../" );
       if( x < 0 )x = tmp.indexOf( "\\..\\" );
       if( x > 0 ) {
         var prior = tmp.substr( 0, x );
-        //console.log( "prior part is", prior );
+        console.log( "prior part is", prior );
         var last1 = prior.lastIndexOf( "/" );
         var last2 = prior.lastIndexOf( "\\" )
         var priorStripped = prior.substr( 0, (last1>last2?last1:last2)+1 );

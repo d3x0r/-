@@ -588,3 +588,6 @@ function setKeys( runkey ) {
 //function
 //console.log( "Schedule loadKeys with config.start")
 config.start( loadKeys );
+
+exports.xor = require( "./id_generator.js").xor;
+exports.dexor = require( "./id_generator.js").dexor;

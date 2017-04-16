@@ -1,4 +1,9 @@
 
+
+
+
+//---------- lame connection stuff ------------------------
+
 var Gun = require( '../util/gun/gun.js' );
 var gun = Gun();// { wsc:{protocols:"gunDb"}, peers:[location.origin] } );
 
@@ -25,12 +30,14 @@ function gunWsConnect() {
     gunPeers.push( wsGun );
     wsGun.onopen = ()=>{
         gun.on('out',(msg)=>{
-            msg=JSON.stringify({headers:{},body:msg}); 
-            gunPeers.forEach( (peer)=>{peer.send(msg );})
+            msg=JSON.stringify(msg); 
+            gunPeers.forEach( (peer)=>{peer.send(msg);})
         });
     }
     wsGun.onmessage = (msg)=>{ 
-        gun.on('in', JSON.parse( msg.data).body ); 
+	msg = JSON.parse( msg.data);
+	if( "forEach" in msg ) msg.forEach( m=>gun.on('in',JSON.parse(m)));
+        else gun.on('in', msg ); 
     }
     wsGun.onclose = (close)=>{ 
         var i=gunPeers.findIndex(p=>p===close.target); 
@@ -51,13 +58,13 @@ function wsOpen() {
 function wsClose() {
     ws = wsConnect( ws.protocolSpec ); // reconnect
 }
-console.log( "junk : ", key );
-
-
+//console.log( "junk : ", key );
 
  gunWsConnect()
  ws = wsConnect( ["C&C"] );
 
+
+document.getElementById( "createUser" ).addEventListener( "click", doCreateUser );
 function doCreateUser( ) {
-    
+	    
 }

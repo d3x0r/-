@@ -4,7 +4,7 @@ var crypto = require('crypto')
 var idGen = require( '../util/id_generator.js' ).generator;
 
 function hash(v) {
-		console.log( "hash", v );
+	console.log( "hash", v );
   var shasum = crypto.createHash('sha1');
 	shasum.update(v);
 	return shasum.digest('hex');
@@ -34,8 +34,6 @@ var permissions = null;
 db.do( 'PRAGMA foreign_keys=ON' );
 
 db.makeTable( "create table user ( user_id INTEGER PRIMARY KEY AUTOINCREMENT"
-	+", site_id int"
-	+", charity_id int"
 	+", name char"
 	+", email char"
 	+", passHash char"
@@ -74,26 +72,6 @@ if( permissions.length === 0 ) {
 permissions.forEach( p=>(permissions[p.name]=p) );
 //console.log( "permissions:", permissions )
 
-var orgs = db.do( 'select * from org' );
-orgs.forEach( o=>o.sites=[] );
-var sites = db.do( 'select * from site' );
-sites.forEach( site=>{ 
-		var org = orgs.find( o=>o.org_id===site.org_id ); 
-		site.org = org; 
-		org.sites.push( site ); 
-		site.charities=[] ;
-		site.users=[] ;
-} );
-
-var charities = db.do( 'select * from charity' );
-charities.forEach( charity=>{ 
-		var site = sites.find( s=>s.site_id===charity.site_id ); 
-		charity.site = site; 
-		site.charities.push( charity );
-		console.log( 'adding charity.users', charity)
-		charity.users=[] ;
-} );
-
 
 {
 	users = db.do( 'select decrypt(passHash)password,* from user' );
@@ -102,16 +80,6 @@ charities.forEach( charity=>{
 		user.permissions.forEach( up=>up.name=permissions.find( p=>{ return (p.perm_id===up.perm_id )}).name );
 	})
 
-	users.forEach( user=>{ 
-		var site = sites.find( s=>s.site_id===user.site_id ); 
-		user.site = site; 
-		site.users.push( user );
-		var charity = charities.find( c=>c.charity_id===user.charity_id ); 
-		if( charity ) {
-			user.charity = charity;
-			charity.users.push( user );
-		}
-	} );
 	//console.log( 'users: ', users );
 }
 //console.log( "permissions is: ", permissions );
@@ -202,7 +170,7 @@ DB.logout = (sessionkey)=>{
 	db.do( `update userLogin set loggedOut=1 where user_login_id=${login.login.id}`)
 }
 
-DB.getSite = (key)=>{
+DB.getLogin = (key)=>{
 	return logins.get( key );
 }
 

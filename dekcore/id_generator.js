@@ -16,9 +16,9 @@ exports.generator = function() {
 // use window.btoa' step. According to my tests, this appears to be a faster approach:
 // http://jsperf.com/encoding-xhr-image-data/5
 // doesn't have to be reversable....
+const encodings = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
 function base64ArrayBuffer(arrayBuffer) {
   var base64    = ''
-  var encodings = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
 
   var bytes         = new Uint8Array(arrayBuffer)
   var byteLength    = bytes.byteLength
@@ -61,4 +61,48 @@ function base64ArrayBuffer(arrayBuffer) {
   }
   //console.log( "dup?", base64)
   return base64
+}
+
+// Converts an ArrayBuffer directly to base64, without any intermediate 'convert to string then
+// use window.btoa' step. According to my tests, this appears to be a faster approach:
+// http://jsperf.com/encoding-xhr-image-data/5
+// doesn't have to be reversable....
+
+
+
+var xor_code_encodings = {};//'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+
+for( var a = 0; a < encodings.length; a++  ) {
+   var r = (xor_code_encodings[encodings[a]]={} );
+   for( var b = 0; b < encodings.length; b++  ) {
+	r[encodings[b]] = encodings[a^b];
+   }
+}
+xor_code_encodings['='] = {'=': '='};
+
+exports.xor = xor;
+
+function xor(a,b) {
+  var c = "";                                                                                             	
+  for( var n = 0; n < a.length; n++ ) {
+	c += xor_code_encodings[a[n]][b[n]];
+  }
+  return c
+}
+
+
+exports.dexor=dexor;
+function dexor(a,b,d,e) {
+  var r = "";                                                                                             	
+  var n1 = (d-1)*((a.length/e)|0);
+  var n2 = (d)*(a.length/e)|0;
+
+  for( n = 0; n < n1; n++ ) 
+	r += a[n];
+  for( ; n < n2; n++ ) 
+	r += xor_code_encodings[a[n]][b[n]];
+  for( ; n < n2; n++ ) 
+	r += a[n];
+
+  return r
 }

@@ -1,5 +1,4 @@
 
-var rquire( 
 
 var xhrObj;
 Voxelarium.Voxels.load = function( cb ) {

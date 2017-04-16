@@ -15,8 +15,8 @@ var config = module.exports = exports = {
          , addresses : []  // who I am...
          , friends : []  // discover should use this setting for off-network contact
          , timeOffset : new Date().getTimezoneOffset() * 60000
-         , commit : () => {
-            saveConfig();
+         , commit : (cb) => {
+            saveConfig(cb);
          }
          , toString : ()=>{
              return JSON.stringify( config.run );

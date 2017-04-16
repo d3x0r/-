@@ -3,6 +3,7 @@
 //var fs = require( 'fs');
 var vfs = require( 'sack.vfs');
 var vol = vfs.Volume();
+
 const url = require( 'url' );
 const crypto = require( 'crypto');
 const tls = require( 'tls');
@@ -73,9 +74,8 @@ function scriptServer( port ) {
       console.log( "got request" + req.url );
       
       
-      var filePath = '.' + req.url;
-      if (filePath == './')
-          filePath = './index.html';
+      var filePath = './uiRoot' + req.url;
+      if (filePath == './uiRoot/') filePath = './uiRoot/index.html';
 
       var extname = path.extname(filePath);
       var contentType = 'text/html';
@@ -101,51 +101,21 @@ function scriptServer( port ) {
       }
 
 
-      if( req.url=== '/' )   {
-          console.log( "something   ");
-            res.writeHead(200);
-            res.end('<HTML><head><script src="login/login.js"></script></head></HTML>');
-        }
-        else {
-            let relpath;
-            console.log( "serving a relative...", req.url );
-            fs.access( relpath = req.url.substring(1,req.url.length), (err)=>{
-                if( !err ) {
-                    console.log( "Existed as a file...", relpath );
-                    fs.readFile(relpath, function(error, content) {
-                        if (error) {
-                            if(error.code == 'ENOENT'){
-                                fs.readFile('./404.html', function(error, content) {
-                                    res.writeHead(200, { 'Content-Type': contentType });
-                                    res.end(content, 'utf-8');
-                                });
-                            }
-                            else {
-                                res.writeHead(500);
-                                res.end('Sorry, check with the site admin for error: '+error.code+' ..\n');
-                                res.end();
-                            }
-                        }
-                        else {
-                            console.log( "write head 200");
+        {
+            console.log( "serving a relative...", req.url, relpath );
+            if( vol.exists( relpath  ) ) {
+                var content = vol.read( relpath );
                             res.writeHead(200, { 'Content-Type': contentType });
-                            res.end(content, 'utf-8');
-                        }
-                    });
-                }
-                else {
-                    console.log( "access result : ", err )
-                    {
-                        console.log( "and truth?", relpath );
-                        //console.log( req );
-                        res.writeHead(404);
-                        res.end('<HTML><head><script src="core/no such thing.js"></script></head></HTML>');
+                            res.end(new Buffer(content), 'utf-8');
                     }
-                }
-            });
+                    else{
+                        res.writeHead(404);
+                        res.end('<HTML><head><script src="userAuth/unauthorized.js"></script></head></HTML>');
+                    }
         }
     });
-    server.listen( port, () => {
+    server.listen( port, ( err ) => {
+	if( err ) console.log( "Err?", err );
 		        console.log( "bind success");
     } );
     /*
@@ -174,7 +144,7 @@ function addProtocol( protocol, connect ) {
 
 function validateWebSock( req ) {
     //console.log( "connect?", req.upgradeReq.headers, req.upgradeReq.url )
-   console.log( protocols );
+   console.log( "protocols:", protocols );
     wsServer.acceptingProtocol = null;
     var proto = req.upgradeReq.headers['sec-websocket-protocol'];
     if( !protocols.find( p=>{

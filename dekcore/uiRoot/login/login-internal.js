@@ -1,10 +1,18 @@
 
-var username = document.getElementById( "username" );
-var password = document.getElementById( "password" );
-var button = document.getElementById( "click" );
-var yesButton = document.getElementById( "yes" );
-var noButton = document.getElementById( "no" );
 
+var username;
+var password;
+var button;
+var yesButton;
+var noButton;
+
+function loadControls( parent ) {
+	username = parent.getElementById( "username" );
+	password = parent.getElementById( "password" );
+	button = parent.getElementById( "click" );
+	yesButton = parent.getElementById( "yes" );
+	noButton = parent.getElementById( "no" );
+}
 
 window.gunDb = null;
 window.ws = null;

@@ -1,5 +1,5 @@
 "use strict";
-
+const webRoot = "./uiRoot";
 //var fs = require( 'fs');
 var vfs = require( 'sack.vfs');
 var vol = vfs.Volume();
@@ -26,10 +26,6 @@ const Gun = require('gun');
 //const WebSocketServer   = ws.Server
 
 var services = [];
-
-//var config = require( './config.js');
-//var keyManager = require( "./id_manager.js" );
-// server listening 0.0.0.0:41234
 
 exports.Server = scriptServer;
 exports.Service = addService;

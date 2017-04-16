@@ -39,25 +39,28 @@ sqlDb.makeTable( `create table ${names.node_props} `
 var evr = require( "./evr.js" );
 
 evr.addLocalStorage( driver );
-function driver( op, evr, node, field ) {
-	//console.log( "sql driver got:", op )
-	if( op === "init" ) {
-        var sqlOpts = evr.opts.sql = evr.opts.sql || { prefix: "" };
+function driver = {
+	init( evr ) { 
+	        var sqlOpts = evr.opts.sql = evr.opts.sql || { prefix: "" };
 		sqlOpts.creatingKey = null;
-        sqlOpts.creatingProperty = null; 
-        //maps.push( evr );
-        sqlOpts.names = createTables( sqlOpts.prefix );
-	}  else if( op === "updateKey" ) {
+        	sqlOpts.creatingProperty = null; 
+	        //maps.push( evr );
+        	sqlOpts.names = createTables( sqlOpts.prefix );
+	},
+	updateKey(evr,node,filed ) {
 		// node's ID was updated...
 		// field parameter in this case is the old key
 		sqlDb.do( "update ${evr.opts.names.nodes} set nodeKey=${makeSqlValue(node.key)} where nodeKey=${makeSqlValue(field)}")
-	}  else if( op === "initNode" ) {
-       	var nodeOpts = node.opts.sql = node.opts.sql || { };
+	},
+	initNode(evr,node ) {
+	       	var nodeOpts = node.opts.sql = node.opts.sql || { };
 		nodeOpts.state = "added";
-	}  else if( op === "initLink" ) {
-       	var linkOpts = node.opts.sql = node.opts.sql || { };
+	},
+	initLink(evr,node) {
+	       	var linkOpts = node.opts.sql = node.opts.sql || { };
 		linkOpts.state = "added";
-    } else if( op === "read" ) {
+        },
+	read(evr,node ) {
         	var sqlOpts = evr.opts.sql;
 			if( sqlOpts.creatingKey === node.key )  {
 				return;
@@ -71,7 +74,8 @@ function driver( op, evr, node, field ) {
 			}
 			readProperties( sqlOpts, evr, node );
 			readPaths( sqlOpts, node );
-        } else if( op === "initField" ) {
+        },
+	initField( evr,node,field) {
 			var sqlOpts = evr.opts.sql;
 			var fieldOpts = field.opts.sql = field.opts.sql || {};
 			fieldOpts.state = "added";
@@ -86,7 +90,8 @@ function driver( op, evr, node, field ) {
 				writeProperty( sqlOpts, node, field );
 			}
 			
-        } else if( op === "write" ) {
+        },
+	write( evr,node ) {
         	var sqlOpts = evr.opts.sql;
 			if( field ) {
 						//console.log( "got write on ", node, field );
@@ -99,14 +104,16 @@ function driver( op, evr, node, field ) {
 				writeProperty( sqlOpts, node, field );
 			}
 		// can also get write events on nodes; which I don't think I care about?
-        } else if( op === "onMap" ) {
+        },
+	onMap( evr,node ) {
         	var sqlOpts = evr.opts.sql;
 			console.log( "onMap; reload properties and paths of old object?", node )
 			//console.log( "read properties of node so it's not empty?")
 			readProperties( sqlOpts, evr, node );
 			//console.log( "read paths of node so it's not empty?")
 			readPaths( sqlOpts, node );
-	} else if( op === "timeout" ) {
+	} ,
+	timeout( evr,node ) {
 		// field is actually a callback in this case
 		console.log( "is node empty?", node.isEmpty );
 		if( !node.isEmpty ) {
@@ -116,15 +123,14 @@ function driver( op, evr, node, field ) {
 			return true;
 		}
 		// if it was empty, some other driver might add to it; but I should inidicate if noone does to call the event.
-	} else if( op === "cancelTimeout" ) {
+	},
+	cancelTimeout( evr,node ) {
 		// field is actually a callback in this case
 		if( node.isEmpty ) {
 			field();
 			return true;
 		}
-	} else {
-		console.log( "Unknown Driver Op:", op )
-	}
+	} 
 }
 
 function readProperties( sqlOpts, evr, node ) {

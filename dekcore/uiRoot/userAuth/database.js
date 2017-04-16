@@ -1,22 +1,14 @@
 "use strict"
 
-var crypto = require('crypto')
-var idGen = require( '../util/id_generator.js' ).generator;
-
-function hash(v) {
-	console.log( "hash", v );
-  var shasum = crypto.createHash('sha1');
-	shasum.update(v);
-	return shasum.digest('hex');
-}
-
+var IdGen = require( '../util/id_generator.js' );
+var idGen = idGen.generator;
 var config = require( './config.json' );
 var DB = exports = module.exports = {};
 
 var vfs = require( 'sack.vfs');
 
 DB.data = vfs.Volume( "data", "./data.fs", config.run.Λ, idMan.localKey() );
-var db = DB.db = vfs.Sqlite( "$sack@data$core.db" );
+var db = DB.db = vfs.Sqlite( "$sack@data$core.db" );  
 
 var logins = new Map();
 
@@ -39,16 +31,22 @@ db.makeTable( "create table user ( user_id INTEGER PRIMARY KEY AUTOINCREMENT"
 	+", passHash char"
 	+")" 
         );
-db.makeTable( "create table permission ( perm_id INTEGER PRIMARY KEY AUTOINCREMENT"
+db.makeTable( "create table services ( service_id char PRIMARY KEY"
 	+", name char" );
-db.makeTable( "create table userPerm ( user_perm_id INTEGER PRIMARY KEY AUTOINCREMENT"
-	+", user_id int"
-	+", perm_id int"
+db.makeTable( "create table userPerm ( user_perm_id char PRIMARY KEY"
+	+", user_id char"
+	+", perm_id char"
 	+", CONSTRAINT a FOREIGN KEY( user_id ) REFERENCES user(user_id)"
 	+", CONSTRAINT b FOREIGN KEY( perm_id ) REFERENCES permission(perm_id))" );
 
-db.makeTable( "create table userLogin ( user_login_id INTEGER PRIMARY KEY AUTOINCREMENT"
-	+", user_id int"
+db.makeTable( "create table userServiceConnections ( user_svc_id char PRIMARY KEY"
+	+", user_id char"
+	+", svc_id char"
+	+", CONSTRAINT a FOREIGN KEY( user_id ) REFERENCES user(user_id)"
+	+", CONSTRAINT b FOREIGN KEY( perm_id ) REFERENCES permission(perm_id))" );
+
+db.makeTable( "create table userLogin ( user_login_id char PRIMARY KEY"
+	+", user_id char"
 	+", loggedOut int default '0'"
 	+", login TIMESTAMP DEFAULT CURRENT_TIMESTAMP "
 	+", address char"
@@ -60,14 +58,13 @@ db.makeTable( "create table userLogin ( user_login_id INTEGER PRIMARY KEY AUTOIN
 permissions = db.do( 'select * from permission')
 //console.log( "permissions:", permissions )
 
-if( permissions.length === 0 ) {
-	db.do( 'insert into user (name,email,passHash)values("rootke",encrypt("password"))')
-	var userId = db.do( "select last_insert_rowid() id" );
-	db.do( 'insert into permission(name)values ("manager users"),("login allowed"),("create site"),("create user"),("login")' );
-	permissions = db.do( 'select * from permission' );
-	var vals = ""
-	permissions.forEach( (perm)=>{ vals += `${vals.length?",":""}(${userId[0].id},${perm.perm_id})` })
-	db.do( "insert into userPerm (user_id,perm_id) values" + vals )
+if( service.length === 0 ) {
+	var userId;
+	db.do( 'insert into user (user_id,name,email,passHash)values("${userId=idGen()}","root","root@d3x0r.chatment.karaway.net",encrypt("changeme"))')
+	var core_id;	                                                       	
+	db.do( 'insert into service(service_id,name)values ("${core_id=idGen()}","c0r3")' );
+	db.do( `insert into subscriptions (user_id,service_id) values (${userId},${core_id})` )
+
 }
 permissions.forEach( p=>(permissions[p.name]=p) );
 //console.log( "permissions:", permissions )
@@ -76,11 +73,10 @@ permissions.forEach( p=>(permissions[p.name]=p) );
 {
 	users = db.do( 'select decrypt(passHash)password,* from user' );
 	users.forEach( user=>{
-		user.permissions = db.do( 'select * from userPerm where user_id='+user.user_id );
-		user.permissions.forEach( up=>up.name=permissions.find( p=>{ return (p.perm_id===up.perm_id )}).name );
+		user.services = db.do( 'select * from subscriptions where user_id='+user.user_id );
+		user.services.forEach( up=>up.name=services.find( p=>{ return (p.service_id===up.service_id )}).name );
 	})
 
-	//console.log( 'users: ', users );
 }
 //console.log( "permissions is: ", permissions );
 
@@ -97,16 +93,18 @@ DB.loginUser = (username,pass,req,address,oldcid, confirm )=>{
 				return false;
 			}
 			console.log( "find required tokens for user ");
-			if( req.find( r=>( r in permissions ) ) ) console.log( "SOKSDF" );
+
+			// req is requested service?			
+
+			//if( req.find( r=>( r in permissions ) ) ) console.log( "SOKSDF" );
 			var fail1 = false;
-			if( req.find( r=>( r in permissions )?!user.permissions.find( up=>permissions[r].perm_id===up.perm_id ):(fail1=true) ) ) {
+			if( req.find( r=>( r in services )?!user.services.find( up=>services[r].service_id===up.service_id ):(fail1=true) ) ) {
 				if( fail1 )
-					console.log( "requested permission didn't exist... no user can match" )
-				console.log( "token search failure...", req, user.permissions );
+					console.log( "requested service didn't exist... no user can match" )
+				console.log( "service search failure...", req, user.services );
 				return false
 			}
 			if( user.login ) {
-
 				if( confirm )
 					if( confirm( user.login ) ) {
 						// confirmation has been sent; the user appeared to still be alive...
@@ -114,15 +112,16 @@ DB.loginUser = (username,pass,req,address,oldcid, confirm )=>{
 					}
 					// else the client wasn't actually connected, just log it out.
 			}
-			var newClientId = idGen();
 
-			db.do( `update userLogin set loggedOut=1 where user_id=${user.user_id}`)
-			
-			db.do( `insert into userLogin(user_id,address,client_id)values(${user.user_id},"${address}","${newClientId}")`)
-			var r = db.do( `select sha1(last_insert_rowid())n,last_insert_rowid()m ` );
+			db.do( `update userLogin set loggedOut=1 where user_id='${user.user_id}'`)
+			var login_id;  // constant key		
+			var client_id;  // rotating key
+			db.do( `insert into userLogin(login_id,user_id,address,client_id)values('${login_id=idGen()}','${user.user_id}',"${address}",'${client_id=idGen()}')`)
 			console.log( "inserted into thing.")
-			result = user.login = { key:r[0].n, id:r[0].m, cid:newClientId };
-			logins.set( user.login.key, createSite( user.login ) );
+			var hash_id = IdGen.xor( config.run.Λ, login_id );
+			result = user.login = { id:login_id, key:hash_id, cid:client_id };
+
+			logins.set( user.login.key, user );
 			return true;
 		}
 		return false;
@@ -135,9 +134,9 @@ DB.loginUser = (username,pass,req,address,oldcid, confirm )=>{
 	return result;
 }
 
-DB.getLogin = ( remote, clientkey )=>{
+DB.getLogin = ( service, remote, clientkey )=>{
 	//console.log( "userLogins:", db.do( `select * from userLogin` ) );
-	var login = db.do( `select sha1(user_login_id)key,user_login_id id from userLogin WHERE address="${remote}" AND loggedOut=0 AND DATETIME(login)>${config.gameConfig.maxLoginLength} AND client_id="${clientkey}"`)
+	var login = db.do( `select sha2('RandomPaddingHere'||user_login_id)key,user_login_id id from userLogin WHERE address="${remote}" AND loggedOut=0 AND DATETIME(login)>${config.gameConfig.maxLoginLength} AND client_id="${clientkey}"`)
 	if( login.length === 1 ) {
 		return {key:login[0].key,id:login[0].id,cid:clientkey};
 	}
@@ -147,7 +146,6 @@ DB.getLogin = ( remote, clientkey )=>{
 }
 
 DB.updateLogin = ( login )=>{
-	//console.log( "userLogins:", db.do( `select * from userLogin` ) );
 	var cid = idGen();
 	var test = db.do( `update userLogin set client_id="${cid}" where client_id="${login.cid}"`)
 	login.cid = cid;
@@ -167,26 +165,15 @@ function authUser( user, password, token ) {
 
 DB.logout = (sessionkey)=>{
 	var login = logins.get( sessionkey );
-	db.do( `update userLogin set loggedOut=1 where user_login_id=${login.login.id}`)
+	if( login )
+		db.do( `update userLogin set loggedOut=1 where user_login_id=${login.login.id}`)
 }
 
-DB.getLogin = (key)=>{
+DB.getSite = (key)=>{
 	return logins.get( key );
 }
 
 DB.connect = (gun)=>{
-	console.log( "Update gun databases!!!!!")
-	var orgDef = gun.get( "orgDef" );
-	//sites.forEach( )
-	var siteDef = gun.get( "siteDef" );
-	sites.forEach( s=>{ 
-		console.log( "site:", s );
-		var gunSite = gun.get( "siteDef:"+s.site_id );
-
-		var o = {};
-		gunSite.put( o[s.site_id] = { id:s.site_id,name:s.localName,address:s.address } );
-		console.log( o );
-		siteDef.put( o ); 
-	} )
+	console.log( "Update gun databases?? passed a gun instance to do SOMETHING with...")
 }
 

@@ -1,0 +1,30 @@
+
+1) connect to central server 'karaway.core' redirect to '${userauth}karaway.core'
+
+2) createUser (get ID)
+3) updateUser (connection user/email/password)
+
+4) if user has been updated, and login form
+   4a) create login instance(?)
+
+5) client requests remote service
+
+6) auth looks up service, 
+		tells firewall to create a route, 
+		tells application to expect ID, 
+		and result to client to redirect to application,
+
+
+	6b) service receives ID from auth
+
+7) services that might be requested
+	a) chat
+	b) cloud files
+	c) eCent
+
+
+
+7a) chat protocol
+	op: message 
+	to: <userID>
+	(from implied from login and redirect)

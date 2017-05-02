@@ -1,5 +1,4 @@
-"use strict";
-
+//"use strict";
 var stream = require('stream')
 var util = require('util')
 var filter_base = require( "./filter_base.js");

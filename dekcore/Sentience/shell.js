@@ -99,6 +99,7 @@ function Script( sandbox, src ) {
             //console.log( "run ", code)
             //return 
             try {
+				sandbox.scripts.push( { type:"ShellExecute", code:code } )
                 vm.runInContext(code, sandbox 
             		, { filename:src, lineOffset:0, columnOffset:0, displayErrors:true, timeout:500} )
             } catch( err ) {
@@ -143,6 +144,7 @@ function Tell( sandbox, args ) {
                 //console.log( "can't tell a dead object.  Try exec instead." );
                 //Tell( sandbox, args );
                 try {
+				sandbox.scripts.push( { type:"command", code:tail.toString() } );
                 vm.runInContext( tail.toString(), sandbox /*, { filename:"", lineOffset:"", columnOffset:"", displayErrors:true, timeout:10} */)
                 } catch(err){
                     console.log( err );
@@ -175,6 +177,7 @@ function Exec( sandbox, src ) {
     try {
         var code = src.toString();
         //console.log( "runincontext?", code)
+		sandbox.scripts.push( { type:"Exec command", code:code } );
         return vm.runInContext(code, sandbox /*, { filename:"", lineOffset:"", columnOffset:"", displayErrors:true, timeout:10} */)
     }catch(err){
         console.log( err );

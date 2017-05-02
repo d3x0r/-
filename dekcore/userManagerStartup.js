@@ -2,7 +2,7 @@
 
 
 
-console.log( "websock server startup?", this );
+console.log( "userManagerStartup  (C&C protocol)websock server startup?" );
 
 io.addProtocol( "C&C", (conn)=>{
     conn.on( 'message', basicServices );

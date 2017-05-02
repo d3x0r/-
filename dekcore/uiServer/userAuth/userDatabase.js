@@ -1,14 +1,22 @@
 "use strict"
 
-var IdGen = require( '../util/id_generator.js' );
-var idGen = idGen.generator;
-var config = require( './config.json' );
+
+
+var idGen = ()=>global.idGen( );
+
+
 var DB = exports = module.exports = {};
 
 var vfs = require( 'sack.vfs');
 
-DB.data = vfs.Volume( "data", "./data.fs", config.run.Λ, idMan.localKey() );
-var db = DB.db = vfs.Sqlite( "$sack@data$core.db" );  
+if( !("udb" in config) ) {
+	config.udb = { runkey: idGen() };
+	config.commit();
+}
+
+DB.data = vfs.Volume( null, "./data.fs", config.udb.runkey, me );
+console.log( "vol is:", DB.data );
+var db = DB.db = DB.data.Sqlite( "core.db" );  
 
 var logins = new Map();
 
@@ -25,7 +33,7 @@ var permissions = null;
 
 db.do( 'PRAGMA foreign_keys=ON' );
 
-db.makeTable( "create table user ( user_id INTEGER PRIMARY KEY AUTOINCREMENT"
+db.makeTable( "create table user ( user_id char PRIMARY KEY"
 	+", name char"
 	+", email char"
 	+", passHash char"
@@ -33,17 +41,18 @@ db.makeTable( "create table user ( user_id INTEGER PRIMARY KEY AUTOINCREMENT"
         );
 db.makeTable( "create table services ( service_id char PRIMARY KEY"
 	+", name char" );
+	/*
 db.makeTable( "create table userPerm ( user_perm_id char PRIMARY KEY"
 	+", user_id char"
 	+", perm_id char"
 	+", CONSTRAINT a FOREIGN KEY( user_id ) REFERENCES user(user_id)"
 	+", CONSTRAINT b FOREIGN KEY( perm_id ) REFERENCES permission(perm_id))" );
-
-db.makeTable( "create table userServiceConnections ( user_svc_id char PRIMARY KEY"
+*/
+db.makeTable( "create table subscriptions ( sub_id char PRIMARY KEY"
 	+", user_id char"
-	+", svc_id char"
+	+", service_id char"
 	+", CONSTRAINT a FOREIGN KEY( user_id ) REFERENCES user(user_id)"
-	+", CONSTRAINT b FOREIGN KEY( perm_id ) REFERENCES permission(perm_id))" );
+	+", CONSTRAINT b FOREIGN KEY( service_id ) REFERENCES services(service_id))" );
 
 db.makeTable( "create table userLogin ( user_login_id char PRIMARY KEY"
 	+", user_id char"
@@ -55,32 +64,63 @@ db.makeTable( "create table userLogin ( user_login_id char PRIMARY KEY"
 	+", CONSTRAINT a FOREIGN KEY( user_id ) REFERENCES user(user_id))" );
 //console.log( db.do( "select * from userLogin" ) );
 
-permissions = db.do( 'select * from permission')
+var services = db.do( 'select * from services')
 //console.log( "permissions:", permissions )
 
-if( service.length === 0 ) {
+if( services.length === 0 ) {
 	var userId;
-	db.do( 'insert into user (user_id,name,email,passHash)values("${userId=idGen()}","root","root@d3x0r.chatment.karaway.net",encrypt("changeme"))')
+	db.do( `insert into user (user_id,name,email,passHash)values("${userId=idGen()}","root","root@d3x0r.chatment.karaway.net",encrypt("changeme"))`)
 	var core_id;	                                                       	
-	db.do( 'insert into service(service_id,name)values ("${core_id=idGen()}","c0r3")' );
-	db.do( `insert into subscriptions (user_id,service_id) values (${userId},${core_id})` )
+	db.do( `insert into services(service_id,name)values ("${core_id=idGen()}","c0r3")` );
+	services = db.do( 'select * from services');
+	
+	console.log( "doing insert into subscriptions.... sohould get values back??")
+	db.do( `insert into subscriptions (sub_id,user_id,service_id) values ('${idGen()}','${userId}','${core_id}')` )
 
 }
-permissions.forEach( p=>(permissions[p.name]=p) );
+services.forEach( p=>(services[p.name]=p) );
 //console.log( "permissions:", permissions )
 
-
+function dontLoadAll() 
 {
 	users = db.do( 'select decrypt(passHash)password,* from user' );
 	users.forEach( user=>{
-		user.services = db.do( 'select * from subscriptions where user_id='+user.user_id );
-		user.services.forEach( up=>up.name=services.find( p=>{ return (p.service_id===up.service_id )}).name );
+		user.services = db.do( "select * from subscriptions where user_id='"+user.user_id+"'" );
+		user.services.forEach(  up=>{ 
+			var s = services.find( p=>{ return (p.service_id===up.service_id )});
+			if( s ) 
+				up.name=s.name 
+			else {
+				up.name = "Unknown";
+				console.log( "Failed to find ", up, "in", services );
+				throw new Error( "Database is corrupt" );
+			}
+		} );
 	})
 
 }
 //console.log( "permissions is: ", permissions );
 
+DB.createUser = createUser;
+DB.updateUser = updateUser;
 DB.authUser = authUser;
+
+function createUser( ) {
+	var userId;
+	db.do( `insert into user (user_id)values("${userId=idGen()}")`)
+	return userId;
+}
+
+function updateUser( userId, username, email, password ) {
+	var userId;
+	db.do( `update user set user='${db.escape(username)}',email='${db.escape(email)}',password=encrypt("${password}" where user_id='${userId}'`);
+	return userId;
+}
+
+
+function checkUserName( username ) {
+	return db.do( `select count(*) from user where name='${db.escape(username)}'` ) === 0;
+}
 
 DB.loginUser = (username,pass,req,address,oldcid, confirm )=>{
 	var result = null;
@@ -136,7 +176,7 @@ DB.loginUser = (username,pass,req,address,oldcid, confirm )=>{
 
 DB.getLogin = ( service, remote, clientkey )=>{
 	//console.log( "userLogins:", db.do( `select * from userLogin` ) );
-	var login = db.do( `select sha2('RandomPaddingHere'||user_login_id)key,user_login_id id from userLogin WHERE address="${remote}" AND loggedOut=0 AND DATETIME(login)>${config.gameConfig.maxLoginLength} AND client_id="${clientkey}"`)
+	var login = db.do( `select sha2('RandomPaddingHere'||user_login_id)key,user_login_id id from userLogin WHERE address="${remote}" AND loggedOut=0 AND DATETIME(login)>${config.login.maxLoginLength} AND client_id="${clientkey}"`)
 	if( login.length === 1 ) {
 		return {key:login[0].key,id:login[0].id,cid:clientkey};
 	}
@@ -167,10 +207,6 @@ DB.logout = (sessionkey)=>{
 	var login = logins.get( sessionkey );
 	if( login )
 		db.do( `update userLogin set loggedOut=1 where user_login_id=${login.login.id}`)
-}
-
-DB.getSite = (key)=>{
-	return logins.get( key );
 }
 
 DB.connect = (gun)=>{

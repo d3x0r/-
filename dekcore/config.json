@@ -1,0 +1,6 @@
+{
+	"defaultPort" : 8000,
+	"webRoot" : "./uiRoot",
+	"serverRoot" : "./uiServer",
+	"dataRoot" : "./core"	
+}

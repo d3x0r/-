@@ -1,7 +1,6 @@
 "use strict"
 
 
-io.addProtocol( "serviceAuth", setupServiceAuth );
 
 var gunWs = null;
 var gunWsConn = null;
@@ -21,10 +20,21 @@ var DB = exports = module.exports = {};
 
 var vfs = require( 'sack.vfs');
 
+if( !( "svcDb" in config ) ) {
+	config.svcDb = { vol : idGen() };
+}
+
 var opdb = vfs.Sqlite( `option.db` );
 var vol = opdb.op( "vol", idGen() );
+vol = config.svcDb.vol;
+console.log( "do vol:", vol );
 DB.data = vfs.Volume( vol, vol/*, me*/ );
-var db = DB.db = vfs.Sqlite( `$sack@${vol}$services.db` );
+if( DB.data ) {
+
+io.addProtocol( "serviceAuth", setupServiceAuth );
+
+	console.log( "Data is:", Object.keys( DB.data ));
+	var db = DB.db = DB.data.Sqlite( `services.db` );
 
 db.do( 'PRAGMA foreign_keys=ON' );
 
@@ -284,4 +294,6 @@ DB.banService = ( id ) => {
 	}
 	else
 		console.log( "Failed to getservice?", service, id, serviceLogins );
+}
+
 }

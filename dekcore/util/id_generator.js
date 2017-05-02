@@ -1,6 +1,6 @@
 "use strict";
 
-var RNG = require( "../org.d3x0r.common/salty_random_generator.js").SaltyRNG( getSalt );
+var RNG = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( getSalt );
 
 function getSalt (saltbuf) {
     saltbuf.length = 0;
@@ -16,7 +16,22 @@ exports.generator = function() {
 // use window.btoa' step. According to my tests, this appears to be a faster approach:
 // http://jsperf.com/encoding-xhr-image-data/5
 // doesn't have to be reversable....
-const encodings = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+const encodings = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789$_'
+var u8 = '';
+
+for( var x = 0; x < 256; x++ ) {
+	if( x < 64 ) {
+		u8 += String.fromCharCode(x);
+	}
+	else if( x < 128 ) {
+		u8 += String.fromCharCode(x);
+	}
+	else {
+		u8 += String.fromCharCode(x);
+	}
+}
+//console.log( "u8 is...", u8 );
+
 function base64ArrayBuffer(arrayBuffer) {
   var base64    = ''
 
@@ -71,7 +86,6 @@ function base64ArrayBuffer(arrayBuffer) {
 
 
 var xor_code_encodings = {};//'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
-
 for( var a = 0; a < encodings.length; a++  ) {
    var r = (xor_code_encodings[encodings[a]]={} );
    for( var b = 0; b < encodings.length; b++  ) {
@@ -80,7 +94,6 @@ for( var a = 0; a < encodings.length; a++  ) {
 }
 xor_code_encodings['='] = {'=': '='};
 
-exports.xor = xor;
 
 function xor(a,b) {
   var c = "";                                                                                             	
@@ -89,15 +102,15 @@ function xor(a,b) {
   }
   return c
 }
+exports.xor = xor;
 
 
-exports.dexor=dexor;
 function dexor(a,b,d,e) {
   var r = "";                                                                                             	
   var n1 = (d-1)*((a.length/e)|0);
   var n2 = (d)*(a.length/e)|0;
 
-  for( n = 0; n < n1; n++ ) 
+  for( var n = 0; n < n1; n++ ) 
 	r += a[n];
   for( ; n < n2; n++ ) 
 	r += xor_code_encodings[a[n]][b[n]];
@@ -106,3 +119,41 @@ function dexor(a,b,d,e) {
 
   return r
 }
+exports.dexor=dexor;
+
+
+var u8xor_code_encodings = {};
+for( var a = 0; a < 64; a++  ) {
+   var r = (u8xor_code_encodings[a]={} );
+   for( var b = 0; b < encodings.length; b++  ) {
+	 r[encodings[b]] = a^b;
+   }
+}
+xor_code_encodings['='] = {'=': '='};
+//console.log( "u8xor_code_encodings:", JSON.stringify( u8xor_code_encodings) )
+
+function u8xor(a,b) {
+	var buf = Buffer.from(a, 'utf8');
+	var outBuf = new Buffer( buf.length );
+	var n;
+	var keylen = b.length-5;
+	for( n = 0; n < buf.length; n++ ) {
+		var v = buf[n];
+		var mask = 0x3f;
+		if( (v & 0xE0) == 0xC0 ) {
+			{mask=0x3;}
+		}
+		else if( (v & 0xF0) == 0xE0 ) {
+			{mask=0xF;}
+
+		}
+		else if( (v & 0xF0) == 0xF0 ) {
+			{mask=0x7;}
+		}
+		outBuf[n] = (v & ~mask ) | ( u8xor_code_encodings[v & mask ][b[n%(keylen)]] & mask ) 
+	}
+	console.log( "buf" , buf.toString('hex') );
+	console.log( "buf" , outBuf.toString('hex') );
+	return outBuf.toString( "utf8" );
+}
+exports.u8xor=u8xor;

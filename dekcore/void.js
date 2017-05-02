@@ -16,12 +16,24 @@ var MOOSE;
 
 var connections = [];
 
+
 https.addProtocol( "entity-ethernet", (ws)=>{
     var state = 0;
 
     ws.on( "message", (msg)=>{
         msg = JSON.parse( msg.utf8Data );
         console.log( "msg", msg );
+
+		if( msg.op === "identify" ) {
+			var e = Entity( msg.Λ );
+			if( e ) {
+				ws.entity = e;
+				ws.protocol = ws.entity.emit( "connect", ws );
+			} 
+		}
+		if( ws.protocol ) 
+			return ws.protocol( msg );
+
         if( msg.op === "serviceLogin" ) {
           //console.log( "from who? ", connection.remoteAddress );
           var a;
@@ -57,43 +69,104 @@ https.addProtocol( "entity-ethernet", (ws)=>{
     })
 } )
 
+var auth = null;
+
+https.addProtocol( "karaway.core", (ws)=>{
+    var state = 0;
+
+    ws.on( "message", (msg)=>{
+		console.log( "got:", msg )
+        msg = JSON.parse( msg );
+        console.log( "kc msg", msg );
+
+        if( msg.op === "hello" ) {
+			var test = Entity.getEntity( msg.me );
+			if( test && ( test.sandbox.config.run.Λ === msg.runkey ) ) {
+				auth = test;
+				ws.send( '{"op":"hello"}' )
+			}
+		}
+
+        else if( msg.op === "auth" ) {
+			if( !auth ) {
+				ws.send( '{"op":"Error", "error":"Authentication service is not ready..."}' );
+				ws.close();
+				return;
+			}
+          //console.log( "from who? ", connection.remoteAddress );
+          var a;
+          a = msg.id;
+          if( !a ) a = msg.key;
+
+          console.log( "... get service" );
+          ws.send( JSON.stringify( { op: "redirect", protocol: auth.Λ+"karaway.core" } ) );
+        }
+        else if( msg.op === "getClientKey" ) {
+          var client_id = idGen();
+          if( "name" in msg ) {
+            connection.login = db.createServiceLogin( msg.name, connection.remoteAddress, client_id );
+          }
+          connection.send( `{"op":"setClientKey","key":"${client_id}"}`)
+          console.log( "sending a proper key...", client_id )
+        }
+		else {
+			// protocol error; disconnect.
+			console.log( "Protocol Error; disconnecting clinet.", msg );
+			ws.close();
+		}
+    })
+    ws.on( "close", (evt,reason)=>{
+	// this is a server close; no reconnect
+    })
+} )
+
+
+
 function BigBang() {
 	console.log( "Creating the void....");
-	Entity.create( null, "The Void", "Glistening transparent black clouds swirl in the dark.", (o)=>{
-		Entity.theVoid = o;
+	Entity.reloadAll( ()=>{
+			// onLoadComplete
+			console.log( "Okay now ... how to start this?")
+			MOOSE = Entity.getEntity( config.run.MOOSE );
 
-		Entity.create( Entity.theVoid, "MOOSE", "Master Operator of System Entites.", (o)=>{
-                MOOSE = o;
+			MOOSE.sandbox.io.command = shell.Filter( MOOSE.sandbox );
+			MOOSE.sandbox.require( "./startup.js" ); // still do first run on first object?
 
-                o.sandbox.io.command = shell.Filter( o.sandbox );
-                //obj o = {}; if( !"a" in o ) o.a = {}; o.a.b = 1;
+			run(); // enable discovery; services are stil loading...
+			
+		},
+		()=>{
+		Entity.create( null, "The Void", "Glistening transparent black clouds swirl in the dark.", (o)=>{
+			console.log( "Creating first entity" );
+			Entity.theVoid = o;
 
-                if( !("io" in o.sandbox) ) o.sandbox.io = {};
-                o.sandbox.io.gun = https.gun.get( o.Λ );
+			o.create( "MOOSE", "Master Operator of System Entites.", (o)=>{
+				config.run.MOOSE = o.Λ;
+				config.run.commit();
 
-                o.sandbox.io.gun.map( (val, field)=>{ console.log( "(Void)MOOSE event:", field, val )});
-                //o.sandbox.io.gun.put( {msg: "Hello" } );
-	       	  	var path = require.resolve( "./startup.js" ).replace( /\\/g, "/" );
-                shell.Script( o.sandbox, text.Text( path ) );
-		})
-	} );
+					MOOSE = o;
+
+					if( !("io" in o.sandbox) ) o.sandbox.io = {};
+
+					MOOSE.sandbox.io.command = shell.Filter( o.sandbox );					
+					o.sandbox.require( "./startup.js" );
+
+					//var path = require.resolve( "./startup.js" ).replace( /\\/g, "/" );
+					//shell.Script( o.sandbox, text.Text( path ) );
+					Entity.saveAll();
+					run();
+			})
+		} );
+	});
 }
 
 //------------- some initial startup modes
 
-setTimeout( waitrun,10 );
+config.start( BigBang );
+//setTimeout( ()=>{
+config.resume();
+//}, 10000 );
 
-function waitrun(){
-    if( !config.run.Λ)
-    {
-	console.log( "wait some more then try again" );
-        setTimeout(  waitrun, 10 );
-    }
-    else {
-        config.start( BigBang );
-      	run();
-    }
-}
 
 var reassignments = [];
 var d;
@@ -102,7 +175,7 @@ function run() {
     //var Cluster = require( './cluster.js' ).Cluster();
     var idMan = require( "./id_manager.js");
     var vfs = require( "./file_cluster.js" );
-    var discoverer = require( "./discovery.js" );
+    var discoverer = require( "./util/discovery.js" );
     d = discoverer.discover( { timeout: 1000
         , master : true
         , filter : false // expects to hear on localhost and/or same interfaces
@@ -121,7 +194,7 @@ function run() {
                           var e = Entity.getEntity( parts[0] );
                           if( e )  {
                               var key = idMan.xor( idMan.xor( e.Λ, config.run.Λ ), parts[2] );
-                              d.send( parts[2] + " YouAre " + key, raddr, addr );
+                              d.send( parts[2] + " YouAre " + key + " " + config.run.defaults.defaultPort, raddr, addr );
                           } else {
                             // this is no longer valid; entity does not exist already.
                             // delete this key ( and all descendents keys )
@@ -141,13 +214,13 @@ function run() {
             // really all of my keys are on my config.run key anyway
             //   so this shouldn't be done here?
             idMan.setKeys( idMan.ID( idMan.localAuthKey ) );
-            require( "./https_server.js" ).Server();
+            require( "./https_server.js" ).Server( config.run.defaults.defaultPort );
             //discoverer.discover(
             //	{ onquery:()=>{return "YouAre"; }
             //);
         }
         , onconnect : ( sock ) => {
-            var idGen = require( "./id_generator.js");
+            var idGen = require( "./util/id_generator.js");
             idMan.sync( sock );
         }
     })
@@ -169,18 +242,18 @@ function run() {
 
                 //o.sandbox.io.gun.map( (val, field)=>{ console.log( "(Void)remote entity event:", field, val )});
                 //o.sandbox.io.gun.put( {msg: "Hello" } );
-		var d3o1 = idMan.dexor( parts[0], config.run.Λ, 3, 4 );
-		var merge1 = idMan.xor( config.run.Λ, o.Λ );
-		var merge2 = idMan.xor( merge1, parts[0] );
+				var merge1 = idMan.xor( config.run.Λ, o.Λ );
+				var merge2 = idMan.xor( merge1, parts[0] );
+				var merge3 = idMan.xor( parts[0], o.Λ );
                 reassignments.find( (r)=>r.o===parts[0] ).n = merge1;
 		
-                d.send( parts[2] + " YouAre " + merge2, raddr, addr );
+                d.send( merge3 + " YouAre " + merge2 + " " + config.run.defaults.defaultPort, raddr, addr );
 
                     //reassignments.splice( , 1 );
                 } );
         }
         else if( r.n )
-            d.send( config.run.Λ + " YouAre " + r.n, raddr, addr );
+            d.send( config.run.Λ + " YouAre " + r.n + " " + config.run.defaults.defaultPort, raddr, addr );
 
     }
     d.dispatchPing(); // begin the discovery.

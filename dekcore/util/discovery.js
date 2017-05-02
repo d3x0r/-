@@ -16,8 +16,7 @@
 //                     // no further received messages will be dispatched
 //   }
 
-var config = require( "./config.js");
-var bits = require( "../org.d3x0r.common/salty_random_generator.js").SaltyRNG( (salt)=>{salt.length=0;salt.push( (new Date()).getTime() ) });
+var bits = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( (salt)=>{salt.length=0;salt.push( (new Date()).getTime() ) });
 var dns = require('dns');
 var localAddresses;
 var v6Servers = [];
@@ -203,24 +202,24 @@ exports.discover = (options) => {
                 
 
 	var discoverer = {
-		pingMessage: new Buffer("{'msgop':'whoami','id':" + config.run.Λ + "'}"),
+		pingMessage: "ping",
                 close : ()=>{
-					console.log( "closing" );
+			//console.log( "closing; no long receives UDP messages." );
                 	Servers.forEach( (server)=>{
                         	server.socket.close();
                         } );
                         Servers = [];
                 },
                 send : (reply,rinfo,addr)=>{
-	                console.log( "compare ", rinfo, addr );
+	                //console.log( "send with compare ", rinfo, addr );
                 	var server = Servers.find( (server)=>compareBroadcast( server, rinfo, addr ) );
                         if( server ) {
-							console.log( "Sending ", reply, rinfo.port, rinfo.address )
+					//console.log( "Sending ", reply, rinfo.port, rinfo.address )
 	                		server.socket.send(reply, 0, reply.length, rinfo.port, rinfo.address);
 						}else console.log( "didn't know which way to send")
                 },
                 stop : ()=>{
-					console.log( "STOP DISCOVER")
+			console.log( "STOP DISCOVER")
                 	stopped = true;
                 	clearTimeout( options.pingTimer );
                         options.pingTimer = null;

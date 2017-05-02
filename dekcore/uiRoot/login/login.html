@@ -1,18 +1,42 @@
 <HTML>
     <HEAD>
         <style>
-            div:form{width:100%;height:100%;position:absolute;left:0%;top:0%}
+	    body{margin:0;font-size:200%;color:white}
+            div.form{width:100%;height:50%;position:absolute;left:0%;top:25%;font-size:100%}
+            div.page{width:100%;height:100%;position:absolute;left:0%;top:0%;font-size:100%;background:darkslategrey;visibility:va}
+	    input{font-size:100%;border-radius:15px;text-align:center}
+	    button{font-size:100%;border-radius:10px}
+
+a{color:white;}
+a:link { color : lightgray; text-decoration : none;}
+a:visited {color :yellow; text-decoration : none;}
+a:hover {color : white; text-decoration : none;}
+
             </style>
     </HEAD>
     <body>
-        <DIV ID="loginForm" class="form">
+        <DIV ID="loginPageCover" class="page">
+        <DIV ID="loginForm" class="form" STYLE="top:25%">
             <CENTER>Username<BR>
             <INPUT size="25" ID="username"></INPUT><BR>
             Password<BR>
-            <INPUT size="25" type="password" ID="password"></INPUT><BR>
-            <button ID="login">Login</button>
+            <INPUT  type="password" size="25" type="password" ID="password"></INPUT><BR><BR>
+            <button ID="login">Login</button><BR>
+            <A href="#123" ID="createAccount">Create New Account</A>
+        </DIV>
+        <DIV ID="createUserForm" class="form" STYLE="top:25%;visibility:hidden">
+            <CENTER>Username<BR>
+            <INPUT size="25" ID="uc_username"></INPUT><BR>
+            Email<BR>
+            <INPUT size="25" ID="uc_email"></INPUT><BR>
+            Password<BR>
+            <INPUT type="password" size="25" type="uc_password" ID="password"></INPUT><BR>
+            Confirm Password<BR>
+            <INPUT type="password" size="25" type="uc_password2" ID="password"></INPUT><BR><BR>
+            <button ID="create">Create</button>
+        </DIV>
         </DIV>
     </body>
-    <script src="login/login-internal.js"></SCRIPT>
+    <script src="../userAuth/login.js"></SCRIPT>
 </HTML>
 

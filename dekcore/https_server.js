@@ -32,7 +32,7 @@ exports.Service = addService;
 exports.addProtocol = addProtocol;
 
 //exports.Gun = Gun;
-var ID = require( './id_generator.js' );
+var ID = require( './util/id_generator.js' );
 
 exports.Gun = Gun;
 exports.gun = Gun(  { uuid : ID.generator, file : null } );;
@@ -40,7 +40,7 @@ exports.gun = Gun(  { uuid : ID.generator, file : null } );;
 exports.gun.on( "get", (a,b,c)=>console.log("gun get:", a,b,c) )
 exports.gun.on( "put", (a,b,c)=>console.log("gun put:", a,b,c) )
 
-Gun.on( "get", (a,b,c)=>console.log("GUN get:", a,b,c) )
+Gun.on( "get", (a)=>console.log("GUN get:", a['#'], a.get ) )
 Gun.on( "put", (a,b,c)=>console.log("GUN put:", a,b,c) )
 
 var wsServer = null;
@@ -98,9 +98,9 @@ function scriptServer( port ) {
 
 
         {
-            console.log( "serving a relative...", req.url, relpath );
-            if( vol.exists( relpath  ) ) {
-                var content = vol.read( relpath );
+            console.log( "serving a relative...", req.url, filePath );
+            if( vol.exists( filePath  ) ) {
+                var content = vol.read( filePath );
                             res.writeHead(200, { 'Content-Type': contentType });
                             res.end(new Buffer(content), 'utf-8');
                     }
@@ -112,7 +112,7 @@ function scriptServer( port ) {
     });
     server.listen( port, ( err ) => {
 	if( err ) console.log( "Err?", err );
-		        console.log( "bind success");
+	console.log( "bind success");
     } );
     /*
     exports.gun.wsp(server, ()=>{
@@ -140,12 +140,16 @@ function addProtocol( protocol, connect ) {
 
 function validateWebSock( req ) {
     //console.log( "connect?", req.upgradeReq.headers, req.upgradeReq.url )
-   console.log( "protocols:", protocols );
+    var proto = decodeURIComponent( req.upgradeReq.headers['sec-websocket-protocol'] );
+
+	//console.log( "protocols:", protocols, "\n", proto );
+
+	// this is the way 'websocket' library gives protocols....
+	//console.log( "other", req.protocolFullCaseMap[req.requestedProtocols[0]])
     wsServer.acceptingProtocol = null;
-    var proto = req.upgradeReq.headers['sec-websocket-protocol'];
     if( !protocols.find( p=>{
             //if( p.name === req.protocolFullCaseMap[req.requestedProtocols[0]] ) {
-            if( p.name === req.upgradeReq.headers['sec-websocket-protocol'] ) {
+            if( p.name === proto ) {
                 console.log( "accept websock:", p )
                 //wsServer.acceptingProtocol = p;
                 p.connect(req);

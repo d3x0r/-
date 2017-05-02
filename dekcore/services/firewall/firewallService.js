@@ -4,7 +4,7 @@ var firewall = require( "./firewallDb.js" );
 
 var firewallInterface;
 
-io.addDriver( "firewall", "firewallInterface", firewallInterface = {
+if( io.addDriver( "firewall", "firewallInterface", firewallInterface = {
     block( target ) {
         // block the specified address.
     },
@@ -12,10 +12,8 @@ io.addDriver( "firewall", "firewallInterface", firewallInterface = {
         // route the target address to a specified port to a service
         // compute an available input port to route.
     },
-} );
+} ) )
+{
+	throw new Error( "Firewall driver has already been provided." );
+}
 
-io.addProtocol( "firewall" );
-
-on( 'contained', function( newContent ){
-    
-})

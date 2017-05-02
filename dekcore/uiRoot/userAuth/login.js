@@ -5,19 +5,78 @@ var password;
 var button;
 var yesButton;
 var noButton;
+var loginCoverPage;
+var uc_username,uc_email,uc_password,uc_password2
 
 function loadControls( parent ) {
+	loginCoverPage = parent.getElementById( "loginPageCover" );
+
+	loginForm = parent.getElementById( "loginForm" );
+	userCreateForm = parent.getElementById( "createUserForm" );
+
+	createButton = parent.getElementById( "create" );
+	createAccount = parent.getElementById( "createAccount" );
+	if( createButton )
+		createButton.addEventListener( "click", doCreate );
+	if( createAccount ) 
+		createAccount.addEventListener( "click", showCreate );
+
+	uc_username = parent.getElementById( "uc_username" );
+	uc_email = parent.getElementById( "uc_email" );
+	uc_password = parent.getElementById( "uc_password" );
+	uc_password2 = parent.getElementById( "uc_password2" );
+
 	username = parent.getElementById( "username" );
 	password = parent.getElementById( "password" );
-	button = parent.getElementById( "click" );
+	button = parent.getElementById( "login" );
 	yesButton = parent.getElementById( "yes" );
 	noButton = parent.getElementById( "no" );
+
+if( button )  
+  button.addEventListener( "click", ()=>{
+	ws.send( `{"op":"userLogin","username":"${username.value}","password":"${password.value}"}`)
+  } );
+
+if( yesButton ) yesButton.addEventListener( "click", ()=>{
+	ws.send( '{"op":"logout"}')
+})
+if( noButton ) noButton.addEventListener( "click", ()=>{
+	np("/userAuth/login.html");
+})
+
 }
 
-window.gunDb = null;
+function showCreate() {
+	loginForm.style.visibility = "hidden";
+	userCreateForm.style.visibility = "visible";
+}
+
+function doCreate() {
+	if( uc_password.value === uc_password2.value ) {
+		var msg = { op:"createUser", user:uc_username.value, email: uc_email.value, password: uc_password.value };
+		ws.send( JSON.stringify( msg ) );
+	} else {
+		alert( "Passwords did not match" );
+	}
+
+}
+
+function checkPassword() {
+	var tmp = uc_password.value;
+	return true;
+}
+
+function checkUsername() {
+	var curname = uc_username.value;
+	if( curname.length > 4 ) {
+		
+	}
+}
+
+  loadControls( document );
+
 window.ws = null;
 window.send = sendMessage;
-window.ongun
 
 function sendMessage( m ) {
   //wrap send for client.... 
@@ -29,22 +88,19 @@ function updateState( state, val ) {
 
 }
 
-var np = (p)=>{location.assign(p)};
+var np = (p)=>{
+	location.assign(p)
+};
 
 if( !window.Required ) {
-  np( "login.html" );
-  throw new Error( "Page is not configured for auth; missing required tokens" ); 
+	hide();
 }
-if( button )  
-  button.addEventListener( "click", ()=>{
-    ws.send( `{"op":"userLogin","username":"${username.value}","password":"${password.value}","require":${JSON.stringify( Required ) }}`)
-  } );
-if( yesButton ) yesButton.addEventListener( "click", ()=>{
-    ws.send( '{"op":"logout"}')
-})
-if( noButton ) noButton.addEventListener( "click", ()=>{
-    np("/userAuth/login.html");
-})
+
+function hide() {
+	if( loginCoverPage )
+	loginCoverPage.style.visibility = "hidden";
+}
+
 var processors = [];
 
 if ("WebSocket" in window) {
@@ -53,7 +109,7 @@ if ("WebSocket" in window) {
   }
   else
 	  var peer = `${location.protocol==="https:"?"wss":"ws"}://${location.hostname}:${Number(location.port)}/userAuth`;
-  openSocket();
+  openSocket( "karaway.core" );
 } else {
   // the browser doesn't support WebSocket.
   if( !location.host.length )
@@ -63,113 +119,41 @@ if ("WebSocket" in window) {
 }
 
 
-function openSocket() {
-  ws = new WebSocket(peer, "karaway.core");
+function openSocket( protocol ) {
+  ws = new WebSocket(peer, protocol);
   
   ws.onopen = function() {
-    // Web Socket is connected. You can send data by send() method.
-    //ws.send("message to send"); 
-    if( location.pathname === "/userAuth/logout.html" )
-      return;
-
-    var key = localStorage.getItem( "clientKey" );
-    console.log( "key is", key );
-    if( !key )
-      if( location.pathname !== "/userAuth/login.html" ) {
-          console.log( "no key, ned to do login... ")
-            np("/userAuth/login.html");
-            return;
-      }
-      else ws.send( '{"op":"getClientKey"}' );
-    else ws.send( `{"op":"getLogin","id":"${key}"}` );
-    //ws.send( JSON.stringify( { MsgID: "Flashboard Login" } ) );
+	// Web Socket is connected. You can send data by send() method.
+	//ws.send("message to send"); 
+	var key = localStorage.getItem( "clientKey" );
+	console.log( "key is", key );
+	if( !key ){
+	   loginCoverPage.style.visibility = "visible";
+	   ws.send( '{"op":"auth"}' );
+	}
+	else 
+		ws.send( `{"op":"auth","id":"${key}"}` );
+	//ws.send( JSON.stringify( { MsgID: "Flashboard Login" } ) );
   };
   ws.onmessage = function (evt) { 
-  	var received_msg = evt.data; 
-        console.log( "received", received_msg );
-      processors.find( processMessage=>processMessage( JSON.parse( evt.data ) ) );
+  	var msg = JSON.parse( evt.data ); 
+	  if( msg.op === "session" ) {
+		 localStorage.setItem( "clientKey", msg.key );
+	  } else if( msg.op === "setLogin" ) {
+		 localStorage.setItem( "sessionKey", msg.key );
+	  } else if( msg.op === "redirect" ) {
+		  ws.close();
+		  openSocket( encodeURIComponent(msg.protocol) );
+	  }
+	  else if( msg.op === "newLogin" ) {
+		if( username ) username.value = "";
+		if( password ) password.value = "";
+	  }
   };
   ws.onclose = function() { 
-    console.log( "CLOSED WEBSOCKET!")
-    openSocket();
+	console.log( "CLOSED WEBSOCKET!")
+	setTimeout( ()=>{openSocket(protocol)}, 5000 ); 
  	// websocket is closed. 
   };
 }
 
-processors.push( processMessage );
-
-function processMessage( msg )
-{
-    //console.log( "handle Message?")
-	   if( msg.op === "setLogin" ) {
-        localStorage.clear();
-        localStorage.setItem( "sessionKey", msg.key )
-        	return true;
-     }
-     else if( msg.op === "oldLogin" ) {
-       if( localStorage.getItem( "sessionKey" ) !== msg.key ) {
-            ws.send( '{"op":"logout"}')
-    	      np("/userAuth/login.html");
-       }
-       localStorage.setItem( "clientKey", msg.id );
-        if( location.pathname === "/userAuth/login.html" ){ // this should always be called because of someone else...
-            console.log( "go back one....");
-            history.go(-1); // assume the prior page is the source (else someone cheated to just to go login.html)
-        }
-        else
-          if( window.Gun ) {
-            gunDb = window.Gun();
-            connectGun();
-          }
-
-        return true;
-     }
-     else if( msg.op === "remoteLogoff") {
-       if (confirm('Another system is attempting to log in as this user?  Allow(yes) or block(no)')) {
-            // Save it!
-        } else {
-            // Do nothing!
-        }
-     }
-     else if( msg.op === "confirmLogout") {
-        console.log( "DO LOGOUT??" );
-   	    np("logout.html");
-        console.log( "LOCATION REPLACE FAILED")
-        return true;
-       
-     }
-     else if( msg.op ==="setClientKey" ) {
-     	  localStorage.setItem( "clientKey", msg.key );
-	      ws.send( `{"op":"getLogin","id":"${msg.key}"}` );
-        return true;
-     }
-      else if( msg.op === "newLogin" ) {
-        if( username ) username.value = "";
-        if( password ) password.value = "";
-        if( location.pathname !== "/userAuth/login.html" )
-    	      np("/userAuth/login.html");
-        return true;
-      }
-      return false;
-}
-
-
-function connectGun() {
-            var wsDb = new WebSocket( peer, "gunDb" );
-            wsDb.onopen = (ws)=>{
-              gunDb.on('out', function (msg) {
-                  msg = JSON.stringify({headers:{}, body: msg});
-                  wsDb.send(msg)
-              } )
-              if( ongun )
-                ongun();
-            }
-	          wsDb.onmessage = (msg)=>{
-        				gunDb.on('in', JSON.parse(msg.data).body);
-            };
-            wsDb.onerror = (err)=>{ console.log( "error:", err)}
-            wsDb.onclose = (msg)=>{
-               // db closed...
-               connectGun();
-            };
-}

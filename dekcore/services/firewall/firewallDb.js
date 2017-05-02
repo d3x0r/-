@@ -1,24 +1,20 @@
 "use strict"
 
-function hash(v) {
-		console.log( "hash", v );
-  var shasum = crypto.createHash('sha1');
-	shasum.update(v);
-	return shasum.digest('hex');
-}
-
-/* this should already be resolved somehow?" */
-
 var DB = exports = module.exports = {};
 
 var vfs = require( 'sack.vfs');
 
+if( !config.firewall ) {
+	config.firewall = { 
+		IDs: [idGen(),idGen(),idGen(),idGen(),idGen(),idGen(),idGen()];
+	}
+}
 var opdb = vfs.Sqlite( `option.db` );
 var vol = opdb.op( "vol", idGen() );
-console.log( "op:", vol, opdb );
 
 DB.data = vfs.Volume( vol, vol/*, me*/ );
-var db = DB.db = vfs.Sqlite( `$sack@${vol}$firewall.db` );
+var db = DB.db = DB.data.Sqlite( `firewall.db` );
+
 
 db.do( 'PRAGMA foreign_keys=ON' );
 

@@ -1,8 +1,12 @@
 "use strict";
 
+const _debug = false;
 var https = require( 'https' );
 const sack = require( 'sack.vfs' );
-var fs = sack.Volume( "cache", "cache.dat" );
+
+var fs;
+
+
 var ws = require( 'ws' );
 
 var loadedModules = [];
@@ -67,11 +71,14 @@ function doRequire( file ) {
     console.log( "well... ", file ) 
     return requireConfig.config;
   }
+
   //console.log( "module is ", thisModule )
   if( !(file[0] === '.' ) && !( file[0] === '/' ) && (file.indexOf('/')<0) ) {
       // check for allowed modules.
       return require( file );
   }
+
+  if( !fs ) fs = sack.Volume( "cache", "core/cache.dat" );
 
   //console.log( "in another level?", file )
   if( fs.exists( file ) ) {
@@ -86,7 +93,7 @@ function doRequire( file ) {
                   port : requireConfig.port,
                   method : "GET",
                   rejectUnauthorized: false,
-                  path : thisModule.filename
+                  path : "/"+file
                 };
                 
     //console.log( "options ", opts );
@@ -98,7 +105,7 @@ function doRequire( file ) {
         let error;
         if (statusCode !== 200) {
           error = new Error(`Request Failed.\n` +
-                            `Status Code: ${statusCode}`);
+                            `Status Code: ${statusCode}` + JSON.stringify( opts ) );
         } else if (/^text\/javascript/.test(contentType)) {
           evalCode = true;
         } else if (/^application\/javascript/.test(contentType)) {
@@ -133,6 +140,7 @@ function doRequire( file ) {
     while(!thisModule.loaded) sack.Δ(); 
 
     var prior = runningModule;
+    console.log( "Set running Module to ... thisModule" );
     runningModule = thisModule;
     if( evalJson ) {
             try {
@@ -157,6 +165,7 @@ function doRequire( file ) {
               console.log( "module threw...", err );
             }
 	}
+    console.log( "Set running Module to ...", prior );
     runningModule = prior;
 
     return thisModule.exports;
@@ -193,7 +202,7 @@ function resolvePath( base, myModule ) {
         ) {
 	var p = moduleParent.paths[0];
 	
-	console.log( "path is ", tmp, moduleParent.paths);
+	_debug&&console.log( "path is ", tmp, moduleParent.paths);
       if( tmp[1] == '/' )
         tmp = (p.length?p + "/":"") + tmp.substr( 2 );
       else
@@ -203,14 +212,14 @@ function resolvePath( base, myModule ) {
   }
   do
   {
-      console.log( "build", tmp )
+      _debug&&console.log( "build", tmp )
       let x = tmp.indexOf( "/../" );
       if( x < 0 )x = tmp.indexOf( "/..\\" );
       if( x < 0 )x = tmp.indexOf( "\\../" );
       if( x < 0 )x = tmp.indexOf( "\\..\\" );
       if( x > 0 ) {
         var prior = tmp.substr( 0, x );
-        console.log( "prior part is", prior );
+        _debug&&console.log( "prior part is", prior );
         var last1 = prior.lastIndexOf( "/" );
         var last2 = prior.lastIndexOf( "\\" )
         var priorStripped = prior.substr( 0, (last1>last2?last1:last2)+1 );

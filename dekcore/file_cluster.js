@@ -52,7 +52,7 @@ module.exports = exports = {
 				}
 				 //fileName = getpath( filename, object );
 		}
-		console.log( "WRITE FILE ", fileName )
+		//console.log( "WRITE FILE ", fileName )
 		mkdir( fileName, ()=>{
 			vol.write( fileName, object.toString() );
 			if( callback ) callback();
@@ -175,7 +175,7 @@ function GetFilename( oid )
 {
 	if( !oid.ΛfsName ) {
 		oid.ΛfsName = "Λ/" + oid.Λ;//.substring( 0, 5 ) + "-" + oid.Λ.substring( 5,10 ) + "-" + oid.Λ.substring( 10 );
-		console.log( "GetFilename is ", oid.ΛfsName, " for ",oid);
+		//console.log( "GetFilename is ", oid.ΛfsName, " for ",oid);
 	}
 	return oid.ΛfsName;
 }

@@ -1,7 +1,7 @@
 "use strict";
 const fc = require('./file_cluster.js');
 const idGen = require("./util/id_generator.js");
-
+Error.stackTraceLimit = Infinity;
 const _debug = true;
 var config = module.exports = exports = {
 	starts: [loadConfig]  // starts to run sequentially....
@@ -15,12 +15,12 @@ var config = module.exports = exports = {
 		, addresses: []  // who I am...
 		, friends: []  // discover should use this setting for off-network contact
 		, timeOffset: new Date().getTimezoneOffset() * 60000
-		, commit: (cb) => {
-			saveConfig(cb);
-		}
 		, toString() {
 			return JSON.stringify(this);
 		}
+	},
+	commit: (cb) => {
+		saveConfig(cb);
 	},
 	toString() {
 		return this.run.toString();
@@ -28,9 +28,10 @@ var config = module.exports = exports = {
 }
 
 function saveConfig(callback) {
+	var path = process.cwd()+"/"+config.run.defaults.dataRoot;
 	fc.mkdir( process.cwd()+"/"+config.run.defaults.dataRoot, () => {
 		console.log("calling store now....")
-		fc.store(  process.cwd()+"/"+config.run.defaults.dataRoot + "/config.json", config.run, callback);
+		fc.store(  path + "/config.json", config.run, callback);
 	});
 }
 

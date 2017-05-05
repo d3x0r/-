@@ -1,6 +1,6 @@
 "use strict";
 
-var RNG = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( getSalt );
+var RNG = require( "../util/org.d3x0r.common/salty_random_generator.js").SaltyRNG( getSalt );
 
 function getSalt (saltbuf) {
     saltbuf.length = 0;
@@ -132,16 +132,16 @@ for( var a = 0; a < 64; a++  ) {
 xor_code_encodings['='] = {'=': '='};
 //console.log( "u8xor_code_encodings:", JSON.stringify( u8xor_code_encodings) )
 
-//var TD = new TextDecoder();
-//var TE = new TextEncoder();
+var TD = new TextDecoder();
+var TE = new TextEncoder();
 function u8xor(a,b) {
-	var buf = Buffer.from(a, 'utf8');
-	//var buf = TE.encode(a);
-	var outBuf = new Buffer( buf.length );
-	//var outBuf = new Uint8Array( buf.length );
+	//var buf = Buffer.from(a, 'utf8');
+	var buf = TE.encode(a);
+	//var outBuf = new Buffer( buf.length );
+	var outBuf = new Uint8Array( buf.length );
 	var n;
 	var o = b.step;
-	b.step += buf.length;
+	 b.step += buf.length;
 	var keylen = b.key.length-5;
 	b.step %= keylen;
 	var b = b.key;
@@ -163,7 +163,7 @@ function u8xor(a,b) {
 	}
 	//console.log( "buf" , buf.toString('hex') );
 	//console.log( "buf" , outBuf.toString('hex') );
-	return outBuf.toString( "utf8" );
-	//return TD.decode(outBuf);
+	//return outBuf.toString( "utf8" );
+	return TD.decode(outBuf);
 }
 exports.u8xor=u8xor;

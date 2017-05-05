@@ -6,7 +6,7 @@ var vfs = require( 'sack.vfs');
 
 if( !config.firewall ) {
 	config.firewall = { 
-		IDs: [idGen(),idGen(),idGen(),idGen(),idGen(),idGen(),idGen()];
+		IDs: [idGen(),idGen(),idGen(),idGen(),idGen(),idGen(),idGen()]
 	}
 }
 var opdb = vfs.Sqlite( `option.db` );

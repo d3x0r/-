@@ -1,27 +1,36 @@
 <HTML>
     <HEAD>
         <style>
-	    body{margin:0;font-size:200%;color:white}
+	    body{margin:0;font-size:200%;color:black}
             div.form{width:100%;height:50%;position:absolute;left:0%;top:25%;font-size:100%}
-            div.page{width:100%;height:100%;position:absolute;left:0%;top:0%;font-size:100%;background:darkslategrey;visibility:va}
+            div.page{width:100%;height:100%;position:absolute;left:0%;top:0%;font-size:100%;background:lightgray;visibility:va}
 	    input{font-size:100%;border-radius:15px;text-align:center}
-	    button{font-size:100%;border-radius:10px}
+	    button{font-size:100%;border-radius:10px;background:#E2D78B}
 
 a{color:white;}
-a:link { color : lightgray; text-decoration : none;}
+a:link { color : black; text-decoration : none;}
 a:visited {color :yellow; text-decoration : none;}
-a:hover {color : white; text-decoration : none;}
+a:hover {color : darkgray; text-decoration : none;}
 
             </style>
     </HEAD>
     <body>
         <DIV ID="loginPageCover" class="page">
+	<header><div style="background-size:cover;width:100%;height:10%;background-image:url('/images/Snake Skin.png')">
+			<div style="width:100%;height:100%;position:relative;background-repeat:no-repeat;background-image:url('/images/Chatment_Logo.png');background-size:contain"></div>
+		</div>
+		</div>
+		</header>
         <DIV ID="loginForm" class="form" STYLE="top:25%">
             <CENTER>Username<BR>
             <INPUT size="25" ID="username"></INPUT><BR>
             Password<BR>
             <INPUT  type="password" size="25" type="password" ID="password"></INPUT><BR><BR>
-            <button ID="login">Login</button><BR>
+            <button ID="login" style="background:linear-gradient(#B09E4C, #e2d78b,#B09E4C );">
+            <div style="border-radius:10px;background:lightgray;padding-left:10px;padding-right:10px;margin:5px;margin-left:25px;margin-right:25px;border-style:inset">
+		Login
+		</div>
+		</button><BR>
             <A href="#123" ID="createAccount">Create New Account</A>
         </DIV>
         <DIV ID="createUserForm" class="form" STYLE="top:25%;visibility:hidden">
@@ -30,13 +39,18 @@ a:hover {color : white; text-decoration : none;}
             Email<BR>
             <INPUT size="25" ID="uc_email"></INPUT><BR>
             Password<BR>
-            <INPUT type="password" size="25" type="uc_password" ID="password"></INPUT><BR>
+            <INPUT type="password" size="25" type="password" ID="uc_password"></INPUT><BR>
             Confirm Password<BR>
-            <INPUT type="password" size="25" type="uc_password2" ID="password"></INPUT><BR><BR>
-            <button ID="create">Create</button>
+            <INPUT type="password" size="25" type="password2" ID="uc_password2"></INPUT><BR><BR>
+	            <button ID="create" style="background:linear-gradient(#B09E4C, #e2d78b,#B09E4C );">
+            <div style="border-radius:10px;background:lightgray;padding-left:10px;padding-right:10px;margin:5px;margin-left:25px;margin-right:25px;border-style:inset">
+			Create
+	    </div>
+		</button>
         </DIV>
         </DIV>
     </body>
+   <SCRIPT src="../util/require.js"></SCRIPT>
     <script src="../userAuth/login.js"></SCRIPT>
 </HTML>
 

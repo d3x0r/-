@@ -70,7 +70,7 @@ function scriptServer( port ) {
       console.log( "got request" + req.url );
       
       
-      var filePath = './uiRoot' + req.url;
+      var filePath = './uiRoot' + unescape(req.url);
       if (filePath == './uiRoot/') filePath = './uiRoot/index.html';
 
       var extname = path.extname(filePath);

@@ -355,9 +355,9 @@ function TrackKeyFrags() {
 function loadKeyFragments(o) {
 
 	var result;
-	console.log('loadkeyFragment', o)
+	//console.log('loadkeyFragment', o)
 	fc.reloadFrom(o, (error, files) => {
-		console.log("got files?", files);
+		//console.log("got files?", files);
 		if (error) {
 			if (error.code === 'ENOENT') {
 				return;

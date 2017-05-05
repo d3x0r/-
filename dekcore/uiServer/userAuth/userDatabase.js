@@ -18,18 +18,16 @@ DB.data = vfs.Volume( null, "./data.fs", config.udb.runkey, me );
 console.log( "vol is:", DB.data );
 var db = DB.db = DB.data.Sqlite( "core.db" );  
 
+// lookup by sessionid
 var logins = new Map();
 
 function createSite( login ) {
 	return { login: login };
 }
 
-var orgs = null;
-var sites = null;
-var charities = null;
-
-var users = null;
-var permissions = null;
+var userMap = new Map();
+var users = [];
+var services = null;
 
 db.do( 'PRAGMA foreign_keys=ON' );
 
@@ -37,6 +35,7 @@ db.makeTable( "create table user ( user_id char PRIMARY KEY"
 	+", name char"
 	+", email char"
 	+", passHash char"
+	+",created DATETIME DEFAULT CURRENT_TIMESTAMP"
 	+")" 
         );
 db.makeTable( "create table services ( service_id char PRIMARY KEY"
@@ -113,7 +112,16 @@ function createUser( ) {
 
 function updateUser( userId, username, email, password ) {
 	var userId;
-	db.do( `update user set user='${db.escape(username)}',email='${db.escape(email)}',password=encrypt("${password}" where user_id='${userId}'`);
+	var user = userMap.get( userId );
+	if( user && user.email ) {
+		return false;
+	}
+
+	if( !db.do( `update user set name='${db.escape(username)}',email='${db.escape(email)}',passHash=encrypt("${password}") where user_id='${userId}'`) )
+		return false;
+		
+	users.push( user = {user_id:userId, email:email} );
+	userMap.set( userId, user );
 	return userId;
 }
 
@@ -122,56 +130,64 @@ function checkUserName( username ) {
 	return db.do( `select count(*) from user where name='${db.escape(username)}'` ) === 0;
 }
 
-DB.loginUser = (username,pass,req,address,oldcid, confirm )=>{
+
+
+DB.loginUser = (username,pass,req,address,oldcid, sendOk )=>{
 	var result = null;
 	//console.log( "LOGIN USER", user );
-	var user = users.find( user=>{
-		//console.log( "test user:" , user );
-		if( user.name === username  ) {
-			if( user.password !== pass ) {
-				console.log( "password failure, Duh." );
-				return false;
-			}
-			console.log( "find required tokens for user ");
-
-			// req is requested service?			
-
-			//if( req.find( r=>( r in permissions ) ) ) console.log( "SOKSDF" );
-			var fail1 = false;
-			if( req.find( r=>( r in services )?!user.services.find( up=>services[r].service_id===up.service_id ):(fail1=true) ) ) {
-				if( fail1 )
-					console.log( "requested service didn't exist... no user can match" )
-				console.log( "service search failure...", req, user.services );
-				return false
-			}
-			if( user.login ) {
-				if( confirm )
-					if( confirm( user.login ) ) {
-						// confirmation has been sent; the user appeared to still be alive...
-						return;
-					}
-					// else the client wasn't actually connected, just log it out.
-			}
-
-			db.do( `update userLogin set loggedOut=1 where user_id='${user.user_id}'`)
-			var login_id;  // constant key		
-			var client_id;  // rotating key
-			db.do( `insert into userLogin(login_id,user_id,address,client_id)values('${login_id=idGen()}','${user.user_id}',"${address}",'${client_id=idGen()}')`)
-			console.log( "inserted into thing.")
-			var hash_id = IdGen.xor( config.run.Λ, login_id );
-			result = user.login = { id:login_id, key:hash_id, cid:client_id };
-
-			logins.set( user.login.key, user );
-			return true;
-		}
-		return false;
-	});
-
-	if( !user ) console.log( "Bad User" );
-	else {
-
+	var user = users.find( u=>u.email===username );
+	if( user ) {
+		var user = db.do( `select 1 from user where passhash=encrypt('${db.escape(pass)}' and user_id='${user.user_id}'`);
+		if( user.length === 0 ) 
+			return false;		
 	}
-	return result;
+	else {
+		var user = db.do( `select user_id,email from user where passhash=encrypt('${db.escape(pass)}' and email='${db.escape(username)}'`);
+		if( user.length === 0 ) {
+			return false;
+		}
+		user = user[0];
+		// cache this user.
+		users.push( user );
+	}
+
+
+
+	{
+		var fail1 = false;
+		if( req.find( r=>( r in services )?!user.services.find( up=>services[r].service_id===up.service_id ):(fail1=true) ) ) {
+			if( fail1 )
+				console.log( "requested service didn't exist... no user can match" )
+			console.log( "service search failure...", req, user.services );
+			return false
+		}
+	}
+
+		if( user.login ) {
+			// there is already a login; a confirmation?
+			if( user.login.address !== address ){
+				// conflict of logins....
+			}else {
+				// migth still be a conflict of logins.
+			}
+		
+				// else the client wasn't actually connected, just log it out.
+		}
+
+
+	db.do( `update userLogin set loggedOut=1 where user_id='${user.user_id}'`)
+	var login_id;  // constant key		
+	var client_id;  // rotating key
+	db.do( `insert into userLogin(login_id,user_id,address,client_id)values('${login_id=idGen()}','${user.user_id}',"${address}",'${client_id=idGen()}')`)
+	console.log( "inserted into thing.")
+	var hash_id = IdGen.xor( config.run.Λ, login_id );
+	result = user.login = { id:login_id, key:hash_id, cid:client_id };
+
+	logins.set( user.login.key, user );
+	if( sendOk ) sendOk( user.login.key );
+
+	return true;
+
 }
 
 DB.getLogin = ( service, remote, clientkey )=>{

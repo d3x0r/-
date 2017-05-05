@@ -346,8 +346,10 @@ function Entity(obj, name, description, callback, opts) {
 					drivers.push({ name: name, iName: iName, orig: iface, iface: caller });
 					*/
 				},
-				openDriver(name) {
-					var driver = drivers.find(d => d.name === name);
+				openDriver(object,name) {
+					var o = objects.get( object );
+					console.log( "OPEN DRIVER CALLED!")
+					var driver = drivers.find(d => (o === d.object) && (d.name === name) );
 					if (driver)
 						return driver.iface;
 
@@ -396,6 +398,8 @@ function Entity(obj, name, description, callback, opts) {
 
 			}
 		};
+		sandbox.idGen.u8xor = idMan.u8xor;
+		sandbox.idGen.xor = idMan.xor;
 		sandbox.config.run = { Λ : null };
 		idMan.ID( idMan.localAuthKey, o.created_by.Λ, (id)=>{ sandbox.config.run.Λ = id.Λ } );
 		sandbox.require= local ? sandboxRequire.bind(sandbox) : netRequire.require.bind(sandbox)			;
@@ -422,7 +426,9 @@ function runDriverMethod( o, driver, msg ) {
 
 function addDriver( o, name, iName, iface) {
 	var driver = drivers.find(d => d.name === name);
-
+	if( driver ) {
+		console.log( "have to emit completed...")
+	}
 	var caller = (driver && driver.iface) || {};
 	var keys = Object.keys(iface);
 	if( remotes.get(o) ) {
@@ -466,7 +472,8 @@ function addDriver( o, name, iName, iface) {
 				vm.runInContext(constPart + args, sandbox)
 			}
 		})
-	drivers.push({ name: name, iName: iName, orig: iface, iface: caller });
+	console.log( "adding object driver", name)
+	drivers.push({ name: name, iName: iName, orig: iface, iface: caller, object:o });
 	return driver; // return old driver, not the new one... 
 }
 
@@ -505,6 +512,7 @@ function addDriver( o, name, iName, iface) {
 			run(statement) {
 				o.run(statement);
 			},
+			get(o) { return objects.get(o).sandbox.entity; },
 			get parent() { return o.parent.sandbox.entity; },
 			//get value() { return o.value; }
 		}
@@ -530,7 +538,7 @@ function addDriver( o, name, iName, iface) {
 
 		if (src == 'sack.vfs') {
 			if( !("_vfs" in o.sandbox ) ) {
-				console.log( "Overriding internal VFS", o.name )
+				//console.log( "Overriding internal VFS", o.name )
 				o.sandbox._vfs = Object.assign( {}, vfsNaked ); 
 				o.sandbox._vfs.Volume = o.sandbox._vfs.Volume.bind( {} );
 				o.sandbox._vfs.Sqlite = o.sandbox._vfs.Sqlite.bind( {} );
@@ -547,7 +555,7 @@ function addDriver( o, name, iName, iface) {
 		//console.log( "blah", o.sandbox.scripts)
 		if( o.sandbox.scripts.index < o.sandbox.scripts.code.length ) {
 			var cache = o.sandbox.scripts.code[o.sandbox.scripts.index];
-			//console.log( "cache is?", cache);
+			//console.log( "cache is?", typeof cache, cache);
 			if( cache.source === src ) {
 				o.sandbox.scripts.index++;
 
@@ -555,7 +563,7 @@ function addDriver( o, name, iName, iface) {
 				var oldModule = o.sandbox._module;
 				var root = cache.closure.root;
 				var thisModule = {
-					filename: cache.closure.src
+					filename: cache.closure.filename
 					, src : cache.closure.src
 					, source : cache.closure.source
 					, file: ""
@@ -572,10 +580,10 @@ function addDriver( o, name, iName, iface) {
 
 				var root = cache.closure.filename;
 				try {
-					console.log( "closure recover:", root, cache.closure )
+					//console.log( "closure recover:", root, cache.closure )
 					var file = fs.readFileSync(root, { encoding: 'utf8' });
 				} catch (err) {
-					console.log("File failed... is it a HTTP request?", err);
+					console.log("File failed... is it a HTTP request?", src, root, err);
 					return undefined;
 				}
 				if( file !== cache.closure.source ) {
@@ -1043,7 +1051,6 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 			console.log( "input json is corrupt; defaulting to first run.\n", err)
 			return initCb();
 		}
-		console.log( "input")
 		nextID = input[0].Λ;
 		Entity( null, input[0].name, input[0].description, (o)=>{
 			var defer = [];
@@ -1096,8 +1103,12 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 							if( ths.scripts.length )
 								executable.push( o );
 							o.sandbox.scripts.code = ths.scripts;
-							console.log( "Storing scripts?", ths.scripts )
-							for( var c of o.sandbox.scripts.code ) { if( c.type === "require" ) c.closure = JSON.parse(c.closure) }
+							//console.log( "Storing scripts?", ths.scripts )
+							for( var c of o.sandbox.scripts.code ) { 
+								//console.log( "Recover?", c );
+								if( c.type === "require" && (typeof( c.closure ) === "string" ) )
+									c.closure = JSON.parse(c.closure) 
+							}
 						}
 						//console.log( "Created :", ths );
 					})
@@ -1122,7 +1133,24 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 
 			onLoadCb();
 			//console.log( "first run ran --------- start other things loaded...", executable )
-			for( var e of executable ) { if( !e.sandbox.scripts.index ) e.sandbox.require( e.sandbox.scripts.code[0].source ) }
+			for( var e of executable ) { 
+				// it may have already started...
+				if( !e.sandbox.scripts.index ) {
+					console.log( "")
+					e.sandbox.require( e.sandbox.scripts.code[0].source ) 
+					// after require, things might be run on it...
+				}
+				/*
+				if( e.sandbox.scripts.index < e.sandbox.scripts.code.length ) {
+					var cache = e.sandbox.scripts.code[e.sandbox.scripts.index];
+					console.log( "is this cache a run?", e.sandbox.scripts, cache );
+					if( cache )
+						if( cache.type==="run") 
+							e.run( cache.code );
+					else console.log( "index less than end?", cache)
+				}
+				*/					
+			}
 			//exports.saveAll();
 		})
 	})

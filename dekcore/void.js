@@ -3,6 +3,7 @@
 var config = require ('./config.js');
 
 var https = require( "./https_server.js" );
+var idMan = require( "./id_manager.js");
 var Entity = require( "./Entity/entity.js" );
 
 Entity.gun = https.gun;
@@ -75,44 +76,56 @@ https.addProtocol( "karaway.core", (ws)=>{
     var state = 0;
 
     ws.on( "message", (msg)=>{
-		console.log( "got:", msg )
-        msg = JSON.parse( msg );
-        console.log( "kc msg", msg );
-
-        if( msg.op === "hello" ) {
-			var test = Entity.getEntity( msg.me );
-			if( test && ( test.sandbox.config.run.Λ === msg.runkey ) ) {
-				auth = test;
-				ws.send( '{"op":"hello"}' )
-			}
+		if( !ws.keyt ) { 
+			ws.keyt = {key:msg,step:0}; 
+			ws.keyr = {key:msg,step:0}; 
+			return; 
 		}
-
-        else if( msg.op === "auth" ) {
-			if( !auth ) {
-				ws.send( '{"op":"Error", "error":"Authentication service is not ready..."}' );
-				ws.close();
-				return;
-			}
-          //console.log( "from who? ", connection.remoteAddress );
-          var a;
-          a = msg.id;
-          if( !a ) a = msg.key;
-
-          console.log( "... get service" );
-          ws.send( JSON.stringify( { op: "redirect", protocol: auth.Λ+"karaway.core" } ) );
-        }
-        else if( msg.op === "getClientKey" ) {
-          var client_id = idGen();
-          if( "name" in msg ) {
-            connection.login = db.createServiceLogin( msg.name, connection.remoteAddress, client_id );
-          }
-          connection.send( `{"op":"setClientKey","key":"${client_id}"}`)
-          console.log( "sending a proper key...", client_id )
-        }
-		else {
-			// protocol error; disconnect.
-			console.log( "Protocol Error; disconnecting clinet.", msg );
+		//console.log( "got:", msg, ws.keyr )
+		try {
+        	msg = JSON.parse( idMan.u8xor( msg, ws.keyr ) );
+		} catch( err ){
+			console.log( "protocol error.", msg );
 			ws.close();
+			return;
+		}
+        //console.log( "kc msg", msg );
+		{
+			if( msg.op === "hello" ) {
+				var test = Entity.getEntity( msg.me );
+				if( test && ( test.sandbox.config.run.Λ === msg.runkey ) ) {
+					auth = test;
+					ws.send( idMan.u8xor( '{"op":"hello"}', ws.keyt ) )
+				}
+			}
+
+			else if( msg.op === "auth" ) {
+				if( !auth ) {
+					ws.send( idMan.u8xor( '{"op":"Error", "error":"Authentication service is not ready..."}', ws.keyt ) );
+					ws.close();
+					return;
+				}
+			//console.log( "from who? ", connection.remoteAddress );
+			var a;
+			a = msg.id;
+			if( !a ) a = msg.key;
+
+				console.log( "... get service" );
+				ws.send( idMan.u8xor( JSON.stringify( { op: "redirect", protocol: auth.Λ+"karaway.core" } ), ws.keyt ) );
+			}
+			else if( msg.op === "getClientKey" ) {
+				var client_id = idGen();
+				if( "name" in msg ) {
+					connection.login = db.createServiceLogin( msg.name, connection.remoteAddress, client_id );
+				}
+				ws.send( `{"op":"setClientKey","key":"${client_id}"}`)
+				console.log( "sending a proper key...", client_id )
+			}
+			else {
+				// protocol error; disconnect.
+				console.log( "Protocol Error; disconnecting clinet.", msg );
+				ws.close();
+			}
 		}
     })
     ws.on( "close", (evt,reason)=>{
@@ -126,11 +139,12 @@ function BigBang() {
 	console.log( "Creating the void....");
 	Entity.reloadAll( ()=>{
 			// onLoadComplete
-			console.log( "Okay now ... how to start this?")
-			MOOSE = Entity.getEntity( config.run.MOOSE );
+			//console.log( "Okay now ... how to start this?")
 
+			MOOSE = Entity.getEntity( config.run.MOOSE );
 			MOOSE.sandbox.io.command = shell.Filter( MOOSE.sandbox );
-			MOOSE.sandbox.require( "./startup.js" ); // still do first run on first object?
+
+			//MOOSE.sandbox.require( "./startup.js" ); // still do first run on first object?
 
 			run(); // enable discovery; services are stil loading...
 			
@@ -142,7 +156,7 @@ function BigBang() {
 
 			o.create( "MOOSE", "Master Operator of System Entites.", (o)=>{
 				config.run.MOOSE = o.Λ;
-				config.run.commit();
+				config.commit();
 
 					MOOSE = o;
 
@@ -173,7 +187,6 @@ var d;
 
 function run() {
     //var Cluster = require( './cluster.js' ).Cluster();
-    var idMan = require( "./id_manager.js");
     var vfs = require( "./file_cluster.js" );
     var discoverer = require( "./util/discovery.js" );
     d = discoverer.discover( { timeout: 1000

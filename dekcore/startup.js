@@ -21,6 +21,10 @@ console.log( "Hello from startup.js" );//, Object.keys(this) );
 
 if( resume ) {
 	console.log( "Okay this a resuming thing so..." );
+	firewall = entity.get( config.run.firewall );
+	auth = entity.get( config.run.auth );
+    auth.run( `io.firewall = io.openDriver( "${firewall.Λ}", "firewall" );` );
+
 }
 else {
 
@@ -45,12 +49,16 @@ console.log( "------- create firewall ------------")
 		, "Your basic iptable rule manager"
 		, "services/firewall/firewallService.js"
 		, (o)=>{
+		config.run.firewall = o.Λ;
+		config.commit();
     firewall = o;
 console.log( "------- run some code on firewall/serivces? ------------")
     services.run( 'io.firewall = io.openDriver( "firewall" );' );
     entity.create( "userAuth", "User authentication service", "uiServer/userAuth/userProtocol.js", (o)=>{
+		config.run.auth = o.Λ;
+		config.commit();
       auth = o;
-      auth.run( 'io.firewall = io.openDriver( "firewall" );' );
+      auth.run( `io.firewall = io.openDriver( "${firewall.Λ}", "firewall" );` );
        })
    } )
 

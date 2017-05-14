@@ -76,14 +76,9 @@ https.addProtocol( "karaway.core", (ws)=>{
     var state = 0;
 
     ws.on( "message", (msg)=>{
-		if( !ws.keyt ) { 
-			ws.keyt = {key:msg,step:0}; 
-			ws.keyr = {key:msg,step:0}; 
-			return; 
-		}
 		//console.log( "got:", msg, ws.keyr )
 		try {
-        	msg = JSON.parse( idMan.u8xor( msg, ws.keyr ) );
+	        	msg = JSON.parse( msg );
 		} catch( err ){
 			console.log( "protocol error.", msg );
 			ws.close();
@@ -95,13 +90,13 @@ https.addProtocol( "karaway.core", (ws)=>{
 				var test = Entity.getEntity( msg.me );
 				if( test && ( test.sandbox.config.run.Λ === msg.runkey ) ) {
 					auth = test;
-					ws.send( idMan.u8xor( '{"op":"hello"}', ws.keyt ) )
+					ws.send( '{"op":"hello"}' )
 				}
 			}
 
 			else if( msg.op === "auth" ) {
 				if( !auth ) {
-					ws.send( idMan.u8xor( '{"op":"Error", "error":"Authentication service is not ready..."}', ws.keyt ) );
+					ws.send( '{"op":"Error", "error":"Authentication service is not ready..."}' );
 					ws.close();
 					return;
 				}
@@ -111,7 +106,7 @@ https.addProtocol( "karaway.core", (ws)=>{
 			if( !a ) a = msg.key;
 
 				console.log( "... get service" );
-				ws.send( idMan.u8xor( JSON.stringify( { op: "redirect", protocol: auth.Λ+"karaway.core" } ), ws.keyt ) );
+				ws.send( JSON.stringify( { op: "redirect", url:"wss://chatment.com:6000", protocol: auth.Λ+"karaway.core" } ) );
 			}
 			else if( msg.op === "getClientKey" ) {
 				var client_id = idGen();

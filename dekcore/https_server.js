@@ -4,6 +4,7 @@ const webRoot = "./uiRoot";
 var vfs = require( 'sack.vfs');
 var vol = vfs.Volume();
 
+const idGen = require( "./util/id_generator.js")
 const url = require( 'url' );
 const crypto = require( 'crypto');
 const tls = require( 'tls');
@@ -16,41 +17,30 @@ const WebSocket = ws.Client;
 const WebSocketServer = ws.Server;
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";  // enable wss for gun without mods....
-const Gun = require('gun'); 
+const Gun = require('gun');
 //require('gun/lib/file.js');
 //require('gun/lib/wsp/server.js');
 //require('gun/lib/wsp/server-push.js');
-//require('gun/lib/S3.js'); 
+//require('gun/lib/S3.js');
 
 
 //const WebSocketServer   = ws.Server
 
-var services = [];
-
 exports.Server = scriptServer;
-exports.Service = addService;
 exports.addProtocol = addProtocol;
 
-//exports.Gun = Gun;
 var ID = require( './util/id_generator.js' );
 
 exports.Gun = Gun;
 exports.gun = Gun(  { uuid : ID.generator, file : null } );;
 
-exports.gun.on( "get", (a,b,c)=>console.log("gun get:", a,b,c) )
-exports.gun.on( "put", (a,b,c)=>console.log("gun put:", a,b,c) )
+//exports.gun.on( "get", (a,b,c)=>console.log("gun get:", a,b,c) )
+//exports.gun.on( "put", (a,b,c)=>console.log("gun put:", a,b,c) )
 
-Gun.on( "get", (a)=>console.log("GUN get:", a['#'], a.get ) )
-Gun.on( "put", (a,b,c)=>console.log("GUN put:", a,b,c) )
+//Gun.on( "get", (a)=>console.log("GUN get:", a['#'], a.get ) )
+//Gun.on( "put", (a,b,c)=>console.log("GUN put:", a,b,c) )
 
 var wsServer = null;
-
-function addService( name, serviceHandler ) {
-	if( !( name in services ) )
-    		services[name] = serviceHandler;
-        else
-        	throw new Error( "Duplicate declaration of a service handler" );
-}
 
 function scriptServer( port ) {
     if( !port ) port = 8000;
@@ -68,8 +58,8 @@ function scriptServer( port ) {
         	console.log( "is upgrade, how to switch here?" );
         }
       console.log( "got request" + req.url );
-      
-      
+
+
       var filePath = './uiRoot' + unescape(req.url);
       if (filePath == './uiRoot/') filePath = './uiRoot/index.html';
 
@@ -121,7 +111,7 @@ function scriptServer( port ) {
     */
     wsServer = new WebSocketServer( {
         server: server, // ws npm
-        httpserver: server, // websocket npm 
+        httpserver: server, // websocket npm
         autoAcceptConnections : false // want to handle the request
     })
     wsServer.acceptResource = null;
@@ -139,35 +129,61 @@ function addProtocol( protocol, connect ) {
 }
 
 function validateWebSock( req ) {
-    //console.log( "connect?", req.upgradeReq.headers, req.upgradeReq.url )
-    var proto = decodeURIComponent( req.upgradeReq.headers['sec-websocket-protocol'] );
+    //console.log( "connect?", ws.upgradeReq.headers, ws.upgradeReq.url )
+    var proto = decodeURIComponent( ws.upgradeReq.headers['sec-websocket-protocol'] );
 
 	//console.log( "protocols:", protocols, "\n", proto );
 
 	// this is the way 'websocket' library gives protocols....
-	//console.log( "other", req.protocolFullCaseMap[req.requestedProtocols[0]])
+	//console.log( "other", ws.protocolFullCaseMap[ws.requestedProtocols[0]])
     wsServer.acceptingProtocol = null;
     if( !protocols.find( p=>{
-            //if( p.name === req.protocolFullCaseMap[req.requestedProtocols[0]] ) {
+            //if( p.name === ws.protocolFullCaseMap[ws.requestedProtocols[0]] ) {
             if( p.name === proto ) {
                 console.log( "accept websock:", p )
                 //wsServer.acceptingProtocol = p;
-                p.connect(req);
-                //req.accept( req.requestedProtocols[0], null );
+								ws.send = ((orig)=>(buf)=>{
+									buf = idGen.u8xor( buf, ws.keyt );
+									orig(buf);
+								})(ws.send.bind(ws));
+								ws.on = ((orig)=>(event,cb)=>{
+									if( event === "message" ) {
+										orig(event, (msg)=>{
+											if( !ws.keyt ) {
+												ws.keyt = {key:msg,step:0};
+												ws.keyr = {key:msg,step:1};
+												return;
+											}
+											//console.log( "got:", msg, ws.keyr )
+											try {
+														msg = JSON.parse( idGen.u8xor( msg, ws.keyr ) );
+											} catch( err ){
+												console.log( "protocol error.", msg );
+												ws.close();
+												return;
+											}
+
+												cb( msg );
+										}
+									}
+								})(ws.on);
+                p.connect(ws);
+                //ws.accept( ws.requestedProtocols[0], null );
                 return true;
             }
             return false;
-        } ) 
+        } )
       ) {
           console.log( "unkown protocol:", proto )
-          req.close();
+          ws.close();
       }
-      //req.reject( "Unknown Protocol" );
+      //ws.reject( "Unknown Protocol" );
 }
 
 addProtocol( "gunDb", (conn)=>{
     //console.log( "connected gundb, add peer")
     peers.push( conn );
+
     exports.gun.on('out', (msg)=>{
         msg = JSON.stringify({headers:{},body:msg});
         peers.forEach( (p)=>{ try { p.send( msg ) }catch  (err) {console.log( "Peer is bad... maybe closing?", err );} })
@@ -184,4 +200,3 @@ addProtocol( "gunDb", (conn)=>{
             peers.splice( i, 1 );
     })
 })
-

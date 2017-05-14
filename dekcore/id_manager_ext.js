@@ -1,11 +1,10 @@
 "use strict";
 
 //console.log( "using require: ", require, module )
-const fs = require('fs');
-const server = require( './https_server.js');
+var server = require( "./https_server.js")
 var config = require('./config.js');
 //console.log( "config is ", config.run.root, "and which require ?" );
-
+const vfs = require( "sack.vfs" );
 const fc = require('./file_cluster.js')
 const Entity = require('./Entity/entity.js')
 console.log("get id_generator...")
@@ -73,7 +72,7 @@ function keyProto(Λ, o) {
 	return key;
 }
 
-var pendingOps = [];
+var pendingMakers = [];
 
 function Key(maker_key, askey) {
 
@@ -94,7 +93,7 @@ function Key(maker_key, askey) {
 		real_key.made.push(key);
 	}
 	else {
-		pendingOps.push({ maker: maker_key, key: key });
+		pendingMakers.push({ maker: maker_key, key: key });
 	}
 	//console.log("SET KEY ", key.Λ, key);
 	keys.set(key.Λ, key);
@@ -122,76 +121,104 @@ exports.Auth = (key) => {
 	return false;
 }
 
-exports.authBy = (key, auth, cb) => {
+exports.authBy = (key, auth,cb) => {
 	auth = keys.get(auth);
-	if (!auth){
-		cb(false);
- 		return false;
-	}
-	if (keys.get(key)) {
+	if (!auth) return false;
+	if (key=keys.get(key)) {
 		do {
-			if (key.maker === maker) {
-			  cb( true );
+			if( !key.authby ){
+				ws.send( {op:"auth", key:key.Λ } );
+			}
+			if (key.authby === auth)
 				return true;
-			}
-			if (key.invalid) {
-				cb(false);
+			if (key.invalid)
 				return false;
-			}
 			key = key.authby;
 		} while (key);
 	}
-	cb(false);
 	return false;
 }
 
-exports.madeFrom = (key, maker, cb) => {
+exports.madeFrom = (key, maker) => {
 	let _maker = keys.get(maker);
-	if (!_maker) {
-		cb(false);
-		return;
-	}
+	if (!_maker) return false;
 	if (keys.get(key)) {
 		do {
-			if (key.maker === maker){
-				cb(true);
-				return;
-			}
+			if (key.maker === maker)
+				return true;
 			//if( key.maker.Λ === maker )
 			//    return true;
-			if (key.invalid){
-				cb(false);
-				return;
-			}
+			if (key.invalid)
+				return false;
 			key = key.maker;
 		} while (key);
 	}
-	cb(false);
-	return;
+	return false;
 }
 
+var vol = null;
+var sqlDb = null;
 var local_authkey;
+
 Object.defineProperty(exports, "localAuthKey", {
 	get: function () {
 		//console.log( "local authkey request..." );
 		if (local_authkey)
 			return local_authkey;
 		//console.log( "create a new local authority", config.run.Λ );
-		local_authkey = Key(config.run.Λ)
-		// this is one of those illegal operations.
-		local_authkey.authby = keys.get(config.run.Λ);
+		var tmpkey;
+		if( !vol ){
+			let storkey = vfs.op( config.run.^ + "/lid", (tmpkey=Key(config.run.Λ)).Λ );
+			if( storkey !== tmpkey.Λ) {
+				keys.delete( tmpkey.Λ )
+				tmpkey.madeFrom.made.delete( tmpkey.Λ );
+				tmpkey = keys.get( storkey );
+			}else {
+				tmpkey.authby = keys.get(config.run.Λ);
+			}
+			vol = vfs.Volume( null, storkey );
+			sqlDb = vol.Sqlite( "idManager.db" );
+		}
+		local_authkey = sqlDb.op( "lid", (tmpkey=Key(config.run.Λ)).Λ )
+		if( local_authkey !== tmpkey.Λ) {
+			keys.delete( tmpkey.Λ )
+			tmpkey.madeFrom.made.delete( tmpkey.Λ );
+			tmpkey = keys.get( local_authkey );
+		}else {
+			tmpkey.authby = keys.get(config.run.Λ);
+		}
 		return local_authkey;
 	}
 });
 
+var public_authkey;
 Object.defineProperty(exports, "publicAuthKey", {
 	get: function () {
 		if (public_authkey)
 			return public_authkey;
 		//console.log( "create a new local authority", config.run.Λ );
-		public_authkey = Key(config.run.Λ)
+		// dyanmic key; creates a new peristent key though....
+		if( !vol ){
+			let storkey = vfs.op( config.run.^ + "/lid", (tmpkey=Key(config.run.Λ)).Λ );
+			if( storkey !== tmpkey.Λ) {
+				keys.delete( tmpkey.Λ )
+				tmpkey.madeFrom.made.delete( tmpkey.Λ );
+				tmpkey = keys.get( storkey );
+			}else {
+				tmpkey.authby = keys.get(config.run.Λ);
+			}
+			vol = vfs.Volume( null, storkey );
+			sqlDb = vol.Sqlite( "idManager.db" );
+		}
+		public_authkey = sqlDb.op( "pid", (tmpkey=Key(config.run.Λ)).Λ );
 		// this is one of those illegal operations.
-		public_authkey.authby = keys.get(config.run.Λ);
+		if( local_authkey !== tmpkey.Λ) {
+			keys.delete( tmpkey.Λ )
+			tmpkey.madeFrom.made.delete( tmpkey.Λ );
+			tmpkey = keys.get( public_authkey );
+		}else {
+			tmpkey.authby = keys.get(config.run.Λ);
+		}
 		return public_authkey;
 	}
 });
@@ -208,55 +235,12 @@ exports.delete = function deleteKey(key, maker) {
 }
 
 
+var pendingKeys = [];
+
 exports.ID = ID; function ID(making_key, authority_key, callback) {
-	//stackTrace();
-	//console.log( "Making a key...... ", making_key.Λ, authority_key )
-	//console.log( config.run.Λ );
-	//console.log( keys[making_key.Λ] );
-	if (!making_key) throw new Error("Must specify at least the maker of a key");
-	if (!keys.get(config.run.Λ)) {
-		//console.trace("ID() waiting for config...", config.run, keys)
-		config.injectStart(() => { ID(making_key, authority_key, callback); });
-		config.defer(); // save any OTHER config things for later...
-		return;
-	}
-	if (!authority_key)
-		authority_key = keys.get(config.run.Λ)
-
-	if (!making_key.Λ)
-		making_key = keys.get(making_key);
-	else
-		making_key = keys.get(making_key.Λ); // things that have the ID might not be THE Key.
-
-	if (!authority_key.Λ)
-		authority_key = keys.get(authority_key);
-	else
-		authority_key = keys.get(authority_key.Λ);
-
-	//console.log( `making_key ${making_key.toString()}` );
-	//console.log( `authority_key ${authority_key.toString()}` );
-
-	if (making_key === authority_key)
-		throw new Error("Invalid source keys");
-
-	if (!making_key || !validateKey(making_key, (k) => { return keys.get(k.maker) }))
-		if (!authority_key || !validateKey(authority_key, (k) => { return k.authby })) {
-			//console.log("MakingKey", making_key);
-			//console.log("AuthorityKey", authority_key);
-			throw { msg: "Invalid source key", maker: making_key, auth: authority_key };
-		}
-	var newkey = Key(making_key);
-	newkey.authby = authority_key;
-	//console.log( "authkey", newkey.Λ, authority_key )
-
-	authority_key.authed.push(newkey);
-
-	if (authority_key)
-		newkey.authby = authority_key
-	//console.log( "made a new key", newkey.Λ );
-	if (callback)
-		callback(newkey);
-	return newkey.Λ;
+ let msg = null;
+	ws.send( msg={op:"request", key:idGen() ,auth:authority_key, maker:making_key} );
+  pendingKeys.push( { msg:msg, callback:callback} );
 }
 
 function validateKey(key, next, callback) {
@@ -414,8 +398,6 @@ function loadKeys() {
 	//console.log( "Load Keys")
 	var result;
 	var fileName = "core/id.json";
-
-
 	//_debug&&console.log("CONFIG DEFER.... ");
 	//config.defer(); // save any OTHER config things for later...
 
@@ -447,12 +429,12 @@ function loadKeys() {
 			keys.set(runKey2.Λ, runKey2);
 			mkey = runKey2;
 
-			pendingOps.forEach((p, index) => {
+			pendingMakers.forEach((p, index) => {
 				if (p.maker === runKey2.Λ)
 					runKey2.made.push(p.key);
 				if (p.maker === runKey.Λ)
 					runKey.made.push(p.key);
-				// pendingOps[index] = null
+				// pendingMakers[index] = null
 			}
 			)
 
@@ -616,43 +598,68 @@ exports.xor = IdGen.xor;
 exports.dexor = IdGen.dexor;
 exports.u8xor = IdGen.u8xor;
 
-var peers = [];
-var branches = [];
+//-----------------------------------------
 
-server.addProtocol( "id.core", (ws)=>{
-	ws.on( 'message',(msg)=>{
-		if( msg.op === "fork" ) {
-			var test = IDGen.u8xor( config.run.Λ, exports.localAuthKey );
-			if( test === msg.key ) {
-				// this remote might know how to validate a key...
-				branches.push( test );
+const WebSocket = require('ws');
+var ws = null;
+
+function openHello() {
+
+	var confirmed = false;
+	var ws = new WebSocket('wss://localhost:8000', ["id.core"], {
+		perMessageDeflate: false
+	});
+	var runkeyt;
+	var runkeyr;
+
+	ws.on( "open", ()=>{
+		runkeyt = {key:config.run.Λ, step:0};
+		runkeyr = {key:config.run.Λ, step:0};
+
+		//console.log( "connect: ", config.run.Λ );
+		ws.send( config.run.Λ );
+		ws.send = ((orig)=>(buf)=>orig(idGen.u8xor( buf,runkeyt) ) )(ws.send.bind(ws))
+		ws.send( JSON.stringify( {op:"hello", runkey:config.run.Λ, me:me} ) );
+	})
+
+	ws.on( "message", (msg)=>{
+		try {
+		msg = JSON.parse( idGen.u8xor(msg,runkeyr) );
+	} catch(err) {
+		// protocol error.
+		console.log( "ID manager Protocol error", err );
+		ws.close();
+		return;
+	}
+		//if( !ws.key ) { ws.key = {key:msg,step:0};return }
+			//console.log( "userprotocol hello got:", msg );
+			if( msg.op === "hello") {
+				confirmed = true;
+				ws.close();
 			}
+			else if( msg.op === "key") {
+				var id = pendingKeys.findIndex( key=>key.key === msg.key );
+				if( id >= 0 ) {
+					var req = pendingKeys[id];
+					pendingKeys.splice( id, 1 );
+					req.callback( msg.newKey );
+				}else {
+					ws.close();
+				}
+			}
+			else if( msg.op === "error" ) {
+				alert( msg.error );
 		}
-		else if( msg.op === "request" ) {
-				ID( msg.auth, msg.maker, (key)=>{
-					ws.send( JSON.parse( { op:"key", newKey:key.Λ, key:msg.key } ) );
-				})
-			}
-			else if( msg.op === "auth" ) {
-				if( exports.authBy( msg.key, msg.auth ) )
-					ws.send( JSON.parse( { op:"auth", status:true } ) );
-				else
-					ws.send( JSON.parse( { op:"auth", status:true } ) );
-			}
-			else if( msg.op === "maker" ) {
-				if( exports.madeFrom( msg.key.msg.maker )
-				ws.send( JSON.parse( { op:"made", status:true } ) );
-			else
-				ws.send( JSON.parse( { op:"made", status:true } ) );
-			}
-	})
-	ws.on( 'error', (err)=>{
+	}
+	else console.log( "what the hell??")
+	});
 
+	ws.on( "close", ()=>{
+		if( !confirmed  ) {
+			console.log( "remote closed..." );
+			// without set timeout; I have no throttle control ....
+			openHello();
+		}
 	})
-	ws.on( 'close', (reason,desc)=>{
-			// gunpeers gone.
-			var i = peers.findIndex( p=>p===ws );
-			if( i >= 0 )
-					peers.splice( i, 1 );
-	})
-})
+}
+openHello();

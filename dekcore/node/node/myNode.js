@@ -1,9 +1,11 @@
 
 
+const myName = ( process.argv.length > 2 )?process.argv[2]:"unnamed remote";
+
 process.on( "warning", (warning)=>{console.trace( warning ); } );
 const discoverer = require( "../../discovery.js" );
 const config = require( "../../config.js" );
-const idGen = require( "../../id_generator.js");
+const idGen = require( "../../util/id_generator.js");
 const idMan = require( "../../id_manager.js" );
 //const text=require('../../../org.d3x0r.common/text.js')
 const Gun = require( "gun" );

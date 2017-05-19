@@ -1,5 +1,17 @@
 
 
+var args = process.argv;
+var startScript = "startup.js";
+for( var arg = 2; arg < args.length; args++ ) {
+	if( args[arg][0] == '-' ) {
+		if( args[arg][0] === '-start' ) {
+			startScript = args[arg+1];
+			arg++;
+		}
+			
+	}
+}
+
 var config = require ('./config.js');
 
 var https = require( "./https_server.js" );
@@ -158,7 +170,7 @@ function BigBang() {
 					if( !("io" in o.sandbox) ) o.sandbox.io = {};
 
 					MOOSE.sandbox.io.command = shell.Filter( o.sandbox );					
-					o.sandbox.require( "./startup.js" );
+					o.sandbox.require( process.argv[1] );
 
 					//var path = require.resolve( "./startup.js" ).replace( /\\/g, "/" );
 					//shell.Script( o.sandbox, text.Text( path ) );

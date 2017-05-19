@@ -1,15 +1,26 @@
 "use strict";
 
-var RNG = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( getSalt );
+const RNG = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( (saltbuf)=>saltbuf.push( Date.now() ) );
+const RNG2 = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( getSalt2 );
 
-function getSalt (saltbuf) {
-    saltbuf.length = 0;
-    saltbuf.push(  new Date().getTime() );
+var salt = null;
+function getSalt2 (saltbuf) {
+    if( salt ) {
+        saltbuf.push( salt );
+        salt = null;
+    }
 }
 
 exports.generator = function() {
     // this is an ipv6 + UUID
     return base64ArrayBuffer( RNG.getBuffer(8*(16+16)) );
+}
+
+exports.regenerator = function(s) {
+    salt = s;
+    RNG2.reset();
+    // this is an ipv6 + UUID
+    return base64ArrayBuffer( RNG2.getBuffer(8*(16+16)) );
 }
 
 // Converts an ArrayBuffer directly to base64, without any intermediate 'convert to string then
@@ -96,7 +107,7 @@ xor_code_encodings['='] = {'=': '='};
 
 
 function xor(a,b) {
-  var c = "";                                                                                             	
+  var c = "";
   for( var n = 0; n < a.length; n++ ) {
 	c += xor_code_encodings[a[n]][b[n]];
   }
@@ -106,15 +117,15 @@ exports.xor = xor;
 
 
 function dexor(a,b,d,e) {
-  var r = "";                                                                                             	
+  var r = "";
   var n1 = (d-1)*((a.length/e)|0);
   var n2 = (d)*(a.length/e)|0;
 
-  for( var n = 0; n < n1; n++ ) 
+  for( var n = 0; n < n1; n++ )
 	r += a[n];
-  for( ; n < n2; n++ ) 
+  for( ; n < n2; n++ )
 	r += xor_code_encodings[a[n]][b[n]];
-  for( ; n < n2; n++ ) 
+  for( ; n < n2; n++ )
 	r += a[n];
 
   return r
@@ -145,7 +156,7 @@ function u8xor(a,b) {
 	var keylen = b.key.length-5;
 	b.step %= keylen;
 	var b = b.key;
-	
+
 	for( n = 0; n < buf.length; n++ ) {
 		var v = buf[n];
 		var mask = 0x3f;
@@ -159,7 +170,7 @@ function u8xor(a,b) {
 		else if( (v & 0xF0) == 0xF0 ) {
 			{mask=0x7;}
 		}
-		outBuf[n] = (v & ~mask ) | ( u8xor_code_encodings[v & mask ][b[(n+o)%(keylen)]] & mask ) 
+		outBuf[n] = (v & ~mask ) | ( u8xor_code_encodings[v & mask ][b[(n+o)%(keylen)]] & mask )
 	}
 	//console.log( "buf" , buf.toString('hex') );
 	//console.log( "buf" , outBuf.toString('hex') );

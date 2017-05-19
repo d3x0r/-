@@ -146,12 +146,13 @@ function validateWebSock( req ) {
 									buf = idGen.u8xor( buf, ws.keyt );
 									orig(buf);
 								})(ws.send.bind(ws));
+                                                                ws.onmessage = (cb)=>ws.on( "message", cb );
 								ws.on = ((orig)=>(event,cb)=>{
 									if( event === "message" ) {
 										orig(event, (msg)=>{
 											if( !ws.keyt ) {
-												ws.keyt = {key:msg,step:0};
-												ws.keyr = {key:msg,step:1};
+												ws.keyt = {key:msg,step:1};
+												ws.keyr = {key:msg,step:0};
 												return;
 											}
 											//console.log( "got:", msg, ws.keyr )

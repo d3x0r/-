@@ -16,10 +16,10 @@
 //         getBuffer( /* 0-n */ )
 //                returns a ArrayBuffer that is that many bits of randomness...
 //
-//         save() 
+//         save()
 //                return an object representing the current RNG state
 //
-//         restore( o ) 
+//         restore( o )
 //                use object to restore RNG state.
 
 function MASK_TOP_MASK(length) {
@@ -43,17 +43,17 @@ exports.SaltyRNG = function (f) {
 		used: 0,
 		save() {
 			return {
-				saltbuf: RNG.saltbuf.slice(0),
-				entropy: RNG.entropy.slice(0),
-				available: RNG.available,
-				used: RNG.used,
+				saltbuf: this.saltbuf.slice(0),
+				entropy: this.entropy.slice(0),
+				available: this.available,
+				used: this.used,
 			}
 		},
 		restore(oldState) {
-			RNG.saltbuf = oldState.saltbuf;
-			RNG.entropy = oldState.entropy;
-			RNG.available = oldState.available;
-			RNG.used = oldState.used;
+			this.saltbuf = oldState.saltbuf;
+			this.entropy = oldState.entropy;
+			this.available = oldState.available;
+			this.used = oldState.used;
 		},
 		reset() {
 			this.entropy = this.compute("test");
@@ -305,4 +305,3 @@ var compute = function (m) {
 	sha256.update(m).finish(h).clean()
 	return h
 }
-

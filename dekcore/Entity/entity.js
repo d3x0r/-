@@ -276,6 +276,8 @@ function Entity(obj, name, description, callback, opts) {
 
 }
 
+var timerId;  // static varible to create timer identifiers.
+
 	function makeSystemSandbox(o,local) {
 		if (config.run.Λ === o.Λ)
 			var theVoid = true;
@@ -302,6 +304,7 @@ function Entity(obj, name, description, callback, opts) {
 				} }   // sram type config; reloaded at startup; saved on demand
 			, global: null
 			, scripts : { code: [], index : 0, push(c){ this.index++; this.code.push(c)} }
+			, _timers : null
 			, _module: {
 				filename: "internal"
 				, file: "memory://"
@@ -394,10 +397,80 @@ function Entity(obj, name, description, callback, opts) {
 					sandbox.events[event].find((cb) => cb(...args));
 				}
 			}
+			, setTimeout(cb,delay) {
+				let timerObj = { id: timerId++, cb: cb, next:this._timers, pred:null, dispatched : false, to:null };
+				if( this._timers )
+					this._timers.pred = timerObj;
+				this._timers = timerObj;
+				const cmd = `let tmp=_timers; 
+					while( tmp && tmp.id !== ${timerObj.id}) 
+						tmp = tmp.next; 
+					if( tmp ) {
+						tmp.cb();
+						tmp.dispatched = true;
+						if( tmp.next ) tmp.next.pred = tmp.pred;
+						if( tmp.pred ) tmp.pred.next = tmp.next; else _timers = tmp.next;
+					}
+				`;
+				timerObj.to = setTimeout( ()=>{
+					vm.runInContext( cmd, sandbox);
+				}, delay );
+				//timerObj.to.unref();
+				return timerObj;
+			}
+			, setInterval(cb,delay) {
+				let timerObj = { id: timerId++, cb: cb, next:this._timers, pred:null, dispatched : false, to:null };
+				if( this._timers )
+					this._timers.pred = timerObj;
+				this._timers = timerObj;
+				const cmd = `let tmp=_timers; 
+					while( tmp && tmp.id !== ${timerObj.id}) 
+						tmp = tmp.next; 
+					if( tmp ) {
+						tmp.cb();
+					}
+				`;
+				timerObj.to = setInterval( ()=>{
+					vm.runInContext( cmd, sandbox);
+
+				}, delay );
+				return timerObj;
+			}
+			, setImmediate(cb) {
+				let timerObj = { id: timerId++, cb: cb, next:this._timers, pred:null, dispatched : false, to:null };
+				if( this._timers )
+					this._timers.pred = timerObj;
+				this._timers = timerObj;
+				const cmd = `let tmp=_timers; 
+					while( tmp && tmp.id !== ${timerObj.id}) 
+						tmp = tmp.next; 
+					if( tmp ) {
+						tmp.cb();
+						tmp.dispatched = true;
+						if( tmp.next ) tmp.next.pred = tmp.pred;
+						if( tmp.pred ) tmp.pred.next = tmp.next; else _timers = tmp.next;
+					}
+				`;
+				timerObj.to = setImmediate( ()=>{
+					vm.runInContext( cmd, sandbox);
+
+				} );
+				return timerObj;
+			}
+			, clearTimeout( timerObj ) {		
+				if( !timerObj.dispatched ) return; // don't remove a timer that's already been dispatched		
+				if( timerObj.next ) timerObj.next.pred = timerObj.pred;
+				if( timerObj.pred ) timerObj.pred.next = timerObj.next; else _timers = timerObj.next;
+			}
+			, clearImmediate : null
+			, clearInterval : null
 			, resume( ) {
 
 			}
 		};
+		sandbox.clearImmediate = sandbox.clearTimeout;
+		sandbox.clearInterval = sandbox.clearInterval;
+
 		sandbox.idGen.u8xor = idMan.u8xor;
 		sandbox.idGen.xor = idMan.xor;
 		sandbox.config.run = { Λ : null };

@@ -15,8 +15,8 @@ if( !("udb" in config) ) {
 }
 
 DB.data = vfs.Volume( null, "./data.fs", config.udb.runkey, me );
-console.log( "vol is:", DB.data );
-var db = DB.db = DB.data.Sqlite( "core.db" );  
+//console.log( "vol is:", DB.data, Object.keys( Object.getPrototypeOf( DB.data ) ) );
+var db = DB.db = DB.data.Sqlite( "core.db" );
 
 // lookup by sessionid
 var logins = new Map();
@@ -36,7 +36,7 @@ db.makeTable( "create table user ( user_id char PRIMARY KEY"
 	+", email char"
 	+", passHash char"
 	+",created DATETIME DEFAULT CURRENT_TIMESTAMP"
-	+")" 
+	+")"
         );
 db.makeTable( "create table services ( service_id char PRIMARY KEY"
 	+", name char" );
@@ -69,10 +69,10 @@ var services = db.do( 'select * from services')
 if( services.length === 0 ) {
 	var userId;
 	db.do( `insert into user (user_id,name,email,passHash)values("${userId=idGen()}","root","root@d3x0r.chatment.karaway.net",encrypt("changeme"))`)
-	var core_id;	                                                       	
+	var core_id;
 	db.do( `insert into services(service_id,name)values ("${core_id=idGen()}","c0r3")` );
 	services = db.do( 'select * from services');
-	
+
 	console.log( "doing insert into subscriptions.... sohould get values back??")
 	db.do( `insert into subscriptions (sub_id,user_id,service_id) values ('${idGen()}','${userId}','${core_id}')` )
 
@@ -80,15 +80,15 @@ if( services.length === 0 ) {
 services.forEach( p=>(services[p.name]=p) );
 //console.log( "permissions:", permissions )
 
-function dontLoadAll() 
+function dontLoadAll()
 {
 	users = db.do( 'select decrypt(passHash)password,* from user' );
 	users.forEach( user=>{
 		user.services = db.do( "select * from subscriptions where user_id='"+user.user_id+"'" );
-		user.services.forEach(  up=>{ 
+		user.services.forEach(  up=>{
 			var s = services.find( p=>{ return (p.service_id===up.service_id )});
-			if( s ) 
-				up.name=s.name 
+			if( s )
+				up.name=s.name
 			else {
 				up.name = "Unknown";
 				console.log( "Failed to find ", up, "in", services );
@@ -119,7 +119,7 @@ function updateUser( userId, username, email, password ) {
 
 	if( !db.do( `update user set name='${db.escape(username)}',email='${db.escape(email)}',passHash=encrypt("${password}") where user_id='${userId}'`) )
 		return false;
-		
+
 	users.push( user = {user_id:userId, email:email} );
 	userMap.set( userId, user );
 	return userId;
@@ -138,8 +138,8 @@ DB.loginUser = (username,pass,req,address,oldcid, sendOk )=>{
 	var user = users.find( u=>u.email===username );
 	if( user ) {
 		var user = db.do( `select 1 from user where passhash=encrypt('${db.escape(pass)}' and user_id='${user.user_id}'`);
-		if( user.length === 0 ) 
-			return false;		
+		if( user.length === 0 )
+			return false;
 	}
 	else {
 		var user = db.do( `select user_id,email from user where passhash=encrypt('${db.escape(pass)}' and email='${db.escape(username)}'`);
@@ -170,13 +170,13 @@ DB.loginUser = (username,pass,req,address,oldcid, sendOk )=>{
 			}else {
 				// migth still be a conflict of logins.
 			}
-		
+
 				// else the client wasn't actually connected, just log it out.
 		}
 
 
 	db.do( `update userLogin set loggedOut=1 where user_id='${user.user_id}'`)
-	var login_id;  // constant key		
+	var login_id;  // constant key
 	var client_id;  // rotating key
 	db.do( `insert into userLogin(login_id,user_id,address,client_id)values('${login_id=idGen()}','${user.user_id}',"${address}",'${client_id=idGen()}')`)
 	console.log( "inserted into thing.")
@@ -196,7 +196,7 @@ DB.getLogin = ( service, remote, clientkey )=>{
 	if( login.length === 1 ) {
 		return {key:login[0].key,id:login[0].id,cid:clientkey};
 	}
-	else 
+	else
 		console.log( "too many logins?  too few?", login )
 	return null;
 }
@@ -228,4 +228,3 @@ DB.logout = (sessionkey)=>{
 DB.connect = (gun)=>{
 	console.log( "Update gun databases?? passed a gun instance to do SOMETHING with...")
 }
-

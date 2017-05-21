@@ -9,11 +9,57 @@ const cp = require( 'child_process');
 const vm = require('vm');
 const fs = require('fs');
 const ws = require('ws');
+const stream = require('stream');
+const util = require('util');
+const process = require('process');
+const crypto = require('crypto');
+
+const idMan = require('../id_manager.js');
+
 
 const ee = events.EventEmitter;
 var objects = [];
 var remotes = new WeakMap();
 var childPendingMessages = new Map();
+
+function sandboxWS( url, protocols ) {
+	let self = this;
+	if( !(this instanceof sandboxWS) )
+		return new sandboxWS( url, protocols );
+
+	this.ws = new ws( url, protocols );
+	this.keyt = { key:null, step: 0 };
+	this.keyr = { key:null, step: 1 };
+	this.send = (buf)=>{
+		if( !this.keyt.key ) {
+			this.keyt.key = buf;
+			this.keyr.key = buf;
+			this.ws.send( buf );
+		} else {
+			this.ws.send( idMan.u8xor( buf, this.keyt ) );
+		}
+	};
+	this.close = function() { this.ws.close() };
+	this.onopen = function(cb){ this.on( "open", cb ) }
+	this.onmessage = function(cb){ this.on( "message", cb ) }
+	this.onerror = function(cb){ this.on( "error", cb ) }
+	this.onclose = function(cb){ this.on( "close", cb ) }
+	this.on = function(event,cb) {
+		if( event === 'message' ) {
+			this.ws.on( 'message', function(buf){
+				//console.log( "sending...", self)
+				cb( idMan.u8xor( buf, self.keyr ) );
+			})
+		}else {
+			this.ws.on( event, cb );
+		}
+	}
+	const tmp = ["keyr", "keyt", "ws"];
+	tmp.forEach(function(key) {
+		Object.defineProperty(self, key, { enumerable: false, writable: false, configurable: false });
+	})
+
+}
 
 //console.log( "dirname is", __dirname );
 // Entity events
@@ -60,14 +106,13 @@ var childPendingMessages = new Map();
 
 
 //
-var idMan = require('../id_manager.js');
 var fc = require('../file_cluster.js');
 var config = require('../config.js');
 const vfs = require('sack.vfs');
 const vol = vfs.Volume();
 const vfsNaked = require('sack.vfs');
 
-const volOverride = `(function(vfs, dataRoot) { 
+const volOverride = `(function(vfs, dataRoot) {
 	vfs.Volume = (function (orig) {
 		// entities that want to use the VFS will have to be relocated to their local path
 		return function (name, path, a, b) {
@@ -93,11 +138,11 @@ const volOverride = `(function(vfs, dataRoot) {
 					var zz1 = privatePath.lastIndexOf( "/" );
 					var zz2 = privatePath.lastIndexOf( "\\\\" );
 					var pathPart = null;
-					if( zz1 > zz2 ) 
+					if( zz1 > zz2 )
 						pathPart = privatePath.substr( 0, zz1 )
 					else
 						pathPart = privatePath.substr( 0, zz2 )
-					console.log( "Make directory for sqlite?", pathPart )
+					//console.log( "Make directory for sqlite?", pathPart )
 					vfs.mkdir( pathPart );
 				}
 				//console.log("Sqlite overrride called with : ", dataRoot + "/" + config.run.Λ + "/" + path);
@@ -114,10 +159,6 @@ const volOverride = `(function(vfs, dataRoot) {
 
 config.start( ()=>eval( volOverride )( vfs, config.run.defaults.dataRoot ) )
 
-const stream = require('stream');
-const util = require('util');
-const process = require('process');
-const crypto = require('crypto');
 
 const netRequire = require('../util/myRequire.js');
 
@@ -166,7 +207,7 @@ function sealSandbox(sandbox) {
 			, sandbox
 			, { filename: "setRequire", lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 1000 });
 
-*/	
+*/
 	["events", "crypto", "_module", "console", "Buffer", "require", "process", "fs", "vm"].forEach(key => {
 		if( key in sandbox )
 		Object.defineProperty(sandbox, key, { enumerable: false, writable: true, configurable: false });
@@ -304,7 +345,7 @@ var timerId;  // static varible to create timer identifiers.
 			, process: process
 			, Buffer: Buffer
 			, crypto: crypto
-			, config: { 
+			, config: {
 				commit() {
 					exports.saveAll();
 				} }   // sram type config; reloaded at startup; saved on demand
@@ -336,7 +377,7 @@ var timerId;  // static varible to create timer identifiers.
 					addDriver( o, name, iName, iface );
 					/*
 					var driver = drivers.find(d => d.name === name);
-					
+
 					var caller = (driver && driver.iface) || {};
 					var keys = Object.keys(iface);
 					keys.forEach(key => {
@@ -375,7 +416,7 @@ var timerId;  // static varible to create timer identifiers.
 					if (o)
 						o.emit("message", msg)
 					//entity.gun.get(target.Λ || target).put({ from: o.Λ, msg: msg });
-				}			
+				}
 			}
 			, events: {}
 			, on: (event, callback) => {
@@ -408,9 +449,9 @@ var timerId;  // static varible to create timer identifiers.
 				if( this._timers )
 					this._timers.pred = timerObj;
 				this._timers = timerObj;
-				const cmd = `let tmp=_timers; 
-					while( tmp && tmp.id !== ${timerObj.id}) 
-						tmp = tmp.next; 
+				const cmd = `let tmp=_timers;
+					while( tmp && tmp.id !== ${timerObj.id})
+						tmp = tmp.next;
 					if( tmp ) {
 						tmp.cb();
 						tmp.dispatched = true;
@@ -429,9 +470,9 @@ var timerId;  // static varible to create timer identifiers.
 				if( this._timers )
 					this._timers.pred = timerObj;
 				this._timers = timerObj;
-				const cmd = `let tmp=_timers; 
-					while( tmp && tmp.id !== ${timerObj.id}) 
-						tmp = tmp.next; 
+				const cmd = `let tmp=_timers;
+					while( tmp && tmp.id !== ${timerObj.id})
+						tmp = tmp.next;
 					if( tmp ) {
 						tmp.cb();
 					}
@@ -447,9 +488,9 @@ var timerId;  // static varible to create timer identifiers.
 				if( this._timers )
 					this._timers.pred = timerObj;
 				this._timers = timerObj;
-				const cmd = `let tmp=_timers; 
-					while( tmp && tmp.id !== ${timerObj.id}) 
-						tmp = tmp.next; 
+				const cmd = `let tmp=_timers;
+					while( tmp && tmp.id !== ${timerObj.id})
+						tmp = tmp.next;
 					if( tmp ) {
 						tmp.cb();
 						tmp.dispatched = true;
@@ -463,8 +504,8 @@ var timerId;  // static varible to create timer identifiers.
 				} );
 				return timerObj;
 			}
-			, clearTimeout( timerObj ) {		
-				if( !timerObj.dispatched ) return; // don't remove a timer that's already been dispatched		
+			, clearTimeout( timerObj ) {
+				if( !timerObj.dispatched ) return; // don't remove a timer that's already been dispatched
 				if( timerObj.next ) timerObj.next.pred = timerObj.pred;
 				if( timerObj.pred ) timerObj.pred.next = timerObj.next; else _timers = timerObj.next;
 			}
@@ -500,7 +541,7 @@ function runDriverMethod( o, driver, msg ) {
 
 			//scripts.push( { type:"driverMethod", code:cmd } );
 			vm.runInContext( cmd, o.sandbox);
-	
+
 }
 
 function addDriver( o, name, iName, iface) {
@@ -531,7 +572,7 @@ function addDriver( o, name, iName, iface) {
 	else
 		keys.forEach(key => {
 			var constPart = `{
-				${iName}[${key}](`;				
+				${iName}[${key}](`;
 			caller[key] = function (...argsIn) {
 				var args = "";
 				var last = argsIn[argsIn.length-1];
@@ -553,7 +594,7 @@ function addDriver( o, name, iName, iface) {
 		})
 	console.log( "adding object driver", name)
 	drivers.push({ name: name, iName: iName, orig: iface, iface: caller, object:o });
-	return driver; // return old driver, not the new one... 
+	return driver; // return old driver, not the new one...
 }
 
 	function firstEvents(sandbox) {
@@ -597,7 +638,7 @@ function addDriver( o, name, iName, iface) {
 		}
 		return i;
 	}
-	
+
 	function sandboxRequire(src) {
 		//console.trace( "this is", this, src );
 		var o = Entity( this.me );
@@ -607,7 +648,9 @@ function addDriver( o, name, iName, iface) {
 		if (src === "shell.js") return exports.Sentience;
 		if (src === "text.js") return text;
 
-		if (src == 'ws') return ws;
+		if (src == 'ws') {
+			return sandboxWS;
+		}
 		if (o.permissions.allow_file_system && src == 'fs') return fs;
 		if (o.permissions.allow_file_system && src == 'stream') return stream;
 		if (src == 'crypto') return crypto;
@@ -618,7 +661,8 @@ function addDriver( o, name, iName, iface) {
 		if (src == 'tls') return tls;
 		if (src == 'https') return https;
 		if (src == 'path') return path;
-                if( src == 'child_process' ) return cp;
+        if( src == 'child_process' ) return cp;
+		if( src == 'process' ) return process;
 		//if (src == 'path') return path;
 
 		if (src == 'events') return events;
@@ -626,26 +670,25 @@ function addDriver( o, name, iName, iface) {
 		if (src == 'sack.vfs') {
 			if( !("_vfs" in o.sandbox ) ) {
 				//console.log( "Overriding internal VFS", o.name )
-				o.sandbox._vfs = Object.assign( {}, vfsNaked ); 
+				o.sandbox._vfs = Object.assign( {}, vfsNaked );
 				o.sandbox._vfs.Volume = o.sandbox._vfs.Volume.bind( {} );
 				o.sandbox._vfs.Sqlite = o.sandbox._vfs.Sqlite.bind( {} );
 				try {
 					vm.runInContext( "(" + volOverride + ')(this._vfs,"' +  "." +'")' , o.sandbox
-						, { filename: "moduleSetup" , lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 1000 })			
+						, { filename: "moduleSetup" , lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 1000 })
 				} catch( err) {
 					console.log( "VM Error:", err );
 				}
 			}
 			return o.sandbox._vfs;
-		} 
+		}
 
 		//console.log( "blah", o.sandbox.scripts)
 		if( o.sandbox.scripts.index < o.sandbox.scripts.code.length ) {
 			var cache = o.sandbox.scripts.code[o.sandbox.scripts.index];
-			console.log( "cache is?", typeof cache, cache);
+			//console.log( "cache is?", typeof cache, cache);
 			if( cache.source === src ) {
 				o.sandbox.scripts.index++;
-
 
 				var oldModule = o.sandbox._module;
 				var root = cache.closure.root;
@@ -675,7 +718,7 @@ function addDriver( o, name, iName, iface) {
 				}
 				if( file !== cache.closure.source ) {
 					console.log( "updating cached file....", src )
-					cache.closure.source = file; 
+					cache.closure.source = file;
 					exports.saveAll();
 				}
 				var code = ['(function(exports,config,module,resume){'
@@ -684,7 +727,7 @@ function addDriver( o, name, iName, iface) {
 					, root
 				].join("");
 
-				console.log( "Executing with resume TRUE")
+				//console.log( "Executing with resume TRUE")
 				try {
 					vm.runInContext( code, o.sandbox
 						, { filename: cache.source , lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 1000 })
@@ -759,7 +802,7 @@ function addDriver( o, name, iName, iface) {
 		//        { name : src.substr( pathSplit+1 ), parent : o.sandbox.module, paths:[], root : rootPath, exports:{} };
 		//oldModule.children.push( thisModule );
 		o.sandbox._module = thisModule;
-		
+
 		o.sandbox.scripts.push( { type:"require", source:src, closure: thisModule } );
 		try {
 			vm.runInContext(code, o.sandbox
@@ -792,7 +835,7 @@ function createEntity(obj,name,desc ) {
 		, command: null
 		, permissions: { allow_file_system: true }
 		, sandbox: null // operating sandbox
-		, child : null // child process 
+		, child : null // child process
 		, vol: null
 		, get container() { return this.within; }
 		, create(name, desc, cb, value) {
@@ -803,7 +846,7 @@ function createEntity(obj,name,desc ) {
 			Entity(this, name, desc, (newo) => {
 				newo.value = value;
 				if (typeof cb === 'string') {
-					console.log( "cb is a script, call value as callback......")
+					//console.trace( "cb is a script, call value as callback......")
 					newo.sandbox.require(cb); // load and run script in entity sandbox
 					if (value) value(newo);
 				} else
@@ -1031,7 +1074,7 @@ function createEntity(obj,name,desc ) {
 			this.contains.forEach((member) => { if (contained) contained += '","'; else contained = ' ["'; contained += member.Λ })
 			if (contained) contained += '"]';
 			else contained = '[]';
-			return '{"Λ":"' + this.Λ 
+			return '{"Λ":"' + this.Λ
 				+ '","value":' + (this.value && this.value.toString())
 				+ ',"name":"' + (this.name)
 				+ '","description":"' + (this.description)
@@ -1039,8 +1082,8 @@ function createEntity(obj,name,desc ) {
 				+ '","attached_to":' + attached
 				+ ',"contains":' + contained
 				+ ',"created_by":"' + this.created_by.Λ
-				+ ',"code":' + JSON.stringify( this.sandbox.scripts.code ) 
-				+ ',"config":'+ JSON.stringify( this.sandbox.config ) 
+				+ ',"code":' + JSON.stringify( this.sandbox.scripts.code )
+				+ ',"config":'+ JSON.stringify( this.sandbox.config )
 				+ '"}\n';
 		}
 		, toRep() {
@@ -1150,14 +1193,14 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 				for( var c in o.sandbox.scripts.code ) { c.closure = JSON.parse( c.closure ) }
 			}
 			var executable = [];
-			
+
 			doList( input, 1 );
-			
+
 			function doList( list, start ) {
 				//console.log( "do list of things...", list, n, list.length );
 				for( var n = start; n < list.length; n++ ) {
 					var ths = list[n];
-					var creator = Entity(ths.created_by); 
+					var creator = Entity(ths.created_by);
 					if( !creator ) {
 						//console.log( "Defered this creaation..." );
 						defer.push( ths );
@@ -1178,7 +1221,7 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 								parent.store( o );
 							}
 						} else {
-							// detach from everything for a second... 
+							// detach from everything for a second...
 							// (probably attached_to will re-join this to the mesh)
 							o.within.contains.delete( o.Λ );
 							o.within = null; // temporarily floating
@@ -1191,18 +1234,18 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 								executable.push( o );
 							o.sandbox.scripts.code = ths.scripts;
 							//console.log( "Storing scripts?", ths.scripts )
-							for( var c of o.sandbox.scripts.code ) { 
+							for( var c of o.sandbox.scripts.code ) {
 								//console.log( "Recover?", c );
 								if( c.type === "require" && (typeof( c.closure ) === "string" ) )
-									c.closure = JSON.parse(c.closure) 
+									c.closure = JSON.parse(c.closure)
 							}
 						}
 						//console.log( "Created :", ths );
 					})
 				}
 				for( var n = start; n < list.length; n++ ) {
-					ths.attached_to.find( (a)=>{ 
-						var ae = Entity(a); 
+					ths.attached_to.find( (a)=>{
+						var ae = Entity(a);
 						if( !ae ) return true;
 						// attach method will fail, because one and or the other has no parent.
 						ae.attached_to.set( ths.entity.Λ, ths.entity );
@@ -1220,11 +1263,11 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 
 			onLoadCb();
 			//console.log( "first run ran --------- start other things loaded...", executable )
-			for( var e of executable ) { 
+			for( var e of executable ) {
 				// it may have already started...
 				if( !e.sandbox.scripts.index ) {
 					console.log( "")
-					e.sandbox.require( e.sandbox.scripts.code[0].source ) 
+					e.sandbox.require( e.sandbox.scripts.code[0].source )
 					// after require, things might be run on it...
 				}
 				/*
@@ -1232,11 +1275,11 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 					var cache = e.sandbox.scripts.code[e.sandbox.scripts.index];
 					console.log( "is this cache a run?", e.sandbox.scripts, cache );
 					if( cache )
-						if( cache.type==="run") 
+						if( cache.type==="run")
 							e.run( cache.code );
 					else console.log( "index less than end?", cache)
 				}
-				*/					
+				*/
 			}
 			//exports.saveAll();
 		})
@@ -1436,4 +1479,3 @@ function loadConfig(o) {
 		}
 	}
 }
-

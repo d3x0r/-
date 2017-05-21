@@ -8,7 +8,7 @@ for( var arg = 2; arg < args.length; args++ ) {
 			startScript = args[arg+1];
 			arg++;
 		}
-			
+
 	}
 }
 
@@ -42,9 +42,9 @@ https.addProtocol( "entity-ethernet", (ws)=>{
 			if( e ) {
 				ws.entity = e;
 				ws.protocol = ws.entity.emit( "connect", ws );
-			} 
+			}
 		}
-		if( ws.protocol ) 
+		if( ws.protocol )
 			return ws.protocol( msg );
 
         if( msg.op === "serviceLogin" ) {
@@ -90,13 +90,13 @@ https.addProtocol( "karaway.core", (ws)=>{
     ws.on( "message", (msg)=>{
 		//console.log( "got:", msg, ws.keyr )
 		try {
-	        	msg = JSON.parse( msg );
+	        msg = JSON.parse( msg );
 		} catch( err ){
 			console.log( "protocol error.", msg );
 			ws.close();
 			return;
 		}
-        //console.log( "kc msg", msg );
+        console.log( "kc msg", msg );
 		{
 			if( msg.op === "hello" ) {
 				var test = Entity.getEntity( msg.me );
@@ -154,7 +154,7 @@ function BigBang() {
 			//MOOSE.sandbox.require( "./startup.js" ); // still do first run on first object?
 
 			run(); // enable discovery; services are stil loading...
-			
+
 		},
 		()=>{
 		Entity.create( null, "The Void", "Glistening transparent black clouds swirl in the dark.", (o)=>{
@@ -169,8 +169,8 @@ function BigBang() {
 
 					if( !("io" in o.sandbox) ) o.sandbox.io = {};
 
-					MOOSE.sandbox.io.command = shell.Filter( o.sandbox );					
-					o.sandbox.require( process.argv[1] );
+					MOOSE.sandbox.io.command = shell.Filter( o.sandbox );
+					o.sandbox.require( startScript );
 
 					//var path = require.resolve( "./startup.js" ).replace( /\\/g, "/" );
 					//shell.Script( o.sandbox, text.Text( path ) );
@@ -266,7 +266,7 @@ function run() {
 				var merge2 = idMan.xor( merge1, parts[0] );
 				var merge3 = idMan.xor( parts[0], o.Λ );
                 reassignments.find( (r)=>r.o===parts[0] ).n = merge1;
-		
+
                 d.send( merge3 + " YouAre " + merge2 + " " + config.run.defaults.defaultPort, raddr, addr );
 
                     //reassignments.splice( , 1 );

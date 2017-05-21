@@ -2,7 +2,7 @@
 const fc = require('./file_cluster.js');
 const idGen = require("./util/id_generator.js");
 Error.stackTraceLimit = Infinity;
-const _debug = true;
+const _debug = false;
 var config = module.exports = exports = {
 	starts: [loadConfig]  // starts to run sequentially....
 	, start_deferred: 0  // count of deferments (one resume required for each defer?)
@@ -97,7 +97,7 @@ exports.defer = function () {
 		var i;
 			while( i = config.starts.shift() )
 				config.starts_deferred.push( i );
-			
+
 		}
 		else
 			config.starts_deferred = config.starts;

@@ -2,8 +2,9 @@ var db = require( "./userDatabase.js" );
 
 var peers = [];
 
-var runkeyt = {key:config.run.Λ, step:0};
-var runkeyr = {key:config.run.Λ, step:0};
+//var runkeyt = {key:config.run.Λ, step:0};
+//var runkeyr = {key:config.run.Λ, step:1};
+
 //console.log( "user protocol look:", entity.look() );
 //console.log( "user protocol inv:", entity.inventory );
 
@@ -21,7 +22,7 @@ on( "connect", (ws)=>{
 function protocol( msg ) {
 	if( msg.op ) {
 		if( msg.op === "login" ) {
-			
+
 		}
 	}
 }
@@ -47,7 +48,7 @@ function openHello() {
 	var firewall = io.openDriver( "firewall" );
 	console.log( "firewall interface:" , firewall )
 
-	var confirmed = false; 
+	var confirmed = false;
 	var ws = new WebSocket('wss://localhost:8000', ["karaway.core"], {
 		perMessageDeflate: false
 	});
@@ -56,13 +57,13 @@ function openHello() {
 		//console.log( "connect: ", config.run.Λ );
 		ws.send( config.run.Λ );
 		var t;
-		ws.send( t = idGen.u8xor( JSON.stringify( {op:"hello", runkey:config.run.Λ, me:me} ), runkeyt ) );
+		ws.send( JSON.stringify( {op:"hello", runkey:config.run.Λ, me:me} ) );
 	})
 
 	ws.on( "message", (msg)=>{
 		//if( !ws.key ) { ws.key = {key:msg,step:0};return }
 		if( msg.length ) {
-			msg = JSON.parse( idGen.u8xor( msg, runkeyr ) );
+			msg = JSON.parse( msg );
 			//console.log( "userprotocol hello got:", msg );
 			if( msg.op === "hello") {
 				confirmed = true;
@@ -70,9 +71,9 @@ function openHello() {
 			}
 			if( msg.op === "error" ) {
 				alert( msg.error );
-		}       
-	}
-	else console.log( "what the hell??")
+			}
+		}
+		else console.log( "what the hell??")
 	});
 
 	ws.on( "close", ()=>{
@@ -80,6 +81,9 @@ function openHello() {
 			console.log( "remote closed..." );
 			// without set timeout; I have no throttle control ....
 			openHello();
+		}
+		else {
+			console.log( "initial negotiation success" );
 		}
 	})
 }
@@ -90,9 +94,9 @@ io.addProtocol( "karaway.core", (conn)=>{
     peers.push( conn );
 
     conn.on( 'message',(msg)=>{
-		if( !conn.keyt ){ 
-			conn.keyt = {key:msg,step:0}; 
-			conn.keyr = {key:msg,step:0}; 
+		if( !conn.keyt ){
+			conn.keyt = {key:msg,step:0};
+			conn.keyr = {key:msg,step:0};
 			conn.send = ((orig)=>(msg)=>orig( idGen.u8xor( msg, conn.keyt )))(conn.send);
 			return;
 		}
@@ -133,7 +137,7 @@ io.addProtocol( "karaway.core", (conn)=>{
 			//conn.send( '{"op":"redirect", address:"' + firewallAddr  + '"}'
 		}
 		if( msg.op === "request" ) {
-			
+
 		}
 
     })
@@ -144,4 +148,3 @@ io.addProtocol( "karaway.core", (conn)=>{
         if( i >= 0 ) peers.splice( i, 1 );
     })
 })
-

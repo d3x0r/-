@@ -640,10 +640,10 @@ server.addProtocol( "id.core", (ws)=>{
 					ws.send( JSON.parse( { op:"auth", status:true } ) );
 			}
 			else if( msg.op === "maker" ) {
-				if( exports.madeFrom( msg.key.msg.maker )
-				ws.send( JSON.parse( { op:"made", status:true } ) );
-			else
-				ws.send( JSON.parse( { op:"made", status:true } ) );
+				if( exports.madeFrom( msg.key.msg.maker ) )
+					ws.send( JSON.parse( { op:"made", status:true } ) );
+				else
+					ws.send( JSON.parse( { op:"made", status:true } ) );
 			}
 	})
 	ws.on( 'error', (err)=>{

@@ -203,7 +203,7 @@ myself.startServer = function(
                 */
 		//
 		//console.log( "connection:", connection.protocol, wsServer2.acceptedResource )
-		if( connection.protocol === 'eqube.linq' )  {
+		if( connection.protocol === 'something' )  {
 			console.log((new Date()) + ' Connection accepted.');
 
 			connection.on('message', function(message) {
@@ -218,7 +218,7 @@ myself.startServer = function(
 		else 
 		{
 			//console.log( "protocols?", connection.protocol, wsServer2.acceptedResource )
-			if( wsServer2.acceptedResource === "/userAuth" ) {
+			if( wsServer2.acceptedResource === "/channel1" ) {
 				authGunPeers.push( connection );
 				connection.on( 'message', (msg)=>{ console.log( "receive on auth" ); myself.authGun.on('in', JSON.parse(msg.utf8Data).body); })
 				connection.on('close', function(reasonCode, description) {
@@ -226,7 +226,7 @@ myself.startServer = function(
 					authGunPeers.splice( authGunPeers.findIndex( p=>p===connection  ), 1 );
 				});
 			}
-			if( wsServer2.acceptedResource === "/gameState" ) {
+			if( wsServer2.acceptedResource === "/channel2" ) {
 				gameGunPeers.push( connection )
 				connection.on( 'message', (msg)=>{ console.log( "receive on game" ); myself.gameGun.on('in', JSON.parse(msg.utf8Data).body); })
 				connection.on('close', function(reasonCode, description) {

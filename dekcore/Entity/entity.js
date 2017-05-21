@@ -1,11 +1,21 @@
 "use strict";
 const events = require('events');
+const os = require( 'os' );
+const url = require( 'url' );
+const tls = require( 'tls' );
+const https = require( 'https' );
+const path = require( 'path' );
+const cp = require( 'child_process');
+const vm = require('vm');
+const fs = require('fs');
+const ws = require('ws');
+
 const ee = events.EventEmitter;
 var objects = [];
 var remotes = new WeakMap();
 var childPendingMessages = new Map();
 
-console.log( "dirname is", __dirname );
+//console.log( "dirname is", __dirname );
 // Entity events
 //  on( 'create', (self)=>{  } )
 //  on( 'restore', (self)=>{ } )
@@ -53,13 +63,9 @@ console.log( "dirname is", __dirname );
 var idMan = require('../id_manager.js');
 var fc = require('../file_cluster.js');
 var config = require('../config.js');
-const vm = require('vm');
-const fs = require('fs');
-const ws = require('ws');
 const vfs = require('sack.vfs');
 const vol = vfs.Volume();
 const vfsNaked = require('sack.vfs');
-const cp = require( 'child_process' );
 
 const volOverride = `(function(vfs, dataRoot) { 
 	vfs.Volume = (function (orig) {
@@ -534,6 +540,14 @@ function addDriver( o, name, iName, iface) {
 		if (src == 'crypto') return crypto;
 		if (src == 'util') return util;
 		if (src == 'vm') return vm;
+		if (src == 'os') return os;
+		if (src == 'url') return url;
+		if (src == 'tls') return tls;
+		if (src == 'https') return https;
+		if (src == 'path') return path;
+                if( src == 'child_process' ) return cp;
+		//if (src == 'path') return path;
+
 		if (src == 'events') return events;
 
 		if (src == 'sack.vfs') {
@@ -555,7 +569,7 @@ function addDriver( o, name, iName, iface) {
 		//console.log( "blah", o.sandbox.scripts)
 		if( o.sandbox.scripts.index < o.sandbox.scripts.code.length ) {
 			var cache = o.sandbox.scripts.code[o.sandbox.scripts.index];
-			//console.log( "cache is?", typeof cache, cache);
+			console.log( "cache is?", typeof cache, cache);
 			if( cache.source === src ) {
 				o.sandbox.scripts.index++;
 

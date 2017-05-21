@@ -17,11 +17,15 @@ const WebSocket = ws.Client;
 const WebSocketServer = ws.Server;
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";  // enable wss for gun without mods....
-const Gun = require('gun');
+//const Gun = require('gun');
+
 //require('gun/lib/file.js');
 //require('gun/lib/wsp/server.js');
 //require('gun/lib/wsp/server-push.js');
 //require('gun/lib/S3.js');
+
+//exports.Gun = Gun;
+//exports.gun = Gun(  { uuid : ID.generator, file : null } );;
 
 
 //const WebSocketServer   = ws.Server
@@ -31,8 +35,6 @@ exports.addProtocol = addProtocol;
 
 var ID = require( './util/id_generator.js' );
 
-exports.Gun = Gun;
-exports.gun = Gun(  { uuid : ID.generator, file : null } );;
 
 //exports.gun.on( "get", (a,b,c)=>console.log("gun get:", a,b,c) )
 //exports.gun.on( "put", (a,b,c)=>console.log("gun put:", a,b,c) )
@@ -165,7 +167,7 @@ function validateWebSock( req ) {
 											}
 
 												cb( msg );
-										}
+										})
 									}
 								})(ws.on);
                 p.connect(ws);
@@ -181,6 +183,7 @@ function validateWebSock( req ) {
       //ws.reject( "Unknown Protocol" );
 }
 
+/*
 addProtocol( "gunDb", (conn)=>{
     //console.log( "connected gundb, add peer")
     peers.push( conn );
@@ -201,3 +204,5 @@ addProtocol( "gunDb", (conn)=>{
             peers.splice( i, 1 );
     })
 })
+
+*/

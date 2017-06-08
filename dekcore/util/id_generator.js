@@ -150,8 +150,8 @@ var u8xor_code_encodings = {};
 for( var a = 0; a < 64; a++  ) {
    var r = (u8xor_code_encodings[a]={} );
    for( var b = 0; b < encodings.length; b++  ) {
-     u8xor_code_encodings2[a*256+encodings.codePointAt(b)] = a^b;
-	 r[encodings[b]] = a^b;
+      u8xor_code_encodings2[(a<<8)+encodings.codePointAt(b)] = a^b;
+      r[encodings[b]] = a^b;
    }
 }
 xor_code_encodings['='] = {'=': '='};
@@ -168,18 +168,32 @@ function u8xor(a,b) {
 	b.step += buf.length;
 	let keylen = b.key.length-5;
 	b.step %= keylen;
-
+	let _v = 0;
+	let _mask = 0;
 	for( var n = 0; n < buf.length; n++ ) {
 		let v = buf[n];
 		let mask = 0x3f;
+		let __mask = _mask;
+		let highmask = 0;
 		if( (v & 0xE0) == 0xC0 )      { mask=0x1F; }
 		else if( (v & 0xF0) == 0xE0 ) { mask=0xF; }
 		else if( (v & 0xF8) == 0xF0 ) { mask=0x7; }
+		_mask = mask;
+		if( __mask === 0xF )
+			mask = 0x1F;
+		else if( __mask === 0x7 )
+			mask = 0xF;
 		//outBuf[n] = (v & ~mask ) | ( u8xor_code_encodings[v & mask ][b[(n+o)%(keylen)]] & mask )
-		outBuf[n] = (v & ~mask ) | ( u8xor_code_encodings2[ ((v & mask) <<8) + (c[(n+o)%(keylen)]) ] & mask )
+		if( mask === 0x3f ) {
+			outBuf[n] = (v & ~mask ) | ( u8xor_code_encodings2[ ((v & mask) <<8) + (c[(n+o)%(keylen)]) ] & mask )
+		} else
+			outBuf[n] = v;
+		//console.log( "input:", v.toString(16), (v&mask).toString(16), outBuf[n].toString(16), mask.toString(16), n+o, c[(n+o)%(keylen)] );
+		_v = v;
 	}
 	//console.log( "buf" , buf.toString('hex') );
 	//console.log( "buf" , outBuf.toString('hex') );
+	//console.log( "buf" , outBuf.toString('utf8') );
 	return outBuf.toString( "utf8" );
 	//return TD.decode(outBuf);
 }

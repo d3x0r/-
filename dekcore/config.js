@@ -1,15 +1,25 @@
 "use strict";
-const fc = require('./file_cluster.js');
 const idGen = require("./util/id_generator.js");
 Error.stackTraceLimit = Infinity;
 const _debug = false;
+
+const os = require( "os" );
+
+function getLocation() {
+	var here = process.cwd();
+	var i = os.networkInterfaces();
+	for( var int in i ) i[int].forEach( i=>here += i.mac );
+	return idGen.regenerator( here );
+}
+
 var config = module.exports = exports = {
 	starts: [loadConfig]  // starts to run sequentially....
 	, start_deferred: 0  // count of deferments (one resume required for each defer?)
 	, starts_deferred: null // starts that have been deferred.
+	, Λ: getLocation()
 	, run: {
 		Λ: undefined
-		, hostname: require("os").hostname()
+		, hostname: os.hostname()
 		, defaults: null
 		, debug: true
 		, addresses: []  // who I am...
@@ -26,27 +36,24 @@ var config = module.exports = exports = {
 		return this.run.toString();
 	}
 }
+const fc = require('./file_cluster.js');
 
 function saveConfig(callback) {
-	var path = process.cwd()+"/"+config.run.defaults.dataRoot;
-	fc.mkdir( process.cwd()+"/"+config.run.defaults.dataRoot, () => {
-		console.log("calling store now....")
-		fc.store(  path + "/config.json", config.run, callback);
-	});
+	fc.store(  "config.json", config.run, callback);
 }
 
 //res.sendfile(localPath);
 //res.redirect(externalURL);
 //
 function loadConfig(path) {
-	console.log("loadconfig");
-	fc.reload( process.cwd()+"/core/config.json",
+	//console.log("loadconfig");
+	fc.reload( "config.json",
 		function (error, result) {
-			console.log("loadConfig: Error? ", error);
+			//console.log("loadConfig: Error? ", error);
 			if (!error) {
 				//console.log( "attempt to re-set exports...", result);
-				var str = fc.Utf8ArrayToStr(result);
-				console.log( "Reloaded config so....")
+				var str = result.toString();//fc.Utf8ArrayToStr(result);
+				console.log( "Reloaded config so....", result, str)
 				var object = JSON.parse(str);
 				Object.assign(config.run, object);
 				//console.log( "config reload is", config.run.Λ )
@@ -64,7 +71,7 @@ function loadConfig(path) {
 			config.run.Λ = idGen.generator();
 		else
 			console.log("partial recovery??!");
-		config.run.defaults = require( process.cwd()+"/config.json");
+		config.run.defaults = require( process.cwd() + "/config.json");
 		saveConfig(resume);
 	}
 	return true;

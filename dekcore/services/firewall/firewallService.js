@@ -1,5 +1,9 @@
 
-console.log( "Firewall service begins.", entity.name );
+if( "entity" in global ) {
+	console.log( "Firewall service begins.", entity.name );
+} else
+	console.log( "Core Firewall Service." );
+
 var firewall = require( "./firewallDb.js" );
 
 var firewallInterface;
@@ -19,4 +23,3 @@ if( io.addDriver( "firewall", "firewallInterface", firewallInterface = {
 {
 	throw new Error( "Firewall driver has already been provided." );
 }
-

@@ -169,6 +169,7 @@ exports.discover = (options) => {
 					if( addr.family === "IPv6" )
 					    server.socket.addMembership( addr.broadcast, addr.address);
 					if (!connection_count) {
+						// first setup.
 						//console.log("At least one setup... ")
 						//setTimeout(discoverer.dispatchPing, 100);
 					}

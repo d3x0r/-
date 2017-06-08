@@ -3,13 +3,14 @@ const webRoot = "./uiRoot";
 //var fs = require( 'fs');
 var vfs = require( 'sack.vfs');
 var vol = vfs.Volume();
-
+const config = require ( "./config.js" )
 const idGen = require( "./util/id_generator.js")
 const url = require( 'url' );
 const crypto = require( 'crypto');
 const tls = require( 'tls');
 const https = require( 'https')
 const path = require('path');
+
 
 //------ setup websocket compatibility
 const ws = require( 'ws' );
@@ -44,7 +45,7 @@ var ID = require( './util/id_generator.js' );
 
 var wsServer = null;
 
-function scriptServer( port ) {
+function scriptServer( port, internal ) {
     if( !port ) port = 8000;
 
     console.log( "Starting Script Services on port", port );
@@ -61,9 +62,12 @@ function scriptServer( port ) {
         }
       console.log( "got request" + req.url );
 
-
-      var filePath = './uiRoot' + unescape(req.url);
-      if (filePath == './uiRoot/') filePath = './uiRoot/index.html';
+      if( !internal ) {
+	      var filePath = config.run.defaults.webRot + unescape(req.url);
+	      if (filePath == './uiRoot/') filePath = './uiRoot/index.html';
+	}
+	else
+	      var filePath = '.' + unescape(req.url);
 
       var extname = path.extname(filePath);
       var contentType = 'text/html';
@@ -97,6 +101,7 @@ function scriptServer( port ) {
                             res.end(new Buffer(content), 'utf-8');
                     }
                     else{
+                        console.log( "exists on", filePath, "is false.")
                         res.writeHead(404);
                         res.end('<HTML><head><script src="userAuth/unauthorized.js"></script></head></HTML>');
                     }
@@ -119,6 +124,16 @@ function scriptServer( port ) {
     wsServer.acceptResource = null;
     //wsServer.on('request',validateWebSock )
     wsServer.on('connection',validateWebSock )
+    return new httpServer( server, wsServer );
+}
+
+function httpServer( http, ws ) {
+	this.server = http;
+	this.wsServer = ws;
+	this.protocols = [];
+	this.addProtocol = function(protocol,callback){
+		this.protocols.push( {name:protocol, connect:callback } );
+	};
 }
 
 //---------------------- Websocket Protocol Interface -----------------------
@@ -134,7 +149,8 @@ function validateWebSock( ws ) {
     //console.log( "connect?", ws.upgradeReq.headers, ws.upgradeReq.url )
     var proto = decodeURIComponent( ws.upgradeReq.headers['sec-websocket-protocol'] );
 
-	//console.log( "protocols:", protocols, "\n", proto );
+	console.log( "ws:", JSON.stringify( ws ) );
+	console.log( "protocols:", protocols, "\n", proto );
 
 	// this is the way 'websocket' library gives protocols....
 	//console.log( "other", ws.protocolFullCaseMap[ws.requestedProtocols[0]])
@@ -173,8 +189,8 @@ function validateWebSock( ws ) {
 					if( event === "message" ) {
 						orig(event, (msg)=>{
 							if( !ws.keyt ) {
-								ws.keyt = {key:msg,step:1};
-								ws.keyr = {key:msg,step:0};
+								ws.keyt = idGen.xkey( msg, 1 );
+								ws.keyr = idGen.xkey(msg);
 								return;
 							}
 							//console.log( "got:", msg, ws.keyr )

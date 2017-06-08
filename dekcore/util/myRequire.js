@@ -48,6 +48,7 @@ function doRequire( file ) {
     return m.exports;
   }
 
+  //console.log( "Require for:", file );
   var thisModule = {
     filename: resolvePath( file, runningModule ),
     file : f,
@@ -68,7 +69,7 @@ function doRequire( file ) {
     thisModule.filename = '/' + thisModule.filename;
 
   if( file === "./config.js" || file === "../config.js" ) {
-    console.log( "well... ", file ) 
+    console.log( "well... ", file )
     return requireConfig.config;
   }
 
@@ -78,7 +79,7 @@ function doRequire( file ) {
       return require( file );
   }
 
-  if( !fs ) fs = sack.Volume( "cache", "core/cache.dat" );
+  if( !fs ) fs = sack.Volume( null, "core/cache.dat" );
 
   //console.log( "in another level?", file )
   if( fs.exists( file ) ) {
@@ -93,12 +94,12 @@ function doRequire( file ) {
                   port : requireConfig.port,
                   method : "GET",
                   rejectUnauthorized: false,
-                  path : "/"+file
+                  path : thisModule.filename// "/"+file
                 };
-                
+
     //console.log( "options ", opts );
-    
-    https.get( opts,   
+
+    https.get( opts,
       (res) => {
         const statusCode = res.statusCode;
         const contentType = res.headers['content-type'];
@@ -136,36 +137,37 @@ function doRequire( file ) {
       }).on('error', (e) => {
         console.trace(`Got error: ${e.message}`, e);
       });
-      
-    while(!thisModule.loaded) sack.Δ(); 
+
+    while(!thisModule.loaded) sack.Δ();
 
     var prior = runningModule;
-    console.log( "Set running Module to ... thisModule" );
+    //console.log( "Set running Module to ... thisModule" );
     runningModule = thisModule;
     if( evalJson ) {
             try {
               thisModule.exports = JSON.parse(thisModule.rawData);
+              //console.log( "module resulted in", thisModule.exports, "\nFOR \n", thisModules.rawData)
             } catch (e) {
               console.log(e.message);
             }
 	}
 	else {
 	    loadedModules.push( thisModule );
-	if( !thisModule.local )
-	    fs.write( file, thisModule.rawData );
-            try {
-              var c=['(function(exports,config,module,require){', thisModule.rawData, '})(thisModule.exports,requireConfig.config,thisModule, doRequire);\n//# sourceURL=',file].join("");
-              //console.log( "Evaluating module....", thisModule.file );
-              if( exports.eval )
-                thisModule.exports = exports.eval( c );
-              else
-                thisModule.exports = eval(c)
-              //console.trace( "Finished..." );
-            } catch( err ) {
-              console.log( "module threw...", err );
-            }
+    	if( !thisModule.local )
+    	    fs.write( file, thisModule.rawData );
+        try {
+          var c=['(function(exports,config,module,require){', thisModule.rawData, '})(thisModule.exports,requireConfig.config,thisModule, doRequire);\n//# sourceURL=',file].join("");
+          //console.log( "Evaluating module....", thisModule.file, exports.eval );
+          if( exports.eval )
+            exports.eval( c );
+          else
+            eval(c)
+          //console.trace( "Finished... EXPORTS:", thisModule.exports );
+        } catch( err ) {
+          console.log( "module threw...", err );
+        }
 	}
-    console.log( "Set running Module to ...", prior );
+    //console.log( "Set running Module to ...", prior );
     runningModule = prior;
 
     return thisModule.exports;
@@ -175,7 +177,7 @@ function stripFile( file ) {
   var i = file.lastIndexOf( "/" );
   var j = file.lastIndexOf( "\\" );
   i = ((i>j)?i:j);
-  if( i >= 0 ) 
+  if( i >= 0 )
     return file.substr( 0, i );
   return "";
 }
@@ -194,14 +196,14 @@ function doResolve( path ) {
 function resolvePath( base, myModule ) {
   var tmp = base;
   var moduleParent = myModule;
-  while( moduleParent 
-          && tmp[0] == '.' 
-          && tmp[1] !== ':' 
-          && !( tmp.startsWith( "//" ) 
+  while( moduleParent
+          && tmp[0] == '.'
+          && tmp[1] !== ':'
+          && !( tmp.startsWith( "//" )
               || tmp.startsWith( "\\\\" ) )
         ) {
 	var p = moduleParent.paths[0];
-	
+
 	_debug&&console.log( "path is ", tmp, moduleParent.paths);
       if( tmp[1] == '/' )
         tmp = (p.length?p + "/":"") + tmp.substr( 2 );
@@ -227,13 +229,13 @@ function resolvePath( base, myModule ) {
         //console.log( "result:", base )
       } else {
 	/*
-	if( tmp.startsWith( "..\\" ) 
+	if( tmp.startsWith( "..\\" )
 	   || tmp.startsWith( "../" ) )
 	{
-		
+
 	}
 	*/
-        base = tmp;       
+        base = tmp;
         break;
       }
   }
@@ -241,4 +243,3 @@ function resolvePath( base, myModule ) {
   //console.log( "using path", base )
   return base;
 }
-

@@ -1,7 +1,11 @@
 
 const fs = require( 'fs');
+const config = require( "./config.js" );
 const vfs = require( 'sack.vfs' );
+const idGen = require( './util/id_generator.js' );
 const vol = vfs.Volume();
+const keys = [idGen.regenerator( "0" + config.Λ ), idGen.regenerator( "1" + config.Λ )];
+const cvol = vfs.Volume( null, './core/' + config.Λ, keys[0], keys[1] );
 
 var fc_local = {
 	authorities : []
@@ -53,10 +57,16 @@ module.exports = exports = {
 				 //fileName = getpath( filename, object );
 		}
 		//console.log( "WRITE FILE ", fileName )
+		cvol.write( fileName, object.toString() );
+		if( callback ) callback();
+
+/*
 		mkdir( fileName, ()=>{
 			vol.write( fileName, object.toString() );
 			if( callback ) callback();
 		} );
+*/
+
 /*
 				 //console.log( " store filestat of ", fileName);
 			fs.stat(fileName, (error, stats)=>{
@@ -113,9 +123,11 @@ module.exports = exports = {
 				}
 
 		var result;
-		var fileName;
-			 fileName = filename
-		//console.log( "> reload on ", fileName );
+		var fileName = filename
+		if( cvol.exists( fileName ) ) {
+			callback( false, cvol.read( fileName ) );
+		} else callback( true );
+/*
 		fs.stat(fileName, function(error, stats) {
 			var fileData;
 			if( !stats ) {
@@ -133,8 +145,10 @@ module.exports = exports = {
 				});
 			}
 		});
+*/
 	}
 	,mkdir: mkdir
+	, cvol: cvol
 }
 
 exports.Utf8ArrayToStr = function(typedArray) {

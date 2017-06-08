@@ -3,12 +3,17 @@
 var DB = exports = module.exports = {};
 
 var vfs = require( 'sack.vfs');
-
+const IdGen = require( "../../util/id_generator.js" );
+const idGen = IdGen.generator;
+/*
+	// these IDs would get saved with the entity config setting.
 if( !config.firewall ) {
 	config.firewall = { 
 		IDs: [idGen(),idGen(),idGen(),idGen(),idGen(),idGen(),idGen()]
 	}
 }
+*/
+
 var opdb = vfs.Sqlite( `option.db` );
 var vol = opdb.op( "vol", idGen() );
 

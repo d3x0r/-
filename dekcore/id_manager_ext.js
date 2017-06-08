@@ -5,11 +5,13 @@ var server = require( "./https_server.js")
 var config = require('./config.js');
 //console.log( "config is ", config.run.root, "and which require ?" );
 const vfs = require( "sack.vfs" );
+
 const fc = require('./file_cluster.js')
 const Entity = require('./Entity/entity.js')
-console.log("get id_generator...")
-var IdGen = require("./util/id_generator.js");
+const IdGen = require("./util/id_generator.js");
 var idGen = IdGen.generator;
+
+
 var key_frags = new Map();
 const _debug = false;
 // key_frags[key] = keys
@@ -23,6 +25,8 @@ function initKeys() {
 	keys.toString = () => {
 		var leader = `{"Λ":"${keys.Λ}"
 			,"mkey":"${mkey && mkey.Λ}"
+			,"lkey":"${local_authkey&&local_authkey.Λ}"
+			,"pkey":"${public_authkey&&public_authkey.Λ}"
 			,"keys":`;
 		var footer = '}';
 		var buffer = null;
@@ -74,31 +78,44 @@ function keyProto(Λ, o) {
 
 var pendingMakers = [];
 
-function Key(maker_key, askey) {
-
+function Key(maker_key, askey, callback ) {
+	if( typeof askey === 'function' ) {
+		callback = askey;
+		askey = null;
+	}
 	var key = null;
 	var real_key;
 	//console.log( "KEY IS OF COURSE :", typeof maker_key)
+	if( !callback )
+		throw new Error( "Key making is now async... you need a callback." );
+
+	// see if the maker is a local key...
+	// if it's not we have to ask upstream for the key to be made.
 	if ( ( typeof (maker_key) !== "string" ) && ( "Λ" in maker_key ) ) real_key = keys.get(maker_key.Λ);
 	else real_key = keys.get(maker_key);
-	if (real_key) maker_key = real_key.Λ;
+	//if (real_key) maker_key = real_key.Λ;
 	//console.log( "maker", maker_key );
 
-	key = keyProto(idGen());
-	key.maker = maker_key; // always by name here (real key is maker)
 
 	//console.log( "raw key is:", key.Λ, key.maker, maker_key );
 	if (real_key) {
+		console.log( "Make local key without request...")
+		key = keyProto(idGen());
+		key.maker = maker_key; // always by name here (real key is maker)
+		keys.set(key.Λ, key);
+		callback( key );
 		//console.log( "maker now has ", real_key.made.length +1, "keys")
 		real_key.made.push(key);
 	}
 	else {
-		pendingMakers.push({ maker: maker_key, key: key });
+		console.log( "Send key making request..." );
+		pendingMakers.push({ maker: maker_key, key: key, callback: callback });
+		ws.send( {op:"key", maker:maker_key } );
 	}
 	//console.log("SET KEY ", key.Λ, key);
-	keys.set(key.Λ, key);
+
 	//console.log( "generated key ", key.Λ )
-	return key;
+	return undefined; // don't return anything, instead use the callback;
 }
 
 function KeyFrag(fragof) {
@@ -168,24 +185,47 @@ Object.defineProperty(exports, "localAuthKey", {
 		//console.log( "create a new local authority", config.run.Λ );
 		var tmpkey;
 		if( !vol ){
-			let storkey = vfs.op( config.run.^ + "/lid", (tmpkey=Key(config.run.Λ)).Λ );
-			if( storkey !== tmpkey.Λ) {
+			Key(config.run.Λ, null, (tmpkey)=>{
+				let storkey = vfs.Sqlite.op( config.run.Λ + "/lid", (tmpkey).Λ );
+				if( storkey !== tmpkey.Λ) {
+					keys.delete( tmpkey.Λ )
+					var maker = keys.get(tmpkey.maker);
+					var index = maker.made.find( k => k === tmpkey );
+					maker.made.splice( index, 1 );
+					tmpkey = keys.get( storkey );
+				}else {
+					tmpkey.authby = keys.get(config.run.Λ);
+				}
+				vol = vfs.Volume( null, storkey );
+				sqlDb = vol.Sqlite( "idManager.db" );
+				vfs.Λ();
+			});
+			while( !vol ) {
+				console.log( "localauth pause 1")
+				vfs.Δ();
+			}
+			console.log( "localauth started...")
+		}
+		Key(config.run.Λ, null, (tmpkey) =>{
+			local_authkey = sqlDb.op( "lid", tmpkey.Λ )
+			if( local_authkey !== tmpkey.Λ) {
+					console.log( "reset key to local key")
 				keys.delete( tmpkey.Λ )
-				tmpkey.madeFrom.made.delete( tmpkey.Λ );
-				tmpkey = keys.get( storkey );
+				keys.set( local_authkey, tmpkey );
+				tmpkey.Λ = local_authkey;
+				//var maker = keys.get( tmpkey.maker );
+				//var index = maker.made.find( k => k === tmpkey );
+				//maker.made.splice( index, 1 );
+				//tmpkey = keys.get( local_authkey );
 			}else {
 				tmpkey.authby = keys.get(config.run.Λ);
 			}
-			vol = vfs.Volume( null, storkey );
-			sqlDb = vol.Sqlite( "idManager.db" );
-		}
-		local_authkey = sqlDb.op( "lid", (tmpkey=Key(config.run.Λ)).Λ )
-		if( local_authkey !== tmpkey.Λ) {
-			keys.delete( tmpkey.Λ )
-			tmpkey.madeFrom.made.delete( tmpkey.Λ );
-			tmpkey = keys.get( local_authkey );
-		}else {
-			tmpkey.authby = keys.get(config.run.Λ);
+			vfs.Λ();
+
+		})
+		while( !vol ) {
+			console.log( "localauth pause 2")
+			vfs.Δ();
 		}
 		return local_authkey;
 	}
@@ -199,7 +239,7 @@ Object.defineProperty(exports, "publicAuthKey", {
 		//console.log( "create a new local authority", config.run.Λ );
 		// dyanmic key; creates a new peristent key though....
 		if( !vol ){
-			let storkey = vfs.op( config.run.^ + "/lid", (tmpkey=Key(config.run.Λ)).Λ );
+			let storkey = vfs.Sqlite.op( config.run.Λ + "/pid", (tmpkey=Key(config.run.Λ)).Λ );
 			if( storkey !== tmpkey.Λ) {
 				keys.delete( tmpkey.Λ )
 				tmpkey.madeFrom.made.delete( tmpkey.Λ );
@@ -237,10 +277,45 @@ exports.delete = function deleteKey(key, maker) {
 
 var pendingKeys = [];
 
-exports.ID = ID; function ID(making_key, authority_key, callback) {
- let msg = null;
-	ws.send( msg={op:"request", key:idGen() ,auth:authority_key, maker:making_key} );
-  pendingKeys.push( { msg:msg, callback:callback} );
+exports.ID = ID;
+function ID(making_key, authority_key, callback) {
+	let msg = null;
+	var localAuth = keys.get( authority_key );
+	var localMake = keys.get( making_key );
+	if( !localAuth ) {
+		if( localMake ) {
+			Key( making_key, null, (key)=>{
+				ws.send( msg={op:"requestAuth", key:key, auth:authority_key, maker:making_key} );
+				pendingKeys.push( { msg:msg, callback:(key)=>{
+
+				} } );
+			} );
+		}
+		else {
+			ws.send( msg={op:"request", key:idGen(), auth:authority_key, maker:making_key} );
+			pendingKeys.push( { msg:msg, callback:callback} );
+		}
+	} else {
+		if( localMake ) {
+			Key(making_key, null, (newkey)=>{
+				newkey.authby = authority_key;
+				console.log( "authkey", newkey.Λ, localAuth )
+
+				localAuth.authed.push(newkey);
+				flushKeys();
+
+				if (authority_key)
+					newkey.authby = authority_key
+				console.log( "made a new key", newkey.Λ );
+				if (callback)
+					callback(newkey);
+			});
+
+		} else {
+			ws.send( msg={op:"requestMake", key:idGen(), maker:making_key} );
+			pendingKeys.push( { msg:msg, callback:callback} );
+		}
+	}
 }
 
 function validateKey(key, next, callback) {
@@ -317,6 +392,24 @@ function isKeyCreator(key, next, callback) {
 	}
 	return false;
 }
+
+var flushTimer = null;
+process.on( 'exit', ()=>{
+	if( flushTimer ) {
+		tickFlushKeys();
+		clearTimeout( flushTimer );
+	}
+})
+function flushKeys() {
+	if( !flushTimer )
+		flushTimer = setTimeout( tickFlushKeys, 1000 );
+}
+
+function tickFlushKeys() {
+	saveKeys();
+	flushTimer = null;
+}
+
 
 function saveKeys(callback) {
 	var fileName = "core/id.json"
@@ -410,23 +503,30 @@ function loadKeys() {
 			//if( keys.size === 1 ) {
 			//let newkey =  idGen.generator();
 			//console.log(  newkey.toString() );
-			var runKey = Key(config.run.Λ);
+
+			// this callback will be immediate; it's a localonly make.
+			var runKey = null;
+
+			var key = runKey = keyProto(idGen());
+			key.maker = config.run.Λ; // always by name here (real key is maker)
+			keys.set(key.Λ, key);
+
 			Object.defineProperty(config.run, "authed", { enumerable: false, writable: true, configurable: false, value: [] });
 			runKey.trusted = true;
 			keys.Λ = runKey.Λ;//config.run.Λ;
-			//console.log( "2 set key ", keys.Λ)
-			//keys.set( keys.Λ, runKey );
 
+			var runKey2 = null;
+			Key(runKey.Λ, null, (key)=>{
+				runKey2 = key;
+				// generated a ID but throw it away; create config.run key record.
+				keys.delete(runKey2.Λ);
+				runKey2.Λ = config.run.Λ;
+				runKey2.authby = runKey;
+				runKey.authby = runKey2;
+				//console.log( "3 set key ", runKey2.Λ)
+				keys.set(runKey2.Λ, runKey2);
+			});
 
-			var runKey2 = Key(config.run.Λ);
-			// generated a ID but throw it away; create config.run key record.
-			keys.delete(runKey2.Λ);
-			runKey2.Λ = config.run.Λ;
-			runKey2.authby = runKey;
-			runKey.authby = runKey2;
-
-			//console.log( "3 set key ", runKey2.Λ)
-			keys.set(runKey2.Λ, runKey2);
 			mkey = runKey2;
 
 			pendingMakers.forEach((p, index) => {
@@ -486,45 +586,36 @@ function loadKeys() {
 		if (keys.size === 0) {
 			//console.log( Object.keys( keys ).length)
 			console.log("NEED  A KEY")
-			var key = Key(config.run.Λ);
-			key.authby = key;
-			key.trusted = true;
-			//console.log( "created root key", key );
-			mkey = key;
-			//keys.set( key.Λ,  key );
-			//console.log( keys )
-			keys.first = keys.get(key.Λ);
-			//console.log( "new keys after file is ... ", keys );
+			var key = Key(config.run.Λ, null, key=>{
 
-			console.log("first run key set")
-			keys.set(config.run.Λ, config.run);
-
-			ID(key, config.run.Λ, (runkey) => {
-				//console.log( "created root key", runkey );
-				runkey.authby = key;
-				//console.log( "throwing away ", runkey.Λ );
-				keys.delete(runkey.Λ);
-				console.log("replace run key set")
-				keys.set(config.run.Λ, runkey);
-				runkey.Λ = config.run.Λ;
+				key.authby = key;
+				key.trusted = true;
+				//console.log( "created root key", key );
 				mkey = key;
-				//console.log( "new keys ", Object.keys(keys) );
-			});
-			//console.log( "fragment keys is a function??", key_frags[0] )
-			//key_frags.keys[frag.Λ] = key.Λ;
+				//keys.set( key.Λ,  key );
+				//console.log( keys )
+				keys.first = keys.get(key.Λ);
+				//console.log( "new keys after file is ... ", keys );
 
-		}
-		//#endif
-		if (keys.size < 100) {
-			//console.log("manufacture some keys......-----------", mkey)
-			//Key( keys. )
-			ID(mkey, mkey.authby, (key) => {
-				//console.log("newkey:", key)
-				saveKeys();
-			})
+				console.log("first run key set")
+				keys.set(config.run.Λ, config.run);
+
+				ID(key, config.run.Λ, (runkey) => {
+					//console.log( "created root key", runkey );
+					runkey.authby = key;
+					//console.log( "throwing away ", runkey.Λ );
+					keys.delete(runkey.Λ);
+					console.log("replace run key set")
+					keys.set(config.run.Λ, runkey);
+					runkey.Λ = config.run.Λ;
+					mkey = key;
+					//console.log( "new keys ", Object.keys(keys) );
+				});
+				//console.log( "fragment keys is a function??", key_frags[0] )
+				//key_frags.keys[frag.Λ] = key.Λ;
+			});
 		}
 		config.resume();
-
 	});
 }
 
@@ -603,10 +694,10 @@ exports.u8xor = IdGen.u8xor;
 const WebSocket = require('ws');
 var ws = null;
 
-function openHello() {
+function openHello( remote ) {
 
 	var confirmed = false;
-	var ws = new WebSocket('wss://localhost:8000', ["id.core"], {
+	var ws = new WebSocket( remote, ["id.core"], {
 		perMessageDeflate: false
 	});
 	var runkeyt;
@@ -617,6 +708,7 @@ function openHello() {
 		runkeyr = {key:config.run.Λ, step:0};
 
 		//console.log( "connect: ", config.run.Λ );
+		console.log( "This should be a more dynamic key?" );
 		ws.send( config.run.Λ );
 		ws.send = ((orig)=>(buf)=>orig(idGen.u8xor( buf,runkeyt) ) )(ws.send.bind(ws))
 		ws.send( JSON.stringify( {op:"hello", runkey:config.run.Λ, me:me} ) );
@@ -624,8 +716,8 @@ function openHello() {
 
 	ws.on( "message", (msg)=>{
 		try {
-		msg = JSON.parse( idGen.u8xor(msg,runkeyr) );
-	} catch(err) {
+			msg = JSON.parse( idGen.u8xor(msg,runkeyr) );
+		} catch(err) {
 		// protocol error.
 		console.log( "ID manager Protocol error", err );
 		ws.close();
@@ -650,8 +742,7 @@ function openHello() {
 			else if( msg.op === "error" ) {
 				alert( msg.error );
 		}
-	}
-	else console.log( "what the hell??")
+		else console.log( "what the hell??")
 	});
 
 	ws.on( "close", ()=>{
@@ -662,4 +753,4 @@ function openHello() {
 		}
 	})
 }
-openHello();
+exports.openHello = openHello;

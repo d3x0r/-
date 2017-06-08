@@ -14,7 +14,7 @@ const util = require('util');
 const process = require('process');
 const crypto = require('crypto');
 
-const idMan = require('../id_manager.js');
+//const idMan = require('../id_manager.js');
 
 
 const ee = events.EventEmitter;
@@ -28,15 +28,16 @@ function sandboxWS( url, protocols ) {
 		return new sandboxWS( url, protocols );
 
 	this.ws = new ws( url, protocols );
-	this.keyt = { key:null, step: 0 };
-	this.keyr = { key:null, step: 1 };
+	this.keyt = entity.idMan.xkey(null);
+	this.keyr = entity.idMan.xkey(null);
+	console.log( "Key is:", this.keyt)
 	this.send = (buf)=>{
 		if( !this.keyt.key ) {
-			this.keyt.key = buf;
-			this.keyr.key = buf;
+			this.keyt.setKey( buf, 0 );
+			this.keyr.setKey( buf, 1 );
 			this.ws.send( buf );
 		} else {
-			this.ws.send( idMan.u8xor( buf, this.keyt ) );
+			this.ws.send( entity.idMan.u8xor( buf, this.keyt ) );
 		}
 	};
 	this.close = function() { this.ws.close() };
@@ -48,7 +49,7 @@ function sandboxWS( url, protocols ) {
 		if( event === 'message' ) {
 			this.ws.on( 'message', function(buf){
 				//console.log( "sending...", self)
-				cb( idMan.u8xor( buf, self.keyr ) );
+				cb( entity.idMan.u8xor( buf, self.keyr ) );
 			})
 		}else {
 			this.ws.on( event, cb );
@@ -107,7 +108,9 @@ function sandboxWS( url, protocols ) {
 
 //
 var fc = require('../file_cluster.js');
-var config = require('../config.js');
+if( "config" in this ) {
+	this.config = require('../config.js');
+}
 const vfs = require('sack.vfs');
 const vol = vfs.Volume();
 const vfsNaked = require('sack.vfs');
@@ -127,6 +130,7 @@ const volOverride = `(function(vfs, dataRoot) {
 			}
 		}
 	})(vfs.Volume);
+	var tmp = vfs.Sqlite.op;
 
 	vfs.Sqlite = (function(orig) {
 		return function (path) {
@@ -155,6 +159,7 @@ const volOverride = `(function(vfs, dataRoot) {
 			else return orig( path );
 		}
 	})(vfs.Sqlite);
+	vfs.Sqlite.op = tmp;
 })`
 
 config.start( ()=>eval( volOverride )( vfs, config.run.defaults.dataRoot ) )
@@ -178,15 +183,14 @@ var entity = module.exports = exports = {
 	netRequire: netRequire,
 	addProtocol: null, // filled in when this returns
 	config : config,
-	idMan : idMan
+	idMan : null//idMan
 }
-
 //Λ
 
 function EntityExists(key, within) {
 	if (objects.get(key))
 		return true;
-	if (idMan.Auth(key)) {
+	if (entity.idMan.Auth(key)) {
 		fc.restore(within, key, (error, buffer) => {
 			if (error)
 				throw error;
@@ -264,7 +268,7 @@ function Entity(obj, name, description, callback, opts) {
 		return;
 	}
 	if (!obj) {
-		createdVoid = idMan.localAuthKey;
+		createdVoid = entity.idMan.localAuthKey;
 	}
 	var o = createEntity( obj, name, description );
 	if( nextID ) {
@@ -272,7 +276,7 @@ function Entity(obj, name, description, callback, opts) {
 		nextID = null;
 		finishCreate();
 	}
-	else idMan.ID(obj || createdVoid, config.run, (key) => {
+	else entity.idMan.ID(obj || createdVoid, config.run, (key) => {
 		//console.log( "object now has an ID", o, key );
 		o.Λ = key.Λ;
 		finishCreate();
@@ -366,7 +370,7 @@ var timerId;  // static varible to create timer identifiers.
 			, get me() { return o.Λ; }
 			//, get room() { return o.within; }
 			, idGen(cb) {
-				return idMan.ID(o.Λ, o.created_by.Λ, cb);
+				return entity.idMan.ID(o.Λ, o.created_by.Λ, cb);
 			}
 			, console: {
 				log: (...args) => console.log(...args)
@@ -518,10 +522,12 @@ var timerId;  // static varible to create timer identifiers.
 		sandbox.clearImmediate = sandbox.clearTimeout;
 		sandbox.clearInterval = sandbox.clearInterval;
 
-		sandbox.idGen.u8xor = idMan.u8xor;
-		sandbox.idGen.xor = idMan.xor;
+		sandbox.idGen.u8xor = entity.idMan.u8xor;
+		sandbox.idGen.xor = entity.idMan.xor;
 		sandbox.config.run = { Λ : null };
-		idMan.ID( idMan.localAuthKey, o.created_by.Λ, (id)=>{ sandbox.config.run.Λ = id.Λ } );
+		console.log( "This key should have been recovered in config?" );
+		entity.idMan.ID( entity.idMan.localAuthKey, o.created_by.Λ, (id)=>{ sandbox.config.run.Λ = id.Λ } );
+
 		sandbox.require= local ? sandboxRequire.bind(sandbox) : netRequire.require.bind(sandbox)			;
 		sandbox.global = sandbox;
 		sandbox.addListener = sandbox.on;
@@ -561,7 +567,7 @@ function addDriver( o, name, iName, iface) {
 					if (args.length) args += ",";
 					args += JSON.stringify(arg)
 				})
-				idMan.ID( o.Λ, me, (id)=>{
+				entity.idMan.ID( o.Λ, me, (id)=>{
 					var pending = { id: id, op:"driver", driver:name, data: { type:"driverMethod", method:key, args:args } }
 					o.child.send( pending );
 					childPendingMessages.set( id, pending )
@@ -1062,7 +1068,7 @@ function createEntity(obj,name,desc ) {
 			this.attached_to = null;
 			this.within = null;
 			objects.delete( this.Λ );
-			idMan.delete( this.Λ, config.run.Λ );
+			entity.idMan.delete( this.Λ, config.run.Λ );
 		}
 		, toString() {
 			var attached = null;
@@ -1184,7 +1190,7 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 		nextID = input[0].Λ;
 		Entity( null, input[0].name, input[0].description, (o)=>{
 			var defer = [];
-			console.log( "recovered core entityt..." );
+			console.log( "recovered core entity...", input[0].name );
 			o.value = input[0][o.Λ];
 			if( o.sandbox ) {
 				console.log( "restore scripts to ....", o.sandbox.scripts );

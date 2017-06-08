@@ -1,5 +1,5 @@
 "use strict";
-
+console.trace( "required by..." );
 //console.log( "using require: ", require, module )
 const fs = require('fs');
 const server = require( './https_server.js');
@@ -8,7 +8,6 @@ var config = require('./config.js');
 
 const fc = require('./file_cluster.js')
 const Entity = require('./Entity/entity.js')
-console.log("get id_generator...")
 var IdGen = require("./util/id_generator.js");
 var idGen = IdGen.generator;
 var key_frags = new Map();
@@ -24,6 +23,8 @@ function initKeys() {
 	keys.toString = () => {
 		var leader = `{"Λ":"${keys.Λ}"
 			,"mkey":"${mkey && mkey.Λ}"
+			,"lkey":"${exports.localAuthKey.Λ}"
+			,"pkey":"${exports.publicAuthKey.Λ}"
 			,"keys":`;
 		var footer = '}';
 		var buffer = null;
@@ -184,6 +185,7 @@ Object.defineProperty(exports, "localAuthKey", {
 	}
 });
 
+var public_authkey;
 Object.defineProperty(exports, "publicAuthKey", {
 	get: function () {
 		if (public_authkey)
@@ -210,7 +212,7 @@ exports.delete = function deleteKey(key, maker) {
 
 exports.ID = ID; function ID(making_key, authority_key, callback) {
 	//stackTrace();
-	//console.log( "Making a key...... ", making_key.Λ, authority_key )
+	console.log( "Making a key...... ", making_key, authority_key )
 	//console.log( config.run.Λ );
 	//console.log( keys[making_key.Λ] );
 	if (!making_key) throw new Error("Must specify at least the maker of a key");
@@ -239,17 +241,16 @@ exports.ID = ID; function ID(making_key, authority_key, callback) {
 	if (making_key === authority_key)
 		throw new Error("Invalid source keys");
 
-	if (!making_key || !validateKey(making_key, (k) => { return keys.get(k.maker) }))
-		if (!authority_key || !validateKey(authority_key, (k) => { return k.authby })) {
-			//console.log("MakingKey", making_key);
-			//console.log("AuthorityKey", authority_key);
-			throw { msg: "Invalid source key", maker: making_key, auth: authority_key };
+	if( (!making_key || !validateKey(making_key, (k) => { return keys.get(k.maker) }))
+		|| (!authority_key || !validateKey(authority_key, (k) => { return k.authby }))) {
+			throw new Error({ msg: "Invalid source key", maker: making_key, auth: authority_key });
 		}
 	var newkey = Key(making_key);
 	newkey.authby = authority_key;
 	//console.log( "authkey", newkey.Λ, authority_key )
 
 	authority_key.authed.push(newkey);
+	flushKeys();
 
 	if (authority_key)
 		newkey.authby = authority_key
@@ -257,6 +258,23 @@ exports.ID = ID; function ID(making_key, authority_key, callback) {
 	if (callback)
 		callback(newkey);
 	return newkey.Λ;
+}
+
+var flushTimer = null;
+process.on( 'exit', ()=>{
+	if( flushTimer ) {
+		tickFlushKeys();
+		clearTimeout( flushTimer );
+	}
+})
+function flushKeys() {
+	if( !flushTimer )
+		flushTimer = setTimeout( tickFlushKeys, 1000 );
+}
+
+function tickFlushKeys() {
+	saveKeys();
+	tickFlushKeys = null;
 }
 
 function validateKey(key, next, callback) {
@@ -335,7 +353,7 @@ function isKeyCreator(key, next, callback) {
 }
 
 function saveKeys(callback) {
-	var fileName = "core/id.json"
+	var fileName = config.run.defaults.dataRoot + "/id.json"
 	//console.log( "Saving keys:", keys );
 	fc.store(fileName, keys, callback);
 }
@@ -411,9 +429,8 @@ function loadKeyFragments(o) {
 }
 
 function loadKeys() {
-	//console.log( "Load Keys")
 	var result;
-	var fileName = "core/id.json";
+	var fileName = config.run.defaults.dataRoot + "/id.json";
 
 
 	//_debug&&console.log("CONFIG DEFER.... ");
@@ -470,7 +487,7 @@ function loadKeys() {
 				(keyids = Object.keys(loaded_keys.keys)).forEach((keyid) => {
 					//console.log( "key and val ", keyid, val );
 					var key = keyProto(keyid, loaded_keys.keys[keyid]);
-					//console.log( "recover key", keyid )
+					console.log( "recover key", keyid, key )
 					keys.set(keyid, key);
 					//key.toString =
 				});
@@ -481,15 +498,16 @@ function loadKeys() {
 						return;
 					}
 					var maker = keys.get(key.maker);
-					//console.log( "key and val ", keyid, key );
-					//console.log( "maker failed?", maker, key.maker )
+					console.trace( "key and val ", keyid, key );
+					console.log( "maker failed?", maker, key.maker )
 					maker.made.push(key);
 					if (key.authby = keys.get(key.authby))
 						key.authby.authed.push(key);
 					//console.log( "recover  key authby ", key, key.authby )
 				});
 				mkey = keys.get(loaded_keys.mkey);
-
+				local_authkey = keys.get( loaded_keys.lkey );
+				public_authkey = keys.get( loaded_keys.pkey );
 				Object.defineProperty(config.run, "authed", { enumerable: false, writable: true, configurable: false, value: [] });
 
 				//console.log( "new keys after file is ... ", keys );
@@ -572,13 +590,13 @@ function setRunKey(key) {
 		//console.log( "config.run is now? ", config.run.Λ )
 		//console.log( "old key made: ", oldkey.made )
 		//console.log( "old key authed: ", oldkey.authed )
-		if( oldkey )
-			oldkey.made.forEach(m => m.maker = key);
+		console.log( "oldkey made:", oldkey.made )
+		oldkey.made.forEach(m => m.maker = key);
 		//oldkey.authed.forEach( m=>m.authby=key );
 		//console.log( "old key made: ", oldkey.made )
 		// setup new key
 		keys.set(key, oldkey);
-		saveKeys();
+		flushKeys();
 	}
 
 }
@@ -615,6 +633,8 @@ config.start(loadKeys);
 exports.xor = IdGen.xor;
 exports.dexor = IdGen.dexor;
 exports.u8xor = IdGen.u8xor;
+exports.xkey = IdGen.xkey;
+exports.ukey = IdGen.ukey;
 
 var peers = [];
 var branches = [];

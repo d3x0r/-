@@ -1,3 +1,4 @@
+console.log( "Register User PROTOCOL" )
 var db = require( "./userDatabase.js" );
 
 var peers = [];

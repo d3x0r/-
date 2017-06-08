@@ -32,8 +32,6 @@ entity.create( "Command And Control", "user manager", "userManagerStartup.js" )
 
 //entity.create( "Command And Control-HTTP", "http MOOSE console", "webShell/shellServer.js" );
 
-entity.create( "userAuth", "Layer 0 Account Managment", "./uiServer/userAuth/userProtocol.js" );
-
 // these are private To MOOSE anyway... so they're not a lot of good?
 var services = null;
 var firewall = null;

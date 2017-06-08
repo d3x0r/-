@@ -23,6 +23,18 @@ exports.regenerator = function(s) {
     return base64ArrayBuffer( RNG2.getBuffer(8*(16+16)) );
 }
 
+exports.u16generator = function() {
+    // this is an ipv6 + UUID
+    var out = [];
+    for( var c = 0; c < 25; c++ ) {
+    	var ch = RNG.getBits( 10 ); if( ch < 32 ) ch |= 64;
+    	out[c] = String.fromCodePoint( ch );
+    }
+
+    return out.join('');
+}
+
+
 // Converts an ArrayBuffer directly to base64, without any intermediate 'convert to string then
 // use window.btoa' step. According to my tests, this appears to be a faster approach:
 // http://jsperf.com/encoding-xhr-image-data/5
@@ -132,45 +144,39 @@ function dexor(a,b,d,e) {
 }
 exports.dexor=dexor;
 
+var u8xor_code_encodings2 = new Uint8Array( 64* 256 );
 
 var u8xor_code_encodings = {};
 for( var a = 0; a < 64; a++  ) {
    var r = (u8xor_code_encodings[a]={} );
    for( var b = 0; b < encodings.length; b++  ) {
+     u8xor_code_encodings2[a*256+encodings.codePointAt(b)] = a^b;
 	 r[encodings[b]] = a^b;
    }
 }
 xor_code_encodings['='] = {'=': '='};
-//console.log( "u8xor_code_encodings:", JSON.stringify( u8xor_code_encodings) )
 
 //var TD = new TextDecoder();
 //var TE = new TextEncoder();
 function u8xor(a,b) {
-	var buf = Buffer.from(a, 'utf8');
+	let buf = Buffer.from(a, 'utf8');
+    if( !b.keybuf ) { console.trace( "Key needs buf...." ); b.keybuf = Buffer.from( b.key, 'utf8' ); }
+    let c = b.keybuf;//Buffer.from(b.key, 'utf8');
 	//var buf = TE.encode(a);
-	var outBuf = new Buffer( buf.length );
-	//var outBuf = new Uint8Array( buf.length );
-	var n;
-	var o = b.step;
+	let outBuf = new Buffer( buf.length );
+	let o = b.step;
 	b.step += buf.length;
-	var keylen = b.key.length-5;
+	let keylen = b.key.length-5;
 	b.step %= keylen;
-	var b = b.key;
 
-	for( n = 0; n < buf.length; n++ ) {
-		var v = buf[n];
-		var mask = 0x3f;
-		if( (v & 0xE0) == 0xC0 ) {
-			{mask=0x3;}
-		}
-		else if( (v & 0xF0) == 0xE0 ) {
-			{mask=0xF;}
-
-		}
-		else if( (v & 0xF0) == 0xF0 ) {
-			{mask=0x7;}
-		}
-		outBuf[n] = (v & ~mask ) | ( u8xor_code_encodings[v & mask ][b[(n+o)%(keylen)]] & mask )
+	for( var n = 0; n < buf.length; n++ ) {
+		let v = buf[n];
+		let mask = 0x3f;
+		if( (v & 0xE0) == 0xC0 )      { mask=0x1F; }
+		else if( (v & 0xF0) == 0xE0 ) { mask=0xF; }
+		else if( (v & 0xF8) == 0xF0 ) { mask=0x7; }
+		//outBuf[n] = (v & ~mask ) | ( u8xor_code_encodings[v & mask ][b[(n+o)%(keylen)]] & mask )
+		outBuf[n] = (v & ~mask ) | ( u8xor_code_encodings2[ ((v & mask) <<8) + (c[(n+o)%(keylen)]) ] & mask )
 	}
 	//console.log( "buf" , buf.toString('hex') );
 	//console.log( "buf" , outBuf.toString('hex') );
@@ -178,3 +184,24 @@ function u8xor(a,b) {
 	//return TD.decode(outBuf);
 }
 exports.u8xor=u8xor;
+
+function txor(a,b) {
+	const d = [...b].map( (c)=>c.codePointAt(0) );
+	const keylen = d.length;
+	return [...a].map( (c,n)=>String.fromCodePoint( c.codePointAt(0)^d[n%keylen] )).join("");
+}
+exports.u16xor=txor;
+
+
+function makeXKey( key, step ) {
+    return { key : key, keybuf: key?Buffer.from(key,'utf8'):null, step: step?step:0, setKey(key,step) { this.key = key; this.keybuf = Buffer.from(key,'utf8'); this.step = step; } };
+}
+
+function makeU16Key( ) {
+    return exports.u16generator();
+}
+
+exports.xkey = makeXKey;
+exports.ukey = makeU16Key;
+
+Object.freeze( exports );

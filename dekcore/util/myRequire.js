@@ -1,9 +1,9 @@
 "use strict";
 
-const _debug = false;
+const _debug = true;
 var https = require( 'https' );
 const sack = require( 'sack.vfs' );
-
+const nativeVol = sack.Volume();
 var fs;
 
 
@@ -73,7 +73,7 @@ function doRequire( file ) {
     return requireConfig.config;
   }
 
-  //console.log( "module is ", thisModule )
+  console.log( "module is ", file )
   if( !(file[0] === '.' ) && !( file[0] === '/' ) && (file.indexOf('/')<0) ) {
       // check for allowed modules.
       return require( file );
@@ -90,6 +90,20 @@ function doRequire( file ) {
     let evalCode = false;
     let evalJson = false;
 
+	if( file[0] === ':' )
+	{
+		var buf = nativeVol.read( file.substr( 1 ) );
+		if( buf ) {
+			if( file.includes( ".json" ) )
+				evalJson = true;
+			else
+				evalCode = true;
+			thisModule.rawData = buf.toString();
+			thisModule.loaded = true;
+		}
+	}
+
+if( !thisModule.loaded ) {
     var opts = {  hostname: requireConfig.host,
                   port : requireConfig.port,
                   method : "GET",
@@ -137,7 +151,7 @@ function doRequire( file ) {
       }).on('error', (e) => {
         console.trace(`Got error: ${e.message}`, e);
       });
-
+}
     while(!thisModule.loaded) sack.Δ();
 
     var prior = runningModule;
@@ -156,7 +170,7 @@ function doRequire( file ) {
     	if( !thisModule.local )
     	    fs.write( file, thisModule.rawData );
         try {
-          var c=['(function(exports,config,module,require){', thisModule.rawData, '})(thisModule.exports,requireConfig.config,thisModule, doRequire);\n//# sourceURL=',file].join("");
+          var c=['(function(exports,rconfig,module,require){', thisModule.rawData, '})(thisModule.exports,requireConfig.config,thisModule, doRequire);\n//# sourceURL=',file].join("");
           //console.log( "Evaluating module....", thisModule.file, exports.eval );
           if( exports.eval )
             exports.eval( c );

@@ -100,7 +100,7 @@ https.addProtocol( "karaway.core", (ws)=>{
 			ws.close();
 			return;
 		}
-        console.log( "kc msg", msg );
+	        console.log( "kc msg", msg );
 		{
 			if( msg.op === "hello" ) {
 				var test = Entity.getEntity( msg.me );
@@ -186,6 +186,7 @@ function BigBang() {
 }
 
 //------------- some initial startup modes
+var discoverId = idGen.generator();
 
 config.start( run );
 //setTimeout( ()=>{
@@ -203,17 +204,17 @@ function run() {
     d = discoverer.discover( { timeout: 1000
         , master : true
         , filter : false // expects to hear on localhost and/or same interfaces
-        , onsend : (addr)=>{ return config.run.Λ + " identify " +  idMan.xor( config.run.Λ, config.Λ ) + " The Void" }
+        , onsend : (addr)=>{ return discoverId + " identify " +  idMan.xor( discoverId, config.Λ ) + " The Void" }
         , onquery : (msg, self,raddr,addr) => {
         	var parts = msg.split( " " );
-                if( parts[0] === config.run.Λ )  {// is a message from myself.
+                if( parts[0] === discoverId )  {// is a message from myself.
                     //console.log( "From myself - ignore")
                     return null;
                 }
                 //console.log( "msg ", parts )
                 if( parts[1] === "identify" ) {
-					var rid = idMan.xor( parts[0], parts[2] );
-					mapRemote( d, parts, rid, raddr, addr );
+			var rid = idMan.xor( parts[0], parts[2] );
+			mapRemote( d, parts, rid, raddr, addr );
                 } else if( parts[1] === "identity" ) {
 			console.log( "I've been told to be someone else?" );
                 	// parts[2] == my new run ID...
@@ -244,12 +245,11 @@ function reassign( parts, rid, raddr, addr ) {
 	console.log( "check...", reassignments )
 	var r = null;
 	if( !( r = reassignments.find( (r)=>r.o===parts[0] ) ) ) {
-		reassignments.push( { o:parts[0] } );
+		reassignments.push( { o:parts[0], n:null, m:null } );
 		var name = parts.slice( 3 ).join( " " );
 		//console.log( "added for reassignment", parts[0] )
 		MOOSE.create( name, "Remote Proxy", (o)=>{
 			console.log("remote parts:", parts, o.Λ)
-			remotes.set( rid, o.Λ );
 			saveRemotes();
 			if( !("io" in o.sandbox) ) o.sandbox.io = {};
 			//console.log( "gun for remote listening on ", o.Λ)
@@ -264,16 +264,24 @@ function reassign( parts, rid, raddr, addr ) {
 			//o.sandbox.io.gun.put( {msg: "Hello" } );
 			var merge1 = idMan.xor( config.run.Λ, o.Λ );
 			var merge2 = idMan.xor( merge1, parts[0] );
-			var merge3 = idMan.xor( parts[2], o.Λ );
-			reassignments.find( (r)=>r.o===parts[0] ).n = o.Λ;
+			var merge3 = idMan.xor( merge1, rid );
+			remotes.set( rid, o.Λ );
 
-			d.send( merge3 + " identity " + merge3 + " " + config.run.defaults.defaultPort, raddr, addr );
+			var assignment = reassignments.find( (r)=>r.o===parts[0] );
+			assignment.n = o.Λ;
+			assignment.m = rid;
+			var msg = merge1 + " identity " + merge3 + " " + config.run.defaults.defaultPort ;
+			console.log( "Send 1:", msg );
+			d.send( merge1 + " identity " + merge3 + " " + config.run.defaults.defaultPort, raddr, addr );
 
 				//reassignments.splice( , 1 );
 			} );
 	}
-	else if( r.n )
-		d.send( config.run.Λ + " identity " + r.n + " " + config.run.defaults.defaultPort, raddr, addr );
+	else if( r.n ) {
+			var msg = idMan.xor( config.run.Λ, r.n ) + " identity " + idMan.xor( idMan.xor( config.run.Λ , r.n ), rid ) + " " + config.run.defaults.defaultPort;
+			console.log( "Send 2:", msg );
+		d.send( idMan.xor( config.run.Λ, r.n ) + " identity " + idMan.xor( idMan.xor( config.run.Λ , r.n ), rid ) + " " + config.run.defaults.defaultPort, raddr, addr );
+	}
 
 }
 
@@ -317,8 +325,13 @@ function mapRemote( d, parts, rid, raddr, addr ) {
 		reassign( parts, rid, raddr, addr );
 	}
 	else {
+		console.log( "Got map:", remap );
 		var e = Entity.getEntity(remap);
-		d.send( parts[0] + " identity " + key + " " + config.run.defaults.defaultPort, raddr, addr );
+		console.log( "e:", e );
+		var replyKey = null;
+                var key = idMan.xor( replyKey = idMan.xor( e.Λ, config.run.Λ ), rid );
+		console.log( "Send 0?", replyKey + " identity " + key + " " + config.run.defaults.defaultPort );
+		d.send( replyKey + " identity " + key + " " + config.run.defaults.defaultPort, raddr, addr );
 
 	}
 	if( idMan.Auth( rid ) ) {
@@ -326,12 +339,13 @@ function mapRemote( d, parts, rid, raddr, addr ) {
 		  console.log( "I know this ID?")
 		  var e = Entity.getEntity( rid );
 		  if( e )  {
-			  var key = idMan.xor( idMan.xor( e.Λ, config.run.Λ ), parts[2] );
-			  d.send( parts[2] + " identity " + key + " " + config.run.defaults.defaultPort, raddr, addr );
+			var replyKey = null;
+			  var key = idMan.xor( replykey = idMan.xor( e.Λ, config.run.Λ ), rid );
+			console.log( "send 0a?", replyKey + " identity " + key + " " + config.run.defaults.defaultPort );
+			  d.send( replyKey + " identity " + key + " " + config.run.defaults.defaultPort, raddr, addr );
 		  } else {
 			// this is no longer valid; entity does not exist already.
 			// delete this key ( and all descendents keys )
-			idMan.delete( parts[0] );
 			console.log( "Remote should actually be.... REASSIGN ")
 			reassign( parts, rid, raddr, addr );
 		  }

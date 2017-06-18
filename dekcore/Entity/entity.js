@@ -59,8 +59,60 @@ function sandboxWS( url, protocols ) {
 	tmp.forEach(function(key) {
 		Object.defineProperty(self, key, { enumerable: false, writable: false, configurable: false });
 	})
-
 }
+
+function sandboxWSS( opts ) {
+	let self = this;
+	if( !(this instanceof sandboxWSS) )
+		return new sandboxWS( url, protocols );
+
+	this.ws = new ws.Server( opts );
+
+	this.on = function(event,cb) {
+		if( event === 'connection' ) {
+			this.ws.on( 'connection', function(ws) {
+				
+				ws.keyt = entity.idMan.xkey(null);
+				ws.keyr = entity.idMan.xkey(null);
+				console.log( "Key is:", ws.keyt)
+		                				
+				ws.send = ((orig)=>{(buf)=>{
+					orig( entity.idMan.u8xor( buf, ws.keyt ) );
+				}} )(ws.send.bind( ws ) );
+				//ws.close = function() { ws.close() };
+				ws.onopen = function(cb){ ws.on( "open", cb ) }
+				ws.onmessage = function(cb){ ws.on( "message", cb ) }
+				ws.onerror = function(cb){ ws.on( "error", cb ) }
+				ws.onclose = function(cb){ ws.on( "close", cb ) }
+				ws.on = (( orig )=>{ return function(event,cb) {
+					if( event === 'message' ) {
+						orig( 'message', function(buf){
+							if( !ws.keyt.key ) {
+								ws.keyt.setKey( buf, 1 );
+								ws.keyr.setKey( buf, 0 );
+							}else {
+								//console.log( "sending...", self)
+								cb( entity.idMan.u8xor( buf, self.keyr ) );
+							}
+						} );
+					} else {
+						orig( event, cb );
+					}
+				} } )( ws.on.bind( ws ) );
+				const tmp = ["keyr", "keyt" ];
+				tmp.forEach(function(key) {
+					Object.defineProperty(ws, key, { enumerable: false, writable: false, configurable: false });
+				})
+						
+				cb( ws );	
+			} );
+		}else {
+			console.log( "unknown event specified:", event );
+		}
+	}
+}
+
+
 
 //console.log( "dirname is", __dirname );
 // Entity events
@@ -108,9 +160,9 @@ function sandboxWS( url, protocols ) {
 
 //
 var fc = require('../file_cluster.js');
-if( "config" in this ) {
-	this.config = require('../config.js');
-}
+
+const config = require('../config.js');
+
 const vfs = require('sack.vfs');
 const vol = vfs.Volume();
 const vfsNaked = require('sack.vfs');
@@ -269,6 +321,7 @@ function Entity(obj, name, description, callback, opts) {
 	}
 	if (!obj) {
 		createdVoid = entity.idMan.localAuthKey;
+		console.log( "Setting void to localAuthkey..." );
 	}
 	var o = createEntity( obj, name, description );
 	if( nextID ) {
@@ -343,7 +396,7 @@ var timerId;  // static varible to create timer identifiers.
 		//    theVoid = true;
 		//if( config.run.Λ === o.created_by.Λ )
 		//    local = true;
-
+		console.log( "Sandbox is local?", local );
 		var sandbox = {
 			require: local ? sandboxRequire : netRequire.require
 			, process: process
@@ -373,7 +426,8 @@ var timerId;  // static varible to create timer identifiers.
 				return entity.idMan.ID(o.Λ, o.created_by.Λ, cb);
 			}
 			, console: {
-				log: (...args) => console.log(...args)
+				log: (...args) => console.log(...args),
+				trace: (...args) => console.trace(...args)
 			}
 			, io: {
 				addProtocol(p, cb) { return o.addProtocol(p, cb); },
@@ -527,7 +581,7 @@ var timerId;  // static varible to create timer identifiers.
 		sandbox.config.run = { Λ : null };
 		console.log( "This key should have been recovered in config?" );
 		entity.idMan.ID( entity.idMan.localAuthKey, o.created_by.Λ, (id)=>{ sandbox.config.run.Λ = id.Λ } );
-
+		console.log( "Local is still...", local  );
 		sandbox.require= local ? sandboxRequire.bind(sandbox) : netRequire.require.bind(sandbox)			;
 		sandbox.global = sandbox;
 		sandbox.addListener = sandbox.on;
@@ -657,6 +711,9 @@ function addDriver( o, name, iName, iface) {
 		if (src == 'ws') {
 			return sandboxWS;
 		}
+		if (src == 'wss') {
+			return sandboxWSS;
+		}
 		if (o.permissions.allow_file_system && src == 'fs') return fs;
 		if (o.permissions.allow_file_system && src == 'stream') return stream;
 		if (src == 'crypto') return crypto;
@@ -667,7 +724,7 @@ function addDriver( o, name, iName, iface) {
 		if (src == 'tls') return tls;
 		if (src == 'https') return https;
 		if (src == 'path') return path;
-        if( src == 'child_process' ) return cp;
+		if( src == 'child_process' ) return cp;
 		if( src == 'process' ) return process;
 		//if (src == 'path') return path;
 
@@ -813,6 +870,7 @@ function addDriver( o, name, iName, iface) {
 		try {
 			vm.runInContext(code, o.sandbox
 				, { filename: src, lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 1000 })
+			console.log( "Completed entity sandbox require without error?" );
 		} catch( err) {
 			console.log( "VM Error:", err );
 		}

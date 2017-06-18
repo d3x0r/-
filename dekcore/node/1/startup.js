@@ -1,10 +1,13 @@
-"use strict";
-const webRoot = "./uiRoot";
+
+console.trace( "Hello from startup script" );
+
+console.log( "This:", Object.keys( global ) );
 //var fs = require( 'fs');
-var vfs = require( 'sack.vfs');
-var vol = vfs.Volume();
-const config = require ( "./config.js" )
-const idGen = require( "./util/id_generator.js")
+
+//io.firewall.allocatePort( ( port )=>{ 
+
+const vfs = require( 'sack.vfs');
+const vol = vfs.Volume();
 const url = require( 'url' );
 const crypto = require( 'crypto');
 const tls = require( 'tls');
@@ -13,42 +16,16 @@ const path = require('path');
 
 
 //------ setup websocket compatibility
-const ws = require( 'ws' );
-const WebSocket = ws.Client;
-const WebSocketServer = ws.Server;
+//const WebSocket = require( 'ws' );
+const WebSocketServer = require( 'wss' );
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";  // enable wss for gun without mods....
-//const Gun = require('gun');
-
-//require('gun/lib/file.js');
-//require('gun/lib/wsp/server.js');
-//require('gun/lib/wsp/server-push.js');
-//require('gun/lib/S3.js');
-
-//exports.Gun = Gun;
-//exports.gun = Gun(  { uuid : ID.generator, file : null } );;
-
-
-//const WebSocketServer   = ws.Server
-
-exports.Server = scriptServer;
-exports.addProtocol = addProtocol;
-
-var ID = require( './util/id_generator.js' );
-
-
-//exports.gun.on( "get", (a,b,c)=>console.log("gun get:", a,b,c) )
-//exports.gun.on( "put", (a,b,c)=>console.log("gun put:", a,b,c) )
-
-//Gun.on( "get", (a)=>console.log("GUN get:", a['#'], a.get ) )
-//Gun.on( "put", (a,b,c)=>console.log("GUN put:", a,b,c) )
+//process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";  // enable wss for gun without mods....
 
 var wsServer = null;
 
-function scriptServer( port, internal ) {
-    if( !port ) port = 8000;
+function scriptServer( port ) {
+    if( !port ) port = 6000;
 
-    console.log( "Starting Script Services on port", port );
     var privateKey = vol.read('ca-key.pem').toString();
     var certificate = vol.read('ca-cert.pem').toString();
     var option = {key: privateKey, cert: certificate};
@@ -61,61 +38,16 @@ function scriptServer( port, internal ) {
         	console.log( "is upgrade, how to switch here?" );
         }
       console.log( "got request" + req.url );
-
-      if( !internal ) {
-	      var filePath = config.run.defaults.webRot + unescape(req.url);
-	      if (filePath == './uiRoot/') filePath = './uiRoot/index.html';
-	}
-	else
-	      var filePath = '.' + unescape(req.url);
-
-      var extname = path.extname(filePath);
-      var contentType = 'text/html';
-      switch (extname) {
-          case '.js':
-              contentType = 'text/javascript';
-              break;
-          case '.css':
-              contentType = 'text/css';
-              break;
-          case '.json':
-              contentType = 'application/json';
-              break;
-          case '.png':
-              contentType = 'image/png';
-              break;
-          case '.jpg':
-              contentType = 'image/jpg';
-              break;
-          case '.wav':
-              contentType = 'audio/wav';
-              break;
-      }
-
-
-        {
-            console.log( "serving a relative...", req.url, filePath );
-            if( vol.exists( filePath  ) ) {
-                var content = vol.read( filePath );
-                            res.writeHead(200, { 'Content-Type': contentType });
-                            res.end(new Buffer(content), 'utf-8');
-                    }
-                    else{
-                        console.log( "exists on", filePath, "is false.")
+            {
                         res.writeHead(404);
                         res.end('<HTML><head><script src="userAuth/unauthorized.js"></script></head></HTML>');
-                    }
-        }
+            }
     });
     server.listen( port, ( err ) => {
 	if( err ) console.log( "Err?", err );
-	console.log( "bind success");
+	else console.log( "bind success");
     } );
-    /*
-    exports.gun.wsp(server, ()=>{
-        console.log( "want a websocket?")
-    });
-    */
+
     wsServer = new WebSocketServer( {
         server: server, // ws npm
         httpserver: server, // websocket npm
@@ -152,13 +84,6 @@ function validateWebSock( ws ) {
 	console.log( "ws:", ws );
 	console.log( "protocols:", protocols, "\n", proto );
 
-	var ip = ws.upgradeReq.headers['x-forwarded-for'] ||
-	     ws.upgradeReq.connection.remoteAddress ||
-	     ws.upgradeReq.socket.remoteAddress ||
-	     ws.upgradeReq.connection.socket.remoteAddress;
-
-	console.log( "ws Connected from:", ip );
-
 	// this is the way 'websocket' library gives protocols....
 	//console.log( "other", ws.protocolFullCaseMap[ws.requestedProtocols[0]])
     wsServer.acceptingProtocol = null;
@@ -189,7 +114,7 @@ function validateWebSock( ws ) {
                     get() { console.log( "getting 'onerror' callback?" ) }
                 })
 
-				ws.on = ((orig)=>(event,cb)=>{
+		ws.on = ((orig)=>(event,cb)=>{
                     if( typeof( cb ) !== "function" )
                         throw new Error( "Callback is not a function?" );
                     //console.trace( "websock on: ", event, cb)
@@ -229,26 +154,17 @@ function validateWebSock( ws ) {
       //ws.reject( "Unknown Protocol" );
 }
 
-/*
-addProtocol( "gunDb", (conn)=>{
-    //console.log( "connected gundb, add peer")
-    peers.push( conn );
+addProtocol( "Auth", (ws)=>{
+	ws.on( "open", (ws)=>{
+		console.log( "received new connection on Auth0" );
+		io.firewall.mapService( "Auth", (address)=>{
+			ws.send( JSON.stringify( {op:"redirect", addr: address} ) );
+		} );
+	} );
+	ws.on( "message", (ws)=>{ 
+		console.log( "No message handling really." );
+	} );
+} );
+scriptServer();
 
-    exports.gun.on('out', (msg)=>{
-        msg = JSON.stringify({headers:{},body:msg});
-        peers.forEach( (p)=>{ try { p.send( msg ) }catch  (err) {console.log( "Peer is bad... maybe closing?", err );} })
-    })
-
-    conn.on( 'message',(msg)=>{
-            console.log( "gundb is getting", msg );
-            exports.gun.on('in',msg.body)
-        })
-    conn.on( 'close', (reason,desc)=>{
-        // gunpeers gone.
-        var i = peers.findIndex( p=>p===conn );
-        if( i >= 0 )
-            peers.splice( i, 1 );
-    })
-})
-
-*/
+//} )

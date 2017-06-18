@@ -5,18 +5,11 @@ const _debug = false;
 
 const os = require( "os" );
 
-function getLocation() {
-	var here = process.cwd();
-	var i = os.networkInterfaces();
-	for( var int in i ) i[int].forEach( i=>here += i.mac );
-	return idGen.regenerator( here );
-}
-
 var config = module.exports = exports = {
 	starts: [loadConfig]  // starts to run sequentially....
 	, start_deferred: 0  // count of deferments (one resume required for each defer?)
 	, starts_deferred: null // starts that have been deferred.
-	, Λ: getLocation()
+	, Λ: null
 	, run: {
 		Λ: undefined
 		, hostname: os.hostname()
@@ -37,6 +30,32 @@ var config = module.exports = exports = {
 	}
 }
 const fc = require('./file_cluster.js');
+
+function getLocation() {
+	var here = process.cwd();
+	var i = os.networkInterfaces();
+	for( var int in i ) i[int].forEach( i=>{ 
+		if( i.family == "IPv6" ) {
+			if( !i.address.startsWith( 'fe80' ) 
+			   && !i.address === "::1" )
+				config.run.addresses.push( i.address );
+		} else {
+			if( i.address !== "127.0.0.1" 
+			  && !i.address.startsWith( "192.168" ) 
+			  && !["172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.", "172.22.", "172.23.",
+			       "172.24.", "172.25.", "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31."].find( prefix=>i.address.startsWith( prefix ) )
+			  && !i.address.startsWith( "10." ) )
+				config.run.addresses.push( i.address );
+		}
+		here += i.mac 
+	} );
+	console.log( "Usable addresses:", config.run.addresses );
+	config.Λ = idGen.regenerator( here );
+}
+
+getLocation();
+
+
 
 function saveConfig(callback) {
 	fc.store(  "config.json", config.run, callback);

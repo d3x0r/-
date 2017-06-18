@@ -201,12 +201,22 @@ Object.defineProperty(exports, "publicAuthKey", {
 exports.delete = function deleteKey(key, maker) {
 	if( !maker )
 		throw new Error( "Key deletion requires maker" );
+	
 	key = (typeof key === 'object' && 'Λ' in key) ? key : keys.get(key);
 	if (key) {
+		var makerKey = keys.get(maker);
+		var index = makerKey.made.find( k => k === key );
+		makerKey.made.splice( index, 1 );
+
+		index = key.authby.authed.find( k=>k===key );
+		key.authby.authed.splic( index, 1 );
+
 		keys.delete(key);
 		key.made.forEach((m) => { deleteKey(m) });
 		key.authed.forEach((a) => { deleteKey(a) });
 	}
+	else 
+		throw new Error( "Failed to delete invalid key" );
 }
 
 
@@ -640,9 +650,23 @@ var peers = [];
 var branches = [];
 
 server.addProtocol( "id.core", (ws)=>{
-	ws.on( 'message',(msg)=>{
-		if( msg.op === "fork" ) {
-			var test = IDGen.u8xor( config.run.Λ, exports.localAuthKey );
+	ws.on( 'message',(_msg)=>{
+		var msg = JSON.parse( _msg );
+		console.log( "received ", msg );
+		if( msg.op === "hello" ) {
+			var test = IdGen.xor( msg.runkey, config.run.Λ );
+			var testkey = keys.get( test );
+			if( testkey ) {
+				// this remote might know how to validate a key...
+				ws.send( JSON.stringify( { op:"hello" } ) );
+			}
+			else {
+				console.log( "Key from remote failed." );
+				ws.close();
+			}
+		}
+		else if( msg.op === "fork" ) {
+			var test = IdGen.xor( config.run.Λ, exports.localAuthKey );
 			if( test === msg.key ) {
 				// this remote might know how to validate a key...
 				branches.push( test );
@@ -650,20 +674,20 @@ server.addProtocol( "id.core", (ws)=>{
 		}
 		else if( msg.op === "request" ) {
 				ID( msg.auth, msg.maker, (key)=>{
-					ws.send( JSON.parse( { op:"key", newKey:key.Λ, key:msg.key } ) );
+					ws.send( JSON.stringify( { op:"key", newKey:key.Λ, key:msg.key } ) );
 				})
 			}
 			else if( msg.op === "auth" ) {
 				if( exports.authBy( msg.key, msg.auth ) )
-					ws.send( JSON.parse( { op:"auth", status:true } ) );
+					ws.send( JSON.stringify( { op:"auth", status:true } ) );
 				else
-					ws.send( JSON.parse( { op:"auth", status:true } ) );
+					ws.send( JSON.stringify( { op:"auth", status:true } ) );
 			}
 			else if( msg.op === "maker" ) {
 				if( exports.madeFrom( msg.key.msg.maker ) )
-					ws.send( JSON.parse( { op:"made", status:true } ) );
+					ws.send( JSON.stringify( { op:"made", status:true } ) );
 				else
-					ws.send( JSON.parse( { op:"made", status:true } ) );
+					ws.send( JSON.stringify( { op:"made", status:true } ) );
 			}
 	})
 	ws.on( 'error', (err)=>{

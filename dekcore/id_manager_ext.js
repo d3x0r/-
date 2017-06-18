@@ -30,7 +30,8 @@ function initKeys() {
 			,"keys":`;
 		var footer = '}';
 		var buffer = null;
-		keys.forEach((key, index, mem) => {
+		keys.forEach((key, index, 
+mem) => {
 			if (!buffer) buffer = '{'; else buffer += '\n,';
 			buffer += '"' + key.Λ + '":' + key.toString();
 		});
@@ -266,11 +267,25 @@ Object.defineProperty(exports, "publicAuthKey", {
 exports.delete = function deleteKey(key, maker) {
 	if( !maker )
 		throw new Error( "Key deletion requires maker" );
+	if( !key.madeFrom || !key.authby ) {
+		console.log( "Delete has to be passed to upstream..." );
+		throw new Error( "Unimplemented" );
+	}
+
 	key = (typeof key === 'object' && 'Λ' in key) ? key : keys.get(key);
 	if (key) {
+		var makerKey = keys.get(maker);
+		var index = makerKey.made.find( k => k === key );
+		makerKey.made.splice( index, 1 );
+
+		index = key.authby.authed.find( k=>k===key );
+		key.authby.authed.splic( index, 1 );
+
 		keys.delete(key);
 		key.made.forEach((m) => { deleteKey(m) });
 		key.authed.forEach((a) => { deleteKey(a) });
+	}else {
+		throw new Error( "Failed to delete invalid key." );
 	}
 }
 
@@ -280,11 +295,15 @@ var pendingKeys = [];
 exports.ID = ID;
 function ID(making_key, authority_key, callback) {
 	let msg = null;
-	var localAuth = keys.get( authority_key );
-	var localMake = keys.get( making_key );
+	var localAuth = keys.get( (typeof authority_key === "string")?authority_key:authority_key.Λ );
+	var localMake = keys.get( (typeof making_key === "string")?making_key:making_key.Λ );
+	//console.log( "keys;", keys );
+	//console.log( "localAuth:", localAuth?localAuth.toString():"NULL" );
+	//console.log( "localMake:", localMake?localMake.toString():"NULL" );
 	if( !localAuth ) {
 		if( localMake ) {
 			Key( making_key, null, (key)=>{
+				console.trace( "no auth, local make", making_key, authority_key );
 				ws.send( msg={op:"requestAuth", key:key, auth:authority_key, maker:making_key} );
 				pendingKeys.push( { msg:msg, callback:(key)=>{
 
@@ -520,25 +539,26 @@ function loadKeys() {
 				runKey2 = key;
 				// generated a ID but throw it away; create config.run key record.
 				keys.delete(runKey2.Λ);
+
 				runKey2.Λ = config.run.Λ;
 				runKey2.authby = runKey;
 				runKey.authby = runKey2;
-				//console.log( "3 set key ", runKey2.Λ)
+				console.log( "3 set key ", runKey2.Λ)
 				keys.set(runKey2.Λ, runKey2);
+
+				mkey = runKey2;
+		
+				pendingMakers.forEach((p, index) => {
+					if (p.maker === runKey2.Λ)
+						runKey2.made.push(p.key);
+					if (p.maker === runKey.Λ)
+						runKey.made.push(p.key);
+					// pendingMakers[index] = null
+				})
+			console.log( "SAVE ROOT KEYS and resume..." );
+				saveKeys( config.resume );
 			});
 
-			mkey = runKey2;
-
-			pendingMakers.forEach((p, index) => {
-				if (p.maker === runKey2.Λ)
-					runKey2.made.push(p.key);
-				if (p.maker === runKey.Λ)
-					runKey.made.push(p.key);
-				// pendingMakers[index] = null
-			}
-			)
-
-			saveKeys( config.resume );
 		} else {
 			//console.log( "GOT FILE BACK???")
 			var data = fc.Utf8ArrayToStr(buffer);
@@ -694,29 +714,31 @@ exports.u8xor = IdGen.u8xor;
 const WebSocket = require('ws');
 var ws = null;
 
-function openHello( remote ) {
+function openHello( remote, rid, callback ) {
 
 	var confirmed = false;
-	var ws = new WebSocket( remote, ["id.core"], {
+	var ws = new WebSocket( "wss://" + remote, ["id.core"], {
 		perMessageDeflate: false
 	});
 	var runkeyt;
 	var runkeyr;
 
 	ws.on( "open", ()=>{
-		runkeyt = {key:config.run.Λ, step:0};
-		runkeyr = {key:config.run.Λ, step:0};
+		console.log( "remote opened..." );
+		var tmpkey = IdGen.generator();
+		runkeyt = IdGen.xkey( tmpkey, 0 );
+		runkeyr = IdGen.xkey( tmpkey, 1 );
 
 		//console.log( "connect: ", config.run.Λ );
-		console.log( "This should be a more dynamic key?" );
-		ws.send( config.run.Λ );
-		ws.send = ((orig)=>(buf)=>orig(idGen.u8xor( buf,runkeyt) ) )(ws.send.bind(ws))
-		ws.send( JSON.stringify( {op:"hello", runkey:config.run.Λ, me:me} ) );
+		console.log( "This should be a more dynamic key?", tmpkey );
+		ws.send( tmpkey );
+		ws.send = ((orig)=>(buf)=>orig(IdGen.u8xor( buf,runkeyt) ) )(ws.send.bind(ws))
+		ws.send( JSON.stringify( {op:"hello", runkey:rid } ) );
 	})
 
 	ws.on( "message", (msg)=>{
 		try {
-			msg = JSON.parse( idGen.u8xor(msg,runkeyr) );
+			msg = JSON.parse( IdGen.u8xor(msg,runkeyr) );
 		} catch(err) {
 		// protocol error.
 		console.log( "ID manager Protocol error", err );
@@ -724,10 +746,12 @@ function openHello( remote ) {
 		return;
 	}
 		//if( !ws.key ) { ws.key = {key:msg,step:0};return }
-			//console.log( "userprotocol hello got:", msg );
+			console.log( "ext hello got:", msg );
 			if( msg.op === "hello") {
-				confirmed = true;
-				ws.close();
+				console.log( "server accepted our hello..." );
+				callback();
+				//confirmed = true;
+				//ws.close();
 			}
 			else if( msg.op === "key") {
 				var id = pendingKeys.findIndex( key=>key.key === msg.key );

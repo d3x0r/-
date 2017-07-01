@@ -4,6 +4,8 @@ const DB = exports = module.exports = {
 	driver : null,
 	db : null,
 	reload: reload,
+	init: init,
+	blockAddress : addBlock,
 };
 
 const fc = require( "../../file_cluster.js" );
@@ -20,19 +22,26 @@ if( !config.firewall ) {
 }
 */
 
-var db = DB.db = fc.cvol.Sqlite( `firewall.db` );
+var db = null;
+
+function init() {
+	DB.db = fc.cvol.Sqlite( `firewall.db` );
 
 
-db.do( 'PRAGMA foreign_keys=ON' );
 
-db.makeTable( "create table firewall_rules ( rule_id char PRIMARY KEY"
-	+", name char"
-	+", source char "
-	+", source_port char "
-	+", dest_port char "
-	+", allow int "  // if not allow, is a blocking rule.
-	+" )"
-	 );
+	db.do( 'PRAGMA foreign_keys=ON' );
+
+	db.makeTable( "create table firewall_rules ( rule_id char PRIMARY KEY"
+		+", name char"
+		+", source char "
+		+", source_port char "
+		+", dest_port char "
+		+", allow int "  // if not allow, is a blocking rule.
+		+" )"
+		 );
+
+
+}
 
 function reload() {
 	var rules = db.do( "select * from firewall_rules" );
@@ -42,8 +51,6 @@ function reload() {
 	});
 
 }
-
-DB.blockAddress = addBlock;
 
 function addBlock( tag, source ) {
 	var rule = {rule_id:idGen(),
@@ -60,6 +67,3 @@ function invokeRule( rule ) {
 	DB.driver.addRule( rule );
 }
 
-
-
-DB.reload

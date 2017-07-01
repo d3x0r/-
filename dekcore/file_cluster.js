@@ -4,18 +4,26 @@ const config = require( "./config.js" );
 const vfs = require( 'sack.vfs' );
 const idGen = require( './util/id_generator.js' );
 const vol = vfs.Volume();
-const keys = [idGen.regenerator( "0" + config.Λ ), idGen.regenerator( "1" + config.Λ )];
-const cvol = vfs.Volume( null, './core/' + config.Λ, keys[0], keys[1] );
+var keys;
+var cvol;
 
 var fc_local = {
 	authorities : []
 }
 
+var inited = false;
+
 module.exports = exports = {
+	init() {
+		if( inited ) return;
+		keys = [idGen.regenerator( "0" + config.Λ ), idGen.regenerator( "1" + config.Λ )];
+		cvol = vfs.Volume( null, './core/' + config.Λ, keys[0], keys[1] );
+		inited = true;
+	},
 	addAuthority( addr ) {
 		athorities += addr;
-	}
-	, store : ( filename, object, callback ) => {
+	},
+	store( filename, object, callback ) {
 		var fileName;
 		if( !object ){
 			console.log( "Nothing to store?");
@@ -56,7 +64,7 @@ module.exports = exports = {
 				}
 				 //fileName = getpath( filename, object );
 		}
-		//console.log( "WRITE FILE ", fileName )
+		console.trace( "WRITE FILE ", fileName )
 		cvol.write( fileName, object.toString() );
 		if( callback ) callback();
 
@@ -72,7 +80,7 @@ module.exports = exports = {
 			fs.stat(fileName, (error, stats)=>{
 					 console.log( "Write to" ,fileName,error  );
 					 var f =  ()=>{
-					
+
 							 fs.open(fileName, "w", (error, fd)=>{
 								 var buffer;// = JSON.stringify( object );
 								 //if( !buffer ) {
@@ -90,9 +98,9 @@ module.exports = exports = {
 												if( error ) { console.log( "write had errror: ", error ); }
 												fs.truncate(fd,bytesWritten,(err)=>{
 													if( err) { console.log( "truncate had error:", error ); }
-												   	fs.close(fd, (err)=>{ 
+												   	fs.close(fd, (err)=>{
 														if( err ) console.log( "close had an error?", err );
-														if( callback ) callback();		
+														if( callback ) callback();
 												 	} );
 												} )
 									  });
@@ -102,19 +110,19 @@ module.exports = exports = {
 					 if( error )
 						 mkdir( fileName,f );
 				   else f();
-						  
+
 				});
 */
 
-	}
-	, reloadFrom: ( pathobject, callback )=> {
+	},
+	reloadFrom( pathobject, callback ) {
 		if( pathobject.Λ )
 			if( !pathobject.ΛfsPath )
 			  pathobject.ΛfsPath = GetFilename( pathobject );
 			  console.log( "readdir of, ", pathobject.ΛfsPath+"Λ")
 			fs.readdir(  pathobject.ΛfsPath+"Λ", callback );
-	}
-	, reload: (filename, callback) =>{
+	},
+	reload(filename, callback){
 		if( filename.Λ )
 			if( filename.ΛfsPath )
 				fileName =  filename.ΛfsPath;
@@ -146,9 +154,9 @@ module.exports = exports = {
 			}
 		});
 */
-	}
-	,mkdir: mkdir
-	, cvol: cvol
+	},
+	mkdir: mkdir,
+	cvol: cvol
 }
 
 exports.Utf8ArrayToStr = function(typedArray) {

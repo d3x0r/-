@@ -66,6 +66,7 @@ function saveConfig(callback) {
 //
 function loadConfig(path) {
 	//console.log("loadconfig");
+	fc.init();
 	fc.reload( "config.json",
 		function (error, result) {
 			//console.log("loadConfig: Error? ", error);

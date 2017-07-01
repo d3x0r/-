@@ -149,7 +149,7 @@ function validateWebSock( ws ) {
     //console.log( "connect?", ws.upgradeReq.headers, ws.upgradeReq.url )
     var proto = decodeURIComponent( ws.upgradeReq.headers['sec-websocket-protocol'] );
 
-	console.log( "ws:", ws );
+	//console.log( "ws:", ws );
 	console.log( "protocols:", protocols, "\n", proto );
 
 	var ip = ws.upgradeReq.headers['x-forwarded-for'] ||

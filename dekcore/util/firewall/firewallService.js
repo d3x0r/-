@@ -30,6 +30,7 @@ module.exports = exports = {
 	server : null,
 	init() {
 		driver.reset();
+		db.init();
 		db.reload();
 		this.setupAvailableMappings();
 		this.registerProtocol();
@@ -70,7 +71,7 @@ module.exports = exports = {
 				l.services.set( service, service = [] );
 			}
 			service.push( portDef );
-		l.
+		}
 		return nextPort;
 	},
 
@@ -93,7 +94,7 @@ module.exports = exports = {
 			});
 			return result;
 		}
-	}
+	},
 
 	requestService( service ) {
 		var svc = l.services.get( service );
@@ -108,7 +109,7 @@ module.exports = exports = {
 			s.ws.send( JSON.stringify( msg = { op:"serviceMap", key:idGen.generator(), port:port } ) );
 			return msg;
 		}
-	}
+	},
 
 	protocolHandler( ws) {
 		console.log( "Received connection to firewall")

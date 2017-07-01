@@ -19,8 +19,7 @@ var Entity = require( "./Entity/entity.js" );
 Entity.idMan = idMan;
 var idGen = require( "./util/id_generator.js");
 
-///const firewall = require( "./util/firewall/firewallService.js" );
-
+const firewall = require( "./util/firewall/firewallService.js" );
 
 Entity.gun = https.gun;
 Entity.addService = https.addService;
@@ -201,6 +200,7 @@ var d;
 function run() {
     var vfs = require( "./file_cluster.js" );
     var discoverer = require( "./util/discovery.js" );
+    firewall.init();
     d = discoverer.discover( { timeout: 1000
         , master : true
         , filter : false // expects to hear on localhost and/or same interfaces

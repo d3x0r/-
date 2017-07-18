@@ -1,0 +1,15 @@
+{
+  "name": "sack.psi",
+  "version": "0.0.0",
+  "description": "Node.js Display Addons",
+  "main": "psi.js",
+  "private": true,
+  "scripts": {
+    "test": "node psi.js",
+    "install" : "cmake-js compile"
+  },
+  "dependencies": {
+    "bindings": "~1.2.1",
+    "cmake-js": "~3.1.2"
+  }
+}

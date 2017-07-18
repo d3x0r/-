@@ -16,7 +16,16 @@ var PSI = exports = module.exports = {
         Volume       : (...args)=>psi.Volume(...args),
         Intershell   : psi.InterShell,
         Registration : (...args)=>psi.Registration(...args),
-	Frame        : (...args)=>psi.Frame(...args),
+	Frame        : (...args)=>{
+		var f = psi.Frame(...args);
+		f.on = (event,cb)=>{
+			if( event == "draw" ) 
+				f.setDraw( cb );
+			if( event == "mouse" )
+				f.setMouse(cb);
+		};
+		return f;
+	},
         Image        : (...args)=>psi.Image(...args),
         Renderer     : (...args)=>{
 		var r = psi.Renderer(...args);

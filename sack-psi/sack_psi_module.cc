@@ -130,7 +130,7 @@ void ControlObject::Init( Handle<Object> exports ) {
 
 		NODE_SET_PROTOTYPE_METHOD( psiTemplate2, "Control", ControlObject::NewControl );
 		NODE_SET_PROTOTYPE_METHOD( psiTemplate2, "createFrame", ControlObject::createFrame );
-		NODE_SET_PROTOTYPE_METHOD( psiTemplate2, "createControl", ControlObject::createFrame );
+		NODE_SET_PROTOTYPE_METHOD( psiTemplate2, "createControl", ControlObject::NewControl );
 		NODE_SET_PROTOTYPE_METHOD( psiTemplate2, "show", ControlObject::show );
 		NODE_SET_PROTOTYPE_METHOD( psiTemplate2, "hide", ControlObject::show );
 		NODE_SET_PROTOTYPE_METHOD( psiTemplate2, "reveal", ControlObject::show );
@@ -153,8 +153,16 @@ void ControlObject::Init( Handle<Object> exports ) {
 			psiTemplate3->GetFunction() );
 	}
 
-ControlObject::ControlObject( const char *title, int x, int y, int w, int h, int border, ControlObject *over )  {
+ControlObject::ControlObject( ControlObject *over, const char *type, const char *title, int x, int y, int w, int h )  {
    frame = over;
+   if( title )
+	control = MakeNamedControl( over->control, type, x, y, w, h, 0 );
+    else
+	control = MakeNamedCaptionedControl( over->control, type, x, y, w, h, 0, title );
+}
+
+ControlObject::ControlObject( const char *title, int x, int y, int w, int h, int border, ControlObject *over )  {
+	frame = over;
 	control = ::CreateFrame( title, x, y, w, h, border, over?over->control:(PSI_CONTROL)NULL );
 }
 
@@ -177,6 +185,7 @@ ControlObject::ControlObject() {
 			char *type;
 
 			char *title = "Node Application";
+			char *tmpTitle = NULL;
 			int x = 0, y = 0, w = 1024, h = 768, border = 0;
 			int arg_ofs = 0;
 			ControlObject *parent = NULL;
@@ -196,7 +205,9 @@ ControlObject::ControlObject() {
 			if( argc > (arg_ofs+0) ) {
 				if( args[arg_ofs + 0]->IsString() ) {
 					String::Utf8Value fName( args[arg_ofs + 0]->ToString() );
-					title = StrDup( *fName );
+					if( tmpTitle )
+						Deallocate( char*, title );
+					tmpTitle = title = StrDup( *fName );
 					arg_ofs++;
 				}
 			}
@@ -226,8 +237,8 @@ ControlObject::ControlObject() {
 			ControlObject* obj = new ControlObject( title, x, y, w, h, border, NULL );
 			obj->Wrap( args.This() );
 			args.GetReturnValue().Set( args.This() );
-
-			Deallocate( char*, title );
+			if( tmpTitle )
+				Deallocate( char*, title );
 		}
 		else {
 			// Invoked as plain function `MyObject(...)`, turn into construct call.
@@ -373,84 +384,73 @@ ControlObject::ControlObject() {
 
 	void ControlObject::NewControl( const FunctionCallbackInfo<Value>& args ) {
 		Isolate* isolate = args.GetIsolate();
-		if( args.IsConstructCall() ) {
+		ControlObject *container = ObjectWrap::Unwrap<ControlObject>( args.This() );
 
-			char *type = "PSI Control";
+			char *type = NULL;
+			char *title = NULL;
 			int x = 0, y = 0, w = 1024, h = 768, border = 0;
+			int argOffset = 0;
 			ControlObject *parent = NULL;
 
 			int argc = args.Length();
 			if( argc == 0 ) {
-				ControlObject* obj = new ControlObject( type, parent, x, y, w, h );
-				obj->Wrap( args.This() );
-				args.GetReturnValue().Set( args.This() );
+				isolate->ThrowException( Exception::Error( String::NewFromUtf8( isolate, "Required parameter 'controlType' missing." ) ) );
 				return;
 			}
 			if( argc > 0 ) {
 				String::Utf8Value fName( args[0]->ToString() );
 				type = StrDup( *fName );
 			}
-			if( argc > 1 && args[1]->IsNumber() ) {
-				x = (int)args[1]->NumberValue();
-			}
-			else {
-				ControlObject *parent = ObjectWrap::Unwrap<ControlObject>( args[1]->ToObject() );
-				if( argc > 5 ) {
-					x = (int)args[2]->NumberValue();
-					y = (int)args[3]->NumberValue();
-					w = (int)args[4]->NumberValue();
-					h = (int)args[5]->NumberValue();
+			{
+				if( argc > 1 && args[1]->IsString() ) {
+					String::Utf8Value fName( args[1]->ToString() );
+					title = StrDup( *fName );
+					argOffset = 1;
 				}
 				else {
-					x = g.nextControlCreatePosition.x;
-					y = g.nextControlCreatePosition.y;
-					w = g.nextControlCreatePosition.w;
-					h = g.nextControlCreatePosition.h;
+					ControlObject *parent = ObjectWrap::Unwrap<ControlObject>( args[1]->ToObject() );
+					if( argc > 5 ) {
+						x = (int)args[2]->NumberValue();
+						y = (int)args[3]->NumberValue();
+						w = (int)args[4]->NumberValue();
+						h = (int)args[5]->NumberValue();
+					}
+					else {
+						x = g.nextControlCreatePosition.x;
+						y = g.nextControlCreatePosition.y;
+						w = g.nextControlCreatePosition.w;
+						h = g.nextControlCreatePosition.h;
+					}
+					ControlObject* obj = new ControlObject( type, parent, x, y, w, h );
+					ProvideKnownCallbacks( isolate, args.This(), obj );
+					g.nextControlCreatePosition.control->pc = obj->control;
+					g.nextControlCreatePosition.resultControl = obj->control;
+					obj->Wrap( args.This() );
+					args.GetReturnValue().Set( args.This() );
+					return;
 				}
-				ControlObject* obj = new ControlObject( type, parent, x, y, w, h );
-				ProvideKnownCallbacks( isolate, args.This(), obj );
-				g.nextControlCreatePosition.control->pc = obj->control;
-				g.nextControlCreatePosition.resultControl = obj->control;
-				obj->Wrap( args.This() );
-				args.GetReturnValue().Set( args.This() );
-				return;
 			}
-			if( argc > 2 ) {
-				y = (int)args[2]->NumberValue();
+			if( argc > (1+argOffset) ) {
+				x = (int)args[1+argOffset]->NumberValue();
 			}
-			if( argc > 3 ) {
-				w = (int)args[3]->NumberValue();
+			if( argc > (2+argOffset) ) {
+				y = (int)args[2+argOffset]->NumberValue();
 			}
-			if( argc > 4 ) {
-				h = (int)args[4]->NumberValue();
+			if( argc > (3+argOffset) ) {
+				w = (int)args[3+argOffset]->NumberValue();
 			}
-			if( argc > 5 ) {
-				border = (int)args[5]->NumberValue();
+			if( argc > (4+argOffset) ) {
+				h = (int)args[4+argOffset]->NumberValue();
 			}
-         /*
-			if( argc > 6 ) {
-				parent = (int)args[5]->NumberValue();
-				}
-           */
+
 			// Invoked as constructor: `new MyObject(...)`
-			ControlObject* obj = new ControlObject( type, x, y, w, h, border, NULL );
+			ControlObject* obj = new ControlObject( container, type, title, x, y, w, h );
 			obj->Wrap( args.This() );
 			args.GetReturnValue().Set( args.This() );
 
-			//Deallocate( char*, title );
-		}
-		else {
-			// Invoked as plain function `MyObject(...)`, turn into construct call.
-			int argc = args.Length();
-			Local<Value> *argv = new Local<Value>[argc+1];
-			int n;
-			for( n = 0; n < argc; n++ )
-				argv[n] = args[n];
-			argv[n] = args.Holder();
-			Local<Function> cons = Local<Function>::New( isolate, constructor2 );
-			args.GetReturnValue().Set( cons->NewInstance( argc+1, argv ) );
-			delete argv;
-		}
+			Deallocate( char*, type );
+			if( title )
+				Deallocate( char*, title );
 	}
 
 	void ControlObject::createFrame( const FunctionCallbackInfo<Value>& args ) {
@@ -536,13 +536,13 @@ RegistrationObject::RegistrationObject( const char *name ) {
 			if( argc > 0 ) {
 				String::Utf8Value fName( args[0]->ToString() );
 				title = StrDup( *fName );
+
+				// Invoked as constructor: `new MyObject(...)`
+				RegistrationObject* obj = new RegistrationObject( title );
+
+				obj->Wrap( args.This() );
+				args.GetReturnValue().Set( args.This() );
 			}
-
-			// Invoked as constructor: `new MyObject(...)`
-			RegistrationObject* obj = new RegistrationObject( title );
-
-			obj->Wrap( args.This() );
-			args.GetReturnValue().Set( args.This() );
 		}
 		else {
 			// Invoked as plain function `MyObject(...)`, turn into construct call.

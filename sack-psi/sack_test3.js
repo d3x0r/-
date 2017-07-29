@@ -13,15 +13,15 @@ var y_del = 0;
 var scale = 1.0;
 
 var r = sack.Renderer( "test", -1, -1, 500, 500 );
-console.log( "created renderer?", r );
+console.log( "created renderer?", r, Object.keys( Object.getPrototypeOf(r)) );
 var background = sack.Image( "the rror.jpg" );
 r.on( "draw", ( image )=>{	
-	console.log( "It wanted a draw...", 100+y_del, image, Object.keys(Object.getPrototypeOf(image)) ) 
+	//console.log( "It wanted a draw...", 100+y_del, image, Object.keys(Object.getPrototypeOf(image)) ) 
         image.putImage( background, 0+x_del, 100+y_del, 100 * scale, 100 * scale );
 } );
 
 r.on( "mouse", ( event )=>{	
-	console.log( "Mouse Event:", x_del, y_del, event.x, event.y, event.b );
+	//console.log( "Mouse Event:", x_del, y_del, event.x, event.y, event.b );
 	if( event.b & sack.button.scroll_up ) { 
 		scale *= 0.1;
 	} else if( event.b & sack.button.scroll_down ) { 

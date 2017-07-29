@@ -26,7 +26,7 @@ var PSI = exports = module.exports = {
 		};
 		return f;
 	},
-        Image        : (...args)=>psi.Image(...args),
+        Image        : psi.Image,
         Renderer     : (...args)=>{
 		var r = psi.Renderer(...args);
 		r.on = (event,cb)=>{

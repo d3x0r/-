@@ -80,7 +80,7 @@ public:
 
 	static void Init( Handle<Object> exports );
 	ColorObject( int r, int g, int b, int a );
-	ColorObject( int rgba );
+	ColorObject( CDATA rgba );
 
 	static void New( const FunctionCallbackInfo<Value>& args );
 

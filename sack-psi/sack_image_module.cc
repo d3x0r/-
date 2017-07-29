@@ -4,6 +4,17 @@ Persistent<Function> ImageObject::constructor;
 Persistent<Function> FontObject::constructor;
 Persistent<Function> ColorObject::constructor;
 
+static Local<Object> makeColor( Isolate *isolate, CDATA c ) {
+	int argc = 1;
+	Local<Value> *argv = new Local<Value>[1];
+	argv[0] = Uint32::New( isolate, c );
+	Local<Function> cons = Local<Function>::New( isolate, ColorObject::constructor );
+	Local<Object> cObject = cons->NewInstance( argc, argv );
+	delete argv;
+	return cObject;
+
+}
+
 void ImageObject::Init( Handle<Object> exports ) {
 
 	Isolate* isolate = Isolate::GetCurrent();
@@ -14,8 +25,8 @@ void ImageObject::Init( Handle<Object> exports ) {
 	imageTemplate->SetClassName( String::NewFromUtf8( isolate, "sack.Image" ) );
 	imageTemplate->InstanceTemplate()->SetInternalFieldCount( 1 ); // 1 required for wrap
 
-
 	// Prototype
+	
 	NODE_SET_PROTOTYPE_METHOD( imageTemplate, "Image", ImageObject::NewSubImage );
 
 	NODE_SET_PROTOTYPE_METHOD( imageTemplate, "reset", ImageObject::reset );
@@ -32,7 +43,7 @@ void ImageObject::Init( Handle<Object> exports ) {
 
 
 
-	constructor.Reset( isolate, imageTemplate->GetFunction() );
+	ImageObject::constructor.Reset( isolate, imageTemplate->GetFunction() );
 	exports->Set( String::NewFromUtf8( isolate, "Image" ),
 					 imageTemplate->GetFunction() );
 
@@ -46,9 +57,47 @@ void ImageObject::Init( Handle<Object> exports ) {
 	NODE_SET_PROTOTYPE_METHOD( fontTemplate, "measure", FontObject::measure );
 
 
+	Local<FunctionTemplate> colorTemplate;
+
+	// Prepare constructor template
+	colorTemplate = FunctionTemplate::New( isolate, ColorObject::New );
+	colorTemplate->SetClassName( String::NewFromUtf8( isolate, "sack.Image.color" ) );
+	colorTemplate->InstanceTemplate()->SetInternalFieldCount( 1 ); // 1 required for wrap
+
+	ColorObject::constructor.Reset( isolate, colorTemplate->GetFunction() );
+
+
 	FontObject::constructor.Reset( isolate, fontTemplate->GetFunction() );
 	exports->Set( String::NewFromUtf8( isolate, "Font" ),
 					 fontTemplate->GetFunction() );
+
+
+	Local<Object> colors = Object::New( isolate );
+	colors->Set( String::NewFromUtf8( isolate, "white" ), makeColor( isolate, BASE_COLOR_WHITE ) );
+	colors->Set( String::NewFromUtf8( isolate, "black" ), makeColor( isolate, BASE_COLOR_BLACK ) );
+	colors->Set( String::NewFromUtf8( isolate, "green" ), makeColor( isolate, BASE_COLOR_GREEN ) );
+	colors->Set( String::NewFromUtf8( isolate, "blue" ), makeColor( isolate, BASE_COLOR_BLUE ) );
+	colors->Set( String::NewFromUtf8( isolate, "red" ), makeColor( isolate, BASE_COLOR_RED ) );
+	colors->Set( String::NewFromUtf8( isolate, "darkBlue" ), makeColor( isolate, BASE_COLOR_DARKBLUE ) );
+	colors->Set( String::NewFromUtf8( isolate, "cyan" ), makeColor( isolate, BASE_COLOR_CYAN ) );
+	colors->Set( String::NewFromUtf8( isolate, "brown" ), makeColor( isolate, BASE_COLOR_BROWN ) );
+	colors->Set( String::NewFromUtf8( isolate, "lightBrown" ), makeColor( isolate, BASE_COLOR_LIGHTBROWN ) );
+	colors->Set( String::NewFromUtf8( isolate, "magenta" ), makeColor( isolate, BASE_COLOR_MAGENTA ) );
+	colors->Set( String::NewFromUtf8( isolate, "lightGrey" ), makeColor( isolate, BASE_COLOR_LIGHTGREY ) );
+	colors->Set( String::NewFromUtf8( isolate, "darkGrey" ), makeColor( isolate, BASE_COLOR_DARKGREY ) );
+	colors->Set( String::NewFromUtf8( isolate, "lightBlue" ), makeColor( isolate, BASE_COLOR_LIGHTBLUE ) );
+	colors->Set( String::NewFromUtf8( isolate, "lightGreen" ), makeColor( isolate, BASE_COLOR_LIGHTGREEN ) );
+	colors->Set( String::NewFromUtf8( isolate, "lightCyan" ), makeColor( isolate, BASE_COLOR_LIGHTCYAN ) );
+	colors->Set( String::NewFromUtf8( isolate, "lightRed" ), makeColor( isolate, BASE_COLOR_LIGHTRED ) );
+	colors->Set( String::NewFromUtf8( isolate, "lightMagenta" ), makeColor( isolate, BASE_COLOR_LIGHTMAGENTA ) );
+	colors->Set( String::NewFromUtf8( isolate, "yellow" ), makeColor( isolate, BASE_COLOR_YELLOW ) );
+	colors->Set( String::NewFromUtf8( isolate, "orange" ), makeColor( isolate, BASE_COLOR_ORANGE ) );
+	colors->Set( String::NewFromUtf8( isolate, "niceOrange" ), makeColor( isolate, BASE_COLOR_NICE_ORANGE ) );
+	colors->Set( String::NewFromUtf8( isolate, "purple" ), makeColor( isolate, BASE_COLOR_PURPLE ) );
+
+	Local<Function> i = imageTemplate->GetFunction();
+	i->Set( String::NewFromUtf8( isolate, "colors" ), colors );
+
 
 }
 
@@ -225,7 +274,14 @@ Local<Object> ImageObject::NewImage( Isolate*isolate, Image image, LOGICAL exter
 			h = (int)args[3]->NumberValue();
 		}
 		if( argc > 4 ) {
-			c = (int)args[4]->NumberValue();
+			if( args[4]->IsObject() ) {
+				ColorObject *co = ObjectWrap::Unwrap<ColorObject>( args[4]->ToObject() );
+				c = co->color;
+			}
+			else if( args[4]->IsNumber() )
+				c = (int)args[4]->NumberValue();
+			else
+				c = 0;
 		}
 		BlatColor( io->image, x, y, w, h, c );
 	}
@@ -463,10 +519,10 @@ FontObject::FontObject( const char *filename, int w, int h, int flags ) {
 		if( args.IsConstructCall() ) {
 
 			int w = 24, h = 24;
-         int flags;
-         Local<Object> parentFont;
+			int flags;
+			Local<Object> parentFont;
 			FontObject *parent = NULL;
-         char *filename = NULL;
+			char *filename = NULL;
 
 			int argc = args.Length();
 
@@ -525,7 +581,7 @@ ColorObject::~ColorObject() {
 ColorObject::ColorObject( int r,int grn, int b, int a ) {
 	color = MakeAlphaColor( r, grn, b, a );
 }
-ColorObject::ColorObject( int r ) {
+ColorObject::ColorObject( CDATA r ) {
 	color = r;
 }
 
@@ -546,9 +602,13 @@ void ColorObject::New( const FunctionCallbackInfo<Value>& args ) {
 				obj = new ColorObject( r,grn,b,a );
 
 			}
+			else if( args[0]->IsUint32() ) {
+				r = (int)args[0]->Uint32Value();
+				obj = new ColorObject( r );
+			}
 			else if( args[0]->IsNumber() ) {
 				r = (int)args[0]->NumberValue();
-				obj = new ColorObject( r );
+				obj = new ColorObject( SetAlpha( r, 255 ) );
 			}
 			else if( args[0]->IsString() ) {
 				// parse string color....

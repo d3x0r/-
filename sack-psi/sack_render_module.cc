@@ -27,7 +27,7 @@ static Local<Value> ProcessEvent( Isolate* isolate, struct event *evt, RenderObj
 		break;
 	case Event_Render_Draw:
 		if( !r->drawn )
-			r->surface.Reset( isolate, ImageObject::NewImage( isolate, GetDisplayImage( r->r ) ) );
+			r->surface.Reset( isolate, ImageObject::NewImage( isolate, GetDisplayImage( r->r ), TRUE ) );
 		return Local<Object>::New( isolate, r->surface );
 	case Event_Render_Key:
 		return Number::New( isolate, evt->data.key.code );
@@ -64,7 +64,6 @@ static void asyncmsg( uv_async_t* handle ) {
 				break;
 			case Event_Render_Draw:
 				cb = Local<Function>::New( isolate, myself->cbDraw );
-				UpdateDisplay( myself->r );
 				break;
 			}
 			Local<Value> r = cb->Call( isolate->GetCurrentContext()->Global(), 1, argv );
@@ -103,6 +102,7 @@ void RenderObject::Init( Handle<Object> exports ) {
 		NODE_SET_PROTOTYPE_METHOD( renderTemplate, "hide", RenderObject::hide );
 		NODE_SET_PROTOTYPE_METHOD( renderTemplate, "reveal", RenderObject::reveal );
 		NODE_SET_PROTOTYPE_METHOD( renderTemplate, "redraw", RenderObject::redraw );
+		NODE_SET_PROTOTYPE_METHOD( renderTemplate, "update", RenderObject::update );
 		NODE_SET_PROTOTYPE_METHOD( renderTemplate, "close", RenderObject::close );
 
 
@@ -197,7 +197,7 @@ void RenderObject::getImage( const FunctionCallbackInfo<Value>& args ) {
 	RenderObject *r = ObjectWrap::Unwrap<RenderObject>( args.This() );
 
 	// results as a new Image in result...
-	r->surface.Reset( isolate, ImageObject::NewImage( isolate, GetDisplayImage( r->r ) ) );
+	r->surface.Reset( isolate, ImageObject::NewImage( isolate, GetDisplayImage( r->r ), TRUE ) );
 
 }
 
@@ -205,6 +205,23 @@ void RenderObject::redraw( const FunctionCallbackInfo<Value>& args ) {
 	Isolate* isolate = args.GetIsolate();
 	RenderObject *r = ObjectWrap::Unwrap<RenderObject>( args.This() );
 	Redraw( r->r );
+}
+
+void RenderObject::update( const FunctionCallbackInfo<Value>& args ) {
+	Isolate* isolate = args.GetIsolate();
+	RenderObject *r = ObjectWrap::Unwrap<RenderObject>( args.This() );
+	int argc = args.Length();
+	if( argc > 3 ) {
+		int x, y, w, h;
+		x = (int)args[0]->NumberValue();
+		y = (int)args[1]->NumberValue();
+		w = (int)args[2]->NumberValue();
+		h = (int)args[3]->NumberValue();
+		UpdateDisplayPortion( r->r, x,y,w,h );
+	}
+	else  {
+		UpdateDisplayPortion( r->r, 0, 0, 0, 0 );
+	}
 }
 
 void RenderObject::show( const FunctionCallbackInfo<Value>& args ) {

@@ -23,6 +23,7 @@ public:
 	static void hide( const FunctionCallbackInfo<Value>& args );
 	static void reveal( const FunctionCallbackInfo<Value>& args );
 	static void redraw( const FunctionCallbackInfo<Value>& args );
+	static void update( const FunctionCallbackInfo<Value>& args );
 
 	static void setDraw( const FunctionCallbackInfo<Value>& args );
 	static void setMouse( const FunctionCallbackInfo<Value>& args );

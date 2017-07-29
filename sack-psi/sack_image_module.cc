@@ -72,7 +72,10 @@ ImageObject::ImageObject( int x, int y, int w, int h, ImageObject * within )  {
 }
 
 ImageObject::~ImageObject(void) {
-   UnmakeImageFile( image );
+	if( !external ) {
+		lprintf( "Image has been garbage collected." );
+		UnmakeImageFile( image );
+	}
 }
 
 	void ImageObject::New( const FunctionCallbackInfo<Value>& args ) {
@@ -182,7 +185,7 @@ void ImageObject::NewSubImage( const FunctionCallbackInfo<Value>& args ) {
 	}
 
 
-Local<Object> ImageObject::NewImage( Isolate*isolate, Image image ) {
+Local<Object> ImageObject::NewImage( Isolate*isolate, Image image, LOGICAL external ) {
 	// Invoked as constructor: `new MyObject(...)`
 	ImageObject* obj;
 
@@ -192,6 +195,7 @@ Local<Object> ImageObject::NewImage( Isolate*isolate, Image image ) {
 	Local<Object> lo = cons->NewInstance( argc, argv );
 	obj = ObjectWrap::Unwrap<ImageObject>( lo );
 	obj->image = image;
+	obj->external = external;
 	return lo;
 }
 

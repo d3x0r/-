@@ -7,6 +7,7 @@ class ImageObject : public node::ObjectWrap{
 public:
    ImageObject *container;
 	Image image; // this control
+	LOGICAL external;
 	static v8::Persistent<v8::Function> constructor;
 
 public:
@@ -19,7 +20,7 @@ public:
 	static void New( const FunctionCallbackInfo<Value>& args );
 	static void NewSubImage( const FunctionCallbackInfo<Value>& args );
 	//static Persistent<Object>  NewImage( Isolate *isolate, Image image );
-	static Local<Object> NewImage( Isolate *isolate, Image image );
+	static Local<Object> NewImage( Isolate *isolate, Image image, LOGICAL external );
 
 	
 	static void reset( const FunctionCallbackInfo<Value>& args );

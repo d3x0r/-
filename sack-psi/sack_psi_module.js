@@ -4,7 +4,7 @@ try { psi = require( './build/Debug/sack_psi_module.node' ) }
 catch( err ) { console.log( err); psi = require( './build/Release/sack_psi_module.node' ) }
 var events = require( 'events' );
 
-//console.log( "got", psi );
+console.log( "got", Object.keys(psi));//Object.getPrototypeOf( psi)) );
 
 var PSI = exports = module.exports = {
 	
@@ -14,7 +14,7 @@ var PSI = exports = module.exports = {
 		"Combo Box" ],
 	Sqlite       : (...args)=>psi.Sqlite(...args),
         Volume       : (...args)=>psi.Volume(...args),
-        Intershell   : psi.InterShell,
+        InterShell   : psi.InterShell,
         Registration : (...args)=>psi.Registration(...args),
 	Frame        : (...args)=>{
 		var f = psi.Frame(...args);

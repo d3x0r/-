@@ -49,17 +49,27 @@
     - returns TRUE if colors are RGBA else is BGRA
     (unimplemented)
 
-  - plot  - set a single pixel
-  - plotOver  - draw a pixel over existing image data using alpha information; if alpha is fully opaque, basically is same as plot
+  Color parameters passed to the following functions can either be a hex number, or a sack.Image.Color object from above.
+
+  - plot(x,y,c)  - set a single pixel 
+  - plotOver(x,y,c)  - draw a pixel over existing image data using alpha information; if alpha is fully opaque, basically is same as plot
   - line - draw a line (x, y, xto, yto, color )
       (todo)(x, y, xto, yto, callback ) - step through a line using the same stepping algorithm and call callback for each point; callback gets parameters (x,y)
-  - lineOver - draw a line (x, y, xto, yto, color ) over existing image using alpha to merge colors
-  - fill - fill a rectangle (x, y, width, height, color )
-  - fillOver - fill a rectangle  over existing image using alpha (x, y, width, height )
-  - drawImage - output an image into this image  (image, x, y [ [,x source, ysource], width, height ] [, shade [,shade r, shade b] )
+  - lineOver(x, y, xto, yto, color) - draw a line (x, y, xto, yto, color ) over existing image using alpha to merge colors
+  - fill(x, y, width, height, color) - fill a rectangle 
+  - fillOver(x, y, width, height, color) - fill a rectangle  over existing image using alpha
+  - drawImage - output an image into this image  (image, x, y [ [,x_source, y_source], width, height ] [, shade [,shade r, shade b] )
+      multiple combinations of parameters are allowed here...
+     - ( image, x, y )  draw the specified image at the specified x, y coordinate
+     - ( image, x, y, w, h ) draw a portion of the image at the specified position and specified width and height
+     - ( image, x, y, xFrom, yFrom, width, height ) draw a portion of the specified image at the position, offset in the source image by xFrom, yFrom, and for a potion width, height
+     - ( image, x, y, w, h, xFrom, yFrom, width, height ) draw a portion of the specified image at the specified position, stretching/shrinking image from specified width, height to the output width, height
+     - ( ... , psi.Image.Color ) specify a color to shade the source image by.
+     - ( ... , psi.Image.Color, psi.Image.Color, psi.Image.Color ) specify three colors, each are used scaled on Red, Green, Blue component of the source image repspectively.
   - drawImageOver - output an image over this image using alpha information in the image to merge (image, x, y [ [,x source, ysource], width, height ] [, shade [,shade r, shade b] )
+     same parameter combinations as drawImage
   - imageSurface
-      return value uint8arry that is the (RGBA/BGRA) data of the image.
+      return value uint8array that is the (RGBA/BGRA) data of the image.
       
   - 
 
@@ -69,16 +79,32 @@ the display.
 
 ```
   var renderer = new psi.Renderer();
+
 ```
 
+  - getImage() - returns a sack.Image (do not use?)
+  - setDraw(cb) - set a draw callback, callback parameter is the image surface to draw to.
+  - setMouse(cb) - set a mouse event callback, callback parameters (x, y, b); x and y position of the event and mouse buttons.
+  - setKey(cb) - set a key event callback, callback parameters (key) ; uint32 value of the keys (needs work for use)
+  - show() - show the renderer.
+  - hide() - hide the renderer.
+  - reveal() - alias for show.
+  - redraw() - triggers callback for drawing.
+  - update( [x,y,w,h] ) - updates the display, or updates a portion of the display.  optional parameters specify the region to update.
+  - close() - close the display.  (hide and release internal resources; image from getImage is no longer valid.
+
+
+
+
 ## PSI
-  Set of classes that provide a canned GUI.  Internally based on Image and Renderer above.
+  Set of classes that provide an interactive GUI.  Internally based on Image and Renderer above.
+  (add methods to set/override base colors)
+
   
   - Registration
      Register a new control type with methods
 	```
-		var reg = new psi.Registration() 
-
+		var reg = new psi.Registration( controlName ) 
 		
      	```
      - setCreate(callback) - required.  no callback parameters.  Return 0/false to fail control creation; return true/non-zero for success.
@@ -98,3 +124,13 @@ the display.
          Create a new control within this frame.
 
   - (should remove)Control
+
+
+```
+	var frame = new psi.Frame( "Test Frame", 256, 256 );
+        var button = new frame.Control( "ControlType", x, y, width, height );
+	var commonButtons = frame.addCommonButtons( callbackCancel, callbackOk );
+        frame.show();
+	frame.wait();  // if you want to wait for the frame to close, otherwise launches frame asynchronously
+
+```

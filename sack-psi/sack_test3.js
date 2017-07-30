@@ -15,7 +15,7 @@ var y_del = 0;
 var _scale = 1.0;
 var scale = 1.0;
 
-var r = sack.Renderer( "test", -1, -1, 500, 500 );
+var r = sack.Renderer( "test", 0, 0, 1600, 900 );
 console.log( "created renderer?", r, Object.keys( Object.getPrototypeOf(r)) );
 var background = sack.Image( "the rror.jpg" );
 r.on( "draw", ( image )=>{	
@@ -25,7 +25,19 @@ r.on( "draw", ( image )=>{
 	
 	//console.log( "draw del is: ", x_del, y_del );
         image.drawImage( background, 0+x_del, 100+y_del, 100 * scale, 100 * scale );
-	r.update( 0+x_del, 100+y_del, 100 * scale, 100 * scale );
+        image.drawImage( background, 0+x_del, 100+y_del, 100 * scale, 100 * scale, 0, 0, 50, 50 );
+	{
+	var n = 0;
+	var now = Date.now();
+	for( x = 0; x < 80; x++ )
+		for( y = 0; y < 90; y++ ) {
+		        image.drawImage( background, x*16+0+x_del, y*16+100+y_del, 16 * scale, 16 * scale, 0, 0, 50, 50 );
+			n++
+		}
+	}
+	var del = Date.now() - now;
+console.log( n, "in", del, " ", 16*n/del, " in 16ms(60fps)" );
+	//r.update( 0+x_del, 100+y_del, 100 * scale, 100 * scale );
 	_x_del = x_del;
 	_y_del = y_del;
 	_scale = scale;

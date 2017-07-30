@@ -36,9 +36,9 @@ void ImageObject::Init( Handle<Object> exports ) {
 	NODE_SET_PROTOTYPE_METHOD( imageTemplate, "lineOver", ImageObject::lineOver );
 	NODE_SET_PROTOTYPE_METHOD( imageTemplate, "plot", ImageObject::plot );
 	NODE_SET_PROTOTYPE_METHOD( imageTemplate, "plotOver", ImageObject::plotOver );
-	NODE_SET_PROTOTYPE_METHOD( imageTemplate, "putImage", ImageObject::putImage );
-	NODE_SET_PROTOTYPE_METHOD( imageTemplate, "putImageOver", ImageObject::putImageOver );
-	NODE_SET_PROTOTYPE_METHOD( imageTemplate, "imageData", ImageObject::imageData );
+	NODE_SET_PROTOTYPE_METHOD( imageTemplate, "drawImage", ImageObject::putImage );
+	NODE_SET_PROTOTYPE_METHOD( imageTemplate, "drawImageOver", ImageObject::putImageOver );
+	NODE_SET_PROTOTYPE_METHOD( imageTemplate, "imageSurface", ImageObject::imageData );
 	//NODE_SET_PROTOTYPE_METHOD( imageTemplate, "plot", ImageObject:: );
 
 
@@ -278,6 +278,8 @@ Local<Object> ImageObject::NewImage( Isolate*isolate, Image image, LOGICAL exter
 				ColorObject *co = ObjectWrap::Unwrap<ColorObject>( args[4]->ToObject() );
 				c = co->color;
 			}
+			else if( args[4]->IsUint32() )
+				c = (int)args[4]->Uint32Value();
 			else if( args[4]->IsNumber() )
 				c = (int)args[4]->NumberValue();
 			else
@@ -304,6 +306,12 @@ Local<Object> ImageObject::NewImage( Isolate*isolate, Image image, LOGICAL exter
 			h = (int)args[3]->NumberValue();
 		}
 		if( argc > 4 ) {
+			if( args[4]->IsObject() ) {
+				ColorObject *co = ObjectWrap::Unwrap<ColorObject>( args[4]->ToObject() );
+				c = co->color;
+			}
+			else if( args[4]->IsUint32() )
+				c = (int)args[4]->Uint32Value();
 			c = (int)args[4]->NumberValue();
 		}
 		BlatColorAlpha( io->image, x, y, w, h, c );
@@ -321,7 +329,14 @@ Local<Object> ImageObject::NewImage( Isolate*isolate, Image image, LOGICAL exter
 			y = (int)args[1]->NumberValue();
 		}
 		if( argc > 2 ) {
-			c = (int)args[2]->NumberValue();
+			if( args[2]->IsObject() ) {
+				ColorObject *co = ObjectWrap::Unwrap<ColorObject>( args[2]->ToObject() );
+				c = co->color;
+			}
+			else if( args[2]->IsUint32() )
+				c = (int)args[2]->Uint32Value();
+			else
+				c = (int)args[2]->NumberValue();
 		}
 		g.pii->_plot( io->image, x, y, c );
 	}
@@ -338,7 +353,14 @@ Local<Object> ImageObject::NewImage( Isolate*isolate, Image image, LOGICAL exter
 			y = (int)args[1]->NumberValue();
 		}
 		if( argc > 2 ) {
-			c = (int)args[2]->NumberValue();
+			if( args[2]->IsObject() ) {
+				ColorObject *co = ObjectWrap::Unwrap<ColorObject>( args[2]->ToObject() );
+				c = co->color;
+			}
+			else if( args[2]->IsUint32() )
+				c = (int)args[2]->Uint32Value();
+			else
+				c = (int)args[2]->NumberValue();
 		}
 		plotalpha( io->image, x, y, c );
 	}
@@ -361,13 +383,20 @@ Local<Object> ImageObject::NewImage( Isolate*isolate, Image image, LOGICAL exter
 			yTo = (int)args[3]->NumberValue();
 		}
 		if( argc > 4 ) {
-			c = (int)args[4]->NumberValue();
+			if( args[2]->IsObject() ) {
+				ColorObject *co = ObjectWrap::Unwrap<ColorObject>( args[4]->ToObject() );
+				c = co->color;
+			}
+			else if( args[2]->IsUint32() )
+				c = (int)args[4]->Uint32Value();
+			else
+				c = (int)args[4]->NumberValue();
 		}
 		if( x == xTo )
 			do_vline( io->image, x, y, yTo, c );
-      else if( y == yTo )
+		else if( y == yTo )
 			do_hline( io->image, y, x, xTo, c );
-      else
+		else
 			do_line( io->image, x, y, xTo, yTo, c );
 	}
 
@@ -389,7 +418,14 @@ Local<Object> ImageObject::NewImage( Isolate*isolate, Image image, LOGICAL exter
 			yTo = (int)args[3]->NumberValue();
 		}
 		if( argc > 4 ) {
-			c = (int)args[4]->NumberValue();
+			if( args[4]->IsObject() ) {
+				ColorObject *co = ObjectWrap::Unwrap<ColorObject>( args[4]->ToObject() );
+				c = co->color;
+			}
+			else if( args[2]->IsUint32() )
+				c = (int)args[4]->Uint32Value();
+			else
+				c = (int)args[4]->NumberValue();
 		}
 		if( x == xTo )
 			do_vlineAlpha( io->image, x, y, yTo, c );
@@ -412,6 +448,8 @@ Local<Object> ImageObject::NewImage( Isolate*isolate, Image image, LOGICAL exter
 		int w, h;
 		if( argc > 0 ) {
 			ii = ObjectWrap::Unwrap<ImageObject>( args[0]->ToObject() );
+			if( !ii )
+				lprintf( "Bad First paraemter, must be an image to put?" );
 			w = ii->image->width;
 			h = ii->image->height;
 		}
@@ -419,11 +457,13 @@ Local<Object> ImageObject::NewImage( Isolate*isolate, Image image, LOGICAL exter
 			// throw error ?
 			return;
 		}
-		if( argc > 1 ) {
-			x = (int)args[1]->NumberValue();
-		}
 		if( argc > 2 ) {
+			x = (int)args[1]->NumberValue();
 			y = (int)args[2]->NumberValue();
+		}
+		else {
+			isolate->ThrowException( Exception::Error( String::NewFromUtf8( isolate, "Required parameters for position missing." ) ) );
+			return;
 		}
 		if( argc > 3 ) {
 			xAt = (int)args[3]->NumberValue();
@@ -431,29 +471,38 @@ Local<Object> ImageObject::NewImage( Isolate*isolate, Image image, LOGICAL exter
 			if( argc > 4 ) {
 				yAt = (int)args[4]->NumberValue();
 			}
+			else {
+				isolate->ThrowException( Exception::Error( String::NewFromUtf8( isolate, "Required parameters for position missing." ) ) );
+				return;
+			}
 			if( argc > 5 ) {
 				w = (int)args[5]->NumberValue();
-			}
-			if( argc > 6 ) {
-				h = (int)args[6]->NumberValue();
-			}
-			if( argc > 7 ) {
-				int ow, oh;
-
-				ow = xAt;
-				oh = yAt;
-				xAt = w;
-				yAt = h;
+				if( argc > 6 ) {
+					h = (int)args[6]->NumberValue();
+				}
 				if( argc > 7 ) {
-					w = (int)args[7]->NumberValue();
+					int ow, oh;
+			
+					ow = xAt;
+					oh = yAt;
+					xAt = w;
+					yAt = h;
+					if( argc > 7 ) {
+						w = (int)args[7]->NumberValue();
+					}
+					if( argc > 8 ) {
+						h = (int)args[8]->NumberValue();
+					}
+					BlotScaledImageSizedEx( io->image, ii->image, x, y, ow, oh, xAt, yAt, w, h, 1, BLOT_COPY );
 				}
-				if( argc > 8 ) {
-					h = (int)args[8]->NumberValue();
-				}
-				BlotScaledImageSizedEx( io->image, ii->image, x, y, ow, oh, xAt, yAt, w, h, 1, BLOT_COPY );
+				else
+					BlotImageSizedEx( io->image, ii->image, x, y, xAt, yAt, w, h, 0, BLOT_COPY );
 			}
-			else
-				BlotImageSizedEx( io->image, ii->image, x, y, xAt, yAt, w, h, 0, BLOT_COPY );
+			else  {
+				w = xAt; 
+				h = yAt;
+				BlotImageSizedEx( io->image, ii->image, x, y, 0, 0, w, h, 0, BLOT_COPY );
+			}
 		}
 		else
 			BlotImageEx( io->image, ii->image, x, y, 0, BLOT_COPY );
@@ -487,7 +536,7 @@ Local<Object> ImageObject::NewImage( Isolate*isolate, Image image, LOGICAL exter
 			}
 		}
 		else
-         BlotImageEx( io->image, ii->image, x, y, ALPHA_TRANSPARENT, BLOT_COPY );
+			BlotImageEx( io->image, ii->image, x, y, ALPHA_TRANSPARENT, BLOT_COPY );
 	}
 
 void ImageObject::imageData( const FunctionCallbackInfo<Value>& args ) {

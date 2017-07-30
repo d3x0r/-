@@ -94,9 +94,9 @@ void ControlObject::Init( Handle<Object> exports ) {
 		Local<FunctionTemplate> psiTemplate3;
 
 		// Prepare constructor template
-		psiTemplateDisplay = FunctionTemplate::New( isolate, NewDisplay );
-		psiTemplateDisplay->SetClassName( String::NewFromUtf8( isolate, "sack.PSI.Display" ) );
-		psiTemplateDisplay->InstanceTemplate()->SetInternalFieldCount( 1 ); // 1 internal field for wrap
+		//psiTemplateDisplay = FunctionTemplate::New( isolate, NewDisplay );
+		//psiTemplateDisplay->SetClassName( String::NewFromUtf8( isolate, "sack.PSI.Display" ) );
+		//psiTemplateDisplay->InstanceTemplate()->SetInternalFieldCount( 1 ); // 1 internal field for wrap
 
 		// Prepare constructor template
 		psiTemplate = FunctionTemplate::New( isolate, New );
@@ -136,17 +136,17 @@ void ControlObject::Init( Handle<Object> exports ) {
 		NODE_SET_PROTOTYPE_METHOD( psiTemplate2, "reveal", ControlObject::show );
 
       //registerControl
-		constructorDisplay.Reset( isolate, psiTemplateDisplay->GetFunction() );
-		exports->Set( String::NewFromUtf8( isolate, "Display" ),
-			psiTemplateDisplay->GetFunction() );
+		//constructorDisplay.Reset( isolate, psiTemplateDisplay->GetFunction() );
+		//exports->Set( String::NewFromUtf8( isolate, "Display" ),
+		//	psiTemplateDisplay->GetFunction() );
 
 		constructor.Reset( isolate, psiTemplate->GetFunction() );
 		exports->Set( String::NewFromUtf8( isolate, "Frame" ),
 			psiTemplate->GetFunction() );
 
 		constructor2.Reset( isolate, psiTemplate2->GetFunction() );
-		exports->Set( String::NewFromUtf8( isolate, "Control" ),
-						 psiTemplate2->GetFunction() );
+		//exports->Set( String::NewFromUtf8( isolate, "Control" ),
+		//				 psiTemplate2->GetFunction() );
 
 		constructor3.Reset( isolate, psiTemplate3->GetFunction() );
 		exports->Set( String::NewFromUtf8( isolate, "Registration" ),

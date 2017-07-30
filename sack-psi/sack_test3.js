@@ -21,16 +21,17 @@ var background = sack.Image( "the rror.jpg" );
 r.on( "draw", ( image )=>{	
 	//console.log( "It wanted a draw...", 100+y_del, image, Object.keys(Object.getPrototypeOf(image)) ) 
 	if( _x_del )
-	        image.fill( 0+_x_del, 100+_y_del, 100 * scale, 100 * _scale, sack.Image.colors.purple );
+	        image.fill( 0+_x_del, 100+_y_del, 100 * _scale, 100 * _scale, sack.Image.colors.purple );
 	
-        image.putImage( background, 0+x_del, 100+y_del, 100 * scale, 100 * scale );
+	//console.log( "draw del is: ", x_del, y_del );
+        image.drawImage( background, 0+x_del, 100+y_del, 100 * scale, 100 * scale );
+	r.update( 0+x_del, 100+y_del, 100 * scale, 100 * scale );
 	_x_del = x_del;
 	_y_del = y_del;
 	_scale = scale;
 } );
 
 r.on( "mouse", ( event )=>{	
-	//console.log( "Mouse Event:", x_del, y_del, event.x, event.y, event.b );
 	if( event.b & sack.button.scroll_up ) { 
 		scale *= 0.1;
 		r.redraw();
@@ -47,10 +48,11 @@ r.on( "mouse", ( event )=>{
 			y_del += ( event.y - _y );
 			r.redraw();
 		}
+		//console.log( "maus Del is: ", x_del, y_del );
 		_x = event.x;
 		_y = event.y;
-		_b = event.b;
 	}
+	_b = event.b;
 } );
 
 r.show();

@@ -13,6 +13,7 @@ static void moduleExit( void *arg ) {
 void VolumeObject::Init( Handle<Object> exports ) {
 	InvokeDeadstart();
 	node::AtExit( moduleExit );
+	SetSystemLog( SYSLOG_FILE, stdout );
 	{
 		//extern void Syslog
 	}

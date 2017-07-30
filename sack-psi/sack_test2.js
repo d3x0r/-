@@ -9,7 +9,7 @@ console.log( "background=", r );
 
 r.setDraw( ( image )=>{	
 	console.log( "Needs to be drawn..." );
-        image.putImage( background );
+        image.drawImage( background );
 } );
 
 /*

@@ -3,35 +3,39 @@ var ws = require( "websocket" );
 
 var evr = require( "./evr.js" );
 
-evr( driver );
+evr.addRemoteStorage( driver );
 
-var maps = [];       	
+var maps = [];
 var connections = new Map();
-function driver( op, evr, node ) {
-	if( op === "init" ) {
+const driver = {
+	init(evr) {
         	var wscOpts = evr.opts.wsc = param.opts.wsc || {};
                 // serial initializers; allowing single options to be initialized as required
                 wscOpts.peers = wscOpts.peers || [];
                 wscOpts.protocols = wscOpts.protocols || null;
         	maps.push( evr );
 
-        }else if( op === "read" ) {
+        },
+	read(evr,node) {
 		wsRead( evr, node );
-        }else if( op === "write" ) {
-        	
-        }else if( op === "timeout" ) {
+    },
+	write(evr,node ) {
+
+	},
+	timeout(evr,node ) {
 		var wscNodeOpts = node.opts.wsc || { };
         	wscNodeOpts.timeout = setTimeout( ()=>{
 			node.opts.wsc.timeout = null;
-			
+
 		}, 250 );
-        }else if( op === "cancelTimeout" ) {
+    },
+	cancelTimeout(evr,node ) {
 		if( node.opts.wsc.timeout ) {
 	        	clearTimeout( node.opts.wsc.timeout );
 			node.opts.wsc.timeout = null;
 		}
-        }
-        
+    }
+
 }
 
 
@@ -68,7 +72,7 @@ function wsRead( evr, node ) {
 var port = process.env.OPENSHIFT_NODEJS_PORT || process.env.VCAP_APP_PORT || process.env.PORT || process.argv[2] || 8080;
 
 var Gun = require('../');
-var gun = Gun({ 
+var gun = Gun({
 	file: 'data.json',
 	s3: {
 		key: '', // AWS Access Key
@@ -125,4 +129,3 @@ function acceptConnection( connection ) {
 server.listen(port);
 
 console.log('Server started on port ' + port + ' with ');
-

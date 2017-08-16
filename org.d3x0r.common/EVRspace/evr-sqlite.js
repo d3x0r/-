@@ -33,21 +33,21 @@ sqlDb.makeTable( `create table ${names.node_props} `
         +")"
         );
         return names;
-}	
+}
 
 //var maps = [];
 var evr = require( "./evr.js" );
 
 evr.addLocalStorage( driver );
-function driver = {
-	init( evr ) { 
+const driver = {
+	init( evr ) {
 	        var sqlOpts = evr.opts.sql = evr.opts.sql || { prefix: "" };
 		sqlOpts.creatingKey = null;
-        	sqlOpts.creatingProperty = null; 
+        	sqlOpts.creatingProperty = null;
 	        //maps.push( evr );
         	sqlOpts.names = createTables( sqlOpts.prefix );
 	},
-	updateKey(evr,node,filed ) {
+	updateKey(evr,node,field ) {
 		// node's ID was updated...
 		// field parameter in this case is the old key
 		sqlDb.do( "update ${evr.opts.names.nodes} set nodeKey=${makeSqlValue(node.key)} where nodeKey=${makeSqlValue(field)}")
@@ -89,7 +89,7 @@ function driver = {
 				//console.log( "node is ", node, "\n FIELD IS", field)
 				writeProperty( sqlOpts, node, field );
 			}
-			
+
         },
 	write( evr,node ) {
         	var sqlOpts = evr.opts.sql;
@@ -130,7 +130,7 @@ function driver = {
 			field();
 			return true;
 		}
-	} 
+	}
 }
 
 function readProperties( sqlOpts, evr, node ) {
@@ -139,10 +139,10 @@ function readProperties( sqlOpts, evr, node ) {
 	var props = sqlDb.do( `select * from ${names.node_props} where nodeKey=${makeSqlValue(node.key)}` );
 	//console.log( "Read Properties:", props );
 	if( props.length > 0 ) {
-		props.forEach( (prop)=>{	
+		props.forEach( (prop)=>{
                 	sqlOpts.creatingKey = node.key;
                 	sqlOpts.creatingProperty = prop.name;
-					
+
 			var newProp = evr.makeObjectProperty( node, prop.name, prop.value );
 			newProp.tick = prop.state;
 			newProp.opts.sql.state = "commited";
@@ -156,7 +156,7 @@ function readPaths( sqlOpts, node ) {
 	var paths = sqlDb.do( `select child nodeKey,text from ${names.node_links} l where parent=${makeSqlValue(node.key)}` );
 	//console.log( "Read Paths:", paths );
 	if( paths.length > 0 ) {
-		paths.forEach( (path)=>{	
+		paths.forEach( (path)=>{
 			sqlOpts.creatingKey = path.nodeKey;
 			sqlOpts.creatingTick = path.state;
 			var newPath = node.get( path.text, path.nodeKey );
@@ -179,7 +179,7 @@ function readNode( sqlOpts, node, iKnowItDoesntExist ) {
 	if( dbNode.length > 0 ) {
 		makeit = false;
 		if( !node.tick ) {
-				node.tick = dbNode[0].state;			
+				node.tick = dbNode[0].state;
 		} else {
 		}
 	}
@@ -196,12 +196,12 @@ function readPath( sqlOpts, nodeLink ) {
 	var names = sqlOpts.names;
 	var dbNode = sqlDb.do( `select l.child as key,state from ${names.node_links} l where l.parent=${makeSqlValue(nodeLink.parent.key)} and l.text=${makeSqlValue(nodeLink.text)}` );
 	if( dbNode.length > 0 ) {
-		if( nodeLink.tick && node.key !== dbNode[0].nodeKey ) {                                  
+		if( nodeLink.tick && node.key !== dbNode[0].nodeKey ) {
 				throw new Error( ["Database sync error, name of node and name given by application is wrong", nodeLink.text, dbNode[0].text].join( " " )  );
 			}
 		if( !nodeLink.tick ) {
 			nodeLink.key = dbNode[0].key;
-			nodeLink.tick = dbNode[0].state;			
+			nodeLink.tick = dbNode[0].state;
 		}
 	} else {
 		// use readNode to do the insert of the child node
@@ -246,7 +246,7 @@ function makeSqlValue(   blob )
 	var result = "'";
 
 	while( n < blob.length )
-	{	
+	{
 		var thischar;
 		if( ( thischar= blob.charAt(n)) === "'" )
 			result += "'";

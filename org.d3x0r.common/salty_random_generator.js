@@ -71,6 +71,7 @@ exports.SaltyRNG = function (f) {
 		getBuffer(bits) {
 			let _bits = bits;
 			let resultIndex = 0;
+			let resultBits = 0;
 			let resultBuffer = new ArrayBuffer(4 * ((bits + 31) >> 5));
 			let result = new Uint8Array(resultBuffer);
 			//console.log( "buffer is ", resultBuffer.byteLength );
@@ -85,7 +86,16 @@ exports.SaltyRNG = function (f) {
 						get_bits = 8;
 					else
 						get_bits = bits;
+					// have to limit number of bits to 1 byte of input.
+					let chunk = ( 8 - ( this.used & 7) );
+					if( chunk < get_bits )
+						get_bits = chunk;
+					// have to limit number of bits to 1 byte of output;
+					chunk = ( 8 - ( resultBits & 7) );
+					if( chunk < get_bits )
+						get_bits = chunk;
 
+					//console.log( "Get bits:", get_bits, " after", this.used, "into", resultBits );
 					// only greater... if equal just grab the bits.
 					if (get_bits > (this.available - this.used)) {
 						if (this.available - this.used) {
@@ -94,23 +104,32 @@ exports.SaltyRNG = function (f) {
 								partial_bits = 8;
 							partial_tmp = MY_GET_MASK(this.entropy, this.used, partial_bits);
 						}
+						//console.log( "Getting bits", partial_bits );
 						needBits();
 						//console.log( "bits to pull from: ", this.entropy )
 						bits -= partial_bits;
 					}
 					else {
 						tmp = MY_GET_MASK(this.entropy, this.used, get_bits);
+						//console.log( "And bits is...", this.used, get_bits, partial_bits, tmp, MASK_TOP_MASK( get_bits ), this.used&7 );
 						this.used += get_bits;
 						//console.log( "tmp : ", partial_bits, tmp );
 						if (partial_bits) {
 							tmp = partial_tmp | (tmp << partial_bits);
 							partial_bits = 0;
 						}
-						result[resultIndex++] = tmp;
+						
+						result[resultIndex] |= tmp << (resultBits&7);
+						//console.log( "output: ", result[resultIndex].toString(16), "input was", tmp.toString(16) );
+						resultBits += get_bits;
+						if( resultBits == 8 ) {
+							resultIndex++;
+							resultBits = 0;
+						}
 						bits -= get_bits;
 					}
 				} while (bits);
-				//console.log( "output is ", result[0], result[1], result[2], result[3] )
+				//console.log( "output is ", result[0].toString(16), result[1].toString(16), result[2].toString(16), result[3].toString(16) )
 				return resultBuffer;
 			}
 		}
@@ -294,6 +313,14 @@ SHA256.prototype.finish = function (h) {
 		h[i * 4 + 2] = (this.v[i] >>> 8) & 0xff
 		h[i * 4 + 3] = (this.v[i] >>> 0) & 0xff
 	}
+	/*
+	{
+		var str = '';
+		for( i = 0; i < 32; i++ )
+			str += h[i].toString(16);
+		console.log( str); 
+	}
+	*/
 	return this
 }
 

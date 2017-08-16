@@ -5,40 +5,24 @@
 var SRG = require( './salty_random_generator.js' );
 
 function encodeString( data ) {
-			var n = 0;
-      var string = "";
-      var dataView = new Uint8Array(data);
-      //console.log( "Encode:", data)
-      var len = data.byteLength;
-      //console.log( data.bytes_used)
-			for( n = 0; n < data.byteLength; n++ ) {
-				var val = dataView[n];
-        //console.log( "val : ", val)
-				if( !val )
-          string += "0";
-        else if( val === 48 )
-          string += "\\0";
-        else if( val === 92 )
-          string += "\\\\";
-        else string += String.fromCharCode( val );
-      }
-      return string;
-      /*
-			var array = new Uint8Array(len);
-			var out = 0;
-			for( n = 0; n < data.byteLength; n++ )
-				{ var val = data[n];
-          if( !val ) {
-              array[out++] = 92;
-              array[out++] = 48;
-          } else if( !val ) {
-              array[out++] = 92;
-              array[out++] = 92;
-					}
-					else array[out++] = val;
-				};
-				return array.buffer;
-        */
+	var n = 0;
+	var string = "";
+	var dataView = new Uint8Array(data);
+	//console.log( "Encode:", data)
+	var len = data.byteLength;
+	//console.log( data.bytes_used)
+	for( n = 0; n < data.byteLength; n++ ) {
+		var val = dataView[n];
+		//console.log( "val : ", val)
+		if( !val )
+			string += "0";
+		else if( val === 48 )
+			string += "\\0";
+		else if( val === 92 )
+			string += "\\\\";
+		else string += String.fromCharCode( val );
+	}
+	return string;
 }
 
 function decodeString( string, skip ){
@@ -52,8 +36,8 @@ function decodeString( string, skip ){
 			var buffer = new ArrayBuffer(bytes);
 			bytes = 0;
 			for( var n = skip; n < string.length; n++ ){
-        if( string[n] === '0' )
-          buffer[bytes++] = 0;
+				if( string[n] === '0' )
+					buffer[bytes++] = 0;
 				else if( string[n] === '\\' ) {
 					if( string[n+1] === '0' )
 						buffer[bytes++] = '0';

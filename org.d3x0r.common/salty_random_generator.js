@@ -56,17 +56,31 @@ exports.SaltyRNG = function (f) {
 			this.used = oldState.used;
 		},
 		reset() {
-			this.entropy = this.compute("test");
+			this.entropy = this.compute('test');
 			this.available = 0;
 			this.used = 0;
 		},
-		getBits(count) {
+		getBits(count, signed) {
+			if( !count ) { count = 32; signed = true } 
 			if (count > 32)
 				throw "Use getBuffer for more than 32 bits.";
 			var tmp = this.getBuffer(count);
-			var arr = new Uint32Array(tmp);
+			if( signed ) {
+				var arr_u = new Uint32Array(tmp);
+				var arr = new Int32Array(tmp);
+				if(  arr_u[0] & ( 1 << (count-1) ) ) {
+					var negone = ~0;
+					negone <<= (count-1);
+					//console.log( "set arr_u = ", arr_u[0].toString(16 ) , negone.toString(16 ) );
+					arr_u[0] |= negone;
+				}
+				return arr[0];
+			}
+			else {
 			//console.log( "buffer is ", arr[0] );
-			return arr[0];
+				var arr = new Uint32Array(tmp);
+				return arr[0];
+			}
 		},
 		getBuffer(bits) {
 			let _bits = bits;
@@ -271,6 +285,7 @@ SHA256.prototype.clean = function () {
 }
 
 SHA256.prototype.update = function (m, len) {
+	//console.trace( "update:",m );
 	var mpos = 0, mlen = (typeof len !== 'undefined') ? len : m.length
 	this.len += mlen
 	if (this.buflen > 0) {
@@ -321,14 +336,14 @@ SHA256.prototype.finish = function (h) {
 		h[i * 4 + 2] = (this.v[i] >>> 8) & 0xff
 		h[i * 4 + 3] = (this.v[i] >>> 0) & 0xff
 	}
-	/*
+	if( false )
 	{
 		var str = '';
 		for( i = 0; i < 32; i++ )
 			str += h[i].toString(16);
 		console.log( str); 
 	}
-	*/
+
 	return this
 }
 

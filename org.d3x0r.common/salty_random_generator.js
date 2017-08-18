@@ -86,11 +86,17 @@ exports.SaltyRNG = function (f) {
 						get_bits = 8;
 					else
 						get_bits = bits;
-					// have to limit number of bits to 1 byte of input.
+					// if there were 1-7 bits of data in partial, then can only get 8-partial max.
+					if( (8-partial_bits) < get_bits )
+						get_bits = (8-partial_bits);
+					// if get_bits == 8
+					//    but bits_used is 1-7, then it would have to pull 2 bytes to get the 8 required
+					//    so truncate get_bits to 1-7 bits
 					let chunk = ( 8 - ( this.used & 7) );
 					if( chunk < get_bits )
 						get_bits = chunk;
-					// have to limit number of bits to 1 byte of output;
+					// if resultBits is 1-7 offset, then would have to store up to 2 bytes of value
+					//    so have to truncate to just the up to 1 bytes that will fit.
 					chunk = ( 8 - ( resultBits & 7) );
 					if( chunk < get_bits )
 						get_bits = chunk;
@@ -100,8 +106,9 @@ exports.SaltyRNG = function (f) {
 					if (get_bits > (this.available - this.used)) {
 						if (this.available - this.used) {
 							partial_bits = this.available - this.used;
-							if (partial_bits > 8)
-								partial_bits = 8;
+							// partial can never be greater than 8; request is never greater than 8
+							//if (partial_bits > 8)
+							//	partial_bits = 8;
 							partial_tmp = MY_GET_MASK(this.entropy, this.used, partial_bits);
 						}
 						//console.log( "Getting bits", partial_bits );
@@ -122,6 +129,7 @@ exports.SaltyRNG = function (f) {
 						result[resultIndex] |= tmp << (resultBits&7);
 						//console.log( "output: ", result[resultIndex].toString(16), "input was", tmp.toString(16) );
 						resultBits += get_bits;
+						// because of input limits, total result bits can only be 8 or less.
 						if( resultBits == 8 ) {
 							resultIndex++;
 							resultBits = 0;

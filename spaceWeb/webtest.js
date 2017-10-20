@@ -26,9 +26,9 @@ var test = {
 } ;
 
 
-c.onmousedown = (evt)=>mouse(evt.clientX,evt.clientY,evt.buttons);
-c.onmouseup = (evt)=>mouse(evt.clientX,evt.clientY,evt.buttons);
-c.onmousemove = (evt)=>mouse(evt.clientX,evt.clientY,evt.buttons);
+c.onmousedown = (evt)=>{  var rect = c.getBoundingClientRect(); mouse(evt.clientX-rect.left,evt.clientY-rect.top,evt.buttons);} 
+c.onmouseup = (evt)=>{ var rect = c.getBoundingClientRect(); mouse(evt.clientX-rect.left,evt.clientY-rect.top,evt.buttons);  }
+c.onmousemove = (evt)=>{ var rect = c.getBoundingClientRect(); mouse(evt.clientX-rect.left,evt.clientY-rect.top,evt.buttons); }
 
 var _b;
 const MK_LBUTTON = 1
@@ -99,7 +99,7 @@ function ColorAverage( a, b, i,m) {
     return `#${(c[0]<16?"0":"")+c[0].toString(16)}${(c[1]<16?"0":"")+c[1].toString(16)}${(c[2]<16?"0":"")+c[2].toString(16)}`
 }
 
-function something( node, data, v )
+function drawData( node, data, v )
 {
 	var c, c2;
 
@@ -107,14 +107,14 @@ function something( node, data, v )
 		var c = 0;
 		c = node.countNear();
 
-        //ctx.font = "30px Comic Sans MS";
-        ctx.fillStyle = "white";
-        //ctx.textAlign = "center";
-        //console.log( "output a point?")
-        ctx.fillText(`${node.paint}[${NodeIndex(node)}]`,node.point[0],node.point[2]) ;
+		//ctx.font = "30px Comic Sans MS";
+		ctx.fillStyle = "white";
+		//ctx.textAlign = "center";
+		//console.log( "output a point?")
+		ctx.fillText(`${node.paint}[${NodeIndex(node)}]`,node.point[0],node.point[2]) ;
 	}
-    ctx.fillStyle = "green";
-    ctx.fillRect(node.point[vRight], node.point[vForward], 1, 1 );
+	ctx.fillStyle = "green";
+	ctx.fillRect(node.point[vRight], node.point[vForward], 1, 1 );
 
 	if( !node.flags.bLinked )
 		return 0;
@@ -190,7 +190,7 @@ function something( node, data, v )
 
 				var p1, p2;
                  p1 = [  is_path.point[0], is_path.point[1], is_path.point[2] ];
-const AAA = 8;
+			const AAA = 8;
 				p1[vRight] -= AAA;
 				p1[vForward] -= AAA;
 				p2 = SetPoint( p1 );
@@ -211,25 +211,27 @@ const AAA = 8;
             })
 		}
 		{
+		var first = true;
             data.pathway.forEach( (is_path)=>{
 
 				var p1, p2;
 				p1 = SetPoint( is_path.point );
-				p1[vRight] -= 3;
-				p1[vForward] -= 4;
+				p1[vRight] -= 9;
+				p1[vForward] -= 10;
 				p2 = SetPoint( p1 );
-				p2[vRight] += 3;
-				p2[vForward] += 4;
+				p2[vRight] += 9;
+				p2[vForward] += 10;
 				//console.log( ("path %d,%d"), is_path.point[vRight], is_path.point[vForward] );
 
-                DrawLine( p1, p2, "cyan" );
+                DrawLine( p1, p2, first?"magenta":"cyan" );
                 var x = p1[0];
                 p1[0] = p2[0];
                 p2[0] = x;
-                DrawLine( p1, p2, "cyan" );
+                DrawLine( p1, p2, first?"magenta":"cyan" );
                 var x = p1[0];
                 p1[0] = p2[0];
                 p2[0] = x;
+		first = false;
 
             })
 		}
@@ -278,13 +280,13 @@ function doDraw( )
 	if( test.web )
 	{
 		// for each node in web, draw it.
-        data = drawdata();
+		data = drawdata();
 		data.step = 0;
 		data.prior = null;
 		data.paint = ++test.paint;
-        data.path = [];
-        data.pathway = [];
-        data.bounds = [];
+		data.path = [];
+		data.pathway = [];
+		data.bounds = [];
 		data.checked = [];
 		if( !test.pRoot )
 			test.pRoot = test.web.nodes[test.root];
@@ -297,10 +299,10 @@ function doDraw( )
 			//console.log( ("Draw.") );
 		}
 
-        //console.log( "------------- drawing a set of points -----------------");
-        test.web.nodes.forEach( (node)=>{
-            something( node, data, v );
-        })
+		//console.log( "------------- drawing a set of points -----------------");
+		test.web.nodes.forEach( (node)=>{
+			drawData( node, data, v );
+		})
 	}
 }
 
@@ -308,7 +310,7 @@ function doDraw( )
 document.body.onkeydown = (key )=>
 {
 	if( key.code == "Space" )
-		update_pause = 0;
+		update_pause = !update_pause;
 	if( key.code == "KeyN" )
 	{
 		test.root++;
@@ -329,6 +331,10 @@ function MoveWeb( )
 	var node;
 	var v = [0,0,0];
 	var idx;
+	if( update_pause ) {
+		setTimeout( MoveWeb, 250 )
+		return;
+	}
 	//return;
 	/*
 	update_pause -= 50;
@@ -344,24 +350,32 @@ function MoveWeb( )
 	//else
 	//   update_pause = 1000;
 	cycle++;
-	var tick = Date.now();
 	console.log( ("cycle %d"), cycle );
+	var tick = Date.now();
     test.nodes.forEach( (node,idx)=>{
 		//if( idx %10 == 0 )
 		{
-			v[vRight] = (Math.random()*13)-6;
-			v[vForward] = (Math.random()*13)-6;
+			v[vRight] = (Math.random()*13)-6.5;
+			v[vForward] = (Math.random()*13)-6.5;
 			v[vUp] = 0;// (Math.random()*13)-6;
-			v = add( v, node.point );
+			node.point = add( v, node.point );
+		}
+	} );
+	var tick2 = Date.now();
+	console.log( "took some time to move all those.... ", tick2-tick, " per-node", (tick2 - tick)/test.nodes.length );
+	tick = tick2;
+    test.nodes.forEach( (node,idx)=>{
+		//if( idx %10 == 0 )
+		{
 			//console.log( "move ...", v )
-			node.move( v );
+			node.move( node.point );
 		}
 		//break;
     })
 	var tick2 = Date.now();
-	console.log( "took some time to move all those.... ", (tick2 - tick)/test.nodes.length );
+	console.log( "took some time to link all those.... ", tick2-tick, " per-node", (tick2 - tick)/test.nodes.length );
     doDraw();
-	//setTimeout( MoveWeb, 250 )
+	setTimeout( MoveWeb, 250 )
 }
 
 setTimeout( MoveWeb, 250 )

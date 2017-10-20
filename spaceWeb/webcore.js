@@ -106,16 +106,16 @@ function makeWebNode( web ) {
             return n;
         },
 
-        isOrphan : ()=>{
+        isOrphan (){
             if( node.flags.bLinked )
             {
                 orphanCounter++;
                 var c = node.countNear( node );
-                return (c == 0)?thisnode:0;
+                return (c == 0)?this:0;
             }
             return 0;
         },
-        isIsland : (  psv )=>
+        isIsland  (  psv )
         {
             // seek root...
             if( node.island && node.island !== psv )
@@ -740,9 +740,9 @@ function makeWebNode( web ) {
         move : ( v )=>
         {
             node.migrateLink( v );
-            node.web.findOrphans(  );
-            if( node.web.root.findIslands( ) )
-                DebugBreak();
+            //node.web.findOrphans(  );
+            //if( node.web.root.findIslands( ) )
+            //    DebugBreak();
         },
         delete : ()=>{ webNodePool.push( node ); }
 

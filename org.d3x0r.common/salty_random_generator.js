@@ -41,6 +41,7 @@ exports.SaltyRNG = function (f) {
 		entropy: 0,
 		available: 0,
 		used: 0,
+		initialEntropy : "test",
 		save() {
 			return {
 				saltbuf: this.saltbuf.slice(0),
@@ -56,7 +57,7 @@ exports.SaltyRNG = function (f) {
 			this.used = oldState.used;
 		},
 		reset() {
-			this.entropy = this.compute('test');
+			this.entropy = this.compute(this.initialEntropy);
 			this.available = 0;
 			this.used = 0;
 		},

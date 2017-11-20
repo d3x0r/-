@@ -14,7 +14,7 @@ const web = require( './webcore.js' );
 var test = {
 	 web : web.web,
 	 scale : 0,
-     origin : [0,0,0],
+     origin : {x:0,y:0,z:0},
 	 control : null,
      nodes:[],
 	 tester:null,
@@ -79,9 +79,9 @@ const BASE_COLOR_RED=[127,0,0];
 const BASE_COLOR_GREEN=[0,127,0];
 const BASE_COLOR_YELLOW=[255,255,0];
 const BASE_COLOR_MAGENTA=[255,0,255];
-const vRight = 0;
-const vUp = 1;
-const vForward = 2;
+const vRight = 'x';
+const vUp = 'y';
+const vForward = 'z';
 var had_lines = 0;
 
 function ColorAverage( a, b, i,m) {
@@ -135,8 +135,9 @@ function drawData( node, data, v )
 			link.data.paint = data.paint;
 
 			if( !link.lineMesh ) {
-				var newMesh = 
 				link.lineMesh = test.lineMesh.clone();
+				link.data.lineMesh = link.lineMesh;
+				
 			}
 				var dest = (link.invert?link.data.from:link.data.to).node;
 			
@@ -284,27 +285,19 @@ function MoveWeb( )
 	console.log( ("cycle %d"), cycle );
 	var tick = Date.now();
 	test.nodes.forEach( (node,idx)=>{
-		//if( idx %10 == 0 )
-		{
-			v[vRight] = ( (Math.random()*13)-6.5 ) * 0.1 *meterScalar;
-			v[vForward] = ( (Math.random()*13)-6.5 ) * 0.1 *meterScalar;
-			v[vUp] = ( (Math.random()*13)-6.5 ) * 0.1 * meterScalar;
-			node.point = web.add( v, node.point );
-			localStorage.setItem( "Node" + idx, JSON.stringify( node.point ) );
-		}
+		v[vRight] = ( (Math.random()*13)-6.5 ) * 0.1 *meterScalar;
+		v[vForward] = ( (Math.random()*13)-6.5 ) * 0.1 *meterScalar;
+		v[vUp] = ( (Math.random()*13)-6.5 ) * 0.1 * meterScalar;
+		node.point = web.add( v, node.point );
+		localStorage.setItem( "Node" + idx, JSON.stringify( node.point ) );
 	} );
 	var tick2 = Date.now();
 	console.log( "took some time to move all those.... ", tick2-tick, " per-node", (tick2 - tick)/test.nodes.length );
 	tick = tick2;
-    test.nodes.forEach( (node,idx)=>{
-		//if( idx %10 == 0 )
-		{
-			//console.log( "move ...", v )
-			node.move( node.point );
-			node.mesh.position.set( node.point[vRight], node.point[vUp], node.point[vForward] );
-		}
-		//break;
-    })
+	test.nodes.forEach( (node,idx)=>{
+		node.move( node.point );
+		node.mesh.position.set( node.point[vRight], node.point[vUp], node.point[vForward] );
+	})
 	var tick2 = Date.now();
 	console.log( "took some time to link all those.... ", test.nodes.length, " in ", tick2-tick, " per-node=", (tick2 - tick)/test.nodes.length );
     	doDraw();
@@ -431,7 +424,7 @@ function initShapes() {
 
 function windowLoaded()
 {	
-	//localStorage.clear();
+	localStorage.clear();
 	initShapes();
 	test.web = web.Web();
 

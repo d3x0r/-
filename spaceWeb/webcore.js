@@ -26,10 +26,10 @@ var makeWebLinkData = ()=>{
     if( !linkData ) 
         linkData = {
                 paint:0, // when drawing.. mark the links as drawn.
-                plane : { o:[0,0,0],
-                        n:[0,0,0],
-                        t:[0,0,0],
-                        ends:[0,0],
+                plane : { o:{x:0,y:0,z:0},
+                        n:{x:0,y:0,z:0},
+                        t:{x:0,y:0,z:0},
+                        ends:{from:0,to:0},
                         bounds:[] },
                 from : null, // weblink
                 to : null,  // WEBLINK
@@ -79,7 +79,7 @@ function makeWebNode( web ) {
 
     if( !node ) 
         node = {
-        point : [0,0,0],
+        point : {x:0,y:0,z:0},
         radius : 1, // how big this area is... areas cannot overlap either?
         t : 0, // internal usage... keeps last computed t
         flags : { 
@@ -189,7 +189,7 @@ function makeWebNode( web ) {
                     var near2;
                     if( !near_node ) return;
                     //console.log( "nearest is %d %d %d", GetMemberIndex( SPACEWEB_NODE, &near_node.web.nodes, near_node ),
-                    //    (int32_t)newNode.point[0], (int32_t)newNode.point[2] );
+                    //    (int32_t)newNode.point[0], (int32_t)newNode.point['z'] );
                     for( var idx2 = idx+1; idx2 < list.length; idx2++ ) {
                         var near2 = list[idx2];
                         if( !near2 ) continue;
@@ -565,9 +565,9 @@ function makeWebNode( web ) {
 
                 SetPoint( data.plane.o, node.point );
                 data.plane.n = sub( linkto.point, node.point );
-                data.plane.t = [data.plane.n[2], data.plane.n[1],-data.plane.n[0] ];
-                data.plane.ends[0] = -2.5;
-                data.plane.ends[1] = 2.5;
+                data.plane.t = [data.plane.n['z'], data.plane.n['y'],-data.plane.n['x'] ];
+                //data.plane.ends['from'] = -2.5;
+                //data.plane.ends['to'] = 2.5;
 
                 addscaled( data.plane.o, data.plane.o, data.plane.n, 0.5 );
 
@@ -785,7 +785,7 @@ function makeWebNode( web ) {
         },
         insert : (  pt, psv )=>{
             var node = makeWebNode(web);
-            node.point = [pt[0],pt[1],pt[2]];
+            node.point = {x:pt['x'],y:pt['y'],z:pt['z']};
             node.web = web;
             node.data = psv;
             //logFind = 0;
@@ -963,7 +963,7 @@ function PrevalLink(  check,  check2,  removing,  new_point )
 		if( okay )
 		{
 			p3=sub( check2.point, check.point );
-            check2.links.find( (check_near)=>{
+			check2.links.find( (check_near)=>{
 				var t3;
 				if( !check_near || check_near.node == removing )
 					return false;
@@ -980,7 +980,7 @@ function PrevalLink(  check,  check2,  removing,  new_point )
 		if( okay )
 		{
 			p3=sub( check.point, check2.point );
-            check.links.find( (check_near)=>{
+			check.links.find( (check_near)=>{
 				var t3;
 				if( !check_near || check_near.node == removing )
 					return false;
@@ -1023,8 +1023,8 @@ function ValidateLink( resident, new_point, node )
 	// from resident . node delta
 	p = sub( new_point?new_point:node.point, resident.point );
 
-    resident.links.forEach( (link)=>{
-        if( !link ) return;
+	resident.links.forEach( (link)=>{
+		if( !link ) return;
 		var t;
 		var data = link.data;
 		// don't check the node against itself.
@@ -1036,12 +1036,12 @@ function ValidateLink( resident, new_point, node )
 		t = PointToPlaneT( data.plane.o, data.plane.n, near2.point );
 		if( link.invert ) t = -t;
 
-        if( debugValidate )
-		    console.log( ("%d.%d v %d is"), NodeIndex( resident ), NodeIndex( node ), NodeIndex( near2 ), t );
+		if( debugValidate )
+			console.log( ("%d.%d v %d is"), NodeIndex( resident ), NodeIndex( node ), NodeIndex( near2 ), t );
 		if( t > 1)
 		{
-            if( debugValidate )
-	    		console.log( ("So we steal the link to me %d , and remove from resident %d  (%d)")
+			if( debugValidate )
+				console.log( ("So we steal the link to me %d , and remove from resident %d  (%d)")
 		    			, NodeIndex( node ), NodeIndex( resident ), NodeIndex( near2 ) );
 			// one for one exchange
 			/*
@@ -1055,8 +1055,8 @@ function ValidateLink( resident, new_point, node )
 			*/
 		}
 		else
-            if( debugValidate )
-    			console.log( ("ok..") );
+			if( debugValidate )
+				console.log( ("ok..") );
     })
 }
 
@@ -1068,7 +1068,7 @@ function computerIntersections( node ){
         var toLink = l.to
         var n = sub( toLink.node.point, node.point );
         var mid = scale( add( node.point, toLink.node.point ), 0.5 );
-        var v = [n[2],n[1],-n[0]];
+        var v = [n['z'],n['y'],-n[0]];
 
     })
 }
@@ -1270,19 +1270,19 @@ function GetNodeData( node )
 // ------------- Vector Math Utilities -----------------------------
 
 function scale(v,s) {
-    v[0] *= s;
-    v[1] *= s;
-    v[2] *= s;
+    v['x'] *= s;
+    v['y'] *= s;
+    v['z'] *= s;
 }
 function sub(a,b) {
-    return [a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+    return {x:a['x']-b['x'],y:a['y']-b['y'],z:a['z']-b['z']};
 }
 function add(a,b) {
-    return [a[0]+b[0],a[1]+b[1],a[2]+b[2]];
+    return {x:a['x']+b['x'],y:a['y']+b['y'],z:a['z']+b['z']};
 }
 
 function len(v) {
-    return Math.sqrt( v[0]*v[0]+v[1]*v[1]+v[2]*v[2] );
+    return Math.sqrt( v['x']*v['x']+v['y']*v['y']+v['z']*v['z'] );
 }
 
 const e1 = (0.00001);
@@ -1293,21 +1293,21 @@ function crossproduct(pv1,pv2 )
    // this must be limited to 3D only, huh???
    // what if we are 4D?  how does this change??
   // evalutation of 4d matrix is 3 cross products of sub matriccii...
-  return [ pv2[2] * pv1[1] - pv2[1] * pv1[2], //b2c1-c2b1
-    pv2[0] * pv1[2] - pv2[2] * pv1[0], //a2c1-c2a1 ( - determinaent )
-    pv2[1] * pv1[0] - pv2[0] * pv1[1] ]; //b2a1-a2b1 
+  return {x: pv2['z'] * pv1['y'] - pv2['y'] * pv1['z'], //b2c1-c2b1
+    y:pv2['x'] * pv1['z'] - pv2['z'] * pv1['x'], //a2c1-c2a1 ( - determinaent )
+    z:pv2['y'] * pv1['x'] - pv2['x'] * pv1['y'] }; //b2a1-a2b1 
 }
 function dotproduct (  pv1, pv2 )
 {
-  return pv2[0] * pv1[0] +
-  		   pv2[1] * pv1[1] +
-  		   pv2[2] * pv1[2] ;
+  return pv2['x'] * pv1['x'] +
+  		   pv2['y'] * pv1['y'] +
+  		   pv2['z'] * pv1['z'] ;
 }
 
 function addscaled(p,o,n,t) {
-    p[0] = o[0] + n[0] * t;
-    p[1] = o[1] + n[1] * t;
-    p[2] = o[2] + n[2] * t;
+    p['x'] = o['x'] + n['x'] * t;
+    p['y'] = o['y'] + n['y'] * t;
+    p['z'] = o['z'] + n['z'] * t;
 }
 
 const EPSILON = 0.00000001
@@ -1319,12 +1319,12 @@ function COMPARE(  n1,  n2 )
 
 function SetPoint( o,i) {
     if( i ) {
-        o[0] = i[0];
-        o[1] = i[1];
-        o[2] = i[2];
+        o['x'] = i['x'];
+        o['y'] = i['y'];
+        o['z'] = i['z'];
         return;
     }
-    return [o[0],o[1],o[2]];
+    return {x:o['x'],y:o['y'],z:o['z']};
 }
 
 function IntersectLineWithPlane(  Slope, Origin,  // line m, b
@@ -1336,9 +1336,9 @@ function IntersectLineWithPlane(  Slope, Origin,  // line m, b
 
 	// intersect a line with a plane.
     // dot(Slope,n)
-	a = ( Slope[0] * n[0] +
-			Slope[1] * n[1] +
-			Slope[2] * n[2] );
+	a = ( Slope['x'] * n['x'] +
+			Slope['y'] * n['y'] +
+			Slope['z'] * n['z'] );
 
 	if( !a ) return 0;
 
@@ -1352,9 +1352,9 @@ function IntersectLineWithPlane(  Slope, Origin,  // line m, b
 
 	cosPhi = a / ( b * c );
 
-	t = ( n[0] * ( o[0] - Origin[0] ) +
-			n[1] * ( o[1] - Origin[1] ) +
-			n[2] * ( o[2] - Origin[2] ) ) / a;
+	t = ( n['x'] * ( o['x'] - Origin['x'] ) +
+			n['y'] * ( o['y'] - Origin['y'] ) +
+			n['z'] * ( o['z'] - Origin['z'] ) ) / a;
 
 //   lprintf( (" a: %g b: %g c: %g t: %g cos: %g pldF: %g pldT: %g \n"), a, b, c, t, cosTheta,
 //                  pl->dFrom, pl->dTo );
@@ -1366,7 +1366,7 @@ function IntersectLineWithPlane(  Slope, Origin,  // line m, b
 	if( cosPhi > 0 ||
 		 cosPhi < 0 ) // at least some degree of insident angle
 	{
-		timeRef[0] = t;
+		timeRef['x'] = t;
 		return cosPhi;
 	}
 	else
@@ -1381,28 +1381,28 @@ function IntersectLineWithPlane(  Slope, Origin,  // line m, b
 }
 
 function PrintVector(n,v) {
-    console.log( `${n} = (${v[0]},${v[1]},${v[2]})`);
+    console.log( `${n} = (${v['x']},${v['y']},${v['z']})`);
 }
 
 function Invert(v) {
-    v[0] = -v[0];
-    v[1] = -v[1];
-    v[2] = -v[2];
+    v['x'] = -v['x'];
+    v['y'] = -v['y'];
+    v['z'] = -v['z'];
 }
 
 // from plane normal,origin to point
 function PointToPlaneT(n,o,p) {
-    var t = [0];
-    var i = [-n[0],-n[1],-n[2]];
+    var t = ['x'];
+    var i = {x:-n['x'],y:-n['y'],z:-n['z']};
     IntersectLineWithPlane( i, p, n, o, t );
-    return t[0];
+    return t['x'];
 
-	a = ( -n[0] * n[0] +
-			-n[1] * n[1] +
-			-n[2] * n[2] );
-    var t = -( n[0] * ( o[0] - p[0] ) +
-			n[1] * ( o[1] - p[1] ) +
-			n[2] * ( o[2] - p[2] ) )/a;
+	a = ( -n['x'] * n['x'] +
+			-n['y'] * n['y'] +
+			-n['z'] * n['z'] );
+    var t = -( n['x'] * ( o['x'] - p['x'] ) +
+			n['y'] * ( o['y'] - p['y'] ) +
+			n['z'] * ( o['z'] - p['z'] ) )/a;
     return t;
 }
 

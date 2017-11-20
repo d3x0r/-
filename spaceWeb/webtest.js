@@ -11,10 +11,19 @@ var ctx = c.getContext("2d");
 //--------------------------------------------------------------------------------------------
 
 
+const BASE_COLOR_RED=[127,0,0];
+const BASE_COLOR_GREEN=[0,127,0];
+const BASE_COLOR_YELLOW=[255,255,0];
+const BASE_COLOR_MAGENTA=[255,0,255];
+const vRight = 'x';
+const vUp = 'y';
+const vForward = 'z';
+var had_lines = 0;
+
 var test = {
 	 web : null,
 	 scale : 0,
-     origin : [0,0,0],
+     origin : {x:0,y:0,z:0},
 	 control : null,
      nodes:[],
 	 tester:null,
@@ -38,7 +47,7 @@ function mouse( x, y, b )
 	{
 		// it's an array in some context, and a pointer in most...
 		// the size is the sizeof [nDimensions] but address of that is not PVECTOR
-        var v = [x,0,y];
+        var v = {x:x,y:0,z:y};
 		console.log( ("----------------- NEW NODE -----------------------") );
 		//fprintf( test.file, ("%d,%d\n"), x, y );
 		//fflush( test.file );
@@ -74,21 +83,12 @@ function DrawLine(  a, b, c )
 {
     ctx.strokeStyle = c;
 	ctx.beginPath();
-    ctx.moveTo(a[0],a[2]);
-    ctx.lineTo(b[0],b[2]);
+    ctx.moveTo(a[vRight],a[vForward]);
+    ctx.lineTo(b[vRight],b[vForward]);
     ctx.stroke();
 	//console.trace( "did line.");
 }
 
-
-const BASE_COLOR_RED=[127,0,0];
-const BASE_COLOR_GREEN=[0,127,0];
-const BASE_COLOR_YELLOW=[255,255,0];
-const BASE_COLOR_MAGENTA=[255,0,255];
-const vRight = 0;
-const vUp = 1;
-const vForward = 2;
-var had_lines = 0;
 
 function ColorAverage( a, b, i,m) {
 
@@ -113,7 +113,7 @@ function drawData( node, data, v )
 		ctx.fillStyle = "white";
 		//ctx.textAlign = "center";
 		//console.log( "output a point?")
-		ctx.fillText(`${node.paint}[${NodeIndex(node)}]`,node.point[0],node.point[2]) ;
+		ctx.fillText(`${node.paint}[${NodeIndex(node)}]`,node.point[vRight],node.point[vForward]) ;
 	}
 	ctx.fillStyle = "green";
 	ctx.fillRect(node.point[vRight], node.point[vForward], 1, 1 );
@@ -169,7 +169,7 @@ function drawData( node, data, v )
 			{
 				var m;
 				var tmp;
-				var p1=[0,0,0], p2=[0,0,0];
+				var p1={x:0,y:0,z:0}, p2={x:0,y:0,z:0};
 				// get the slop...
 				m = sub( node.point, dest.point );
 				// inverse it (sorta)
@@ -196,7 +196,7 @@ function drawData( node, data, v )
 			n[1]++;
 
 			var p1, p2;
-			p1 = [  is_path.point[0], is_path.point[1], is_path.point[2] ];
+			p1 = { x:  is_path.point[vRight], y:is_path.point[vUp], z:is_path.point[vForward] };
 			const AAA = 8;
 			p1[vRight] -= AAA;
 			p1[vForward] -= AAA;
@@ -205,13 +205,13 @@ function drawData( node, data, v )
 			p2[vForward] += AAA;
 			//console.log( p1, p2 )
 			DrawLine( p1, p2, "white" );
-			var x = p1[0];
-			p1[0] = p2[0];
-			p2[0] = x;
+			var x = p1[vRight];
+			p1[vRight] = p2[vRight];
+			p2[vRight] = x;
 			DrawLine( p1, p2, "white" );
-			var x = p1[0];
-			p1[0] = p2[0];
-			p2[0] = x;
+			var x = p1[vRight];
+			p1[vRight] = p2[vRight];
+			p2[vRight] = x;
 
 			ctx.lineWidth = 1;
 			DrawLine( v, is_path.point, "green" ); 
@@ -232,13 +232,13 @@ function drawData( node, data, v )
 				//console.log( ("path %d,%d"), is_path.point[vRight], is_path.point[vForward] );
 	        
 	                        DrawLine( p1, p2, first?"magenta":"cyan" );
-        		        var x = p1[0];
-                        	p1[0] = p2[0];
-	                        p2[0] = x;
+        		        var x = p1[vRight];
+                        	p1[vRight] = p2[vRight];
+	                        p2[vRight] = x;
         		        DrawLine( p1, p2, first?"magenta":"cyan" );
-                        	var x = p1[0];
-	                        p1[0] = p2[0];
-        		        p2[0] = x;
+                        	var x = p1[vRight];
+	                        p1[vRight] = p2[vRight];
+        		        p2[vRight] = x;
 				first = false;
 	        
 			})
@@ -300,12 +300,12 @@ function doDraw( )
 		data.pathway = [];
 		data.bounds = [];
 		data.checked = [];
-		console.log( "something..." );
+		//console.log( "something..." );
 
 		if( !test.pRoot )
 			test.pRoot = test.web.nodes[test.root];
 		{
-			var v = [test.x,0,test.y];
+			var v = {x:test.x,y:0,z:test.y};
 			if( test.web.root ) {
 				console.log( "begin finding..." );
 				FindNearest( data.path, data.pathway, data.bounds, data.checked
@@ -316,7 +316,7 @@ function doDraw( )
 			//console.log( ("Draw.") );
 		}
 
-		console.log( "------------- drawing a set of points -----------------");
+		console.log( "------------- drawing a set of points -----------------", data );
 		n = [0,0,0,0];
 
 		test.web.nodes.forEach( (node)=>{
@@ -362,7 +362,7 @@ document.body.onkeydown = (key )=>
 function MoveWeb( )
 {
 	var node;
-	var v = [0,0,0];
+	var v = {x:0,y:0,z:0};
 	var idx;
 	if( update_pause ) {
 		setTimeout( MoveWeb, 250 )
@@ -392,7 +392,7 @@ function MoveWeb( )
 			v[vForward] = (Math.random()*13)-6.5;
 			v[vUp] = 0;// (Math.random()*13)-6;
 			node.point = add( v, node.point );
-			localStorage.setItem( "Node" + idx, JSON.stringify( v ) );
+			localStorage.setItem( "Node" + idx, JSON.stringify( node.point ) );
 		}
 	} );
 	var tick2 = Date.now();
@@ -427,7 +427,7 @@ function main()
 	//AttachFrameToRenderer( test.tester, test.surface );
 	//DisplayFrame( test.tester );
 	//Redraw( test.surface );
-
+	//localStorage.clear();
 	test.web = exports.Web();
 
 	var n;
@@ -437,7 +437,7 @@ function main()
 		if( !node ) break;
 		start = Date.now();
 		console.log( "adding ", n );
-		test.web.nodes.push( test.web.insert( JSON.parse( node ), 0  ) );
+		test.nodes.push( test.web.insert( JSON.parse( node ), 0  ) );
 		console.log( "added ", n, Date.now() - start );
 	}
 
@@ -459,7 +459,7 @@ function main()
 
 			}
 	}
-doDraw();
+	doDraw();
     /*
 	{
 		var buf[256];

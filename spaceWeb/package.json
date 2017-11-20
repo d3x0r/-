@@ -1,0 +1,16 @@
+{
+  "name": "spaceweb",
+  "version": "1.0.0",
+  "description": "track near points in a mesh",
+  "main": "webtest3d.html",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "d3x0r",
+  "license": "ISC",
+  "window":{
+    "width":1024,
+    "height":768
+  },
+  "chromium-args": "--mixed-context"
+}

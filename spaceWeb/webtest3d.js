@@ -1,7 +1,7 @@
 
 
-var c = document.getElementById( "testSurface");
-var ctx = c.getContext("2d");
+const setup = require( "./three.setup.js" );
+const web = require( './webcore.js' );
 
 //--------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------
@@ -12,7 +12,7 @@ var ctx = c.getContext("2d");
 
 
 var test = {
-	 web : null,
+	 web : web.web,
 	 scale : 0,
      origin : [0,0,0],
 	 control : null,
@@ -23,12 +23,16 @@ var test = {
 	 root:0,
 	 pRoot:null,
 	 paint:0,
+	space:null,
+	pointMesh : null,
+	lineMesh : null,
 } ;
 
-
+if(0){
 c.onmousedown = (evt)=>{  var rect = c.getBoundingClientRect(); mouse(evt.clientX-rect.left,evt.clientY-rect.top,evt.buttons);} 
 c.onmouseup = (evt)=>{ var rect = c.getBoundingClientRect(); mouse(evt.clientX-rect.left,evt.clientY-rect.top,evt.buttons);  }
 c.onmousemove = (evt)=>{ var rect = c.getBoundingClientRect(); mouse(evt.clientX-rect.left,evt.clientY-rect.top,evt.buttons); }
+}
 
 var _b;
 const MK_LBUTTON = 1
@@ -70,16 +74,6 @@ function  drawdata() {return {
 	 paint : 0,
 }};
 
-function DrawLine(  a, b, c )
-{
-    ctx.strokeStyle = c;
-	ctx.beginPath();
-    ctx.moveTo(a[0],a[2]);
-    ctx.lineTo(b[0],b[2]);
-    ctx.stroke();
-	//console.trace( "did line.");
-}
-
 
 const BASE_COLOR_RED=[127,0,0];
 const BASE_COLOR_GREEN=[0,127,0];
@@ -100,23 +94,16 @@ function ColorAverage( a, b, i,m) {
     return `#${(c[0]<16?"0":"")+c[0].toString(16)}${(c[1]<16?"0":"")+c[1].toString(16)}${(c[2]<16?"0":"")+c[2].toString(16)}`
 }
 
-	var n = [0,0,0,0];
+var n = [0,0,0,0];
 function drawData( node, data, v )
 {
 	var c, c2;
 
-	{
-		var c = 0;
-		c = node.countNear();
-
-		//ctx.font = "30px Comic Sans MS";
-		ctx.fillStyle = "white";
-		//ctx.textAlign = "center";
-		//console.log( "output a point?")
-		ctx.fillText(`${node.paint}[${NodeIndex(node)}]`,node.point[0],node.point[2]) ;
+	if( !node.mesh ) {
+		node.mesh = test.pointMesh.clone();
+		node.mesh.position.set( node.point[vRight], node.point[vUp], node.point[vForward] );
 	}
-	ctx.fillStyle = "green";
-	ctx.fillRect(node.point[vRight], node.point[vForward], 1, 1 );
+	test.space.scene.add( node.mesh );
 
 	if( !node.flags.bLinked )
 		return 0;
@@ -135,7 +122,6 @@ function drawData( node, data, v )
 		var dest;
 		var link;
 		//console.log( "--- Draw from node ", NodeIndex( node ) );
-		ctx.lineWidth = 3;
 		node.links.forEach( (link)=>{
 			n[0]++;
 			if( !link ) return;
@@ -147,121 +133,31 @@ function drawData( node, data, v )
 			}
 			//console.log( "links")
 			link.data.paint = data.paint;
-			dest = (link.invert?link.data.from:link.data.to).node;
-			//console.log( ("a near node!"), NodeIndex( dest ), c, c2 );
-			if ( DEBUG_ALL )
-			        console.log( ("a near node! %d %d %d %d")
-					     ,node.point[vRight], node.point[vForward]
-					    , dest.point[vRight], dest.point[ vForward ] );
-        
-			ctx.lineWidth = 3;
-			/*
-			var a = [0,0,0];
-			var b = [0,0,0];
-			addscaled( a, link.data.plane.o, link.data.plane.t, link.data.plane.ends[0] )
-			addscaled( b, link.data.plane.o, link.data.plane.t, link.data.plane.ends[1] )
-			DrawLine( a, b, c );
-			*/
 
-			DrawLine( node.point, dest.point, c );
-		
-			// draw the perpendicular lines at caps ( 2d perp only)
-			{
-				var m;
-				var tmp;
-				var p1=[0,0,0], p2=[0,0,0];
-				// get the slop...
-				m = sub( node.point, dest.point );
-				// inverse it (sorta)
-				m[vRight] = -m[vRight];
-				// and swap x/y
-				tmp = m[vForward];
-				m[vForward] = m[vRight];
-				m[vRight] = tmp;
-				ctx.lineWidth = 1;
-				addscaled( p1, node.point, m, 0.125 );
-				addscaled( p2, node.point, m, -0.125 );
-				DrawLine( p1, p2, c2  );
-				addscaled( p1, dest.point, m, 0.125 );
-				addscaled( p2, dest.point, m, -0.125 );
-				DrawLine( p1, p2, c2  );
+			if( !link.lineMesh ) {
+				var newMesh = 
+				link.lineMesh = test.lineMesh.clone();
 			}
+				var dest = (link.invert?link.data.from:link.data.to).node;
+			
+				link.lineMesh.position.set( ( node.point[vRight] + dest.point[vRight] ) / 2
+					, ( node.point[vUp] + dest.point[vUp] ) / 2
+					, ( node.point[vForward] + dest.point[vForward] ) / 2
+				);
+				var a = ( node.point[vRight] - dest.point[vRight] );
+				var b = ( node.point[vUp] - dest.point[vUp] );
+				var c = ( node.point[vForward] - dest.point[vForward] );
+				link.lineMesh.scale.set( 1, 1, Math.sqrt( (a*a)+(b*b)+(c*c) ) / meterScalar - 10*meterScalar );
+				link.lineMesh.lookAt( new THREE.Vector3( dest.point[vRight]
+						, dest.point[vUp]
+						, dest.point[vForward]
+					) 
+				);
+			
+			test.space.scene.add( link.lineMesh );
+		} );
 
-			// perpendicular line at these points?
-
-		})
-		//console.log( "found path:", data.path )
-		if( data )
-		data.path.forEach( (is_path)=>{
-			n[1]++;
-
-			var p1, p2;
-			p1 = [  is_path.point[0], is_path.point[1], is_path.point[2] ];
-			const AAA = 8;
-			p1[vRight] -= AAA;
-			p1[vForward] -= AAA;
-			p2 = SetPoint( p1 );
-			p2[vRight] += AAA;
-			p2[vForward] += AAA;
-			//console.log( p1, p2 )
-			DrawLine( p1, p2, "white" );
-			var x = p1[0];
-			p1[0] = p2[0];
-			p2[0] = x;
-			DrawLine( p1, p2, "white" );
-			var x = p1[0];
-			p1[0] = p2[0];
-			p2[0] = x;
-
-			ctx.lineWidth = 1;
-			DrawLine( v, is_path.point, "green" ); 
-		})
-		if( data )
-		{
-
-			var first = true;
-			data.pathway.forEach( (is_path)=>{
-                                n[2]++;
-				var p1, p2;
-				p1 = SetPoint( is_path.point );
-				p1[vRight] -= 9;
-				p1[vForward] -= 10;
-				p2 = SetPoint( p1 );
-				p2[vRight] += 9;
-				p2[vForward] += 10;
-				//console.log( ("path %d,%d"), is_path.point[vRight], is_path.point[vForward] );
-	        
-	                        DrawLine( p1, p2, first?"magenta":"cyan" );
-        		        var x = p1[0];
-                        	p1[0] = p2[0];
-	                        p2[0] = x;
-        		        DrawLine( p1, p2, first?"magenta":"cyan" );
-                        	var x = p1[0];
-	                        p1[0] = p2[0];
-        		        p2[0] = x;
-				first = false;
-	        
-			})
-
-		}
-		if( data )
-		{
-			data.bounds.forEach( (bound)=>{
-				n[3]++;
-				var p1, p2;
-				p1 = SetPoint( bound.node.point );
-				p1[vRight] -= 3;
-				p1[vForward] -= 4;
-				p2 = SetPoint( (bound.invert?bound.data.from:bound.data.to).node.point );
-				p2[vRight] += 3;
-				p2[vForward] += 4;
-				//console.log( ("path %d,%d"), is_path.point[vRight], is_path.point[vForward] );
-		        
-				ctx.lineWidth = 1;
-				DrawLine( p1, p2, "#4cd2ff" );
-				
-			})
-		}
+		
 		if( !lines )
 		{
 			//console.log( ("a point has no lines from it!") );
@@ -284,14 +180,15 @@ function drawData( node, data, v )
 	return 0; // don't end scan.... foreach can be used for searching too.
 }
 
+
+
 function doDraw( )
 {
-    ctx.fillStyle = "#404080"
-    ctx.fillRect( 0, 0, 1000, 1000 );
 	//ClearImageTo( surface, SetAlpha( BASE_COLOR_BLUE, 32 ) );
 	if( test.web )
 	{
 		// for each node in web, draw it.
+	while(test.space.scene.children.length > 0){ test.space.scene.remove(test.space.scene.children[0]); }
 		data = drawdata();
 		data.step = 0;
 		data.prior = null;
@@ -308,7 +205,7 @@ function doDraw( )
 			var v = [test.x,0,test.y];
 			if( test.web.root ) {
 				console.log( "begin finding..." );
-				FindNearest( data.path, data.pathway, data.bounds, data.checked
+				web.FindNearest( data.path, data.pathway, data.bounds, data.checked
 							, test.pRoot
 							, v, 0 );
 				console.log( "end finding..." );
@@ -327,17 +224,18 @@ function doDraw( )
 }
 
 //document.body.onkeypress =
+var update_pause = true;
 document.body.onkeydown = (key )=>
 {
-	if( key.code == "Space" )
+	if( key.code == "KeyM" )
 		update_pause = !update_pause;
 
-	if( key.code == "KeyA" )
+	if( key.code == "KeyI" )
 	{
 		var v = [];
-		v[vRight] = (Math.random()*c.width);
-		v[vForward] = (Math.random()*c.height);
-		v[vUp] = 0;// (Math.random()*13)-6;
+		v[vRight] = (Math.random()*2);
+		v[vForward] = (Math.random()*2);
+		v[vUp] = (Math.random()*2);// (Math.random()*13)-6;
 		//node.point = add( v, node.point );
 		test.nodes.push( test.web.insert( v, 0 ) );
 		localStorage.setItem( "Node" + test.nodes.length, JSON.stringify( v ) );
@@ -358,7 +256,7 @@ document.body.onkeydown = (key )=>
 	return 0;
 }
 
-	var cycle = 0;
+var cycle = 0;
 function MoveWeb( )
 {
 	var node;
@@ -388,11 +286,11 @@ function MoveWeb( )
 	test.nodes.forEach( (node,idx)=>{
 		//if( idx %10 == 0 )
 		{
-			v[vRight] = (Math.random()*13)-6.5;
-			v[vForward] = (Math.random()*13)-6.5;
-			v[vUp] = 0;// (Math.random()*13)-6;
-			node.point = add( v, node.point );
-			localStorage.setItem( "Node" + idx, JSON.stringify( v ) );
+			v[vRight] = ( (Math.random()*13)-6.5 ) * 0.1 *meterScalar;
+			v[vForward] = ( (Math.random()*13)-6.5 ) * 0.1 *meterScalar;
+			v[vUp] = ( (Math.random()*13)-6.5 ) * 0.1 * meterScalar;
+			node.point = web.add( v, node.point );
+			localStorage.setItem( "Node" + idx, JSON.stringify( node.point ) );
 		}
 	} );
 	var tick2 = Date.now();
@@ -403,86 +301,152 @@ function MoveWeb( )
 		{
 			//console.log( "move ...", v )
 			node.move( node.point );
+			node.mesh.position.set( node.point[vRight], node.point[vUp], node.point[vForward] );
 		}
 		//break;
     })
 	var tick2 = Date.now();
-	console.log( "took some time to link all those.... ", tick2-tick, " per-node", (tick2 - tick)/test.nodes.length );
-    doDraw();
+	console.log( "took some time to link all those.... ", test.nodes.length, " in ", tick2-tick, " per-node=", (tick2 - tick)/test.nodes.length );
+    	doDraw();
 	setTimeout( MoveWeb, 250 )
 }
 
-setTimeout( MoveWeb, 250 )
-function animate() {
 
+setTimeout( MoveWeb, 250 )
+
+function Shape(name) {
+	return {
+		verts: [], norms:[], pairs:[], faces:[],
+		size : { width:0, height:0, depth:consts.peice_depth },
+		label: { pos:new THREE.Vector3(), size:{ width:0, height:0 } },
+		resize : null,
+		scaledVert(n,scale) { return this.verts[n]; }
+	};
+}
+      
+
+
+function createMesh( geometry, color ) {
+	//MeshStandardMaterial
+	// MeshBasicMaterial
+       	let defaultMaterial = new THREE.MeshStandardMaterial( { color: color, roughness:0.17, metalness:0.24, side : THREE.DoubleSide  } );
+	var mesh = new THREE.Mesh( geometry, defaultMaterial );
+	return mesh;
+}
+
+const meterScalar = 0.02;//0.02;
+const pointShape = {
+verts : [ { x:-0.5        , y:0.5, z:0 }, { x:0.5, y:0.5, z:0 }
+	, { x:-0.5        , y:-0.5, z:0 }, { x:0.5, y:-0.5, z:0 }
+	, { x:-0.5        , z:0.5, y:0 }, { x:0.5, z:0.5, y:0 }
+	, { x:-0.5        , z:-0.5, y:0 }, { x:0.5, z:-0.5, y:0 }
+	, { z:-0.5        , y:0.5, x:0 }, { z:0.5, y:0.5, x:0 }
+	, { z:-0.5        , y:-0.5, x:0 }, { z:0.5, y:-0.5, x:0 }
+        ],
+norms : [ { x:0, y : 0, z: 1 }
+	, { x:0, y : 1, z: 0 }
+	, { x:1, y : 0, z: 0 }
+        ],
+pairs : [ [0,0], [1,0]
+	, [2,0], [3,0]
+	, [4,1], [5,1]
+	, [6,1], [7,1]
+	, [8,2], [9,2]
+	, [10,2], [11,2]
+        ],
+faces : [ [ 0, 2,1 ], [2, 3, 1] 
+	, [ 4, 6,5 ], [6, 7, 5] 
+	, [ 8, 10,9 ], [10, 11, 9] 
+	],
+        scaledVert(n,scale) { return this.verts[n]; }
+
+};
+
+
+const lineShape = {
+verts : [ { z:-0.5        , y:0.25, x:0 }, { z:0.5, y:0.25, x:0 }
+	, { z:-0.5        , y:-0.25, x:0 }, { z:0.5, y:-0.25, x:0 }
+	, { z:-0.5        , x:0.25, y:0 }, { z:0.5, x:0.25, y:0 }
+	, { z:-0.5        , x:-0.25, y:0 }, { z:0.5, x:-0.25, y:0 }
+        ],
+norms : [ { x:0, y : 0, z: 1 }
+	, { x:0, y : 1, z: 0 }
+        ],
+pairs : [ [0,0], [1,0]
+	, [2,0], [3,0]
+	, [4,1], [5,1]
+	, [6,1], [7,1]
+        ],
+faces : [ [ 0, 2,1 ], [2, 3, 1] 
+	, [ 4, 6,5 ], [6, 7, 5] 
+	],
+        scaledVert(n,scale) { return this.verts[n]; }
+
+};
+
+
+function createGeometry( shape, color ) {
+
+	//var materialIndex = 0; //optional
+
+	var geometry = new THREE.Geometry();
+
+	var n;
+	for( n = 0; n < shape.verts.length; n++ ) {
+		geometry.vertices.push( 
+			new THREE.Vector3().copy( { x : shape.verts[n].x * meterScalar
+				, y : shape.verts[n].y * meterScalar 
+				, z : shape.verts[n].z * meterScalar } )  
+		);
+	}
+
+	//create a new face using vertices 0, 1, 2
+	var pairs = shape.pairs;
+	for( n = 0; n < shape.faces.length; n++ ) {
+		var faces = shape.faces[n];
+		//console.log( "face:" + face );		
+		var face = new THREE.Face3( pairs[faces[0]][0], pairs[faces[1]][0], pairs[faces[2]][0]
+				, [new THREE.Vector3().copy( shape.norms[pairs[faces[0]][1]] )
+				, new THREE.Vector3().copy( shape.norms[pairs[faces[1]][1]] )
+				, new THREE.Vector3().copy( shape.norms[pairs[faces[2]][1]] )
+				 ], color );
+		geometry.faces.push( face );
+	}
+
+	geometry.computeBoundingSphere();
+	geometry.shape = shape;
+	return geometry;
 }
 
 
-function main()
-{
-	//test.file = fopen( "points.dat", "at+" );
-	//fseek( test.file, 0, SEEK_SET );
-	//test.tester = MakeNamedCaptionedControl( NULL, ("VWeb Tester"), 0, 0, 512, 512, -1, ("Test Space Web") );
-	//test.surface = OpenDisplaySizedAt( DISPLAY_ATTRIBUTE_LAYERED, 512, 512, 0, 0 );
-	//AttachFrameToRenderer( test.tester, test.surface );
-	//DisplayFrame( test.tester );
-	//Redraw( test.surface );
+function initShapes() {
+	
+	var geometry = createGeometry( pointShape, new THREE.Color( 0xaa0000 ) ); //optional
+	test.pointMesh = createMesh( geometry, 0xaa0000 ); //optional
 
-	test.web = exports.Web();
+	var geometry = createGeometry( lineShape, new THREE.Color( 0x009999 ) ); //optional
+	test.lineMesh = createMesh( geometry, 0x009999 ); //optional
+
+}
+
+function windowLoaded()
+{	
+	//localStorage.clear();
+	initShapes();
+	test.web = web.Web();
+
+	test.space = setup( (navigator.getVRDisplays !== undefined) ); 
+	test.space.camera.matrix.rotateRelative( 0, - Math.PI*3/4, Math.PI/2  );
 
 	var n;
 	var start;
 	for( n = 0; ; n++ ) {
 		var node = localStorage.getItem( "Node"+n );
 		if( !node ) break;
-		start = Date.now();
-		console.log( "adding ", n );
-		test.web.nodes.push( test.web.insert( JSON.parse( node ), 0  ) );
-		console.log( "added ", n, Date.now() - start );
+		test.nodes.push( test.web.insert( JSON.parse( node ), 0  ) );
 	}
+	doDraw();
 
-	if(0)
-	{
-		var x, y;
-		for( x = 0; x < 400; x += 50 )
-			for( y = 0; y < 400; y += 50 )
-			{
-				var v = [];
-				v[vRight] = (Math.random()*500);
-				v[vForward] = (Math.random()*500);
-				v[vUp] = 0;
-				var data;
-				test.nodes.push( test.web.insert( v, data = { d:new THREE.Matrix4() } ) );
-				data.d.rotateOrtho( Math.random() * 2 * Math.PI, 0,2 )
-				//d.rotateOrtho( Math.random() * 2 * Math.PI, 0,1 )
-				//d.rotateOrtho( Math.random() * 2 * Math.PI, 1,2 )
-
-			}
-	}
-doDraw();
-    /*
-	{
-		var buf[256];
-		var x, y;
-
-		while( fgets( buf, sizeof( buf ), test.file ) )
-		{
-			VECTOR v;
-			//sscanf( buf, ("%d,%d"), &x, &y );
-			v[vRight] = x;
-			v[vForward] = y;
-			v[vUp] = 0;
-			console.log( ("----------------- NEW NODE -----------------------") );
-			//fprintf( test.file, ("%d,%d\n"), x, y );
-			AddLink( &test.nodes, AddWebNode( test.web, v, 0 ) );
-		}
-		//fseek( test.file, 0, SEEK_SET );
-	}
-    */
-
-	//Redraw( test.surface );
-	//AddTimer( 5, MoveWeb, 0 );
 }
 
-main();
 

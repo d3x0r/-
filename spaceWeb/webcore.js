@@ -58,6 +58,7 @@ var makeWebLink = (i,node,data)=>{
             invert : i,
             get to() { return (link.invert?link.data.from:link.data.to).node },
             delete : ()=>{ if( link.invert ) webLinkPool_.push( link ); else webLinkPool.push(link) },
+	    lineMesh : null,
         };
         ["invert"].forEach( (key)=>{
             Object.defineProperty( link, key, {configurable:false,writable:false,enumerable:true })
@@ -1416,7 +1417,6 @@ function push( arr, el ){
 
 if( typeof exports === "undefined" ) exports = {};
 
-exports.Web = ()=>{
-    return makeWeb();
-}
-
+exports.Web = makeWeb;
+exports.FindNearest = FindNearest;
+exports.add = add;

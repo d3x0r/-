@@ -238,7 +238,7 @@ document.body.onkeydown = (key )=>
 		v[vUp] = (Math.random()*2);// (Math.random()*13)-6;
 		//node.point = add( v, node.point );
 		test.nodes.push( test.web.insert( v, 0 ) );
-		localStorage.setItem( "Node" + test.nodes.length-1, JSON.stringify( v ) );
+		localStorage.setItem( "Node" + (test.nodes.length-1), JSON.stringify( v ) );
 		doDraw();
 	}
 

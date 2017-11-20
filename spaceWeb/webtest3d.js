@@ -423,7 +423,7 @@ function initShapes() {
 
 function windowLoaded()
 {	
-	localStorage.clear();
+	//localStorage.clear();
 	initShapes();
 	test.web = web.Web();
 

@@ -42,7 +42,7 @@ function mouse( x, y, b )
 	{
 		// it's an array in some context, and a pointer in most...
 		// the size is the sizeof [nDimensions] but address of that is not PVECTOR
-        var v = [x,0,y];
+        var v = {x:x,y:0,z:y};
 		console.log( ("----------------- NEW NODE -----------------------") );
 		//fprintf( test.file, ("%d,%d\n"), x, y );
 		//fflush( test.file );
@@ -70,8 +70,7 @@ function  drawdata() {return {
 	 pathway : [],
 	 checked : [],
 	 prior : null,
-	 step : 0,
-	 paint : 0,
+	 step : 0,          	 paint : 0,
 }};
 
 
@@ -233,7 +232,7 @@ document.body.onkeydown = (key )=>
 
 	if( key.code == "KeyI" )
 	{
-		var v = [];
+		var v = {};
 		v[vRight] = (Math.random()*2);
 		v[vForward] = (Math.random()*2);
 		v[vUp] = (Math.random()*2);// (Math.random()*13)-6;

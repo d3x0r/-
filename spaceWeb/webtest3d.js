@@ -431,12 +431,13 @@ function windowLoaded()
 	test.space.camera.matrix.rotateRelative( 0, - Math.PI*3/4, Math.PI/2  );
 
 	var n;
-	var start;
+	var start = Date.now();
 	for( n = 0; ; n++ ) {
 		var node = localStorage.getItem( "Node"+n );
 		if( !node ) break;
 		test.nodes.push( test.web.insert( JSON.parse( node ), 0  ) );
 	}
+	console.log( "Initial load took:" + ( Date.now() - start ));
 	doDraw();
 
 }

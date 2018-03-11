@@ -188,7 +188,7 @@ function makeWebNode( ) {
 			var boundLinks = [];
 			console.log( "----------------------- ADD POINT ----------------------" );
 			this.web.extents.forEach( node=>{
-				FindNearest( list, path, boundLinks, newNode, node, newNode.point, paint );
+				FindNearest2( list, path, boundLinks, newNode, node, newNode.point, paint );
 			} );
 			console.log( "potential:", list );
 				if( debugRelink ) console.log( "Find found", list );
@@ -339,7 +339,7 @@ function makeWebNode( ) {
 					//DebugBreak();
 					if( debugMigrate ) console.log( ("Fell outside the lines... best to orphan, and rebuild (probably)") );
 					var boundLinks = []
-					FindNearest( pListNear, null, boundLinks, this, node, p_dest, 0 );
+					FindNearest2( pListNear, null, boundLinks, this, node, p_dest, 0 );
 					{
 						var near_node;
 						var near_link;
@@ -401,7 +401,7 @@ function makeWebNode( ) {
 
 					var pListNear = [];
 					var boundLinks = [];
-					FindNearest( pListNear, null, boundLinks, this, node, p_dest, 0 );
+					FindNearest2( pListNear, null, boundLinks, this, node, p_dest, 0 );
 					{
 						pListNear.forEach( (near_node)=>{
 							if( near_node == node )
@@ -606,12 +606,16 @@ function makeWebNode( ) {
 			var linked;
 			var linked_list = [];
 			var prior = node.island;
-
+			for( var e = 0; e < 6; e++ ) {
+				if( this.web.extents[e] === this ) {
+					this.web.extents[e] = null;
+				}
+			}
 			if( this.web.root == node )
 			{
 				if ( DEBUG_ALL )
 					console.log( ("Going to have to pivot root.") );
-				linked_list.forEach( linked=>{
+				node.links.forEach( linked=>{
 					if( !anyone_else )
 					{
 						if ( DEBUG_ALL )
@@ -619,7 +623,8 @@ function makeWebNode( ) {
 						anyone_else = linked;
 					}
 					else
-						anone_else.node.link( linked.node );
+						anyone_else.node.link( linked.node );
+					this.web.addExtent( linked );
 					linked_list.push( linked );
 				} )
 
@@ -1346,6 +1351,166 @@ function NodeIndex( node ) {
 
 
 
+// find nearest does a recusive search and finds nodes
+// which may qualify for linking to the new node (to).
+// from is some source point, in a well linked web, should be irrelavent which to start from
+// paint is passed to show nodes touched during the (last)search.
+
+function FindNearest2( nodes, came_from, boundaries, targetNode, from,  to,  paint )
+{
+	function dist( a, b ) {
+		var x = {};
+		sub2( x, a, b );
+		return len(x);
+	}
+	function h1( here ) {
+		return dist( here.point, to );
+	}
+
+
+	var openSet = {
+			first : null,
+			length : 0,
+			add(n, g) {
+				var newNode = { 
+					node: n, 
+					checked : false, 
+					f:h1(n) + g, 
+					g:g, 
+					h:0,
+					next : null,  // link in set
+					parent : null   // link backward from success
+				};
+				this.link( newNode );
+				this.length++;
+				return newNode;
+			},
+			link(newNode) {
+				if( !this.first )
+					this.first = newNode;
+				else {
+					if( newNode.f < this.first.f ) {
+						newNode.next = this.first;
+						this.first = newNode;
+					} else {
+						for( var cur = this.first; cur.next && ( cur.f < newNode.f ); cur = cur.next );
+						newNode.next = cur.next;
+						cur.next = newNode;
+					}
+				}
+			},
+			find(n) {
+				var c, _c = null;
+				for( c = this.first; c && c.node != n; (_c = c), (c = c.next) );
+				if( c )
+					return { node:c, prior:_c};
+				return null;
+			},
+			pop() {
+				var n = this.first;
+				if( n ) {
+					this.length--;
+					this.first = this.first.next;
+				}
+				return n;
+			}
+		};
+	var closedSet = {
+			first : null,
+			length : 0,
+			add(n) {
+				n.checked = true;
+				if( !this.first )
+					this.first = n;
+				else {
+					n.next = this.first;
+					this.first = n;
+				}
+				this.length++;
+			},
+			find(n) {
+				var c;
+				for( c = this.first; c && c.node != n; c = c.next );
+				return c;
+			}
+		};
+
+	openSet.add( from, 0 );
+	var check;
+	var min_dist = Infinity;
+	var min_len = Infinity;
+	var min_node = null;
+	while( check = openSet.pop() ) {
+		if( check.node === targetNode ) {
+			min_node = check;
+			min_dist = 0;
+			break;
+		}
+		var nearness = h1( check.node );
+		if( nearness < min_dist ) {
+			if( check.g < min_len ) {
+				min_len = check.g;
+			}
+			min_node = check;
+			min_dist = nearness;
+		}
+		// win condition is tough.... there is no exact answer.... 		
+		closedSet.add( check );
+
+		check.node.links.forEach( neighbor=>{
+			if( !neighbor ) return;
+			neighbor = neighbor.to;
+			var find;
+			var node;
+			if( closedSet.find( neighbor ) ) return;
+			var newg = dist( check.node.point, neighbor.point ) + check.g;
+			
+			//if( newg > min_len ) return;
+				
+			if( find = openSet.find( neighbor ) ) {
+				node = find.node;
+				if( newg < find.node.g ) {
+					node.f = ( newg + h1( neighbor ) )
+					node.g = newg;
+					
+					if( find.prior ) {
+						find.prior.next = node.next;  // unlink this
+						openSet.link( node ); // relink into list
+					} else {
+						// it was already the first, and it's closer this way, so.... 
+						// and sorted by distance
+					}
+					node.parent = check;
+				}
+			} else {
+				node = openSet.add( neighbor, newg );
+				node.parent = check;
+			}
+		} );
+		
+	}
+	
+	console.log( "closed length:", closedSet.length, openSet.length );
+
+	if( min_node ) {
+	nodes.push( min_node.node );
+	
+	var spot = min_node;
+	while( spot ) {
+		came_from.push( spot.node );
+		spot = spot.parent;
+	}
+
+	if( logFind ) console.log( ("Completed find.") );
+	}
+
+	return nodes; // returns a list really.
+}
+
+
+
+
+
 
 function GetNodeData( node )
 {
@@ -1502,5 +1667,6 @@ function push( arr, el ){
 if( typeof exports === "undefined" ) exports = {};
 
 exports.Web = makeWeb;
-exports.FindNearest = FindNearest;
+exports.FindNearest = FindNearest2;
+//exports.FindNearest2 = FindNearest2;
 exports.add = add;

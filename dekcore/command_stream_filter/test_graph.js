@@ -11,9 +11,9 @@ var shell;
 var Void ;
 var MOOSE;
 
-Entity( require, "The Void", "Glimmering matte black pebbles line the shore...", (o)=>{
+Entity.create( require, "The Void", "Glimmering matte black pebbles line the shore...", (o)=>{
     Void = o;
-    Entity( Void, "MOOSE", "Master Operator of System Entities", (o)=>{
+    Entity.create( Void, "MOOSE", "Master Operator of System Entities", (o)=>{
 	MOOSE = o;
         o.sandbox.require = require;
         o.shell = require('../Sentience/shell.js').Filter( o.sandbox );

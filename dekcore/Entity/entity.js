@@ -290,7 +290,7 @@ function sealEntity(o) {
 
 function Entity(obj, name, description, callback, opts) {
 	if (this instanceof Entity) throw new Error("Please do not call with new");
-	//console.log("Called with obj:", obj, createdVoid);
+	console.log("Called with obj:", obj, createdVoid);
 	if (!name && !description) {
 		//var all = all_entities.get(obj);
 		var named = objects.get(obj);
@@ -301,7 +301,7 @@ function Entity(obj, name, description, callback, opts) {
 	if (typeof (obj) === "string") {
 		//console.log( "resolve obj as entity ID")
 		obj = objects.get(obj);
-		if( obj ) return obj;
+		//if( obj ) return obj;
 		//console.log( "resolve obj as entity ID", obj)
 	}
 
@@ -1481,14 +1481,14 @@ function getAttachments(obj, checked) {
 }
 
 function exported_getObjects(o, filter, all, callback) {
-	console.log( "getting objects from:", o.name );
+	//console.log( "getting objects from:", o.name );
 	if (typeof all === 'function') {
 		callback = all;
 		all = null;
 	}
 	if( "string" === typeof o )
 		o = objects.get(o);
-	console.log( "uhmm did we erase o?", o )
+	//console.log( "uhmm did we erase o?", o )
 	if (o)
 		o.getObjects(filter, all, e => { callback(e.sandbox) })
 }

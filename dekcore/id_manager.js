@@ -497,7 +497,7 @@ function loadKeys() {
 				(keyids = Object.keys(loaded_keys.keys)).forEach((keyid) => {
 					//console.log( "key and val ", keyid, val );
 					var key = keyProto(keyid, loaded_keys.keys[keyid]);
-					console.log( "recover key", keyid, key )
+					//console.log( "recover key", keyid, key )
 					keys.set(keyid, key);
 					//key.toString =
 				});
@@ -508,8 +508,8 @@ function loadKeys() {
 						return;
 					}
 					var maker = keys.get(key.maker);
-					console.trace( "key and val ", keyid, key );
-					console.log( "maker failed?", maker, key.maker )
+					//console.trace( "key and val ", keyid, key );
+					//console.log( "maker failed?", maker, key.maker )
 					maker.made.push(key);
 					if (key.authby = keys.get(key.authby))
 						key.authby.authed.push(key);

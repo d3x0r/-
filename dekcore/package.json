@@ -1,8 +1,12 @@
 {
-  "name"    : "DekCore",
-  "version" : "0.0.1",
-  "main"    : "void.js",
-  "dependencies" : { "gun" : "^0" 
-  	, "pem" : "^0"
-  	}
+  "name": "DekCore",
+  "version": "0.0.1",
+  "main": "void.js",
+  "dependencies": {
+    "gun": "^0.9.7",
+    "gun-db": "^1",
+    "gun-file": "^1",
+    "gun-ws": "^1",
+    "sack.vfs": "^0"
+  }
 }

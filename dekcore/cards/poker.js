@@ -623,7 +623,7 @@ function IterateHoldemHand( hand,  level, bStart )
 	{
 		//lprintf( "Iterate start: %d level: %d", bStart, level );
 		if( bStart != ITERATE_NEXT)
-	{
+		{
 			if (bStart == ITERATE_START) {
 				hand.card[level] = hand.getCardStack( "Cards").cards;
 				hand.iStage[level] = 0;

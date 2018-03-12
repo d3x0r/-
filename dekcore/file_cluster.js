@@ -18,6 +18,8 @@ module.exports = exports = {
 		if( inited ) return;
 		keys = [idGen.regenerator( "0" + config.Λ ), idGen.regenerator( "1" + config.Λ )];
 		cvol = vfs.Volume( null, './core/' + config.Λ, keys[0], keys[1] );
+                console.log( "cvol", cvol );
+                exports.cvol = cvol;
 		inited = true;
 	},
 	addAuthority( addr ) {

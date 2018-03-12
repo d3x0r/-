@@ -284,7 +284,7 @@ function flushKeys() {
 
 function tickFlushKeys() {
 	saveKeys();
-	tickFlushKeys = null;
+	flushTimer = null;
 }
 
 function validateKey(key, next, callback) {

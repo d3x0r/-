@@ -85,9 +85,10 @@ https.addProtocol( "entity-ethernet", (ws)=>{
     })
 } )
 
-var auth = null;
 
-https.addProtocol( "karaway.core", (ws)=>{
+//var authDb = require( './uiServer/userAuth/userDatabase.js' );
+
+https.addProtocol( "dekware.core", (ws)=>{
     var state = 0;
 
     ws.on( "message", (msg)=>{
@@ -99,7 +100,7 @@ https.addProtocol( "karaway.core", (ws)=>{
 			ws.close();
 			return;
 		}
-	        console.log( "kc msg", msg );
+	        console.log( "dc msg", msg );
 		{
 			if( msg.op === "hello" ) {
 				var test = Entity.getEntity( msg.me );
@@ -110,7 +111,7 @@ https.addProtocol( "karaway.core", (ws)=>{
 			}
 
 			else if( msg.op === "auth" ) {
-				if( !auth ) {
+				if( !authDb ) {
 					ws.send( '{"op":"Error", "error":"Authentication service is not ready..."}' );
 					ws.close();
 					return;
@@ -122,6 +123,10 @@ https.addProtocol( "karaway.core", (ws)=>{
 
 				console.log( "... get service" );
 				ws.send( JSON.stringify( { op: "redirect", url:"wss://chatment.com:6000", protocol: auth.Λ+"karaway.core" } ) );
+			}
+			else if( msg.op === "createUser" ) {
+				var result = authDb.createUser();
+				
 			}
 			else if( msg.op === "getClientKey" ) {
 				var client_id = idGen();

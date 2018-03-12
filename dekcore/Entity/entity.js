@@ -168,6 +168,7 @@ const vol = vfs.Volume();
 const vfsNaked = require('sack.vfs');
 
 const volOverride = `(function(vfs, dataRoot) {
+	vfs.mkdir = vfs.Volume.mkdir;
 	vfs.Volume = (function (orig) {
 		// entities that want to use the VFS will have to be relocated to their local path
 		return function (name, path, a, b) {
@@ -186,7 +187,7 @@ const volOverride = `(function(vfs, dataRoot) {
 
 	vfs.Sqlite = (function(orig) {
 		return function (path) {
-			//console.log("what's config?", config);
+			console.log("what's config?", config);
 			if( path[0] === "$" ) return orig( path );
 			if( path.includes( "." ) ) {
 				var privatePath = dataRoot + "/" + config.run.Λ + "/" + path;
@@ -198,14 +199,14 @@ const volOverride = `(function(vfs, dataRoot) {
 						pathPart = privatePath.substr( 0, zz1 )
 					else
 						pathPart = privatePath.substr( 0, zz2 )
-					//console.log( "Make directory for sqlite?", pathPart )
+					console.log( "Make directory for sqlite?", pathPart, vfs )
 					vfs.mkdir( pathPart );
 				}
-				//console.log("Sqlite overrride called with : ", dataRoot + "/" + config.run.Λ + "/" + path);
+				console.log("Sqlite overrride called with : ", dataRoot + "/" + config.run.Λ + "/" + path);
 				try {
 					return orig( privatePath );
 				} catch(err) {
-					console.log( "limp along?" );
+					console.log( "limp along?", err );
 				}
 			}
 			else return orig( path );

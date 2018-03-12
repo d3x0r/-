@@ -36,16 +36,18 @@ module.exports = exports = {
 		this.registerProtocol();
 	},
 	setupAvailableMappings() {
-		var ranges = config.defaults.routeablePorts;
-		l.firstPort = config.defaults.firstServicePort;
+		var ranges = config.run.defaults.routeablePorts;
+		l.firstPort = config.run.defaults.firstServicePort;
 		l.mappablePorts = ranges;
 		var total = 0;
 		ranges.forEach( range=> total += ( (range.to-range.from) + 1 ) );
 		l.mappableCount = total;
 	},
 	registerProtocol() {
-		this.server.addProtocol( "firweall", this.protocolHandler );
-		l.mappablePorts = ranges;
+		if( this.server ) {
+			this.server.addProtocol( "firweall", this.protocolHandler );
+		}
+		//l.mappablePorts = ranges;
 	},
 
 	allocatePort( onAddress, service, ws  ) {

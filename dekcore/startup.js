@@ -23,7 +23,7 @@ if( resume ) {
 	console.log( "Okay this a resuming thing so..." );
 	firewall = entity.get( config.run.firewall );
 	auth = entity.get( config.run.auth );
-    auth.run( `io.firewall = io.openDriver( "${firewall.Λ}", "firewall" );` );
+    	auth.run( `io.firewall = io.openDriver( "${firewall.Λ}", "firewall" );` );
 
 }
 else {

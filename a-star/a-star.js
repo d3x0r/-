@@ -54,7 +54,8 @@ function init( config ) {
 	var step = AStar( config );
 	function tickStar(step) {
 		function tick() {
-			step();
+			for( var n = 0; n < 20; n++ )
+				step();
 			setTimeout( tick, 10 );
 		}
 		setTimeout( tick, 100 );
@@ -310,7 +311,7 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 		return len(x);
 	}
 	function h1( here ) {
-		return dist( here, to ) * maxH;//( ( minH + maxH ) / 2);
+		return dist( here, to ) * 1.1;//1.3;//( ( minH + maxH ) / 2);
 	}
 
 
@@ -399,7 +400,7 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 	//while( check = openSet.pop() ) 
 	//	tick( check );
 	function scaleHeight(here) {
-		return ( (1+here) * 1000 ); 
+		return ( (1+here) * 2 ); 
 		if( here > 0.9 ) here = 90 + ( here - 0.9 ) * 10;
 		else if( here > 0.75 ) here = 70 + ( here - 0.75 ) * 7;
 		else if( here > 0.50 ) here = 50 + ( here - 0.50 ) * 5;
@@ -478,11 +479,11 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 			         + check.g;
 			if( newdelg > maxH ) {
 				maxH = newdelg;
-				console.log( "Rnage:", minH, maxH, resistence, here, here-fromValue) ;
+				//console.log( "Rnage:", minH, maxH, resistence, here, here-fromValue) ;
 			}
 			if( newdelg < minH ) {
 				minH = newdelg;
-				console.log( "Rnage:", minH, maxH, resistence, here, here-fromValue) ;
+				//console.log( "Rnage:", minH, maxH, resistence, here, here-fromValue) ;
 			}
 			//if( newg > minPath.len ) return;
 				

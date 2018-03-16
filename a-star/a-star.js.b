@@ -40,7 +40,6 @@ function init( config ) {
 	config.neighbors.push( { x:0, y:-1, z:0 } );
 
 	// allow diagonal?
-
 	config.neighbors.push( { x:1, y:1, z:0 } );
 	config.neighbors.push( { x:-1, y:1, z:0 } );
 	config.neighbors.push( { x:1, y:-1, z:0 } );
@@ -55,7 +54,7 @@ function init( config ) {
 	var step = AStar( config );
 	function tickStar(step) {
 		function tick() {
-			for( var n = 0; n < 50; n++ )
+			for( var n = 0; n < 20; n++ )
 				step();
 			setTimeout( tick, 10 );
 		}
@@ -288,23 +287,20 @@ var __clearTick = 0;
 function drawAStar( config, path, minpath, minH, maxH ) {
 	maxH -= minH;
 	if( __clearTick++ > 400 )  {
-		config.ctx2.clearRect( 0, 0, config.patchSize, config.patchSize );
+		//config.ctx2.clearRect( 0, 0, config.patchSize, config.patchSize );
 		__clearTick = 0;
 	}
-	//config.ctx2.fillStyle = "white";
+	config.ctx2.fillStyle = "white";
 	path.forEach( node => {
-		var z = `#${ ( (255*(node.h-minH)/maxH)|0 ).toString(16)}${ ( (255*(node.h-minH)/maxH)|0 ).toString(16)}${ ( (255*(node.h-minH)/maxH)|0 ).toString(16)}`;
-		config.ctx2.fillStyle = z;
-		//console.log( "fill:", ( (255*(node.h-minH)/maxH)|0 ).toString(16) );
+		config.ctx2.fillStyle = `#${ ( (255*(node.h-minH)/maxH)|0 ).toString(16)}${ ( (255*(node.h-minH)/maxH)|0 ).toString(16)}${ ( (255*(node.h-minH)/maxH)|0 ).toString(16)}`;
 		node = node.node;
 		config.ctx2.fillRect( node.x, node.y, 1, 1 );
 	} );
 	config.ctx2.fillStyle = "blue";
-	if( minpath )
-	minpath.forEach( node => {
-		node = node.node;
-		config.ctx2.fillRect( node.x, node.y, 1, 1 );
-	} );
+	//minpath.forEach( node => {
+	//	node = node.node;
+	//	config.ctx2.fillRect( node.x, node.y, 1, 1 );
+	//} );
 }
 
 function doAStar( nodes, came_from, targetNode, from,  to )
@@ -315,23 +311,17 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 		return len(x);
 	}
 	function h1( here ) {
-		//return dist( here, to ) * maxH;//( ( minH + maxH ) / 2);
-		return dist( here, to ) * maxH/2;//18;// *( ( minH + maxH ) / 2);
+		return dist( here, to ) * 1.1;//1.3;//( ( minH + maxH ) / 2);
 	}
 
 
-	var openSet = makeOpenSet();
-	var _openSet = makeOpenSet();
-	var __openSet = null;
-	function makeOpenSet() {
-		return {
+	var openSet = {
 			first : null,
 			length : 0,
 			add(n, g, h) {
 				var newNode = { 
 					node: n, 
 					checked : false, 
-					final : false,
 					f:h1(n) + g, // dist to target, plus g (g is sum of all to here + myself hard )
 					g:g, 
 					h:h,
@@ -372,7 +362,6 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 				return n;
 			}
 		};
-	}
 	var closedSet = {
 			first : null,
 			length : 0,
@@ -402,41 +391,30 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 		return r;
 	}
 	var minPath = min(Infinity,Infinity,null);
-	var finalNode = null;
 	//var min_dist = Infinity;
 	//var min_len = Infinity;
 	//var min_node = null;
 	var _node;
 	var maxH = 0;
 	var minH = Infinity;
-	var fix = 0;
 	//while( check = openSet.pop() ) 
 	//	tick( check );
 	function scaleHeight(here) {
-		//if( here > 0.5 ) return 1000000;
-		return here * 3;
-		//return ( (here) * 1000 ); 
-		if( here > 0.9 ) here = 9000 + ( here - 0.9 ) * 50;
-		else if( here > 0.75 ) here = 700 + ( here - 0.75 ) * 30;
-		else if( here > 0.50 ) here = 50 + ( here - 0.50 ) * 20;
-		else if( here > 0.25 ) here = 1 + ( here - 0.25 ) * 10;
-		else here = ( here ) * 2.5;
-		return here*here;
+		return ( (1+here) * 2 ); 
+		if( here > 0.9 ) here = 90 + ( here - 0.9 ) * 10;
+		else if( here > 0.75 ) here = 70 + ( here - 0.75 ) * 7;
+		else if( here > 0.50 ) here = 50 + ( here - 0.50 ) * 5;
+		else if( here > 0.25 ) here = 25 + ( here - 0.25 ) * 5;
+		else here = 25 + ( here - 0.25 ) * 2.5;
+		return here;
 	}
 	function aTick( check ) 
 	{
 		if( !check ) return;
-		if( finalNode && check.g > finalNode.g ) 
-			return;
 		if( check.node.x === to.x && check.node.y == to.y ) {
-			finalNode = check; 
-			if( !__openSet ) {
-				__openSet = openSet;
-				openSet = makeOpenSet();
-			}
-			//minPath.node = check;
-			//minPath.dist = 0;
-			//openSet.first = null;
+			minPath.node = check;
+			minPath.dist = 0;
+			openSet.first = null;
 			return;
 			//break;
 		}
@@ -451,10 +429,10 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 			}
 			var finalpath = [];
 			//if( check.
-			for( var back = finalNode; back; back = back.parent ) {
-				finalpath.push( back );
+			for( var back = minPath.node; back; back = back.parent ) {
+				minpath.push( back );
 			}
-			drawAStar( config, path, finalpath, minH, maxH );
+			drawAStar( config, path, minpath, minH, maxH );
 		}
 
 		var nearness = check.f;
@@ -486,53 +464,27 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 
 			var find;
 			var node;
-
-
+			if( closedSet.find( neighbor = {x:testX,y:testY,z:0} ) ) return;
 			var here = config.gen_noise[testY*config.patchSize+testX];
-			var _here = scaleHeight(here);
+			here = scaleHeight(here);
 			//here - fromHere 
 			//var here = (here) * (here);
-			//var resistence = _here;//( 10 + (here - fromValue ) );
-			var resistence = 50*(_here - fromValue + fix);
-			resistence *= 5;
-			if( resistence < 0 ) 
-			{
-				fix -= resistence/15;
-				resistence = 0;
-			}
-			//console.log( "--- ", resistence, _here, fromValue, _here - fromValue, fix );
+			//var resistence = ( 1 + (here - fromValue ) );
+			var resistence = Math.abs( here - fromValue );
+
 			//resistence = resistence*(1+here);//*resistence*resistence*resistence;
-			var newdelg = 0//dist( check.node, neighbor ) 
+			var newdelg = dist( check.node, neighbor )
 			         + ( resistence );
 			var newg = newdelg
 			         + check.g;
 			if( newdelg > maxH ) {
 				maxH = newdelg;
-				console.log( "Rnage:", minH, maxH, resistence, here, here-fromValue) ;
+				//console.log( "Rnage:", minH, maxH, resistence, here, here-fromValue) ;
 			}
 			if( newdelg < minH ) {
 				minH = newdelg;
-				console.log( "Rnage:", minH, maxH, resistence, here, here-fromValue) ;
+				//console.log( "Rnage:", minH, maxH, resistence, here, here-fromValue) ;
 			}
-
-
-			if( find = closedSet.find( neighbor = {x:testX,y:testY,z:0} ) ) {
-				if( newg < find.g ) {
-					find.f = ( newg + h1( neighbor ) )
-					find.g = newg;
-					find.h = newdelg
-					if( find.prior ) {
-						find.prior.next = find.next;  // unlink this
-						openSet.link( node ); // relink into list
-					}
-					//console.log( "node:", node.g, newdelg );
-					find.parent = check;
-					//_node = node;
-				}
-				
-				 return;
-			}
-			//var resistence = Math.abs( here - fromValue );
 			//if( newg > minPath.len ) return;
 				
 			if( find = openSet.find( neighbor ) ) {
@@ -548,13 +500,11 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 						// it was already the first, and it's closer this way, so.... 
 						// and sorted by distance
 					}
-					//console.log( "node:", node.g, newdelg );
 					node.parent = check;
 					_node = node;
 				}
 			} else {
 				node = openSet.add( neighbor, newg, newdelg );
-				//	console.log( "node:", node.g, newdelg );
 				node.parent = check;
 				_node = node;
 			}
@@ -577,18 +527,7 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 	}
 
 	return 	() => { 
-		var check 
-		if( __openSet && __openSet.length )
-			check = __openSet.pop();
-		else {
-			if( __openSet ) {
-				__openSet = openSet;
-				openSet = makeOpenSet();
-				check = openSet.pop(); 
-			}
-			else
-				check = openSet.pop(); 
-		}
+		var check = openSet.pop() ; 
 		aTick( check ); 
 	}
 

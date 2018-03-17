@@ -104,8 +104,8 @@ function genData( config ) {
 		gen.dx = gen.dy = 1/(config.patchSize/gen.steps);
 		maxtot += gen.scalar;
 	}
-	noiseGen[0].scalar = 0.3
-	noiseGen[6].scalar = 0.225
+	noiseGen[0].scalar = 0.4
+	noiseGen[6].scalar = 0.0225
 	//console.log( "MAX TOTAL:", maxtot );
 
 	//console.log( "MAX TOTAL:", noiseGen );
@@ -543,10 +543,10 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 			//here - fromHere 
 			//var here = (here) * (here);
 			//var resistence = _here;//( 10 + (here - fromValue ) );
-			var resistence = Math.abs( here - fromValue ) * 100;
+			//var resistence = Math.abs( here - fromValue ) * 100;
 			//if( newg > minPath.len ) return;
 
-			//var resistence = 20*(_here - fromValue + fix);
+			var resistence = 20*(_here - fromValue + fix);
 
 			//var resistence = 20*(_here);
 

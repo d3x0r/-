@@ -541,10 +541,10 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 			//here - fromHere 
 			//var here = (here) * (here);
 			//var resistence = _here;//( 10 + (here - fromValue ) );
-			var resistence = Math.abs( here - fromValue );
+			//var resistence = Math.abs( here - fromValue );
 			//if( newg > minPath.len ) return;
 
-			var resistence = 20*(_here - fromValue + fix);
+			//var resistence = 20*(_here - fromValue + fix);
 
 			var resistence = 20*(_here);
 

@@ -291,11 +291,9 @@ function drawAStar( config, path, minpath, minH, maxH ) {
 		config.ctx2.clearRect( 0, 0, config.patchSize, config.patchSize );
 		__clearTick = 0;
 	}
-	//config.ctx2.fillStyle = "white";
+	config.ctx2.fillStyle = "white";
 	path.forEach( node => {
-		var z = `#${ ( (255*(node.h-minH)/maxH)|0 ).toString(16)}${ ( (255*(node.h-minH)/maxH)|0 ).toString(16)}${ ( (255*(node.h-minH)/maxH)|0 ).toString(16)}`;
-		config.ctx2.fillStyle = z;
-		//console.log( "fill:", ( (255*(node.h-minH)/maxH)|0 ).toString(16) );
+		config.ctx2.fillStyle = `#${ ( (255*(node.h-minH)/maxH)|0 ).toString(16)}${ ( (255*(node.h-minH)/maxH)|0 ).toString(16)}${ ( (255*(node.h-minH)/maxH)|0 ).toString(16)}`;
 		node = node.node;
 		config.ctx2.fillRect( node.x, node.y, 1, 1 );
 	} );
@@ -316,7 +314,7 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 	}
 	function h1( here ) {
 		//return dist( here, to ) * maxH;//( ( minH + maxH ) / 2);
-		return dist( here, to ) * maxH/2;//18;// *( ( minH + maxH ) / 2);
+		return dist( here, to ) * maxH;//18;// *( ( minH + maxH ) / 2);
 	}
 
 
@@ -426,8 +424,6 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 	function aTick( check ) 
 	{
 		if( !check ) return;
-		if( finalNode && check.g > finalNode.g ) 
-			return;
 		if( check.node.x === to.x && check.node.y == to.y ) {
 			finalNode = check; 
 			if( !__openSet ) {
@@ -521,10 +517,6 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 					find.f = ( newg + h1( neighbor ) )
 					find.g = newg;
 					find.h = newdelg
-					if( find.prior ) {
-						find.prior.next = find.next;  // unlink this
-						openSet.link( node ); // relink into list
-					}
 					//console.log( "node:", node.g, newdelg );
 					find.parent = check;
 					//_node = node;

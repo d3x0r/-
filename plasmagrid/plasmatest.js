@@ -7,7 +7,7 @@ var ctx = c.getContext("2d");
 var SRG = exports.SaltyRNG;//require( "../org.d3x0r.common/salty_random_generator.js" ).SaltyRNG;
 
 //const patch = 1025;
-const patch = 513;
+const patch = 129;
 //1025  
 //#define patch 257
 

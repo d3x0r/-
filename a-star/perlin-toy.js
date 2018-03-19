@@ -1,6 +1,6 @@
 
 var config = {
-	patchSize : 512,
+	patchSize : 512, // repeat frequency of noise generation (kernel is only 16(x16(x16)) (32x16=512)
 	seed_noise : null,
 	gen_noise : null,
 	left : 32,    // default left side (entry)
@@ -25,6 +25,39 @@ const BASE_COLOR_RED = [127,0,0,255];
 const BASE_COLOR_LIGHTBLUE = [0,0,255,255];
 const BASE_COLOR_LIGHTRED = [255,0,0,255];
 const BASE_COLOR_LIGHTGREEN = [0,255,0,255];
+
+var data;
+var RNG = exports.SaltyRNG( arr=>arr.push( data ) );
+
+
+function myRandom() {
+	var arr = [];
+	//data = [ x>>3, y >> 3, z>>3 ].join( " " );
+	RNG.reset();
+	for( var nz = 0; nz< 16; nz++ ) 
+	for( var ny = 0; ny < 16; ny++ ) 
+	for( var nx = 0; nx < 16; nx++ )  {
+		var val = RNG.getBits( 16, false ) / 65536; // 0 < 1 
+		arr.push( val );
+	}
+	return { id:data, arr: arr };
+}
+
+var cache = [];
+
+function getRandom( x, y, z ) {
+	var start = Date.now();
+	data = [ x>>4, y >> 4, z>>4 ].join( " " );
+	for( var n = 0; n < cache.length; n++ ) {
+		if( cache[n].id === data )
+			return cache[n].arr;
+	}
+	var c;
+	cache.push( c = myRandom() );
+	console.log( "Made Random in:", Date.now() - start );
+	return c.arr;
+}
+
 
 	var noiseGen = [
 		//{ steps : 2, scalar : 0.5, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0, dx1 : 0, dx2 : 0  },
@@ -93,17 +126,20 @@ function init( config ) {
 
 
 function fillData( config ) {
+	var start = Date.now();
 	var noise = [];
 	for( var n = 0; n < config.patchSize; n++ ) 
 		for( m = 0; m < config.patchSize; m++ ) {
 			noise.push( Math.random() );
 		}
 	config.seed_noise = noise;
+	console.log( "Made Random in:", Date.now() - start );
 }
 
 
 
 function genData( config ) {
+	var start = Date.now();
 	var noise = config.seed_noise;
 	var outNoise = config.gen_noise || [];
 	outNoise.length = 0;
@@ -145,6 +181,17 @@ function genData( config ) {
 
 	//console.log( "MAX TOTAL:", noiseGen );
 
+		// Y will be 0 at the same time this changes...  which will update all anyway
+		for( var n = 0; n < noiseGen.length; n++ ) {
+			var gen = noiseGen[n];
+			//if( ( ((x/ gen.pitch )+gen.ox) |0 ) != ( (((x - 1)/ gen.pitch ) +gen.ox)|0 ) ) {
+			gen.cx = (-gen.ox)%1;
+
+			gen.corn[2] = noise[ (gen.pitch * ((((-gen.oy) / gen.pitch)|0)%gen.steps)) * config.patchSize + (gen.pitch * ((-gen.ox / gen.pitch)|0)) ];
+			gen.corn[3] = noise[ (gen.pitch * ((((-gen.oy) / gen.pitch)|0)%gen.steps)) * config.patchSize + (gen.pitch * ((((-gen.ox+gen.pitch) / gen.pitch)|0)%gen.steps)) ];
+
+		}
+
 
 	for( var x = 0; x < config.patchSize; x++ ) {
 		 
@@ -152,9 +199,9 @@ function genData( config ) {
 		for( var n = 0; n < noiseGen.length; n++ ) {
 			var gen = noiseGen[n];
 			//if( ( ((x/ gen.pitch )+gen.ox) |0 ) != ( (((x - 1)/ gen.pitch ) +gen.ox)|0 ) ) {
-			if( gen.cx >= ( 1-gen.ox) ) {
+			if( gen.cx >= ( 1 ) ) {
 			//if( !( x  / gen.pitch % 1 ) ) {
-				gen.cx = -gen.ox;
+				gen.cx = 0;
 				//gen.dirty = true;
 			}
 
@@ -177,7 +224,7 @@ function genData( config ) {
 				//console.log( "Y Test:", ( y  / gen.pitch % 1 ) );
 				//if( ( ( ( y / gen.pitch ) + gen.oy) |0 ) != ( ( ( (y - 1)/gen.pitch)+gen.oy)|0 ) ) {
 				if( gen.cy >= (1 -gen.oy ) ) {
-					gen.cy = -gen.oy;
+					gen.cy = 1-gen.oy;
 					gen.dirty = true;
 				}
 
@@ -247,6 +294,7 @@ function genData( config ) {
 	for( var n = 0; n < outNoise.length; n++ ) {
 		outNoise[n] = ( ( outNoise[n] ) - minVal ) / ( maxVal-minVal);
 	}
+	console.log( "Crunched Random in:", Date.now() - start );
 	config.gen_noise = outNoise;
 }
 

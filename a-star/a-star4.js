@@ -3,6 +3,7 @@ var config = {
 	patchSize : 512,
 	seed_noise : null,
 	gen_noise : null,
+	ero_noise : null,
 	left : 32,    // default left side (entry)
 	right : 96,   // default right side (exit)
 	nodes : [],  // trace of A*Path
@@ -25,6 +26,17 @@ const BASE_COLOR_LIGHTBLUE = [0,0,255,255];
 const BASE_COLOR_LIGHTRED = [255,0,0,255];
 const BASE_COLOR_LIGHTGREEN = [0,255,0,255];
 
+	const noiseGen = [
+		{ steps : 2, scalar : 1/2, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0 },
+		{ steps : 4, scalar : 1/4, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0 },
+		{ steps : 8, scalar : 1/8, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0 },
+		{ steps : 16, scalar : 1/16, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0 },
+		{ steps : 32, scalar : 1/32, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0 },
+		{ steps : 64, scalar : 1/64, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0 },
+		{ steps : 128, scalar : 1/128, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0 },
+		{ steps : 256, scalar : 1/256, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0 },
+	];
+	var updatedNoiseGenerators = false;
 
 init( config );
 
@@ -48,6 +60,7 @@ function init( config ) {
 
 	fillData( config );
 	genData( config );
+	//erode( config );
 	if( config.canvas ) {
 		drawData( config );
 	}
@@ -78,34 +91,85 @@ function fillData( config ) {
 	config.seed_noise = noise;
 }
 
+
+function erode( config ) {
+	var noise = config.gen_noise;
+	var outNoise = config.ero_noise || [];
+	var offset = 0;
+	var uo, dof, lo, ro;
+
+	var todo = [];
+
+	function process( offset ) {
+		var here = noise[offset];
+		var up = noise[uo=( offset + noise.length - config.patchSize ) %config.patchSize ];
+		if( here > up ) {
+			todo.push( { out : uo, from: offset } );
+		}
+		var down = noise[dof=( offset + config.patch_size ) %config.patchSize ];
+		if( here > down ) {
+			todo.push( { out : dof, from: offset } );
+		}
+		var left = noise[lo=( offset + config.patchSize - 1 ) %config.patchSize ];
+		if( here > left ) {
+			todo.push( { out : lo, from: offset } );
+		}
+		var right = noise[ro=( offset + 1 ) %config.patchSize ];
+		if( here > right ) {
+			todo.push( { out : ro, from: offset } );
+		}
+	}
+
+	for( var n = 0; n < config.patchSize; n++ ) 
+		for( m = 0; m < config.patchSize; m++ ) {
+			process( offset );
+			offset++;
+		}
+
+	while( move = todo.pop() ) {
+		var here = noise[move.from];
+		var up = noise[move.out];
+		outNoise[move.out] = ( here - up ) / 3 + up
+		outNoise[move.from] = up - ( here - up ) / 3;
+		//process( move.from );
+		process( move.out );
+	}
+	config.ero_noise = noise;
+	
+}	
+
 function genData( config ) {
 	var noise = config.seed_noise;
 	var outNoise = [];
-	var noiseGen = [
-		{ steps : 2, scalar : 0.5, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0 },
-		{ steps : 4, scalar : 0.25, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0 },
-		{ steps : 8, scalar : 0.125, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0 },
-		{ steps : 16, scalar : 0.0625, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0 },
-		{ steps : 32, scalar : 0.03125, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0 },
-		{ steps : 64, scalar : 0.015625, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0 },
-		{ steps : 128, scalar : 1/128, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0 },
-	];
 	
+	if( !updatedNoiseGenerators  ) {
+		updatedNoiseGenerators = true;
+		for( var n = 0; n < noiseGen.length; n++ ) {
+			var gen = noiseGen[n];
+			if( n < 4 )
+				gen.scalar /= 2;
+			if( n > 6 )
+				gen.scalar *= 5;
+			//	gen.scalar *= 4;
+		}
+		noiseGen[0].scalar = 0.1;
+		//noiseGen[6].scalar = 20;
+	}
 
 	var maxtot = 0;
 	var minVal = Infinity;
 	var maxVal = 0;
 	for( var n = 0; n < noiseGen.length; n++ ) {
 		var gen = noiseGen[n];
-		gen.scalar *= 2 ;
-		gen.steps *= 2 ;
+		//gen.scalar *= 2 ;
+		//gen.steps *= 2 ;
 		gen.dirty = true;
 		gen.pitch = config.patchSize / gen.steps;
 		gen.dx = gen.dy = 1/(config.patchSize/gen.steps);
 		maxtot += gen.scalar;
 	}
-	noiseGen[0].scalar = 0.4
-	noiseGen[6].scalar = 0.0225
+	//noiseGen[0].scalar = 0.4
+	//noiseGen[6].scalar = 0.0225
 	//console.log( "MAX TOTAL:", maxtot );
 
 	//console.log( "MAX TOTAL:", noiseGen );
@@ -133,10 +197,10 @@ function genData( config ) {
 
 				if( gen.dirty ) {
 					gen.dirty = false;
-					gen.corn[0] = noise[ (gen.pitch * ((y / gen.pitch)|0)) * config.patchSize + (gen.pitch * ((x / gen.pitch)|0)) ];
-					gen.corn[1] = noise[ (gen.pitch * ((y / gen.pitch)|0)) * config.patchSize + (gen.pitch * ((((x+gen.pitch) / gen.pitch)|0)%gen.steps)) ];
-					gen.corn[2] = noise[ (gen.pitch * ((((y+gen.pitch) / gen.pitch)|0)%gen.steps)) * config.patchSize + (gen.pitch * ((x / gen.pitch)|0)) ];
-					gen.corn[3] = noise[ (gen.pitch * ((((y+gen.pitch) / gen.pitch)|0)%gen.steps)) * config.patchSize + (gen.pitch * ((((x+gen.pitch) / gen.pitch)|0)%gen.steps)) ];
+					gen.corn[0] = noise[ ( n + ( (gen.pitch * ((y / gen.pitch)|0)) * config.patchSize + (gen.pitch * ((x / gen.pitch)|0)) ) ) % noise.length ];
+					gen.corn[1] = noise[ ( n + ( (gen.pitch * ((y / gen.pitch)|0)) * config.patchSize + (gen.pitch * ((((x+gen.pitch) / gen.pitch)|0)%gen.steps))  ) ) % noise.length];
+					gen.corn[2] = noise[ ( n + ( (gen.pitch * ((((y+gen.pitch) / gen.pitch)|0)%gen.steps)) * config.patchSize + (gen.pitch * ((x / gen.pitch)|0)) ) ) % noise.length ];
+					gen.corn[3] = noise[ ( n + ( (gen.pitch * ((((y+gen.pitch) / gen.pitch)|0)%gen.steps)) * config.patchSize + (gen.pitch * ((((x+gen.pitch) / gen.pitch)|0)%gen.steps))  ) ) % noise.length];
 
 					//gen.corn[0] = noise[ ((gen.cy)   * config.patchSize + (gen.cx))   * config.patchSize];
 					//gen.corn[1] = noise[ ((gen.cy)   * config.patchSize + (gen.cx+gen.dx)) * config.patchSize];
@@ -233,7 +297,9 @@ function drawData( config ) {
 		for( w = 0; w < _output.width; w++ )
 		{
 			var here3;
-			var here = config.gen_noise[ h * config.patchSize + w ];
+			var here = config.gen_noise
+				//config.ero_noise
+				[ h * config.patchSize + w ];
 /*
 			var here2 = config.gen_noise[ h * config.patchSize + (w+1)%_output.width ];
 			here3 = ( here2 - here ) * 10 ;
@@ -486,6 +552,7 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 			return;
 			//break;
 		}
+		//if( check.h > 15 ) return;
 		if( draw_skips++ > 50 ) {
 				draw_skips = 0;
 
@@ -540,6 +607,7 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 
 			var here = config.gen_noise[testY*config.patchSize+testX];
 			var _here = scaleHeight(here);
+			if( here > 0.6 ) return;
 			//here - fromHere 
 			//var here = (here) * (here);
 			//var resistence = _here;//( 10 + (here - fromValue ) );

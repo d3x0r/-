@@ -152,7 +152,9 @@ function genData( config ) {
 		for( var n = 0; n < noiseGen.length; n++ ) {
 			var gen = noiseGen[n];
 			//gen.scalar *= 2 ;
-			gen.scalar *= 7;
+			//gen.scalar *= 7;
+			gen.nx = 0;
+			gen.ny = 0;
 		}
 		noiseInit = true;
 	}
@@ -161,140 +163,137 @@ function genData( config ) {
 		var gen = noiseGen[n];
 		//gen.scalar *= 2 ;
 		gen.dirty = true;
-		if( n == 0 )
-			gen.oy = 0.1 * (1+Math.sin( config.base ));
+		if( n == 0 ) {
+			gen.oy = 0.02 * config.base;//(1+Math.sin( config.base ));
+			gen.ox = 0.08 * config.base;//(1+Math.sin( config.base ));
+		}
+			
 		if( n == 1 )
 			gen.oy = 0.2 * (1+Math.sin( config.base ));
 		if( n == 2 ) {
-			gen.ox = 0.3 * (1+Math.sin( config.base ));
-			gen.ox = 0.3 * (1+Math.sin( config.base ));
+			gen.ox = 0.3 * (1+Math.sin( config.base/3 ));
+			gen.oy = 0.3 * (1+Math.sin( config.base/5 ));
 		}
 		if( n == 4 ) {
-			gen.ox = -3.5 * (1+Math.sin( config.base ));
-			gen.oy = -8.5 * (1+Math.sin( config.base ));
+			gen.ox = -0.05 * (1+Math.sin( config.base/1.6 ));
+			gen.oy = -0.02 * (1+Math.sin( config.base/3.221 ));
 		}
+		
 		gen.pitch = config.patchSize / gen.steps;
 		gen.dx = gen.dy = 1/(config.patchSize/gen.steps);
 		maxtot += gen.scalar;
 	}
-	//console.log( "MAX TOTAL:", maxtot );
+	gen.maxtot = maxtot;
 
-	//console.log( "MAX TOTAL:", noiseGen );
+	for( y = 0; y < config.patchSize; y++ ) {
+			// Y will be 0 at the same time this changes...  which will update all anyway
+	
+		for( var n = 0; n < noiseGen.length; 
+			n++ ) {
+				var gen = noiseGen[n];
+				
+				var oy = gen.oy * config.patchSize;// / gen.pitch
+				var _y = (y - oy)%config.patchSize;
+				if( _y < 0 ) _y += config.patchSize;
 
-		// Y will be 0 at the same time this changes...  which will update all anyway
-		for( var n = 0; n < noiseGen.length; n++ ) {
-			var gen = noiseGen[n];
-			//if( ( ((x/ gen.pitch )+gen.ox) |0 ) != ( (((x - 1)/ gen.pitch ) +gen.ox)|0 ) ) {
-			gen.cx = (-gen.ox)%1;
-
-			gen.corn[2] = noise[ (gen.pitch * ((((-gen.oy) / gen.pitch)|0)%gen.steps)) * config.patchSize + (gen.pitch * ((-gen.ox / gen.pitch)|0)) ];
-			gen.corn[3] = noise[ (gen.pitch * ((((-gen.oy) / gen.pitch)|0)%gen.steps)) * config.patchSize + (gen.pitch * ((((-gen.ox+gen.pitch) / gen.pitch)|0)%gen.steps)) ];
-
-		}
-
-
-	for( var x = 0; x < config.patchSize; x++ ) {
-		 
-		// Y will be 0 at the same time this changes...  which will update all anyway
-		for( var n = 0; n < noiseGen.length; n++ ) {
-			var gen = noiseGen[n];
-			//if( ( ((x/ gen.pitch )+gen.ox) |0 ) != ( (((x - 1)/ gen.pitch ) +gen.ox)|0 ) ) {
-			if( gen.cx >= ( 1 ) ) {
-			//if( !( x  / gen.pitch % 1 ) ) {
-				gen.cx = 0;
-				//gen.dirty = true;
+				gen.cy = ( _y % gen.pitch ) / gen.pitch;
+				while( gen.cy < 0 ) gen.cy += 1;
+				//if( n == 0 )
+				//console.log( "cy is: ", n, y, gen.oy, oy, _y, gen.cy );
 			}
 
+		for( var x = 0; x < config.patchSize; x++ ) {
 
-			gen.corn[2] = noise[ (gen.pitch * ((((-gen.oy) / gen.pitch)|0)%gen.steps)) * config.patchSize + (gen.pitch * ((-gen.ox / gen.pitch)|0)) ];
-			gen.corn[3] = noise[ (gen.pitch * ((((-gen.oy) / gen.pitch)|0)%gen.steps)) * config.patchSize + (gen.pitch * ((((-gen.ox+gen.pitch) / gen.pitch)|0)%gen.steps)) ];
-
-		}
-
-
-		
-		for( y = 0; y < config.patchSize; y++ ) {
-
-			for( var n = 0; n < noiseGen.length; n++ ) {
-				var ox = gen.ox// / gen.pitch
-				var oy = gen.oy// / gen.pitch 
-				var _y = (y - oy)%config.patchSize;
-				var _x = (x - ox)%config.patchSize;
+			for( var n = 0; n < noiseGen.length; 
+					n++ ) {
 				var gen = noiseGen[n];
-				//console.log( "Y Test:", ( y  / gen.pitch % 1 ) );
-				//if( ( ( ( y / gen.pitch ) + gen.oy) |0 ) != ( ( ( (y - 1)/gen.pitch)+gen.oy)|0 ) ) {
-				if( gen.cy >= (1 -gen.oy ) ) {
-					gen.cy = 1-gen.oy;
-					gen.dirty = true;
-				}
+				var offset = 0;//config.base % 16;
 
-				if( gen.dirty ) {
-					gen.dirty = false;
-					const offset = 0;//config.base % 16;
-					//if( n < 6 ) offset = 0;
-					gen.corn[0] = gen.corn[2];
-					gen.corn[1] = gen.corn[3];
-					//gen.corn[0] = noise[ offset + (gen.pitch * ((_y / gen.pitch)|0)) * config.patchSize + (gen.pitch * ((_x / gen.pitch)|0)) ];
-					//gen.corn[1] = noise[ offset + (gen.pitch * ((_y / gen.pitch)|0)) * config.patchSize + (gen.pitch * ((((_x+gen.pitch) / gen.pitch)|0)%gen.steps)) ];
-					gen.corn[2] = noise[ offset + (gen.pitch * ((((_y+gen.pitch) / gen.pitch)|0)%gen.steps)) * config.patchSize + (gen.pitch * ((_x / gen.pitch)|0)) ];
-					gen.corn[3] = noise[ offset + (gen.pitch * ((((_y+gen.pitch) / gen.pitch)|0)%gen.steps)) * config.patchSize + (gen.pitch * ((((_x+gen.pitch) / gen.pitch)|0)%gen.steps)) ];
+				var ox = gen.ox * config.patchSize;// / gen.pitch
+				var _x = (x - ox)%config.patchSize;
+				if( _x < 0 ) _x += config.patchSize;
+	
+				gen.cx = ( _x % gen.pitch ) / gen.pitch;
+				while( gen.cx < 0 ) gen.cx += 1;
 
-					gen.dx1 = gen.corn[1] - gen.corn[0];
-					gen.dx2 = gen.corn[3] - gen.corn[2];
-					//gen.corn[0] = noise[ ((gen.cy)   * config.patchSize + (gen.cx))   * config.patchSize];
-					//gen.corn[1] = noise[ ((gen.cy)   * config.patchSize + (gen.cx+gen.dx)) * config.patchSize];
-					//gen.corn[2] = noise[ ((gen.cy+gen.dy) * config.patchSize + (gen.cx))   * config.patchSize];
-					//gen.corn[3] = noise[ ((gen.cy+gen.dy) * config.patchSize + (gen.cx+gen.dx)) * config.patchSize];
+				var oy = gen.oy * config.patchSize;// / gen.pitch
+				var _y = (y - oy)%config.patchSize;
+				if( _y < 0 ) _y += config.patchSize;
 
-					/*
-					if( n == 0 ) {
-						console.log(  "  GEN:", gen, x, y, (gen.pitch * ((x / gen.pitch)|0)), (gen.pitch * (((x / gen.pitch)|0)%gen.steps)), (((y+gen.pitch) / gen.pitch)|0)%gen.steps );
-						console.log( gen.corn[0] ,  (gen.pitch * (y / gen.pitch)|0) * config.patchSize, (gen.pitch * (x / gen.pitch)|0) );
-						console.log( gen.corn[1] ,  (gen.pitch * (y / gen.pitch)|0) * config.patchSize, (gen.pitch * ((x+gen.pitch) / gen.pitch)|0) );
-						console.log( gen.corn[2] ,  (gen.pitch * ((y+gen.pitch) / gen.pitch)|0) * config.patchSize, (gen.pitch * (x / gen.pitch)|0) );
-						console.log( gen.corn[3] ,  (gen.pitch * ((y+gen.pitch) / gen.pitch)|0) * config.patchSize, (gen.pitch * ((x+gen.pitch) / gen.pitch)|0) );
+				{
+					var nx = (( _x / gen.pitch ) |0)*gen.pitch;
+					var ny = (( _y / gen.pitch ) |0)*gen.pitch;
+					while( nx < 0 ) nx += config.patchSize;
+					while( ny < 0 ) ny += config.patchSize;
+					if( ny != gen.ny  ) { 
+						gen.dirty = true; 
+						//console.log( "using", offset + (ny) * config.patchSize + (nx ),offset + ( (ny) %config.patchSize ) * config.patchSize + (nx) );
 					}
-					*/
+					if( nx != gen.nx ) { 
+						gen.dirty = true; 
+					}
+					if( gen.dirty ) {
+						//if( n == 0 )
+						//	console.log( "switch ", gen.nx, gen.ny, _x, _y )
+
+						gen.dirty = false;
+						//if( n < 6 ) offset = 0;
+						gen.corn[0] = noise[ offset 
+							+ (ny) * config.patchSize 
+							+ (nx ) ];
+						gen.corn[2] = noise[ offset 
+							+ ( (ny+gen.pitch) %config.patchSize ) * config.patchSize 
+							+ (nx) ];
+						//gen.corn[0] = noise[ offset + (gen.pitch * ((_y / gen.pitch)|0)) * config.patchSize + (gen.pitch * ((_x / gen.pitch)|0)) ];
+						gen.corn[1] = noise[ offset 
+							+ (ny) * config.patchSize 
+							+ (nx + gen.pitch)%config.patchSize ];
+						//gen.corn[2] = noise[ offset + (gen.pitch * ((((_y+gen.pitch) / gen.pitch)|0)%gen.steps)) * config.patchSize + (gen.pitch * ((_x / gen.pitch)|0)) ];
+						gen.corn[3] = noise[ offset 
+							+ ( (ny+gen.pitch) %config.patchSize ) * config.patchSize 
+							+ (nx + gen.pitch)%config.patchSize ];
+						//console.log( "Should be : ", offset, nx, (nx+gen.pitch)%config.patchSize, ny, (ny+gen.pitch)%config.patchSize )
+						//if( n == 0 )
+						//  console.log( "using", nx, ny, gen.pitch );
+							//, offset + (ny) * config.patchSize + (nx )
+							//,offset + ( (ny) %config.patchSize ) * config.patchSize + (nx) );
+
+						gen.nx = nx;
+						gen.ny = ny;
+						
+						gen.dx1 = gen.corn[1] - gen.corn[0]; // /1
+						gen.dx2 = gen.corn[3] - gen.corn[2]; // /1
+					}
 				}
+
 			}
 	
 			var tot = 0;
-			for( var n = 0; n < noiseGen.length; n++ ) {
+			for( var n = 0; n < noiseGen.length
+				; n++ ) {
 				var gen = noiseGen[n];
 				// ((((c1)*(max-(d))) + ((c2)*(d)))/max)				
-				//console.log( "gen.cx:", gen.cx );
-				var value1 = gen.dx1 * ( gen.cx +gen.ox) + gen.corn[0];
-				var value2 = gen.dx2 * ( gen.cx +gen.ox) + gen.corn[2];
-
-				var value = value1 * ( 1-(gen.cy + gen.oy) ) + value2 * ( gen.cy +gen.oy );
-				//if( value > 1 ) debugger;
-				//console.log( "value: ", value, value1, value2, gen.cy );
-				//if( n == 0 )
-				//	outNoise.push( value );
-				tot += value * gen.scalar;				
+				var tx = (1-Math.cos(gen.cx*Math.PI) )/2;
+				var ty =  (1-Math.cos(gen.cy*Math.PI) )/2;
+				//console.log( "gen.cx:", tx, ty, "xy:", x, y,  "Genxy:", gen.cx, gen.cy  );
+				var value1 = gen.dx1 * tx + gen.corn[0];
+				var value2 = gen.dx2 * tx + gen.corn[2];
+				var dy = value2 - value1; // /1
+				var value = value1 + ty * dy;
+				tot += (value * gen.scalar) / maxtot;
 			}
-			//console.log( "value: ", tot );
-			//outNoise.push( noiseGen[3].corn[0] );
 			if( maxVal < tot ) maxVal = tot;
 			if( minVal > tot ) minVal = tot;
 			outNoise.push( tot );
-				
 
-			for( var n = 0; n < noiseGen.length; n++ ) {
-				var gen = noiseGen[n];
-				gen.cy += gen.dy;
-			}	
-		}
-		for( var n = 0; n < noiseGen.length; n++ ) {
-			var gen = noiseGen[n];
-			gen.cy = 0 + gen.oy;
-			gen.cx += gen.dx;
 		}
 	}
+	//console.log( "Crunched Random in:", Date.now() - start, minVal, maxVal );
+	start = Date.now();	
 	for( var n = 0; n < outNoise.length; n++ ) {
-		outNoise[n] = ( ( outNoise[n] ) - minVal ) / ( maxVal-minVal);
+		//outNoise[n] = ( ( outNoise[n] ) - minVal ) / ( maxVal-minVal);
 	}
-	console.log( "Crunched Random in:", Date.now() - start );
+	//console.log( "corrrected Random in:", Date.now() - start );
 	config.gen_noise = outNoise;
 }
 
@@ -340,7 +339,7 @@ function drawData( config ) {
 			var here = config.gen_noise[ h * config.patchSize + w ];
 /*
 			var here2 = config.gen_noise[ h * config.patchSize + (w+1)%_output.width ];
-			here3 = ( here2 - here ) * 10 ;
+			here3 = ( here2 M:\javascript\a-star\perlin-toy.js- here ) * 10 ;
 			here2 = config.gen_noise[ ((h+1)%_output.height) * config.patchSize + (w+1)%_output.width ];
 			here3 += ( here2 - here ) * 10 ;
 			here2 = config.gen_noise[ h * config.patchSize + (w-1)%_output.width ];

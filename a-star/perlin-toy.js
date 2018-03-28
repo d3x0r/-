@@ -1,6 +1,6 @@
 
 var config = {
-	patchSize : 512, // repeat frequency of noise generation (kernel is only 16(x16(x16)) (32x16=512)
+	patchSize : 128, // repeat frequency of noise generation (kernel is only 16(x16(x16)) (32x16=512)
 	seed_noise : null,
 	gen_noise : null,
 	left : 32,    // default left side (entry)
@@ -67,7 +67,7 @@ function getRandom( x, y, z ) {
 		{ steps : 32, scalar : 0.03125, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0, dx1 : 0, dx2 : 0, ox:0,oy:0  },
 		{ steps : 64, scalar : 0.015625, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0, dx1 : 0, dx2 : 0, ox:0,oy:0  },
 		{ steps : 128, scalar : 1/128, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0, dx1 : 0, dx2 : 0, ox:0,oy:0  },
-		{ steps : 256, scalar : 1/256, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0, dx1 : 0, dx2 : 0, ox:0,oy:0  },
+		//{ steps : 256, scalar : 1/256, corn: [0,0,0,0], dx : 0, dy : 0, cx : 0, cy : 0, dx1 : 0, dx2 : 0, ox:0,oy:0  },
 	];
 	var noiseInit = false;
 
@@ -101,11 +101,11 @@ function init( config ) {
 	var step = AStar( config );
 	function tickStar(step) {
 		function tick() {
-			for( var n = 0; n < 50; n++ )
+			//for( var n = 0; n < 50; n++ )
 				step();
-			setTimeout( tick, 10 );
+			//setTimeout( tick, 10 );
 		}
-		setTimeout( tick, 100 );
+		setTimeout( tick, 16 );
 	}
 	//tickStar(step);
 
@@ -115,11 +115,9 @@ function init( config ) {
 		if( config.canvas ) {
 			drawData( config );
 		}
-		setTimeout( stepPlasma, 90 );
+		setTimeout( stepPlasma, 16 );
 	}
 	stepPlasma();
-
-
 }
 
 
@@ -207,7 +205,7 @@ function genData( config ) {
 			for( var n = 0; n < noiseGen.length; 
 					n++ ) {
 				var gen = noiseGen[n];
-				var offset = 0;//config.base % 16;
+				var offset = noiseGen.length-n;//config.base % 16;
 
 				var ox = gen.ox * config.patchSize;// / gen.pitch
 				var _x = (x - ox)%config.patchSize;
@@ -273,8 +271,10 @@ function genData( config ) {
 				; n++ ) {
 				var gen = noiseGen[n];
 				// ((((c1)*(max-(d))) + ((c2)*(d)))/max)				
-				var tx = (1-Math.cos(gen.cx*Math.PI) )/2;
-				var ty =  (1-Math.cos(gen.cy*Math.PI) )/2;
+				var tx = (1-Math.cos( gen.cx *Math.PI) )/2;
+				var ty =  (1-Math.cos( gen.cy *Math.PI) )/2;
+				//var tx = gen.cx;
+				//var ty =  gen.cy;
 				//console.log( "gen.cx:", tx, ty, "xy:", x, y,  "Genxy:", gen.cx, gen.cy  );
 				var value1 = gen.dx1 * tx + gen.corn[0];
 				var value2 = gen.dx2 * tx + gen.corn[2];
@@ -285,7 +285,6 @@ function genData( config ) {
 			if( maxVal < tot ) maxVal = tot;
 			if( minVal > tot ) minVal = tot;
 			outNoise.push( tot );
-
 		}
 	}
 	//console.log( "Crunched Random in:", Date.now() - start, minVal, maxVal );
@@ -374,7 +373,10 @@ if (true) {
 		}
 	}
 //	console.log( "Result is %g,%g", min, max );
-	config.ctx.putImageData(_output, 0,0);
+
+	for( var x = 0; x < 4; x++) 
+	for( var y = 0; y < 4; y++ )
+		config.ctx.putImageData(_output, x*config.patchSize,y*config.patchSize);
 
 
 }

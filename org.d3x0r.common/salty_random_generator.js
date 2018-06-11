@@ -21,6 +21,11 @@
 //
 //         restore( o )
 //                use object to restore RNG state.
+//
+//          feed( buf )
+//                feed a raw uint8array.
+//
+
 
 function MASK_TOP_MASK(length) {
 	return (0xFF) >>> (8 - (length))
@@ -34,9 +39,17 @@ function MY_GET_MASK(v, n, mask_size) {
 }
 
 exports.SaltyRNG = function (f) {
+	var shabuf = new SHA256();
+	function compute(buf) {
+		var h = new Array(32)
+		shabuf.update(buf).finish(h).clean()
+		return h;
+	}
 	var RNG = {
 		getSalt: f,
-		compute: compute,
+		feed(buf) {
+			shabuf.update(buf)
+		},
 		saltbuf: [],
 		entropy: 0,
 		available: 0,
@@ -48,16 +61,18 @@ exports.SaltyRNG = function (f) {
 				entropy: this.entropy.slice(0),
 				available: this.available,
 				used: this.used,
+				state : shabuf.clone();
 			}
 		},
 		restore(oldState) {
-			this.saltbuf = oldState.saltbuf;
-			this.entropy = oldState.entropy;
+			this.saltbuf = oldState.saltbuf.slice(0);
+			this.entropy = oldState.entropy.slice(0);
 			this.available = oldState.available;
 			this.used = oldState.used;
+			shabuf = oldState.state.clone();
 		},
 		reset() {
-			this.entropy = this.compute(this.initialEntropy);
+			this.entropy = compute(this.initialEntropy);
 			this.available = 0;
 			this.used = 0;
 		},
@@ -161,9 +176,8 @@ exports.SaltyRNG = function (f) {
 		RNG.saltbuf.length = 0;
 		if (typeof (RNG.getSalt) === 'function')
 			RNG.getSalt(RNG.saltbuf);
-		var newbuf = [RNG.entropy, RNG.saltbuf.join()].join();
-		//Buffer.concat( [ RNG.entropy, new Buffer( RNG.saltbuf.join() ) ] );
-		RNG.entropy = RNG.compute(newbuf);
+		var newbuf = RNG.entropy?RNG.entropy.concat( toUTF8Array( RNG.saltbuf.join() ) ):toUTF8Array( RNG.saltbuf.join() );
+		RNG.entropy = compute(newbuf);
 		RNG.available = RNG.entropy.length * 8;
 		RNG.used = 0;
 	};
@@ -209,8 +223,11 @@ function blocks(w, v, p, pos, len) {
 
 		for (i = 0; i < 16; i++) {
 			j = pos + i * 4
+                        //console.log( "P:", p );
+                        //console.log( "use ", j, p[j], p[j+1],p[j+2],p[j+3]);
 			w[i] = (((p[j] & 0xff) << 24) | ((p[j + 1] & 0xff) << 16) |
 				((p[j + 2] & 0xff) << 8) | (p[j + 3] & 0xff))
+                        //console.log( "use ", w[i] );
 		}
 
 		for (i = 16; i < 64; i++) {
@@ -263,6 +280,16 @@ function SHA256() {
 	this.buflen = 0
 	this.len = 0
 	this.reset()
+}
+
+SHA256.prototype.clone() {
+	var x = new SHA256();
+	x.v = this.v;
+	x.w = this.w;
+	x.buf = this.buf;
+	x.buflen = this.buflen;
+	x.len = this.len;
+	return x;
 }
 
 SHA256.prototype.reset = function () {
@@ -342,17 +369,38 @@ SHA256.prototype.finish = function (h) {
 		var str = '';
 		for( i = 0; i < 32; i++ )
 			str += h[i].toString(16);
-		console.log( str); 
 	}
 
 	return this
 }
 
-
-var sha256 = new SHA256
-
-var compute = function (m) {
-	var h = new Uint8Array(32)
-	sha256.update(m).finish(h).clean()
-	return h
+function toUTF8Array(str) {
+    var utf8 = [];
+    for (var i=0; i < str.length; i++) {
+        var charcode = str.charCodeAt(i);
+        if (charcode < 0x80) utf8.push(charcode);
+        else if (charcode < 0x800) {
+            utf8.push(0xc0 | (charcode >> 6),
+                      0x80 | (charcode & 0x3f));
+        }
+        else if (charcode < 0xd800 || charcode >= 0xe000) {
+            utf8.push(0xe0 | (charcode >> 12),
+                      0x80 | ((charcode>>6) & 0x3f),
+                      0x80 | (charcode & 0x3f));
+        }
+        // surrogate pair
+        else {
+            i++;
+            // UTF-16 encodes 0x10000-0x10FFFF by
+            // subtracting 0x10000 and splitting the
+            // 20 bits of 0x0-0xFFFFF into two halves
+            charcode = 0x10000 + (((charcode & 0x3ff)<<10)
+                      | (str.charCodeAt(i) & 0x3ff));
+            utf8.push(0xf0 | (charcode >>18),
+                      0x80 | ((charcode>>12) & 0x3f),
+                      0x80 | ((charcode>>6) & 0x3f),
+                      0x80 | (charcode & 0x3f));
+        }
+    }
+    return utf8;
 }

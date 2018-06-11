@@ -48,33 +48,36 @@ exports.SaltyRNG = function (f) {
 	var RNG = {
 		getSalt: f,
 		feed(buf) {
+			if( typeof buf === "string" )
+				buf = toUTF8Array( buf );
 			shabuf.update(buf)
 		},
 		saltbuf: [],
-		entropy: 0,
+		entropy: null,
 		available: 0,
 		used: 0,
 		initialEntropy : "test",
 		save() {
 			return {
 				saltbuf: this.saltbuf.slice(0),
-				entropy: this.entropy.slice(0),
+				entropy: this.entropy?this.entropy.slice(0):null,
 				available: this.available,
 				used: this.used,
-				state : shabuf.clone();
+				state : shabuf.clone()
 			}
 		},
 		restore(oldState) {
 			this.saltbuf = oldState.saltbuf.slice(0);
-			this.entropy = oldState.entropy.slice(0);
+			this.entropy = oldState.entropy?oldState.entropy.slice(0):null;
 			this.available = oldState.available;
 			this.used = oldState.used;
 			shabuf = oldState.state.clone();
 		},
 		reset() {
-			this.entropy = compute(this.initialEntropy);
+			this.entropy = this.initialEntropy?compute(this.initialEntropy):null;
 			this.available = 0;
 			this.used = 0;
+			shabuf.clean();
 		},
 		getBits(count, signed) {
 			if( !count ) { count = 32; signed = true } 
@@ -93,7 +96,6 @@ exports.SaltyRNG = function (f) {
 				return arr[0];
 			}
 			else {
-			//console.log( "buffer is ", arr[0] );
 				var arr = new Uint32Array(tmp);
 				return arr[0];
 			}
@@ -141,23 +143,18 @@ exports.SaltyRNG = function (f) {
 							//	partial_bits = 8;
 							partial_tmp = MY_GET_MASK(this.entropy, this.used, partial_bits);
 						}
-						//console.log( "Getting bits", partial_bits );
 						needBits();
-						//console.log( "bits to pull from: ", this.entropy )
 						bits -= partial_bits;
 					}
 					else {
 						tmp = MY_GET_MASK(this.entropy, this.used, get_bits);
-						//console.log( "And bits is...", this.used, get_bits, partial_bits, tmp, MASK_TOP_MASK( get_bits ), this.used&7 );
 						this.used += get_bits;
-						//console.log( "tmp : ", partial_bits, tmp );
 						if (partial_bits) {
 							tmp = partial_tmp | (tmp << partial_bits);
 							partial_bits = 0;
 						}
 						
 						result[resultIndex] |= tmp << (resultBits&7);
-						//console.log( "output: ", result[resultIndex].toString(16), "input was", tmp.toString(16) );
 						resultBits += get_bits;
 						// because of input limits, total result bits can only be 8 or less.
 						if( resultBits == 8 ) {
@@ -176,8 +173,21 @@ exports.SaltyRNG = function (f) {
 		RNG.saltbuf.length = 0;
 		if (typeof (RNG.getSalt) === 'function')
 			RNG.getSalt(RNG.saltbuf);
-		var newbuf = RNG.entropy?RNG.entropy.concat( toUTF8Array( RNG.saltbuf.join() ) ):toUTF8Array( RNG.saltbuf.join() );
-		RNG.entropy = compute(newbuf);
+		//console.log( "saltbuf.join = ", RNG.saltbuf.join(), RNG.saltbuf.length );
+		var newbuf;
+		if( RNG.saltbuf.length ) {
+			if( !RNG.entropy )
+				RNG.entropy = new Uint8Array(32)
+			newbuf = toUTF8Array( RNG.saltbuf.join() );
+			shabuf.update(newbuf).finish(RNG.entropy).clean();
+			shabuf.update(RNG.entropy);
+		}
+		else {
+			if( !RNG.entropy )
+				RNG.entropy = new Uint8Array(32)
+			shabuf.finish(RNG.entropy).clean();
+			shabuf.update(RNG.entropy);
+		}
 		RNG.available = RNG.entropy.length * 8;
 		RNG.used = 0;
 	};
@@ -223,11 +233,8 @@ function blocks(w, v, p, pos, len) {
 
 		for (i = 0; i < 16; i++) {
 			j = pos + i * 4
-                        //console.log( "P:", p );
-                        //console.log( "use ", j, p[j], p[j+1],p[j+2],p[j+3]);
 			w[i] = (((p[j] & 0xff) << 24) | ((p[j + 1] & 0xff) << 16) |
 				((p[j + 2] & 0xff) << 8) | (p[j + 3] & 0xff))
-                        //console.log( "use ", w[i] );
 		}
 
 		for (i = 16; i < 64; i++) {
@@ -282,11 +289,11 @@ function SHA256() {
 	this.reset()
 }
 
-SHA256.prototype.clone() {
+SHA256.prototype.clone = function (){
 	var x = new SHA256();
-	x.v = this.v;
-	x.w = this.w;
-	x.buf = this.buf;
+	x.v = this.v.slice(0);
+	x.w = this.w.slice(0);
+	x.buf = this.buf.slice(0);
 	x.buflen = this.buflen;
 	x.len = this.len;
 	return x;
@@ -313,7 +320,6 @@ SHA256.prototype.clean = function () {
 }
 
 SHA256.prototype.update = function (m, len) {
-	//console.trace( "update:",m );
 	var mpos = 0, mlen = (typeof len !== 'undefined') ? len : m.length
 	this.len += mlen
 	if (this.buflen > 0) {

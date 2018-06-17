@@ -335,6 +335,8 @@ SHA256.prototype.update = function (m, len) {
 	if (mlen >= 64) {
 		mpos = blocks(this.w, this.v, m, mpos, mlen)
 		mlen %= 64
+		for( var buf_fill = mlen; buf_fill < 64; buf_fill++ )
+			this.buf[buf_fill] = m[mpos-64 + buf_fill];
 	}
 	while (mlen > 0) {
 		this.buf[this.buflen++] = m[mpos++]
@@ -375,6 +377,7 @@ SHA256.prototype.finish = function (h) {
 		var str = '';
 		for( i = 0; i < 32; i++ )
 			str += h[i].toString(16);
+		console.log( "out:", str );
 	}
 
 	return this

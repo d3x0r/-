@@ -99,10 +99,8 @@ const overbal = (167-128)
 		return 0;
 	}
 
+var signEntropy;
 var nextSalt = new Uint8Array(32);
-var signEntropy = null;
-function feedSignSalt( salt ) {
-}
 exports.sign = function( msg ) {
 
 		//SRGObject *obj = ObjectWrap::Unwrap<SRGObject>( args.This() );
@@ -112,7 +110,7 @@ exports.sign = function( msg ) {
 		var tmp = new Uint8Array(32);
 		//memcpy( nextSalt, *buf, buf.length() );
 		if( !signEntropy ) {
-			signEntropy = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( feedSignSalt );
+			signEntropy = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( null );
 			signEntropy.initialEntropy = null;
 		}
 
@@ -143,14 +141,14 @@ exports.sign = function( msg ) {
 
 exports.verify = function( msg, id  ) {
 		if( !signEntropy ) {
-			signEntropy = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( feedSignSalt );
+			signEntropy = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( null );
 			signEntropy.initialEntropy = null;
 		}
 		signEntropy.reset();
-		console.log( "Feed message.", msg );
+		//console.log( "Feed message.", msg );
 		signEntropy.feed( msg );
 		DecodeBase64( nextSalt, id );
-		console.log( "Feed ID", nextSalt, id );
+		//console.log( "Feed ID", nextSalt, id );
 		signEntropy.feed( nextSalt );
 		var bytes = signEntropy.getBuffer( 256 );
 		//console.log( "bytes:", new Uint8Array( bytes ) );

@@ -37,7 +37,7 @@ RNG.saltbuf = [] // the array that is used to communicate salt when more random 
 
 ----
 
-#Crypted Object
+# Crypted Object
 
 crypted_object.js usage
    (requires salty_random_generator.js)
@@ -64,7 +64,7 @@ The method used is about 2x faster than the 'standard' str2ab (arrayBuffer from 
 
 ---
 
-#Text Object
+# Text Object
 
    text.js usage
    

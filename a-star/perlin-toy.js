@@ -182,7 +182,11 @@ function genData( config ) {
 		maxtot += gen.scalar;
 	}
 	gen.maxtot = maxtot;
-
+	console.log( "scalartotal?:", maxtot );
+	for( var n = 0; n < noiseGen.length; n++ ) {
+		var gen = noiseGen[n];
+		gen.scaledScalar /= gen.maxtot;
+	}
 	for( y = 0; y < config.patchSize; y++ ) {
 			// Y will be 0 at the same time this changes...  which will update all anyway
 	

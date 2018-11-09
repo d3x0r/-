@@ -57,6 +57,7 @@ const RANGES_THRESH = [0, 0.02, 0.20, 0.24, 0.29, 0.50, 0.75, 0.99, 1.0 ];
 	];
 	var updatedNoiseGenerators = false;
 
+	var oldout = [];
 init( config );
 
 function init( config ) {
@@ -79,13 +80,15 @@ function init( config ) {
 
 	fillData( config );
 	genData( config );
-	for( var z = 0; z < 2; z++ ) smoothData(config);
+	erodeData(config);
+	//for( var z = 0; z < 2; z++ ) smoothData(config);
 	function tick() {
-		smoothData(config);
+		//smoothData(config);
+	erodeData(config);
 		drawData( config );
-		setTimeout( tick, 100 );
+		setTimeout( tick, 1000 );
 	}
-	//tick();
+	tick();
 
 	//erode( config );
 	if( config.canvas ) {
@@ -163,6 +166,115 @@ function erode( config ) {
 	}
 	config.ero_noise = noise;	
 }	
+
+
+function erodeData( config ) {
+	var flowmap = [];
+	var noise = config.gen_noise;
+	var out;
+
+	for( var cycle =0; cycle< 1; cycle++ ) {	
+		out = [];
+			var tx;
+			var ty;
+		for( var n = 0; n < noise.length; n++ ) {
+			var x = ( n % config.patchSize );
+			var y = ( n / config.patchSize )|0;
+			tx = 0;
+			ty = 0;
+  	  		var c = 0;
+			if( x )  {
+				tx -= noise[n] - noise[n-1];
+				if( y ) {
+					ty -= noise[n] - noise[n -1 -config.patchSize] * 1.414/2;
+				}
+				if( y < (config.patchSize-1) ) {
+					ty += noise[n] - noise[n -1 +config.patchSize] * 1.414/2;
+				}
+			}
+			if( y )  {
+				ty -= noise[n] - noise[n-config.patchSize];
+				c++;
+			}
+			if( x < (config.patchSize-1) )  {
+				tx += noise[n] - noise[n+1];
+				if( y ) {
+					ty -= noise[n] - noise[n +1 -config.patchSize] * 1.414/2;
+				}
+				if( y < (config.patchSize-1) ) {
+					ty += noise[n] - noise[n +1 +config.patchSize] * 1.414/2;
+				}
+			}
+			if( y < (config.patchSize-1) )  {
+				ty += noise[n] - noise[n+config.patchSize];
+				c++;
+			}
+			out.push( { dx:tx, dy:ty, here:n, d : Math.sqrt( tx * tx + ty * ty ) } );
+		}
+
+		if( oldout.length ) {
+			for( var n = 0; n < out.length; n++ ) {
+				let cx = n % config.patchSize;
+				let cy = ( n / config.patchSize ) | 0;
+				out[n].dx += oldout[n].dx * 0.1;
+				out[n].dy += oldout[n].dy * 0.1;
+/*
+				if( oldout[n].dx > 0 ) {
+					if( cx < config.patchSize-1 ) {
+						out[n+1].dx += oldout[n].dx * 0.4;
+					}
+				} else {
+					if( cx > 0 ) {
+						out[n-1].dx += oldout[n].dx * 0.4;
+					}
+				}
+				if( oldout[n].dy > 0 ) {
+					if( cy < config.patchSize-1 ) {
+						out[n+config.patchSize].dy += oldout[n].dy * 0.4;
+					}
+				} else {
+					if( cy > 0 ) {
+						out[n-config.patchSize].dy += oldout[n].dy * 0.4;
+					}
+				}
+*/
+				out[n].d = Math.sqrt( out[n].dx * out[n].dx + out[n].dy * out[n].dy )
+			}	
+		}
+
+		oldout = out;
+		for( var n = 0; n < out.length; n++ ) {
+			let cx = n % config.patchSize;
+			let cy = ( n / config.patchSize ) | 0;
+
+			noise[n] -= out[n].d * out[n].d/3;
+
+			if( out[n].dx > 0 ) {
+				if( cx < config.patchSize-1 ) {
+					noise[n+1] += out[n].dx * out[n].d/6;
+				}
+			} else {
+				if( cx > 0 ) {
+					noise[n-1] -= out[n].dx * out[n].d/6;
+				}
+			}
+			if( out[n].dy > 0 ) {
+				if( cy < config.patchSize-1 ) {
+					noise[n+config.patchSize] += out[n].dy * out[n].d/6;
+				}
+			}else {
+				if( cy > 0 ) {
+					noise[n-config.patchSize] -= out[n].dy * out[n].d/6;
+				}
+			}
+		}
+		
+		
+	}
+	//config.gen_noise = out;
+}
+
+
 
 function smoothData1( config ) {
 	var noise = config.gen_noise;

@@ -1,0 +1,301 @@
+
+M:\javascript\automaton>node  --experimental-modules test.mjs  
+03:32:07.239|144200001CAE8~winfiles.cpp(357):input path is [@/../../strings.json]
+03:32:07.239|144200001CAE8~winfiles.cpp(470):output path is [M:\javascript\sack-gui\build\RelWithDebInfo/../../strings.json]
+03:32:07.243|144200001CAE8~winfiles.c(1301):open msyh.ttc 0000018DF725A074(native) rb (1)
+03:32:07.243|144200001CAE8~winfiles.c(1351):full is msyh.ttc
+03:32:07.243|144200001CAE8~winfiles.c(1393):Open File: [msyh.ttc]
+03:32:07.243|144200001CAE8~winfiles.c(1413):Call mount native to check if file exists msyh.ttc
+03:32:07.243|144200001CAE8~winfiles.c(1507):native opened msyh.ttc
+03:32:07.243|144200001CAE8~winfiles.c(1514):Failed to open file [msyh.ttc]=[msyh.ttc]
+03:32:07.243|144200001CAE8~winfiles.c(1301):open */../../Fonts.Cache 0000018DF725A074(native) rt (1)
+03:32:07.243|144200001CAE8~winfiles.c(357):input path is [*/../../Fonts.Cache]
+03:32:07.243|144200001CAE8~winfiles.c(470):output path is [C:\ProgramData/Freedom Collective/node/../../Fonts.Cache]
+03:32:07.243|144200001CAE8~winfiles.c(1351):full is C:\ProgramData/Freedom Collective/node/../../Fonts.Cache
+03:32:07.243|144200001CAE8~winfiles.c(1393):Open File: [C:\ProgramData/Freedom Collective/node/../../Fonts.Cache]
+03:32:07.243|144200001CAE8~winfiles.c(1413):Call mount native to check if file exists C:\ProgramData/Freedom Collective/node/../../Fonts.Cache
+03:32:07.243|144200001CAE8~winfiles.c(1525):sack_open C:\ProgramData/Freedom Collective/node/../../Fonts.Cache (rt)
+03:32:07.243|144200001CAE8~winfiles.c(1530):Added FILE* 0000018DF9026A80 and list is 0000018DF9027AC4
+03:32:07.243|144200001CAE8~winfiles.c(357):input path is [*/../../Fonts.Cache]
+03:32:07.243|144200001CAE8~winfiles.c(470):output path is [C:\ProgramData/Freedom Collective/node/../../Fonts.Cache]
+03:32:07.248|144200001CAE8~winfiles.c(1812):Closing C:\ProgramData/Freedom Collective/node/../../Fonts.Cache
+03:32:07.248|144200001CAE8~winfiles.c(1820):deleted FILE* 0000018DF9026A80 and list is 0000018DF9027AC4
+SACK: { 'Δ': [Function: Δ],
+  'Λ': [Function: Λ],
+  Thread: [Function: sack.core.Thread],
+  Sqlite:
+   { [Function: sack.vfs.Sqlite]
+     eo: [Function],
+     op: [Function],
+     so: [Function],
+     optionEditor: [Function] },
+  ComPort: [Function: sack.ComPort],
+  JSOX:
+   { parse: [Function],
+     setFromPrototypeMap: [Function],
+     escape: [Function],
+     begin: [Function],
+     registerToJSOX: [Function],
+     registerFromJSOX: [Function],
+     registerToFrom: [Function],
+     stringifier: [Function],
+     stringify: [Function] },
+  JSON:
+   { parse: [Function],
+     stringify: [Function: stringify],
+     escape: [Function: escape],
+     begin: [Function: sack.core.json6_parser] },
+  JSON6:
+   { parse: [Function],
+     stringify: [Function: stringify],
+     escape: [Function: escape],
+     begin: [Function: sack.core.json6_parser] },
+  VESL: { parse: [Function] },
+  SaltyRNG:
+   { [Function: sack.core.srg]
+     sign: [Function],
+     setSigningThreads: [Function],
+     verify: [Function] },
+  WebSocket:
+   { readyStates:
+      { OPEN: 1,
+        CLOSED: 3,
+        CLOSING: 2,
+        CONNECTING: 0,
+        INITIALIZING: -1,
+        LISTENING: 4 },
+     Server: [Function: sack.core.ws.server],
+     Client: [Function: sack.core.ws.client] },
+  HTTPS: { get: [Function] },
+  HTTP: { get: [Function] },
+  Network:
+   { UDP: [Function: sack.core.dgram.socket],
+     Address: [Function: sack.core.network.address] },
+  Task: { [Function: sack.task] loadLibrary: [Function] },
+  objectStorage: [Function],
+  Image:
+   { [Function: sack.Image]
+     Font:
+      { [Function: sack.Image.Font] load: [Function], dialog: [Function] },
+     colors:
+      { white: sack.Image.Color {},
+        black: sack.Image.Color {},
+        green: sack.Image.Color {},
+        blue: sack.Image.Color {},
+        red: sack.Image.Color {},
+        darkBlue: sack.Image.Color {},
+        cyan: sack.Image.Color {},
+        brown: sack.Image.Color {},
+        lightBrown: sack.Image.Color {},
+        magenta: sack.Image.Color {},
+        lightGrey: sack.Image.Color {},
+        darkGrey: sack.Image.Color {},
+        lightBlue: sack.Image.Color {},
+        lightGreen: sack.Image.Color {},
+        lightCyan: sack.Image.Color {},
+        lightRed: sack.Image.Color {},
+        lightMagenta: sack.Image.Color {},
+        yellow: sack.Image.Color {},
+        orange: sack.Image.Color {},
+        niceOrange: sack.Image.Color {},
+        purple: sack.Image.Color {} },
+     Color: { [Function: sack.Image.Color] dialog: [Function] } },
+  Renderer: { [Function: sack.Renderer] getDisplay: [Function] },
+  Vulkan: [Function: sack.Vulkan],
+  PSI:
+   { button:
+      { left: 1, right: 2, middle: 16, scroll_down: 256, scroll_up: 512 },
+     control:
+      { border:
+         { normal: 0,
+           none: 3,
+           thin: 1,
+           thinner: 2,
+           dent: 4,
+           thinDent: 5,
+           thickDent: 6,
+           user: 7,
+           invert: 128,
+           invertThinner: 130,
+           invertThin: 129,
+           bump: 132,
+           caption: 64,
+           noCaption: 32,
+           noMove: 256,
+           close: 512,
+           resizable: 1024,
+           within: 2048,
+           wantMouse: 4096,
+           exclusive: 8192,
+           fixed: 32768,
+           noExtraInit: 65536,
+           captionCloseButton: 131072,
+           noCaptionCloseButton: 262144,
+           closeIsDone: 524288 },
+        borderAnchor:
+         { topMin: 1,
+           topCenter: 2,
+           topMax: 3,
+           leftMin: 4,
+           leftCenter: 8,
+           leftMax: 12,
+           rightMin: 16,
+           rightCenter: 32,
+           rightMax: 48,
+           bottomMin: 64,
+           bottomCenter: 128,
+           bottomMax: 192 },
+        types:
+         [ 'Frame',
+           'Undefined',
+           'SubFrame',
+           'TextControl',
+           'Button',
+           'CustomDrawnButton',
+           'ImageButton',
+           'CheckButton',
+           'EditControl',
+           'Slider',
+           'ListBox',
+           'ScrollBar',
+           'Gridbox',
+           'Console',
+           'SheetControl',
+           'Combo Box',
+           'Basic Clock Widget',
+           'PSI Console' ],
+        color:
+         { highlight: [Getter/Setter],
+           normal: [Getter/Setter],
+           shade: [Getter/Setter],
+           shadow: [Getter/Setter],
+           textColor: [Getter/Setter],
+           caption: [Getter/Setter],
+           captionText: [Getter/Setter],
+           inactiveCaption: [Getter/Setter],
+           InactiveCaptionText: [Getter/Setter],
+           selectBack: [Getter/Setter],
+           selectText: [Getter/Setter],
+           editBackground: [Getter/Setter],
+           editText: [Getter/Setter],
+           scrollBarBackground: [Getter/Setter] } },
+     Popup:
+      { [Function: sack.PSI.Popup]
+        itemType:
+         { string: 0,
+           separator: 2048,
+           popup: 16,
+           checked: 8,
+           disabled: 2,
+           grayed: 1,
+           customDraw: 256 } },
+     Frame:
+      { [Function: sack.PSI.Frame] Border: [Function], load: [Function] },
+     Registration: [Function: sack.PSI.Registration] },
+  InterShell:
+   { [Function: sack.InterShell]
+     Button: [Function: sack.InterShell.Button],
+     Control: [Function: sack.InterShell.Control],
+     Custom: [Function: sack.InterShell.CustomControl] },
+  Configuration: [Function: sack.Configuration],
+  registry: { get: [Function: get], set: [Function: set] },
+  Keyboard: [Function: sack.KeyHidEvents],
+  TLS:
+   { seed: [Function],
+     genkey: [Function],
+     gencert: [Function],
+     genreq: [Function],
+     pubkey: [Function],
+     signreq: [Function],
+     validate: [Function],
+     expiration: [Function],
+     certToString: [Function] },
+  memDump: [Function],
+  u8xor: [Function],
+  b64xor: [Function],
+  id: [Function],
+  File:
+   { SeekSet: 0,
+     SeekCurrent: 1,
+     SeekEnd: 2,
+     delete: [Function],
+     unlink: [Function],
+     rm: [Function] },
+  Volume:
+   { [Function: sack.vfs.Volume]
+     mkdir: [Function],
+     readAsString: [Function],
+     mapFile: [Function] },
+  loadComplete: [Function] }
+brain: 
+{
+   brain: {
+      changed: true,
+      cycle: 0,
+      k: 1
+   },
+   cycle: -1,
+   freq: 60,
+   inputs: [],
+   outputs: [
+      {
+         gain: 1,
+         input: ref[],
+         output: {
+            brain: ref["brain"],
+            cycle: -1,
+            inputs: [
+               {
+                  gain: 1,
+                  input: {
+                     brain: ref["brain"],
+                     cycle: -1,
+                     inputs: [],
+                     outputs: [
+                        ref["outputs",0,"output","inputs",0]
+                     ],
+                     threshold: 0.5,
+                     type: "External",
+                     value: 3
+                  },
+                  output: ref["outputs",0,"output"],
+                  value: 3
+               },
+               ref["outputs",0]
+            ],
+            outputs: [
+               {
+                  gain: 1,
+                  input: ref["outputs",0,"output"],
+                  output: {
+                     brain: ref["brain"],
+                     cycle: -1,
+                     inputs: [
+                        ref["outputs",0,"output","outputs",0]
+                     ],
+                     outputs: [],
+                     threshold: 0.5,
+                     type: "Neuron",
+                     value: 1.3154752588708578
+                  },
+                  value: 1.8154752588708578
+               }
+            ],
+            threshold: 0.5,
+            type: "Neuron",
+            value: 1.8154752588708578
+         },
+         value: -0.6845247411291421
+      }
+   ],
+   threshold: 0.5,
+   type: "Oscillator",
+   value: -0.6845247411291421
+}
+1.3154752588708578
+1.3154752588708578
+1.3154752588708578
+1.3154752588708578
+1.3154752588708578
+[Function: Object]
+1m took: 601

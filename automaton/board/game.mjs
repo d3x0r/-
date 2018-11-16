@@ -571,10 +571,22 @@ var gameState = {
 	progressLocked : false,
 }
 
+var neuronTable = setupNeuronTable( document.getElementById("statusTable"))
 
 var boardFrame = document.getElementById( "boardFrame" );
 var brain = Brain();
+
+function brainTicker() {
+        brain.step();
+        setTimeout( brainTicker, 1 );
+}
+brainTicker();
+
 var brainBoard = new BrainBoard( brain, boardFrame );
+
+brainBoard.addEventListener( "added", (n)=>{
+        neuronTable.addNeuron( n );
+})
 
 var notebookPanel = document.getElementById( "notebookPanel" );
 notebookPanel.addEventListener( "click", (evt)=>{
@@ -646,8 +658,12 @@ svg.setAttribute( "preserveAspectRatio", "xMaxYMax" );
 }
 
 function setupToolPanel() {
-	var tooldiv = document.getElementById("boardToolsFrame" );
-         tooldiv.appendChild( shapes.makeNeuron() );
+        var tooldiv = document.getElementById("boardToolsFrame" );
+        var tool;
+         tooldiv.appendChild( tool = shapes.makeNeuron() );
+         tool.addEventListener( "click", ()=>{
+                 neuronTable.addNeuron( "a" )
+         })
          tooldiv.appendChild( shapes.makeNode() );
          tooldiv.appendChild( shapes.makeTrash() );
 	
@@ -677,5 +693,41 @@ function setPage( newPage )
 }
 
 
+function setupNeuronTable( table ) {
+        var statuses = {
+                table : table,
+                clear() {
+                        while(this.table.hasChildNodes())
+                        {
+                                this.table.removeChild(this.table.firstChild);
+                        }
+                },
+                addNeuron( n ) {
+                        var newRow = this.table.insertRow();
+                        neuron( newRow, n );
+                }
+        }
+        statuses.clear();
+        return statuses;
+
+        function neuron( row, n ) {
+                var data1 = row.insertCell();
+                data1.innerText = "neuron";
+                var data2 = row.insertCell();
+                data2.innerText = "123";
+                var data3 = row.insertCell();
+                data3.innerText = "bbb";
+                var thisN = n;
+                function neuronUpdateTick() {
+                        data2.innerText = thisN.threshold;
+                        var val = thisN.value.toFixed(3);
+                        //val = val - (val % 0.001)
+                        data3.innerText = val;
+                        setTimeout( neuronUpdateTick, 250 );
+                }
+                neuronUpdateTick();
+        }
+
+}
 
         

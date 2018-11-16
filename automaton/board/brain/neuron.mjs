@@ -20,15 +20,32 @@ export function Neuron() {
 		},
         get value() {
            	if( this.cycle != this.brain.cycle ) {
-				inputs = this.inputs.reduce( (inputs,inp)=>inputs + inp.value, 0 );
+				inputs = this.inputs.reduce( (inputs,inp)=>inputs + (inp?inp.value:0), 0 );
 				this.cycle = this.brain.cycle;
 			}
-			return this.output(inputs);
+			if( inputs > this.threshold )
+				return this.output(inputs);
+			return 0;
 		},
 		attachSynapse( specific ) {
 			if( specific !== undefined )
 				return { nerves: this.inputs, id: specific }
 			return { nerves: this.inputs, id: this.inputs.length };
+		},
+		attachSynapseFrom( specific ) {
+			if( specific !== undefined )
+				return { nerves: this.outputs, id: specific }
+			return { nerves: this.outputs, id: this.outputs.length };
+		},
+		detachSynapse( s ) {
+			var id = this.inputs.findIndex( input=>input === s );
+			if( id >= 0 )
+				this.inputs[id] = null;
+		},
+		detachSynapseFrom( s ) {
+			var id = this.outputs.findIndex( output=>output === s );
+			if( id >= 0 )
+				this.outputs[id] = null;
 		},
 		attach( other ) {
 			var synapse = this.brain.Synapse();
@@ -113,12 +130,12 @@ export function Oscillator() {
 export function TickOscillator( ticks ) {
 	var n = Neuron.call(this);
 	n.type = "TickOscillator";
-    n.freq = ticks;
+    n.freq = ticks || 1000;
         
 	Object.defineProperty(n, "value", {
 	  get: function() { 
 		//console.log( "Math.sin( ( this.brain.cycle * 2* Math.PI / freq ) )", Math.sin( ( this.brain.cycle * 2* Math.PI / freq ) ) );
-          	return Math.sin( ( this.brain.cycle * 2* Math.PI / freq ) );
+          	return Math.sin( ( this.brain.cycle * 2* Math.PI / n.freq ) );
           },
 	  //set: function(y) { this.setFullYear(y) }
 	});

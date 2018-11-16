@@ -202,7 +202,7 @@ export function Board( parent ) {
 		board.layerDataPool = LayerDataPool();
 
 		board.OnClose = null;
-		setTimeout( board.BoardRefresh.bind(board), 1000 );
+		//setTimeout( board.BoardRefresh.bind(board), 1000 );
 		}
 
 
@@ -359,9 +359,9 @@ export function Board( parent ) {
 			if( this.flags.bLeftChanged )
 			{
 				pld = layer;
-				var connect_okay = pld.layer.peice.methods.ConnectEnd( pld.psvInstance
-																				  , (this.wX - layer.x)
-																				  , (this.wY - layer.y)
+				var connect_okay = pld.layer.peice.methods.ConnectEnd( pld.layer.psvInstance
+																				  , (this.wX - layer.layer.x)
+																				  , (this.wY - layer.layer.y)
 																				  , this.route_current_layer.peice
 																				  , this.route_current_layer.psvInstance );
 				if( connect_okay )
@@ -369,34 +369,55 @@ export function Board( parent ) {
 					//DebugBreak();
 					console.log( ("Heh guess we should do something when connect succeeds?") );
 					// keep route_current_layer;
-					layer.Link( this.route_current_layer, LINK_VIA_END, (this.wX-layer.x), (this.wY-layer.y) );
+					layer.layer.Link( this.route_current_layer, LINK_VIA_END, (this.wX-layer.at.x), (this.wY-layer.at.y) );
 					this.route_current_layer = null;
-					return;
+					return true;
 				}
 				else
 				{
+					this.route_current_layer.Unlink();
+					this.route_current_layer.isolate();
+
+					var disconnect_okay = this.route_current_layer
+							.peice
+							.methods
+							.Disconnect( this.route_current_layer.psvInstance );
+
+					this.route_current_layer = null;
+					this.BoardRefresh();
 					//DebugBreak();
 					//delete route_current_layer;
-					this.route_current_layer = null;
-					return;
+					//this.route_current_layer = null;
+					return false;
 				}
 			}
 		}
 		else
 		{
-         // right click anywhere to end this thing...
+         	// right click anywhere to end this thing...
 			if( this.route_current_layer &&
-				this.flags.bRightChanged &&
-				!this.flags.bRight )
+				this.flags.bLeftChanged &&
+				!this.flags.bLeft )
 			{
-            //DebugBreak();
+            	//DebugBreak();
 				// also have to delete this layer.
+					this.route_current_layer.Unlink();
+					this.route_current_layer.isolate();
+
+					var disconnect_okay = this.route_current_layer
+							.peice
+							.methods
+							.Disconnect( this.route_current_layer.psvInstance );
+
+					this.route_current_layer = null;
 				//delete this.route_current_layer;
+				console.log( "route current layer goes to null...");
 				this.route_current_layer = null;
-				return;
+				this.BoardRefresh();
+				return false;
 			}
 		}
-		this.LayPathTo( this.wX, this.wY );
+		return this.LayPathTo( this.wX, this.wY );
 	}
 
 	Board.prototype.UnendPath = function( )
@@ -404,8 +425,7 @@ export function Board( parent ) {
 		var disconnect_okay = this.mouse_current_layer
 			.peice
 			.methods
-			.Disconnect( this.mouse_current_layer
-								.psvInstance );
+			.Disconnect( this.mouse_current_layer.psvInstance );
 							  //, (wX - this.mouse_current_layer.x)
 							  //, (this.wY - this.mouse_current_layer.y)
 							  //, viaset
@@ -415,7 +435,7 @@ export function Board( parent ) {
 			this.mouse_current_layer.Unlink();
 			this.mouse_current_layer.isolate();
 			this.mouse_current_layer.link_top();
-			this.route_current_layer = mouse_current_layer;
+			this.route_current_layer = this.mouse_current_layer;
 		}
 	}
 
@@ -442,8 +462,9 @@ export function Board( parent ) {
 		//pl.pLayerData = new(&LayerDataPool) LAYER_DATA(peice);
 		// should be portioned...
 		pl.link_top(this.rootLayer);
-
+		
 		this.BoardRefresh();
+		return pl.psvInstance;
 	}
 
 
@@ -466,6 +487,7 @@ export function Board( parent ) {
 				this.board = new Array( (this.board_width+1)|0*(this.board_height+1)|0 );
 			}
 		}
+try {
 		if( this.default_peice )
 		{
 			//var rows,cols;
@@ -511,6 +533,9 @@ export function Board( parent ) {
 				this.DrawLayer( layer );
 			}
 		}
+}catch(err) {
+	console.log( "(try again later) FAILED:", err ); 
+}
 		//LayerPool.forall( faisDrawLayer, (uintptr_t)this );
 		//ForAllInSet( LAYER, LayerPool, faisDrawLayer, (uintptr_t)this );
 		this.update.flush();
@@ -522,6 +547,7 @@ export function Board( parent ) {
 	{
 		this.route_current_layer.LayPath( wX, wY );
 		this.BoardRefresh();//SmudgeCommon( pControl );
+		return true;
 	}
 
 
@@ -757,16 +783,16 @@ export function Board( parent ) {
 											 )
 	{
 		var via = peices.Via( this, name, image, methods, psv );
-		peices.push( via );
+		this.peices.push( via );
 		return via;
 	}
 
 	Board.prototype.forEachPeice = function( cb ) {
-		peices.forEach( cb );
+		this.peices.forEach( cb );
 	}
 
 	Board.prototype.GetPeice = function( peice_name )
 	{
-		return peices.find( (peice)=>peice.name === peice_name );
+		return this.peices.find( (peice)=>peice.name === peice_name );
 	}
 

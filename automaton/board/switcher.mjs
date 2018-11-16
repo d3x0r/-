@@ -60,7 +60,7 @@
 			var svg = newSVG;//document.querySelector( "SVG" );
 			//svg.width = 100;
 			//svg.height = 200;
-			var pivot = svg.querySelector( "[ID='drivePivot']" );
+			var pivot = svg.children['drivePivot'];//svg.querySelector( "[ID='drivePivot']" );
 			var tm = Date.now() / 1000;
 			
 			var cx, cy;

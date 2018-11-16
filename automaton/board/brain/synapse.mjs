@@ -36,7 +36,7 @@ export default function Synapse() {
                                         !(ppSyn = neuron.AttachSynapse( n ) )
                                         && n < MAX_NERVES; 
                                         n++ );
-                        if( !this.input && neuron && ppSyn )
+                        if( !this.output && neuron && ppSyn )
                         {
                                 ppSyn.nerves[ppSyn.id] = this;
                                 this.output = neuron;
@@ -44,6 +44,20 @@ export default function Synapse() {
                         }
                         return false;
                                 
+                },
+                DetachDestination() {
+                        var n = this.output;
+                        if(n) {
+                                this.output = null;
+                                n.detachSynapse( this );
+                        }
+                },
+                DetachSource() {
+                        var n = this.input;
+                        if( n ) {
+                                this.input = null;
+                                n.detachSynapseFrom( this );
+                        }
                 }
         }
         

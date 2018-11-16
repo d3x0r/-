@@ -88,7 +88,7 @@ export function Peice( board
 
 
 if( !(this instanceof Peice ) ) return new Peice( board,name,image,rows,cols,hotx,hoty,bBlock,bVia, methods,psv)
-
+console.trace( image );
 this.flags =  {
    block:0,
    viaset:0,
@@ -118,9 +118,9 @@ if( image )
 	this.lastCell = { coords:null, size:this.cellSize };
 	this.image = image;
 	//this.image.src = image;
-	if( !this.image.width )
+	if( !this.image.width ||  this.image.nodeName === "IMG" ) {
 		this.image.addEventListener( "load", initGrid.bind(this) );
-	else {
+	} else {
 		var wrapper;// = document.createElement( "div" );
 		//wrapper.appendChild( image );
 
@@ -406,17 +406,6 @@ Via.prototype.Stop=function(  ) { return 0; }
 
 
 
-function ViaData(  board,  name
-		,  image 
-		)
-{
-//super(board, name,image,7,7,0,0,FALSE,TRUE)	
-}
-
-ViaData.prototype = Object.assign( {}, Peice.prototype );
-ViaData.constructor = ViaData;
-
-
 
 //--------------------------- Default Methods ------------------------------------------
 
@@ -514,6 +503,7 @@ DefaultMethods.prototype.Draw = function(  peice, psvInstance,  surface,   x,  y
 DefaultMethods.prototype.DrawCell = function( peice, psvInstance,  surface,  cellx, celly, x,  y )
 {
 	//surface.drawImage( this.master.image, 0, 0, 500, 500, 0, 0, 66, 66 )
+	surface.drawImage( this.master.image, 0, 0, 500, 500, 0, 0, 66, 66 )
 
 	// first 0 is current scale.
 	//lprintf( WIDE("Drawing peice instance %p"), psvInstance );
@@ -537,7 +527,7 @@ export function DefaultViaMethods() {
 	
 }
 
-DefaultViaMethods.prototype = new DefaultMethods();
+DefaultViaMethods.prototype = new Object(  DefaultMethods.prototype );
 DefaultViaMethods.prototype.constructor = DefaultViaMethods();
 
 
@@ -553,15 +543,7 @@ DefaultViaMethods.prototype. Stop = function( )
 //-------------------- VIA METHODS ----------------------------------
 
 
-function ViaMethods() {
-	if( !(this instanceof DefaultViaMethods ) ) return new DefaultViaMethods();
-	
-}
-
-ViaMethods.prototype = new DefaultViaMethods();
-ViaMethods.prototype.constructor = ViaMethods();
-
-ViaMethods.prototype.OnClick = function(  psv,  x,  y )
+DefaultViaMethods.prototype.OnClick = function(  psv,  x,  y )
 {
 	//	lprintf(WIDE(" Psh we have to find segment at %d,%d again... actually we only care if it's the last..."), x, y );
 	//	PLAYER_NODE_DATA pld = (PLAYER_NODE_DATA)PeekStack( &pds_path );
@@ -569,60 +551,19 @@ ViaMethods.prototype.OnClick = function(  psv,  x,  y )
 	{
 		// mouse current layer...
 		console.log( "GENERATE DISCONNECT!" );
-		master.board.UnendPath( );
+		this.master.board.UnendPath( );
 		//Disconnect();
 	}
 	return 0;
 }
-ViaMethods.prototype.OnRightClick = function(  psv,  x,  y )
+DefaultViaMethods.prototype.OnRightClick = function(  psv,  x,  y )
 {
 	return 0;
 }
-ViaMethods.prototype.OnDoubleClick = function(  psv,  x,  y )
+DefaultViaMethods.prototype.OnDoubleClick = function(  psv,  x,  y )
 {
 	return 0;
 }
-
-/*
-class IVIA: public IPEICE
-{
-public:
-	//virtual ~IVIA();
-	virtual CTEXTSTR name( void )=0;
-	virtual Image GetViaStart( int direction, int scale = 0 )=0;// { return null; }
-	virtual Image GetViaEnd( int direction, int scale = 0 )=0;//{ return null; }
-	// getviafromto will result in start or end if from or to is NOWHERE respectively
-	virtual Image GetViaFromTo( int from, int to, int scale = 0 ){ return null; }
-
-	virtual Image GetViaFill1( int *xofs, int *yofs, int direction, int scale = 0 ){ return null; }
-	virtual Image GetViaFill2( int *xofs, int *yofs, int direction, int scale = 0 ){ return null; }
-	virtual int Move( void ) { return 0; } // Begin, Start
-	virtual int Stop( void ) { return 0; } // end
-	PVIA_METHODS via_methods;
-};
-*/
-
-function IVia( board, name
-		  , image// = null
-		  , methods// = null
-		  , psv
-		  ) //: VIA_DATA( board, name, image )
-{
-	//super( board, name, image );
-
-	this.via_methods = methods || DefaultViaMethods();
-	this.psvCreate = psv;
-	this.via_master = this;
-	this.methods = 
-
-	this.via_methods = methods;
-	this.psvCreate = psv;
-	this.via_master = this;
-	this.methods = methods;
-	// anything special? yes.
-}
-
-
 
 
 export function createVia( board, name //= WIDE("A Peice")

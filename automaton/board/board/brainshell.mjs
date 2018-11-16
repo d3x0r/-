@@ -10,6 +10,8 @@ const  MNU_ZOOM       = 1010 // 0, 1, 2 used...
 const  MNU_ENDZOOM    = 1020
 
 const  MNU_CLOSE      = 1030
+const  MNU_ADDOSC     = 1011
+const  MNU_ADDTICKOSC = 1010
 const  MNU_SYNAPSE    = 1009 
 const  MNU_NEURON     = 1008
 const  MNU_PROPERTIES = 1007
@@ -94,49 +96,49 @@ export function BrainBoard( _brain, container ) {
 
 	var connectors = [];
 	var menus = [];
-
+	this.events = {};
 	this.board = new Board( container );
 
 		this.background_methods = BackgroundMethods(this);
 		this.neuron_methods     = new NEURON_METHODS(this);
+		this.tick_oscillator_methods = new TICK_OSCILLATOR_METHODS(this);
+		this.oscillator_methods = new OSCILLATOR_METHODS(this);
 		this.input_methods      = new INPUT_METHODS(this);
 		this.output_methods     = new OUTPUT_METHODS(this);
 		this.nerve_methods      = new NERVE_METHODS(this);
 		this.brain = _brain;
 		Init( this );
 
-	return {
 			
 	
 		//---------------------------------------------------
         	
-		FindPeiceMethods( type )
-                {
+		function FindPeiceMethods( type )
+    	{
 			var methods = null;
-	        	if( type === ("neuron") )
+	        if( type === ("neuron") )
 				methods =neuron_methods;
 			else if( type === ("background") )
-        			methods =background_methods;
+        		methods =background_methods;
 			else if( type === ("nerve") )
-	        		methods =nerve_methods;
+	    		methods =nerve_methods;
 			else if( type === ("input") )
-        			methods =input_methods;
+       			methods =input_methods;
 			else if(  type === ("output") )
-                		methods =output_methods;
+               		methods =output_methods;
 			if( methods && methods.master )
-	        	{
+	       	{
 				console.log( ("Peice for methods is already defined... there is a tight relationship between a single graphic and these methods") );
 				//return null;
-        		}
+       		}
 			return methods;
-	        },
+	    }
 		
 		//---------------------------------------------------
 
                 //---------------------------------------------------
 		
         	
-	}
 	function Init( brainshell )
 	{
 		//brainboard = this;
@@ -144,6 +146,16 @@ export function BrainBoard( _brain, container ) {
 	        
 		brainshell.InputPeice = null;
 		brainshell.OutputPeice = null;
+		brainshell.OscillatorPeice = brainshell.board.CreatePeice( "oscil", shapes.makeNeuron()
+			, peices.neuron.cells.width,  peices.neuron.cells.height
+			, ((peices.neuron.cells.width-1)/2)|0, ((peices.neuron.cells.height-1)/2)|0
+			, brainshell.oscillator_methods );
+
+		brainshell.TickOscillatorPeice = brainshell.board.CreatePeice( "tickosc", shapes.makeNeuron()
+			, peices.neuron.cells.width,  peices.neuron.cells.height
+			, ((peices.neuron.cells.width-1)/2)|0, ((peices.neuron.cells.height-1)/2)|0
+			, brainshell.tick_oscillator_methods );
+
 		brainshell.NeuronPeice = brainshell.board.CreatePeice( "neuron", shapes.makeNeuron()
 			, peices.neuron.cells.width,  peices.neuron.cells.height
 			, ((peices.neuron.cells.width-1)/2)|0, ((peices.neuron.cells.height-1)/2)|0
@@ -247,6 +259,8 @@ export function BrainBoard( _brain, container ) {
 		InitMenus( brainshell );
 		brainshell.DefaultNeuron = brainshell.brain.Neuron();
 		brainshell.DefaultSynapse = brainshell.brain.Synapse();
+
+		
 	}       
 
 //---------------------------------------------------
@@ -255,7 +269,9 @@ export function BrainBoard( _brain, container ) {
 	function InitMenus( _this )
 	{
 		var hMenu = _this.hMenu = createPopup();
-		_this.hMenu.appendItem( MF_STRING, MNU_ADDNEURON, ("Add &Neuron") );
+		_this.hMenu.appendItem( MF_STRING, MNU_ADDNEURON, ("Add Neuron") );
+		_this.hMenu.appendItem( MF_STRING, MNU_ADDOSC, ("Add Oscillator") );
+		_this.hMenu.appendItem( MF_STRING, MNU_ADDTICKOSC, ("Add Tick Oscillator") );
            
 		_this.hMenu.appendItem( MF_STRING|MF_POPUP, (_this.hMenuComponents=createPopup()), ("Add &Component") );
 		{
@@ -293,6 +309,10 @@ export function BrainBoard( _brain, container ) {
         */
 	}
 
+}
+                     
+BrainBoard.prototype.addEventListener = function(name,cb) {
+	this.events[name] = cb;
 }
 
 BrainBoard.prototype.BuildBrainstemMenus = function (hMenuComponents, pbs, menus, connectors, idx) {
@@ -654,7 +674,7 @@ OUTPUT_METHODS.prototype.ConnectEnd = function(  psv_to_instance,  x,  y
 				break;
 		if( n < 8 )
 		{
-			var success = brainboard.brain.LinkSynapseTo( synapse, neuron.neuron, n );
+			var success = this.brainboard.brain.LinkSynapseTo( synapse, neuron.neuron, n );
 			return success;
 		}
 		return false;
@@ -677,12 +697,12 @@ OUTPUT_METHODS.prototype.OnClick = function(  psv,  x,  y )
 			// this is implied to be the current peice that
 			// has been clicked on...
 			// will receive further OnMove events...
-			brainboard.board.LockPeiceDrag();
+			this.brainboard.board.LockPeiceDrag();
 			return true;
 		}
 		else
 		{
-			if( !brainboard.board.BeginPath( brainboard.NervePeice, brainboard ) )
+			if( !this.brainboard.board.BeginPath( this.brainboard.NervePeice, brainboard ) )
 			{
 				// attempt to grab existing path...
 				// current position, and current layer
@@ -693,7 +713,6 @@ OUTPUT_METHODS.prototype.OnClick = function(  psv,  x,  y )
 		// so far there's nothing on this cell to do....
 		return false;
 	}
-
 
 
 
@@ -815,7 +834,7 @@ NEURON_METHODS.prototype.ConnectEnd = function(  psv_to_instance,  x,  y
 				break;
 		if( n < 8 )
 		{
-			var success = brainboard.brain.LinkSynapseTo( synapse, neuron, n );
+			var success = this.brainboard.brain.LinkSynapseTo( synapse, neuron, n );
 			return success;
 		}
 		return false;
@@ -946,7 +965,21 @@ BackgroundMethods.prototype.OnRightClick = function(  psv,  x,  y )
 			{
 			case MNU_ADDNEURON:
 				console.log( ("Put neuron peice at %d,%d"), x, y );
-				brainboard.board.PutPeice( brainboard.NeuronPeice, x, y, 0 );
+				var newN = brainboard.board.PutPeice( brainboard.NeuronPeice, x, y, 0 );
+				if( brainboard.events["added"] )
+					brainboard.events["added"]( newN );
+				return true;
+			case MNU_ADDOSC:
+				console.log( ("Put osc peice at %d,%d"), x, y );
+				var newN = brainboard.board.PutPeice( brainboard.OscillatorPeice, x, y, 0 );
+				if( brainboard.events["added"] )
+					brainboard.events["added"]( newN );
+				return true;
+			case MNU_ADDTICKOSC:
+				console.log( ("Put tickosc peice at %d,%d"), x, y );
+				var newN = brainboard.board.PutPeice( brainboard.TickOscillatorPeice, x, y, 0 );
+				if( brainboard.events["added"] )
+					brainboard.events["added"]( newN );
 				return true;
 			case MNU_ZOOM:
 			case MNU_ZOOM+1:
@@ -981,6 +1014,50 @@ BackgroundMethods.prototype.OnDoubleClick = function(  psv,  x,  y )
 		return true;
 	}
 
+//--------------------------- Oscillator Methods ------------------------------
+
+function  OSCILLATOR_METHODS(newbrainboard)
+{
+	// these methods are passed a psvInstance
+	// which is the current neuron instance these are to wokr on
+	// this valud is retrieved and stored (by other portions) by the create() method
+	this.brainboard = newbrainboard;
+
+
+}
+
+OSCILLATOR_METHODS.prototype = Object.create( NEURON_METHODS.prototype );
+OSCILLATOR_METHODS.prototype.constructor = NEURON_METHODS;
+
+OSCILLATOR_METHODS.prototype.Create = function(  psvExtra )
+	{
+		console.log( "Creating a new neuron (peice instance)");
+		return this.brainboard.brain.Oscillator( );
+	}
+
+	
+//--------------------------- Tick Oscillator Methods ------------------------------
+
+function TICK_OSCILLATOR_METHODS(newbrainboard)
+{
+	// these methods are passed a psvInstance
+	// which is the current neuron instance these are to wokr on
+	// this valud is retrieved and stored (by other portions) by the create() method
+	this.brainboard = newbrainboard;
+
+
+}
+
+TICK_OSCILLATOR_METHODS.prototype = Object.create( NEURON_METHODS.prototype );
+TICK_OSCILLATOR_METHODS.prototype.constructor = NEURON_METHODS;
+
+TICK_OSCILLATOR_METHODS.prototype.Create = function(  psvExtra )
+	{
+		console.log( "Creating a new tick Oscillator (peice instance)");
+		return this.brainboard.brain.TickOscillator( );
+	}
+
+	
 
 //--------------------------- Quick Popup Menu System ------------------------------
 

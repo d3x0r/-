@@ -244,18 +244,20 @@ Layer.prototype.IsLayerAt = function( _x, _y ) {
 		{
 			//if( flags.bRoute )
 			{
-				if( route_end_layer.layer )
+				if( this.route_end_layer.layer )
 				{
-					flags.bEnded = false;
-					{ var i = route_end_layer.layer.linked.findIndex( path=>path===this ); if( i >= 0 ) route_end_layer.layer.linked.splice( i, 1 ) }
+					this.flags.bEnded = false;
+					var i = this.route_end_layer.layer.linked.findIndex( path=>path===this ); 
+					if( i >= 0 ) this.route_end_layer.layer.linked.splice( i, 1 ) 
 					//DeleteLink( &route_end_layer.layer.linked, this );
-					route_end_layer.layer = null;
+					this.route_end_layer.layer = null;
 				}
-				else if( route_start_layer.layer )
+				else if( this.route_start_layer.layer )
 				{
-					{ var i = route_start_layer.layer.linked.findIndex( path=>path===this ); if( i >= 0 ) route_start_layer.layer.linked.splice( i, 1 ) }
+					var i = this.route_start_layer.layer.linked.findIndex( path=>path===this ); 
+					if( i >= 0 ) this.route_start_layer.layer.linked.splice( i, 1 ) 
 					//DeleteLink( &route_start_layer.layer.linked, this );
-					route_start_layer.layer = null;
+					this.route_start_layer.layer = null;
 				}
 			}
         
@@ -612,22 +614,22 @@ function		NearDir(nNewDir, nDir) {return ( ( nNewDir == (nDir) ) ? 0 :
 		Layer.prototype.isolate= function( )
 		{
 			// can't isoloate root
-			if( flags.bRoot )
+			if( this.flags.bRoot )
 				return ;
-			if( !pool )
-				return;
+			//if( !this.pool )
+			//	return;
 		        
 			var layer0 = this.board.rootLayer;
-			if( next )
+			if( this.next )
 			{
-				next.prior = prior;
+				this.next.prior = this.prior;
 			}
 			else
-				layer0.prior = prior;
-			if( prior )
-				prior.next = next;
+				layer0.prior = this.prior;
+			if( this.prior )
+				this.prior.next = this.next;
 			else
-				layer0.next = next;
+				layer0.next = this.next;
 		}
         
 //--------------------------------------------------------------------------

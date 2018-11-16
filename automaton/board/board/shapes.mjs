@@ -73,9 +73,9 @@ export function makeNeuron() {
     <ellipse style="fill: rgb(128, 0, 0);" cx="63.354" cy="78.071" rx="30.93" ry="30.717"></ellipse>
     -->
     <circle style="fill: rgb(35, 232, 0);" cx="32" cy="32" r="30"></circle>
-    <circle style="fill: url(&quot;#gradient-2&quot;); fill-opacity: 0.28;" cx="39" cy="39" r="30" transform="matrix(1.062366, 0, 0, 1.046363, -8.38973, -7.437199)"></circle>
+    <circle style="fill:url(&quot;#gradient-2&quot;); fill-opacity: 0.28;" cx="39" cy="39" r="30" transform="matrix(1.062366, 0, 0, 1.046363, -8.38973, -7.437199)"></circle>
     <circle style="fill: url(&quot;#gradient-0&quot;); fill-opacity: 0.78;" cx="32" cy="32"  r="30"></circle>
-    <circle style="fill: url(&quot;#gradient-1&quot;); fill-opacity: 0.68;" cx="32" cy="32" r="30"></circle>
+    <circle style="fill:  url(&quot;#gradient-1&quot;); fill-opacity: 0.68;" cx="32" cy="32" r="30"></circle>
     <circle style="fill: url(&quot;#gradient-4&quot;);" cx="32" cy="32"  r="30" transform="matrix(1.00693, 0, 0, 0.99307, -0.224218, 0.3336)"></circle>
   `;
   svg.setBack = function(r,g,b ) {
@@ -134,8 +134,8 @@ export function makeNode() {
       <ellipse style="fill: rgb(0, 255, 68);" cx="63.354" cy="78.071" rx="30.93" ry="30.717"></ellipse>
       -->
       <ellipse style="fill: rgb(255, 255, 0);" cx="63.354" cy="78.071" rx="30.93" ry="30.717"></ellipse>
-      <circle style="fill: url(&quot;#gradient-2n&quot;); fill-opacity: 0.68;" cx="69.539" cy="83.618" r="30.783" transform="matrix(1.062366, 0, 0, 1.046363, -8.38973, -7.437199)"></circle>
-      <circle style="fill: url(&quot;#gradient-0n&quot;); fill-opacity: 0.68;" cx="63.14" cy="78.072" r="30.783"></circle>
+      <circle   style="fill: url(&quot;#gradient-2n&quot;); fill-opacity: 0.68;" cx="69.539" cy="83.618" r="30.783" transform="matrix(1.062366, 0, 0, 1.046363, -8.38973, -7.437199)"></circle>
+      <circle  style="fill: url(&quot;#gradient-0n&quot;); fill-opacity: 0.68;" cx="63.14" cy="78.072" r="30.783"></circle>
       <!--
       <circle style="fill: url(&quot;#gradient-1n&quot;); fill-opacity: 0.68;" cx="63.567" cy="77.218" r="30.783"></circle>
       <circle style="fill: url(&quot;#gradient-4n&quot;);" cx="63.14" cy="78.925" r="30.783" transform="matrix(1.00693, 0, 0, 0.99307, -0.224218, 0.3336)"></circle>
@@ -202,7 +202,7 @@ export function makeSlider() {
     </g> 
     `
   svg.setSlider = function( value ) {
-      var arrow = svg.querySelector( "[ID='arrow']" );
+      var arrow = svg.children['arrow'];//svg.querySelector( "[ID='arrow']" );
       var string = `matrix(1, 0, 0, 1, -13.610993, -12.375999) translate(0,${((100-value)/100)*159})`
       arrow.setAttribute( "transform", string);
   }

@@ -31,13 +31,28 @@ export default function Brain() {
 				roots.forEach( n=>n.value );
 		},
 		DupNeuron(n){
-			return n.clone();
+			var newN = n.clone();
+			neurons.push( newN );
+			return newN;
+
 		},
 		DupSynapse(s) {
 			return s.clone();
 		},
+		UnLinkSynapse( synapse ){
+			if( synapse.output )
+				synapse.DetachDestination();
+			else if( synapse.input )
+				synapse.DetachSource();
+		},
+		UnLinkSynapseTo( synapse ){
+			synapse.DetachDestination();
+		},
+		UnLinkSynapseFrom( synapse ){
+			synapse.DetachSource();
+		},
 		LinkSynapseFrom( synapse, neuron, n) {
-			return synapse.AttachSource( neuron, neuron.attachSynapse( n ) );
+			return synapse.AttachSource( neuron, neuron.attachSynapseFrom( n ) );
 		},
 		LinkSynapseTo( synapse, neuron, n) {
 			return synapse.AttachDestination( neuron, neuron.attachSynapse( n ) );

@@ -97,13 +97,18 @@ const journal = [
                 input nodes, travel along lines and exit<BR>
                 through output nodes.<BR>
                 <BR>
-                Input Node - Line - Output Node(IMAGE)<BR>
-                <IMG> </IMG><BR>
+                Input Node - Line - Output Node<BR>
+                <DIV ID="jim1"> </DIV><BR>
                 A line is made by grabbing the edge of a<BR>
                 node and dragging it out.  Drop the line<BR>
                 on the center of the target node.<BR>
                 
-         `}
+         `
+         , inserts: { 
+                jim1:shapes.makeLightOutput()
+        }
+	, activate : setupLightOutput
+        }
         ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">6</SPAN>
 		<BR>
@@ -115,13 +120,17 @@ const journal = [
                 make a brain where the light will com<BR>
                 on when the switch is on.<BR>
                 <BR>
-                <IMG></IMG>Input from switch<BR>
-                <IMG></IMG>Output to light<BR>
+                <SPAN ID="jim1"></SPAN><SPAN style="line-height:400%;vertical-align:top">Input from switch</SPAN><BR>
+                <SPAN ID="jim2"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output to light</SPAN><BR>
                 <BR>
                 [Build a brain on the Brain Board]<BR>
                 [To test, press Test and switch to Run]<BR>
                 [Go to the next page when successful]<BR>
          `
+         , inserts: { 
+                jim1:shapes.makeButtonInput()
+                , jim2:shapes.makeLightOutput()
+         }
          , locked : true
          }
         ,{ HTML : `
@@ -154,9 +163,13 @@ const journal = [
 		lights come on when the switch is on.<BR>
 		<BR>
 		<BR>
-		<IMG></IMG> Input from swtich<BR>
-		<IMG></IMG> Output to lights 1 and 2<BR>
+                <DIV ID="jim1"></DIV>Input from switch<BR>
+                <DIV ID="jim2"></DIV>Output to lights 1 and 2<BR>
          `
+         , inserts: { 
+                jim1:shapes.makeButtonInput()
+                , jim2:shapes.makeLightOutput()
+         }
 	 , locked:true
 	}
         ,{ HTML : `
@@ -185,13 +198,17 @@ const journal = [
 		I want lights 1 and 3 to swtich slowly<BR>
 		and lights 2 and 4 to switch quickly.<BR>
 		<BR>
-		<IMG></IMG> Input from 1 and 2<BR>
-		<IMG></IMG> output to lights 1,2,3 and 4.<BR>
+		<DIV ID="jim1"></DIV> Input from 1 and 2<BR>
+		<DIV ID="jim2"></DIV> output to lights 1,2,3 and 4.<BR>
 		[Lines can be removed by grabbing<BR>
 		them in one of the 8 grid squares<BR>
 		that surround the node then dragging<BR>
 		them away and dropping them]<BR>
          `
+         , inserts: { 
+                jim1:shapes.makeSliderInput()
+                , jim2:shapes.makeLightOutput()
+         }
 	 , locked:true
 	}
         ,{ HTML : `
@@ -223,16 +240,21 @@ const journal = [
                 the range from 0 to 100.  I want the light to<BR>
                 switch on when the signal is 80 or above.<BR>
                 <BR>
-                <IMG></IMG> Input from slider : 0 to 100
+                <DIV ID="jim1"></DIV> Input from slider : 0 to 100
                 <BR>
-                <IMG></IMG> Output to light.<BR>
+                <DIV ID="jim2"></DIV> Output to light.<BR>
                 <BR>
                 [Click waste bin to clear the brain]<BR>
                 [Click larg egreen button to add neuron]<BR>
                 [Right click on neuron to set threshold]<BR>
                 [See Manual (blue book above) for help<BR>
                 with connection neurons]
-         `, locked:true
+         `
+         , inserts: { 
+                jim1:shapes.makeSliderInput()
+                , jim2:shapes.makeLightOutput()
+         }
+         , locked:true
         }
          ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">6</SPAN>
@@ -262,14 +284,18 @@ const journal = [
                 value of the input.  The more light son,<BR>
                 the higher the input.<BR>
                 <BR>
-                <IMG></IMG Input from slider: 0 to 100<BR>
+                <DIV ID="jim1"></DIV> Input from slider: 0 to 100<BR>
                 <BR>
-                <IMG></IMG>Output to lights 1,2,3 and 4<BR>
+                <DIV ID="jim2"></DIV>Output to lights 1,2,3 and 4<BR>
                 <BR>
                 <BR>
                 <BR>
                 <BR>
          `
+         , inserts: { 
+                jim1:shapes.makeSliderInput()
+                , jim2:shapes.makeLightOutput()
+         }
          , locked:true
         }
          ,{ HTML : `
@@ -585,7 +611,12 @@ brainTicker();
 var brainBoard = new BrainBoard( brain, boardFrame );
 
 brainBoard.addEventListener( "added", (n)=>{
-        neuronTable.addNeuron( n );
+        if( n instanceof brain.Neuron ) {
+                neuronTable.addNeuron( n );
+        }
+        if( n instanceof brain.Synapse )  {
+                neuronTable.addSynapse(n);
+        }
 })
 
 var notebookPanel = document.getElementById( "notebookPanel" );
@@ -666,13 +697,46 @@ function setupToolPanel() {
          })
          tooldiv.appendChild( shapes.makeNode() );
          tooldiv.appendChild( shapes.makeTrash() );
-	
+         tooldiv.appendChild( shapes.makePowerOutput() );
+
+         tooldiv.appendChild( shapes.makeButtonInput() );
+         tooldiv.appendChild( shapes.makeLightOutput() );
+         tooldiv.appendChild( shapes.makeSliderInput() );
+        
 }
 
 setupToolPanel();
 
 testTestPanel();
 testSwitch();
+
+function fixupImages() {
+        journal.forEach( page=>{
+
+                notebookPanel.innerHTML = page.HTML;
+                var pageNum = notebookPanel.querySelector(`[id="pageNum"]`)
+                if( pageNum ) {
+                        pageNum.textContent = '' + (gameState.journalState + 1);
+                        if( page.inserts ) {
+                                var IDs = Object.keys( page.inserts );
+                                IDs.forEach( id =>{
+                                        var img;
+                                        img = notebookPanel.querySelector(`[id="${id}"]`);
+                                        if( img )
+                                        img.appendChild( page.inserts[id] );        
+                                })
+                        }
+
+                }
+                page.HTML = notebookPanel.innerHTML;
+
+        })
+}
+
+fixupImages();
+setPage( 0 )
+
+//------------ SET PAGE ROUTINE ------------------------------
 
 function setPage( newPage )
 {
@@ -687,8 +751,17 @@ function setPage( newPage )
 
 	notebookPanel.innerHTML = journal[gameState.journalState].HTML;
 	var pageNum = notebookPanel.querySelector(`[id="pageNum"]`)
-	if( pageNum )
-		pageNum.textContent = '' + (gameState.journalState + 1);
+	if( pageNum ) {
+                pageNum.textContent = '' + (gameState.journalState + 1);
+
+
+        }
+	
+}
+
+//------------ PAGE ACTIVATION ROUTINES ------------------------------
+
+function setupLightOutput() {
 	
 }
 
@@ -704,15 +777,33 @@ function setupNeuronTable( table ) {
                 },
                 addNeuron( n ) {
                         var newRow = this.table.insertRow();
-                        neuron( newRow, n );
+                        var newRow2 = this.table.insertRow();
+                        neuron( newRow, newRow2, n );
+                },
+                addSynapse( n ) {
+                        var newRow = this.table.insertRow();
+                        var newRow2 = this.table.insertRow();
+                        synapse( newRow, newRow2, n );
                 }
         }
         statuses.clear();
         return statuses;
 
-        function neuron( row, n ) {
+        function neuron( row, row2, n ) {
+                var underName = row2.insertCell();
                 var data1 = row.insertCell();
-                data1.innerText = "neuron";
+                data1.innerText = n.type;
+                var utilCell = row2.insertCell();
+                utilCell.colSpan=2;
+                var utilSlider = document.createElement( "input" )
+                utilSlider.type = "range";
+                utilSlider.min = 0;
+                utilSlider.max = 100;
+                utilCell.appendChild( utilSlider );
+                utilSlider.addEventListener( "input", ()=>{
+                        n.threshold = utilSlider.value;
+                })
+
                 var data2 = row.insertCell();
                 data2.innerText = "123";
                 var data3 = row.insertCell();
@@ -720,6 +811,36 @@ function setupNeuronTable( table ) {
                 var thisN = n;
                 function neuronUpdateTick() {
                         data2.innerText = thisN.threshold;
+                        var val = thisN.value.toFixed(3);
+                        //val = val - (val % 0.001)
+                        data3.innerText = val;
+                        setTimeout( neuronUpdateTick, 250 );
+                }
+                neuronUpdateTick();
+        }
+
+        function synapse( row, row2, n ) {
+                var underName = row2.insertCell();
+                var data1 = row.insertCell();
+                data1.innerText = "synapse";
+                var utilCell = row2.insertCell();
+                utilCell.colSpan=2;
+                var utilSlider = document.createElement( "input" )
+                utilSlider.type = "range";
+                utilSlider.min = -100;
+                utilSlider.max = 100;
+                utilCell.appendChild( utilSlider );
+                utilSlider.addEventListener( "input", ()=>{
+                        n.gain = utilSlider.value/100;
+                })
+
+                var data2 = row.insertCell();
+                data2.innerText = "123";
+                var data3 = row.insertCell();
+                data3.innerText = "bbb";
+                var thisN = n;
+                function neuronUpdateTick() {
+                        data2.innerText = thisN.gain;
                         var val = thisN.value.toFixed(3);
                         //val = val - (val % 0.001)
                         data3.innerText = val;

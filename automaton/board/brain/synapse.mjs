@@ -1,21 +1,24 @@
 "use strict";
 
 export default function Synapse() {
-	var s = {
-        	input : null,
-                output : null,
-                gain : 1.0,
-                get value() {
-                	if( this.input )
+	if( !(this instanceof Synapse)) return new Synapse(this);
+        	this.input = null;
+                this.output = null;
+                this.gain = 1.0;
+}
+Object.defineProperty(Synapse.prototype, "value", {
+                	get: function() {if( this.input )
                         	return this.gain * this.input.value;
                         return 0;
-                },
-                clone() {
-                        var newS = Synapse();
+                        }
+                } );
+
+                Synapse.prototype.clone = function(){
+                        var newS = new Synapse();
                         newS.gain = this.gain;
                         return newS;
-                },
-                AttachSource( neuron, ppSyn ) {
+                }
+                Synapse.prototype.AttachSource = function( neuron, ppSyn ) {
                         if( !ppSyn && neuron )
                                 for( var n = 0; 
                                         !(ppSyn = neuron.AttachSynapse( n ) )
@@ -29,8 +32,8 @@ export default function Synapse() {
                         }
                         return false;
                                 
-                },
-                AttachDestination( neuron, ppSyn ) {
+                }
+                Synapse.prototype.AttachDestination = function( neuron, ppSyn ) {
                         if( !ppSyn && neuron )
                                 for( var n = 0; 
                                         !(ppSyn = neuron.AttachSynapse( n ) )
@@ -44,23 +47,20 @@ export default function Synapse() {
                         }
                         return false;
                                 
-                },
-                DetachDestination() {
+                }
+                Synapse.prototype.DetachDestination = function() {
                         var n = this.output;
                         if(n) {
                                 this.output = null;
                                 n.detachSynapse( this );
                         }
-                },
-                DetachSource() {
+                }
+                Synapse.prototype.DetachSource = function() {
                         var n = this.input;
                         if( n ) {
                                 this.input = null;
                                 n.detachSynapseFrom( this );
                         }
                 }
-        }
-        
-        return s;
-}
 
+                

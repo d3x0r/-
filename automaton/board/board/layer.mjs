@@ -835,6 +835,7 @@ Layer.prototype.FindDirection = function( _x, _y, wX, wY ) // From, To
 			this.y += del_y;
 			this.min_x += del_x;
 			this.min_y += del_y;
+			console.log( "LAYER MOVE:", del_x, del_y, this.x, this.y );
 			{
 				this.linked.forEach( (layer)=> {
 					if( layer.flags.bRoute )
@@ -851,8 +852,8 @@ Layer.prototype.FindDirection = function( _x, _y, wX, wY ) // From, To
 							var node = layer.pds_path[layer.pds_path.length-1];
 							if( layer.route_end_layer.layer )
 							{
-								var destx = layer.route_end_layer.layer.x + layer.route_end_layer.x;
-								var desty = layer.route_end_layer.layer.y + layer.route_end_layer.y;
+								var destx = node.x + layer.x;
+								var desty = node.y + layer.y;
 								layer.BeginPath( layer.x + del_x, layer.y + del_y );
 								layer.LayPath( destx, desty );
 							}

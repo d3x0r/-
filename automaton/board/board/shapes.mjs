@@ -101,6 +101,54 @@ export function makeTrash() {
       return svg;
 }
 
+function getSliderArrow() {
+  return  `
+  <g class="layer" stroke="#DDDD00" fill="#DDDD00" transform="translate( 28,40) scale( 0.60)">
+  <title>Layer 1</title>
+  <rect fill="#ffff00" height="15" id="svg_1" opacity="0.7" stroke="#ffff00" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3" width="33" x="17.83333" y="48.5"/>
+  <path d="m52.033,77.5l-1.033,-42.5c0,0 24.58544,20.66514 25.82504,19.88532c1.2396,-0.77982 -24.79204,22.61468 -24.79204,22.61468z" fill="#ffff00" id="svg_3" opacity="0.7" stroke="#ffff00" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3"/>
+  <circle cx="93.83333" cy="33.5" fill="#ffff00" id="svg_4" opacity="0.7" r="2.82843" stroke="#ffff00" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3"/>
+  <circle cx="94.2201" cy="49.05119" fill="#ffff00" id="svg_5" opacity="0.7" r="2.82843" stroke="#ffff00" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3"/>
+  <circle cx="94.3847" cy="64.51913" fill="#ffff00" id="svg_6" opacity="0.7" r="2.82843" stroke="#ffff00" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3"/>
+  <circle cx="94.17787" cy="81.27198" fill="#ffff00" id="svg_7" opacity="0.7" r="2.82843" stroke="#ffff00" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3"/>
+ </g>
+ `
+}
+
+function getArrowButton() {
+  return `
+  <g class="layer" stroke="#DDDD00" fill="#DDDD00" transform="translate( 36,27) scale( 0.60) ">
+   <rect height="31"   stroke-opacity="0" stroke-width="5" width="20" x="34.5" y="43.5"/>
+   <path d="m44.125,98.54167c0,-1 -31.75,-25.25 -31.75,-25.25c0,0 65.25,-0.25 65.125,-0.29167c-0.125,-0.04167 -33.375,26.54167 -33.375,25.54167z"  id="svg_4" stroke="#000000" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-opacity="0" stroke-width="5"/>
+   <rect fill="#000000" fill-opacity="0" height="11.25" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3" width="25.5" x="31.125" y="106.70833"/>
+   <rect fill="#000000" fill-opacity="0" height="0.25"  stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3" width="66.5" x="9.625" y="117.95833"/>
+  </g>
+  `
+  
+}
+
+
+function getBulbIcon() {
+  return `
+  <g class="layer" stroke="#FFFF00" transform="translate(40,45) scale( 0.50 )">
+  <title>Layer 1</title>
+  <path d="m57.08333,72.08333c2,8 1,18.5 1.5,22.5c0.5,4 -9.5,-1.5 -7.5,5c2,6.5 -12.5,6.5 -10.58333,-0.58333c1.91667,-7.08333 -3.41667,0.58333 -6.41667,-2.41667c-3,-3 5.5,-27 -3.58333,-33.08333c-9.08333,-6.08333 -11.91667,-12.41667 -8.91667,-26.91667c3,-14.5 7,-15 18,-18.5c11,-3.5 18,0 26.91667,9.91667c8.91667,9.91667 7.08333,14.58333 5.08333,24.58333c-2,10 -16.5,11.5 -14.5,19.5z" fill="#000000" fill-opacity="0" id="svg_3" opacity="0.7"  stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3"/>
+  <line fill="none" fill-opacity="0"  opacity="0.7"  stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3" x1="33.58333" x2="58.58333" y1="86.08333" y2="86.08333"/>
+  <line fill="none" fill-opacity="0"  opacity="0.7"  stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3" transform="rotate(-1.16913 45.8333 96.3333)" x1="34.08333" x2="57.58333" y1="96.58333" y2="96.08333"/>
+   </g>
+   `;
+}
+
+ function getPowerBolt() {
+  
+  return `
+  <g ID="arrow" transform=" translate(45,45) scale( 0.55 )">
+
+      <path d="m46.533709,4.495839c0,-0.413735 -20.550562,43.028446 -20.202248,43.028446c0.348315,0 27.16854,-11.584582 27.16854,-11.584582c0,0 -19.505618,56.267968 -19.679776,56.061101c-0.174157,-0.206868 4.005618,-37.029288 4.005618,-37.029288c0,0 -30.651686,3.723616 -30.825843,3.516748l39.533709,-53.992426z" fill="#ffff00" id="svg_13" opacity="0.95" stroke="#ffff00" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="null"/>
+      </g>
+  `
+}
+
 export function makePowerBolt() {
   
     var svg = document.createElementNS( "http://www.w3.org/2000/svg","svg" );
@@ -109,13 +157,11 @@ export function makePowerBolt() {
     svg.style.height = 66;
     svg.setAttribute( "viewBox", "0 0 110 110")
   
-    svg.innerHTML = `
-        <path d="m46.533709,4.495839c0,-0.413735 -20.550562,43.028446 -20.202248,43.028446c0.348315,0 27.16854,-11.584582 27.16854,-11.584582c0,0 -19.505618,56.267968 -19.679776,56.061101c-0.174157,-0.206868 4.005618,-37.029288 4.005618,-37.029288c0,0 -30.651686,3.723616 -30.825843,3.516748l39.533709,-53.992426z" fill="#ffff00" id="svg_13" opacity="0.95" stroke="#ffff00" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="null"/>
-    `
+    svg.innerHTML = getPowerBolt()
     return svg;
 }
 
-export function makeNode() {
+export function makeNode( extra ) {
   var svg = document.createElementNS( "http://www.w3.org/2000/svg","svg" );
   svg.style.width = 66;
   svg.style.height = 66;
@@ -133,14 +179,20 @@ export function makeNode() {
       <ellipse style="fill: rgb(128, 0, 0);" cx="63.354" cy="78.071" rx="30.93" ry="30.717"></ellipse>
       <ellipse style="fill: rgb(0, 255, 68);" cx="63.354" cy="78.071" rx="30.93" ry="30.717"></ellipse>
       -->
-      <ellipse style="fill: rgb(255, 255, 0);" cx="63.354" cy="78.071" rx="30.93" ry="30.717"></ellipse>
+      <ellipse ID="nodeColor"  style="fill: rgb(255, 255, 0);" cx="63.354" cy="78.071" rx="30.93" ry="30.717"></ellipse>
       <circle   style="fill: url(&quot;#gradient-2n&quot;); fill-opacity: 0.68;" cx="69.539" cy="83.618" r="30.783" transform="matrix(1.062366, 0, 0, 1.046363, -8.38973, -7.437199)"></circle>
       <circle  style="fill: url(&quot;#gradient-0n&quot;); fill-opacity: 0.68;" cx="63.14" cy="78.072" r="30.783"></circle>
       <!--
       <circle style="fill: url(&quot;#gradient-1n&quot;); fill-opacity: 0.68;" cx="63.567" cy="77.218" r="30.783"></circle>
       <circle style="fill: url(&quot;#gradient-4n&quot;);" cx="63.14" cy="78.925" r="30.783" transform="matrix(1.00693, 0, 0, 0.99307, -0.224218, 0.3336)"></circle>
       -->
-    `  ;
+    ` + (extra?extra():"")  ;
+  svg.setColor = function(c) {
+    var color = svg.querySelector( "[ID='nodeColor']");
+    if( color ){
+      color.style.fill = c;
+    }
+  }
   return svg;
 }
 
@@ -227,3 +279,35 @@ export function makeOutput() {
       
 }
 
+
+export function makeLightOutput() {
+  var node = makeNode( getBulbIcon );//
+  //var node = makeNode(  getPowerBolt );
+ 
+  node.setColor( "#0000C0");
+  return node;
+}
+
+export function makeButtonInput() {
+  var node = makeNode( getArrowButton );//
+  //var node = makeNode(  getPowerBolt );
+ 
+  node.setColor( "#C00000");
+  return node;
+}
+
+export function makeSliderInput() {
+  var node = makeNode( getSliderArrow );//
+  //var node = makeNode(  getPowerBolt );
+ 
+  node.setColor( "#C00000");
+  return node;
+}
+
+export function makePowerOutput() {
+  //var node = makeNode( getArrowButton );//
+  var node = makeNode(  getPowerBolt );
+ 
+  node.setColor( "#0000c0");
+  return node;
+}

@@ -64,12 +64,15 @@ export default function Brain() {
 
 	var types = Object.keys( Neuron );
 	types.forEach( key =>
-		b[key] = function(...args) { 
-				var neuron = Neuron[key].apply( b, args );
+		b[key] = Neuron[key]
+		/*
+		function(...args) { 
+				var neuron = new Neuron[key]( b, args );
 				this.changed = true;
 				neurons.push( neuron );
 				return neuron;
 			}
+		*/
 		  //set: function(y) { this.setFullYear(y) }
 	)
 	

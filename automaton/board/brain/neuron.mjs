@@ -1,53 +1,62 @@
 "use strict"
 
-export function Neuron() {
-	var inputs;
-	var n = { brain : this,
-		threshold : 0.5,
-        cycle : this.cycle-1,
-		type : "Neuron",
-        inputs : [],
-		outputs : [],
-		clone() {
-			var newNeuron = Neuron.call( n.brain );
+export function Neuron(brain) {
+	if( !(this instanceof Neuron)) return new Neuron(this);
+	
+	this.brain = brain;
+	this.threshold = 0.5;
+	this.cycle = brain.cycle-1;
+	this. type = "Neuron";
+    this. inputs = [],
+	this. outputs = [];
+}
+
+Neuron.prototype.clone= function(){
+			var newNeuron = new Neuron( this.brain );
 			newNeuron.threshold = this.threshold;
 			newNeuron.cycle = this.cycle;
 			newNeuron.type = this.type;
 			return newNeuron;
-		},
-		output(n) {
+		}
+		Neuron.prototype.output= function(n) {
 			return n - this.threshold;
-		},
-        get value() {
+		}
+		Object.defineProperty(Neuron.prototype, "value", {
+			get: cb,
+			//set: function(y) { this.setFullYear(y) }
+		  });
+	  
+        function cb() {
+			var inputs = 0;
            	if( this.cycle != this.brain.cycle ) {
-				inputs = this.inputs.reduce( (inputs,inp)=>inputs + (inp?inp.value:0), 0 );
 				this.cycle = this.brain.cycle;
+				inputs = this.inputs.reduce( (inputs,inp)=>inputs + (inp?inp.value:0), 0 );
 			}
 			if( inputs > this.threshold )
 				return this.output(inputs);
 			return 0;
-		},
-		attachSynapse( specific ) {
+		}
+		Neuron.prototype.attachSynapse= function( specific ) {
 			if( specific !== undefined )
 				return { nerves: this.inputs, id: specific }
 			return { nerves: this.inputs, id: this.inputs.length };
-		},
-		attachSynapseFrom( specific ) {
+		}
+		Neuron.prototype.attachSynapseFrom= function( specific ) {
 			if( specific !== undefined )
 				return { nerves: this.outputs, id: specific }
 			return { nerves: this.outputs, id: this.outputs.length };
-		},
-		detachSynapse( s ) {
+		}
+		Neuron.prototype.detachSynapse= function( s ) {
 			var id = this.inputs.findIndex( input=>input === s );
 			if( id >= 0 )
 				this.inputs[id] = null;
-		},
-		detachSynapseFrom( s ) {
+		}
+		Neuron.prototype.detachSynapseFrom= function( s ) {
 			var id = this.outputs.findIndex( output=>output === s );
 			if( id >= 0 )
 				this.outputs[id] = null;
-		},
-		attach( other ) {
+		}
+		Neuron.prototype.attach= function( other ) {
 			var synapse = this.brain.Synapse();
 			this.inputs.push( synapse );
 			other.outputs.push( synapse );
@@ -55,9 +64,9 @@ export function Neuron() {
 			synapse.output = this;
 			this.brain.changed = true;
 			return synapse;
-		},
+		}
 
-		detach( other ) {
+		Neuron.prototype.detach= function( other ) {
 			if( other ) {
 				var index;
 				var synapse;
@@ -89,73 +98,84 @@ export function Neuron() {
 					this.detach( this.outputs[0].output );
 			}
 			this.brain.changed = true;
-		},
-	};
-        return n;
-}
+		}
 
-export  function Sigmoid() {
-	const n = Neuron.call(this);
-	const oldClone = n.clone;
-	n.type = "Sigmoid";
-	n.k = n.brain.k;
-	n.output = function(n) { return 1/(1+Math.exp( -this.k ) ) };
-	n.clone = function() {
-		var newN = oldClone.call( this );
-		newN.k = n.k;
-	}
+
+export  function Sigmoid(brain) {
+	if( !(this instanceof Sigmoid) ) return new Sigmoid(this);
+	Neuron.call(this,brain);
+	this.type = "Sigmoid";
+	this.k = this.brain.k;
 	return n;
 }
 
-export function Oscillator() {
-	var n = Neuron.call(this);
-	n.type = "Oscillator";
-    n.freq = 1.0;
-        
-	Object.defineProperty(n, "value", {
+Sigmoid.prototype = Object.create( Neuron );
+Sigmoid.prototype.output = 	function(n) { return 1/(1+Math.exp( -this.k ) ) };
+
+
+Sigmoid.prototype.clone = function() {
+	var newN = Neuron.prototype.clone.call( this );
+	newN.k = n.k;
+}
+
+export function Oscillator(brain) {
+	if( !(this instanceof Oscillator) ) return new Oscillator(this);
+	Neuron.call(this,brain);
+	this.type = "Oscillator";
+    this.freq = 1.0;
+}        
+Oscillator.prototype = Object.create( Neuron.prototype );
+Oscillator.prototype.output = 	function(n) { return 1/(1+Math.exp( -this.k ) ) };
+
+	Object.defineProperty(Oscillator.prototype, "value", {
 	  get: function() { 
 		//console.log( "( Math.sin(  ( ( n.freq * Date.now() ) / 1000 ) % 1  ) )", Date.now() % 1000 
-		//		, ( Math.sin(  2*Math.PI * (( ( n.freq * Date.now() ) / 1000 ) % 1 )  ) ) );
-          	return ( Math.sin(  Math.PI*2*(( ( n.freq * Date.now() ) / 1000 ) % 1 ) ) );
+		//		, ( Math.sin(  2*Math.PI * (( ( this.freq * Date.now() ) / 1000 ) % 1 )  ) ) );
+          	return ( Math.sin(  Math.PI*2*(( ( this.freq * Date.now() ) / 1000 ) % 1 ) ) );
           },
 	  //set: function(y) { this.setFullYear(y) }
 	});
-	n.clone = function() {
-		var newN = oldClone.call( this );
-		newN.freq = n.freq;
+	Oscillator.prototype.clone = function() {
+		var newN = Neuron.prototype.clone.call( this );
+		newN.freq = this.freq;
 	}
-	return n;
+
+	
+export function TickOscillator( brain,ticks ) {
+	if( !(this instanceof TickOscillator) ) return new TickOscillator(this);
+	Neuron.call(this,brain);
+	this.type = "TickOscillator";
+    this.freq = ticks || 1000;
+}
+TickOscillator.prototype = Object.create( Neuron.prototype );
+TickOscillator.prototype.output = 	function(n) { return 1/(1+Math.exp( -this.k ) ) };
+
+Object.defineProperty(TickOscillator.prototype, "value", {
+	get: function() { 
+	//console.log( "Math.sin( ( this.brain.cycle * 2* Math.PI / freq ) )", Math.sin( ( this.brain.cycle * 2* Math.PI / freq ) ) );
+		return Math.sin( ( this.brain.cycle * 2* Math.PI / this.freq ) );
+		},
+	//set: function(y) { this.setFullYear(y) }
+});
+TickOscillator.prototype.clone = function() {
+	var newN = Neuron.prototype.clone.call( this );
+	newN.ticks = n.ticks;
 }
 
-export function TickOscillator( ticks ) {
-	var n = Neuron.call(this);
-	n.type = "TickOscillator";
-    n.freq = ticks || 1000;
-        
-	Object.defineProperty(n, "value", {
-	  get: function() { 
-		//console.log( "Math.sin( ( this.brain.cycle * 2* Math.PI / freq ) )", Math.sin( ( this.brain.cycle * 2* Math.PI / freq ) ) );
-          	return Math.sin( ( this.brain.cycle * 2* Math.PI / n.freq ) );
-          },
-	  //set: function(y) { this.setFullYear(y) }
-	});
-	n.clone = function() {
-		var newN = oldClone.call( this );
-		newN.ticks = n.ticks;
-	}
-	return n;
+
+export function External( brain, cb ) {
+	if( !(this instanceof External) ) return new External(this, brain);
+	Neuron.call(this,brain);
+	this.cb = cb;
+	this.type = "External";
 }
+External.prototype = Object.create( Neuron );
+External.prototype.output = 	function(n) { return 1/(1+Math.exp( -this.k ) ) };
 
-
-export function External( cb ) {
-	var n = Neuron.call(this);
-	n.type = "External";
-	Object.defineProperty(n, "value", {
-	  get: cb,
-	  //set: function(y) { this.setFullYear(y) }
-	});
-	n.clone = function() {
-		var newN = oldClone.call( this );
-	}
-	return n;
+Object.defineProperty(External.prototype, "value", {
+	get: cb,
+	//set: function(y) { this.setFullYear(y) }
+});
+External.prototype.clone = function() {
+	return new External( this.brain, this,cb );
 }

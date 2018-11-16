@@ -848,6 +848,8 @@ NEURON_METHODS.prototype.ConnectBegin = function(  psv_to_instance,  x,  y
 		// maybe...
 		var synapse = psv_from_instance;
 		var neuron = psv_to_instance;
+				if( this.brainboard.events["added"] )
+					this.brainboard.events["added"]( synapse );
 		// validate that peice_from is a nerve_method type
 		for( n = 0; n < 8; n++ )
 			if( DirDeltaMap[n].x == x && DirDeltaMap[n].y == y )
@@ -1052,10 +1054,10 @@ TICK_OSCILLATOR_METHODS.prototype = Object.create( NEURON_METHODS.prototype );
 TICK_OSCILLATOR_METHODS.prototype.constructor = NEURON_METHODS;
 
 TICK_OSCILLATOR_METHODS.prototype.Create = function(  psvExtra )
-	{
-		console.log( "Creating a new tick Oscillator (peice instance)");
-		return this.brainboard.brain.TickOscillator( );
-	}
+{
+	console.log( "Creating a new tick Oscillator (peice instance)");
+	return new this.brainboard.brain.TickOscillator( this.brainboard.brain, 1000 );
+}
 
 	
 

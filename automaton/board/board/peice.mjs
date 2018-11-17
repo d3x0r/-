@@ -12,15 +12,15 @@ const	 UP_LEFT =7
 
 
 export const direction = {
-	 NOWHERE : -1,
-	 UP :0,
-	 UP_RIGHT :1,
-	 RIGHT :2,
-	 DOWN_RIGHT: 3,
-	 DOWN :4,
-	 DOWN_LEFT :5,
-	 LEFT :6,
-	 UP_LEFT :7,
+	 NOWHERE : NOWHERE,
+	 UP :UP,
+	 UP_RIGHT :UP_RIGHT,
+	 RIGHT :RIGHT,
+	 DOWN_RIGHT: DOWN_RIGHT,
+	 DOWN :DOWN,
+	 DOWN_LEFT :DOWN_LEFT,
+	 LEFT :LEFT,
+	 UP_LEFT :UP_LEFT,
 }
 
 Object.freeze( direction );
@@ -208,7 +208,7 @@ export function Via(board
   , psv //= 0
 ) 
 {
-
+	debugger;
 };
 
 Via.prototype = new Object( Peice.prototype );
@@ -221,23 +221,23 @@ Via.prototype. GetViaEnd=function( _direction, scale )
 // to direction...
   switch( _direction )
   {
-  case direction.UP_LEFT:
+  case UP_LEFT:
 	  return this.getcell( 2, 2, scale );
-  case direction.UP:
+  case UP:
 	  return this.getcell( 3, 2, scale );
-  case direction.UP_RIGHT:
+  case UP_RIGHT:
 	  return this.getcell( 4, 2, scale );
-  case direction.RIGHT:
+  case RIGHT:
 	  return this.getcell( 4, 3, scale );
-  case direction.DOWN_RIGHT:
+  case DOWN_RIGHT:
 	  return this.getcell( 4, 4, scale );
-  case direction.DOWN:
+  case DOWN:
 	  return this.getcell( 3, 4, scale );
-  case direction.DOWN_LEFT:
+  case DOWN_LEFT:
 	  return this.getcell( 2, 4, scale );
-  case direction.LEFT:
+  case LEFT:
 	  return this.getcell( 2, 3, scale );
-  case direction.NOWHERE:
+  case NOWHERE:
 	  return this.getcell( 3, 3, scale );
   }
   return null;
@@ -247,26 +247,26 @@ Via.prototype. GetViaEnd=function( _direction, scale )
 
 Via.prototype.GetViaFill1=function( xofs, yofs, direction, scale )
 {
-	  var outofs = { coords:{x : 0, y : 0}, cell:null };
+	  var outofs = { x : 0, y : 0, cell:null };
   switch( direction )
   {
-  case direction.UP_LEFT:
+  case UP_LEFT:
 	  outofs.x = 0;
 	  outofs.y = -1;
 				  outofs.cell = this.getcell( 5, 0, scale );
 	  return outofs;
-  case direction.DOWN_RIGHT:
+  case DOWN_RIGHT:
 	  outofs.x = 1;
 	  outofs.y = 0;
 				  outofs.cell = this.getcell( 5, 0, scale );
 	  return outofs 
 				  break;
-  case direction.UP_RIGHT:
+  case UP_RIGHT:
 	  outofs.x = 0;
 	  outofs.y = -1;
 				  outofs.cell = this.getcell( 1, 0, scale );
 	  return outofs;
-  case direction.DOWN_LEFT:
+  case DOWN_LEFT:
 	  outofs.x = -1;
 	  outofs.y = 0;
 				  outofs.cell =  this.getcell( 1, 0, scale );
@@ -292,22 +292,22 @@ Via.prototype. GetViaFill2=function( xofs, yofs, direction, scale )
 // to the peice just layed.
   switch( direction )
   {
-  case direction.UP_LEFT:
+  case UP_LEFT:
 	  outofs.x = -1;
 	  outofs.y = 0;
 				  outofs.cell = this.getcell( 4, 1, scale );
 	  return outofs;
-  case direction.DOWN_RIGHT:
+  case DOWN_RIGHT:
 		  outofs.x = 0;
 		  outofs.y = 1;
 				  outofs.cell = this.getcell( 4, 1, scale );
 	  return outofs;
-  case direction.UP_RIGHT:
+  case UP_RIGHT:
 	  outofs.x = 1;
 	  outofs.y = 0;
 		outofs.cell = this.getcell( 2, 1, scale );
 		return outofs;
-	case direction.DOWN_LEFT:
+	case DOWN_LEFT:
 		outofs.x = 0;
 		outofs.y = 1;
 		outofs.cell = this.getcell( 2, 1, scale );
@@ -320,26 +320,26 @@ Via.prototype. GetViaFill2=function( xofs, yofs, direction, scale )
 
 Via.prototype. GetViaStart=function(  direction,  scale )
 {
-// from direction...
+// from NOWHERE..
   switch( direction )
   {
-  case direction.UP_LEFT:
+  case UP_LEFT:
 	  return this.getcell( 6, 6, scale );
-  case direction.UP:
+  case UP:
 	  return this.getcell( 3, 5, scale );
-  case direction.UP_RIGHT:
+  case UP_RIGHT:
 	  return this.getcell( 0, 6, scale );
-  case direction.RIGHT:
+  case RIGHT:
 	  return this.getcell( 1, 3, scale );
-  case direction.DOWN_RIGHT:
+  case DOWN_RIGHT:
 	  return this.getcell( 0, 0, scale );
-  case direction.DOWN:
+  case DOWN:
 	  return this.getcell( 3, 1, scale );
-  case direction.DOWN_LEFT:
+  case DOWN_LEFT:
 	  return this.getcell( 6, 0, scale );
-  case direction.LEFT:
+  case LEFT:
 	  return this.getcell( 5, 3, scale );
-  case direction.NOWHERE:
+  case NOWHERE:
 	  return this.getcell( 3, 3, scale );
   }
   return null;
@@ -503,7 +503,7 @@ DefaultMethods.prototype.Draw = function(  peice, psvInstance,  surface,   x,  y
 DefaultMethods.prototype.DrawCell = function( peice, psvInstance,  surface,  cellx, celly, x,  y )
 {
 	//surface.drawImage( this.master.image, 0, 0, 500, 500, 0, 0, 66, 66 )
-	surface.drawImage( this.master.image, 0, 0, 500, 500, 0, 0, 66, 66 )
+	//surface.drawImage( this.master.image, 0, 0, 500, 500, 0, 0, 66, 66 )
 
 	// first 0 is current scale.
 	//lprintf( WIDE("Drawing peice instance %p"), psvInstance );
@@ -513,7 +513,7 @@ DefaultMethods.prototype.DrawCell = function( peice, psvInstance,  surface,  cel
 		, x, y
 		, this.brainboard.board.cellSize.width
 		, this.brainboard.board.cellSize.height  
-		 )
+	 )
 //	BlotImageAlpha( surface
 					  //, peice
 					  //, x, y
@@ -545,17 +545,11 @@ DefaultViaMethods.prototype. Stop = function( )
 
 DefaultViaMethods.prototype.OnClick = function(  psv,  x,  y )
 {
-	//	lprintf(WIDE(" Psh we have to find segment at %d,%d again... actually we only care if it's the last..."), x, y );
-	//	PLAYER_NODE_DATA pld = (PLAYER_NODE_DATA)PeekStack( &pds_path );
-	//	if( pld.x == x && pld.y == y )
-	{
-		// mouse current layer...
-		console.log( "GENERATE DISCONNECT!" );
-		this.master.board.UnendPath( );
-		//Disconnect();
-	}
+	console.log( "GENERATE DISCONNECT!" );
+	this.master.board.UnendPath( );
 	return 0;
 }
+
 DefaultViaMethods.prototype.OnRightClick = function(  psv,  x,  y )
 {
 	return 0;

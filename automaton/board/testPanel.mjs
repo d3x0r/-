@@ -311,7 +311,7 @@ function myArc(cx, cy, radius, max){
   //myArc(110, 110, 100, 360);
 
 
-export function testButton() {
+export function testButton( cb ) {
 
 
                 var newSVG = document.createElementNS( "http://www.w3.org/2000/svg","svg" );
@@ -418,11 +418,21 @@ export function testButton() {
                 newSVG.appendChild( timerArc );
 
 
-	var angle = 360;
+        var angle = 360;
+        var testing = false;
 	function tick() {
-        	timerArc.setAngle( angle );
+                timerArc.setAngle( angle );
+                if( testing )
                 	angle -= 3;
-                        if( angle < 0 ) angle = 350;
+                if( angle < 0 ) {
+                        //testSuccess();
+                        angle = 0;
+                        testing = false;
+                        onOff = false;
+                        if( cb( true ) ) {
+
+                        }
+                }
         	setTimeout( tick, 100 );
         }
         tick();
@@ -431,19 +441,35 @@ export function testButton() {
                 //<text x="20" y="35" class="small">My</text>
                 
                 var onOff = false;
+                function setColor() {
+
+                        if( onOff ) {
+                                testing = true;
+                                testButton.setAttribute( "fill", "#f53230" );
+                        }else {
+                                testing = false;
+                                testButton.setAttribute( "fill", "#a51210" );
+                                angle = 360;
+                        }
+                }
+
                 newSVG.addEventListener( "click", (evt)=>{
                 	evt.preventDefault();
-                	if( evt.offsetX >= (50-15) && evt.offsetX <= (50+15) 
-                          && evt.offsetY >= (50-15) && evt.offsetY <= (50+15) )
+                	//if( evt.offsetX >= (50-15) && evt.offsetX <= (50+15) 
+                        //  && evt.offsetY >= (50-15) && evt.offsetY <= (50+15) )
                         {
-                        	onOff = !onOff;
-                                if( onOff )
-					testButton.setAttribute( "fill", "#f53230" );
-                        	else
-					testButton.setAttribute( "fill", "#a51210" );
+                                onOff = !onOff;
+                                setColor();
                         }
                 } );
-                
+
+                newSVG.reset = function() {
+                        angle = 360;
+                        testing= false;
+                        onOff = false;
+                        setColor();
+                }
+
                 return newSVG;
 
 }

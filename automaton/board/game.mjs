@@ -18,8 +18,8 @@ const journal = [
                 of<BR>
                 Synthetic Brains<BR>
                 <BR><BR><BR>
-                [Click on right side of page<BR>
-		to go to next page]<BR>
+                [Click on right side of this<BR>
+		jounral page to go to next page]<BR>
           ` }
         ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">1</SPAN>
@@ -32,13 +32,13 @@ const journal = [
                 able to use my knowledge of synthetic<br>
                 brains to control it.<BR>
                 <BR>
-                I plan to do a series of experiemnts.<BR>
+                I plan to do a series of experiments.<BR>
                 Each will involve creating a brain to<BR>
                 perform a specific function.  The brains<BR>
                 will be built on the brain board<BR>
                 <BR>
-                [Nav instructuions to previous page]<BR>
-                [nav instructions to exit]
+                [Click on left side of this journal page<BR>
+                to return to previous page]<BR>
         `}
         ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">1</SPAN>
@@ -58,11 +58,6 @@ const journal = [
                 a test) and will signal if the actal output<BR>
                 is wrong.<BR>
          `
-          , activate : ()=>{
-          	//showAnalyzer();
-                // add input
-                // add output
-          }
          }
 	
 
@@ -104,10 +99,12 @@ const journal = [
                 on the center of the target node.<BR>
                 
          `
-         , inserts: { 
+         , activate : ()=>{
+                setupDemo1();
+        }
+       , inserts: { 
                 jim1:shapes.makeLightOutput()
         }
-	, activate : setupLightOutput
         }
         ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">6</SPAN>
@@ -127,7 +124,10 @@ const journal = [
                 [To test, press Test and switch to Run]<BR>
                 [Go to the next page when successful]<BR>
          `
-         , inserts: { 
+         , activate : ()=>{
+                setupDemo2();
+        }
+       , inserts: { 
                 jim1:shapes.makeButtonInput()
                 , jim2:shapes.makeLightOutput()
          }
@@ -163,9 +163,12 @@ const journal = [
 		lights come on when the switch is on.<BR>
 		<BR>
 		<BR>
-                <DIV ID="jim1"></DIV>Input from switch<BR>
-                <DIV ID="jim2"></DIV>Output to lights 1 and 2<BR>
+                <SPAN ID="jim1"></SPAN><SPAN style="line-height:400%;vertical-align:top">Input from switch</SPAN><BR>
+                <SPAN ID="jim2"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output to lights 1 and 2</SPAN><BR>
          `
+         , activate : ()=>{
+                setupDemo3();
+        }
          , inserts: { 
                 jim1:shapes.makeButtonInput()
                 , jim2:shapes.makeLightOutput()
@@ -198,15 +201,18 @@ const journal = [
 		I want lights 1 and 3 to swtich slowly<BR>
 		and lights 2 and 4 to switch quickly.<BR>
 		<BR>
-		<DIV ID="jim1"></DIV> Input from 1 and 2<BR>
-		<DIV ID="jim2"></DIV> output to lights 1,2,3 and 4.<BR>
+                <SPAN ID="jim1"></SPAN><SPAN style="line-height:400%;vertical-align:top">Input from 1 and 2</SPAN><BR>
+                <SPAN ID="jim2"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output to lights 1,2,3 and 4.</SPAN><BR>
 		[Lines can be removed by grabbing<BR>
 		them in one of the 8 grid squares<BR>
 		that surround the node then dragging<BR>
 		them away and dropping them]<BR>
          `
+         , activate : ()=>{
+                setupDemo4();
+        }
          , inserts: { 
-                jim1:shapes.makeSliderInput()
+                jim1:shapes.makeButtonInput()
                 , jim2:shapes.makeLightOutput()
          }
 	 , locked:true
@@ -240,9 +246,8 @@ const journal = [
                 the range from 0 to 100.  I want the light to<BR>
                 switch on when the signal is 80 or above.<BR>
                 <BR>
-                <DIV ID="jim1"></DIV> Input from slider : 0 to 100
-                <BR>
-                <DIV ID="jim2"></DIV> Output to light.<BR>
+                <SPAN ID="jim1"></SPAN><SPAN style="line-height:400%;vertical-align:top"> Input from slider : 0 to 100</SPAN><BR>
+                <SPAN ID="jim2"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output to light</SPAN><BR>
                 <BR>
                 [Click waste bin to clear the brain]<BR>
                 [Click larg egreen button to add neuron]<BR>
@@ -250,6 +255,9 @@ const journal = [
                 [See Manual (blue book above) for help<BR>
                 with connection neurons]
          `
+         , activate : ()=>{
+                setupDemo5();
+        }
          , inserts: { 
                 jim1:shapes.makeSliderInput()
                 , jim2:shapes.makeLightOutput()
@@ -284,14 +292,16 @@ const journal = [
                 value of the input.  The more light son,<BR>
                 the higher the input.<BR>
                 <BR>
-                <DIV ID="jim1"></DIV> Input from slider: 0 to 100<BR>
-                <BR>
-                <DIV ID="jim2"></DIV>Output to lights 1,2,3 and 4<BR>
+                <SPAN ID="jim1"></SPAN><SPAN style="line-height:400%;vertical-align:top"> Input from slider : 0 to 100</SPAN><BR>
+                <SPAN ID="jim2"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output to lights 1,2,3 and 4</SPAN><BR>
                 <BR>
                 <BR>
                 <BR>
                 <BR>
          `
+         , activate : ()=>{
+                setupDemo6();
+        }
          , inserts: { 
                 jim1:shapes.makeSliderInput()
                 , jim2:shapes.makeLightOutput()
@@ -344,11 +354,17 @@ const journal = [
                 switch 2 is on (or both are on).<BR>
                 <BR>
                 <BR>
-                <IMG></IMG>Input from switches 1 and 2<BR>
-                <BR>
-                <IMG></IMG>Output to light<BR>
+                <SPAN ID="jim1"></SPAN><SPAN style="line-height:400%;vertical-align:top">Input from switches 1 and 2</SPAN><BR>
+                <SPAN ID="jim2"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output to light</SPAN><BR>
                 <BR>
          `
+         , activate : ()=>{
+                setupDemo7();
+        }
+         , inserts: { 
+                jim1:shapes.makeSliderInput()
+                , jim2:shapes.makeLightOutput()
+         }
          , locked:true
         }
          ,{ HTML : `
@@ -359,11 +375,17 @@ const journal = [
                 switch 2 are on.<BR>
                 <BR>
                 <BR>
-                <IMG></IMG>Input from switches 1 and 2<BR>
-                <BR>
-                <IMG></IMG>Output to light<BR>
+                <SPAN ID="jim1"></SPAN><SPAN style="line-height:400%;vertical-align:top">Input from switches 1 and 2</SPAN><BR>
+                <SPAN ID="jim2"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output to light</SPAN><BR>
                 <BR>
          `
+         , inserts: { 
+                jim1:shapes.makeButtonInput()
+                , jim2:shapes.makeLightOutput()
+         }
+         , activate : ()=>{
+                setupDemo8();
+        }
          , locked:true
         }
          ,{ HTML : `
@@ -380,11 +402,17 @@ const journal = [
                 switch 1 is off.<BR>
                 <BR>
                 <BR>
-                <IMG></IMG>Input from switches 1 and 2<BR>
-                <BR>
-                <IMG></IMG>Output to light<BR>
+                <SPAN ID="jim1"></SPAN><SPAN style="line-height:400%;vertical-align:top">Input from switches 1 and 2</SPAN><BR>
+                <SPAN ID="jim2"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output to light</SPAN><BR>
                 <BR>
          `
+         , inserts: { 
+                jim1:shapes.makeButtonInput()
+                , jim2:shapes.makeLightOutput()
+         }
+         , activate : ()=>{
+                setupDemo9();
+        }
          , locked:true
         }
          ,{ HTML : `
@@ -396,11 +424,17 @@ const journal = [
                 on.<BR>
                 <BR>
                 <BR>
-                <IMG></IMG>Input from switch<BR>
-                <BR>
-                <IMG></IMG>Output to light<BR>
+                <SPAN ID="jim1"></SPAN><SPAN style="line-height:400%;vertical-align:top">Input from switch</SPAN><BR>
+                <SPAN ID="jim2"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output to light</SPAN><BR>
                 <BR>
          `
+         , inserts: { 
+                jim1:shapes.makeButtonInput()
+                , jim2:shapes.makeLightOutput()
+         }
+         , activate : ()=>{
+                setupDemo10();
+        }
          , locked:true
         }
          ,{ HTML : `
@@ -428,11 +462,17 @@ const journal = [
                 switches is on but not if both are on.<BR>
                 <BR>
                 <BR>
-                <IMG></IMG>Input from switch<BR>
-                <BR>
-                <IMG></IMG>Output to light<BR>
+                <SPAN ID="jim1"></SPAN><SPAN style="line-height:400%;vertical-align:top">Input from switches 1 and 2</SPAN><BR>
+                <SPAN ID="jim2"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output to light</SPAN><BR>
                 <BR>
          `
+         , inserts: { 
+                jim1:shapes.makeButtonInput()
+                , jim2:shapes.makeLightOutput()
+         }
+         , activate : ()=>{
+                setupDemo11();
+        }
          , locked : true
         }
          ,{ HTML : `
@@ -456,24 +496,6 @@ const journal = [
          ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">6</SPAN>
 		<BR>
-         `}
-         ,{ HTML : `
-		<SPAN ID="pageNum" style="float:right;margin-right:10">6</SPAN>
-		<BR>
-         `}
-         ,{ HTML : `
-		<SPAN ID="pageNum" style="float:right;margin-right:10">6</SPAN>
-		<BR>
-         `}
-         ,{ HTML : `
-		<SPAN ID="pageNum" style="float:right;margin-right:10">6</SPAN>
-		<BR>
-         `}
-         ,{ HTML : `
-         `}
-        ,{ HTML : `
-         `}
-        ,{ HTML : `
          `}
         
         ];
@@ -630,42 +652,62 @@ notebookPanel.innerHTML = journal[gameState.journalState].HTML;
 
 var activators = [];
 
-function testSwitch() {
-	var newDiv = document.createElement( "div" );
-        newDiv.style.display = "inline-block";
-        var tmp;
-	newDiv.appendChild( tmp = switcher.animator(0.75) );
-        activators.push( tmp );
-	newDiv.appendChild( tmp = switcher.animator(0.223) );
-        activators.push( tmp );
-	document.body.appendChild( newDiv );
-}
+var testControl = null;
 
 function testTestPanel() {
-	var newDiv = document.createElement( "div" );
-	newDiv.style.height = 120;
-	newDiv.style.width = 500;
-	newDiv.style.position = "relative";
-        newDiv.style.display = "inline-block";
+	var newDiv = document.getElementById( "boardMonitorFrame" );//createElement( "div" );
+	//newDiv.style.height = 120;
+	//newDiv.style.width = 500;
+	//newDiv.style.position = "relative";
+        //newDiv.style.display = "inline-block";
 	var svg;
 
-	newDiv.appendChild( svg = testPanel.speaker() );
-svg.style.height = "100%";
+        newDiv.appendChild( svg = testPanel.speaker() );
+        svg.style.verticalAlign="top";
+svg.style.height = "66";
 svg.style.width = "15%";
   svg.setAttribute( "viewBox", "0 0 130 170")
 svg.setAttribute( "preserveAspectRatio", "xMaxYMax" );
 
-        newDiv.appendChild( svg = testPanel.testButton() );
-svg.style.height = "100%";
+        newDiv.appendChild( testControl = svg = testPanel.testButton( (test,on)=>{
+                if( test ) {
+                        gameState.progressLocked = journal[gameState.journalState].locked = false;
+                        return true;
+                }
+        } ) );
+        svg.style.verticalAlign="top";
+svg.style.height = "66";
 svg.style.width = "25%";
   svg.setAttribute( "viewBox", "0 100 200 50")
 svg.setAttribute( "preserveAspectRatio", "xMaxYMax" );
 
         newDiv.appendChild( svg = testPanel.runStop() );
-svg.style.height = "100%";
+        svg.style.verticalAlign="top";
+svg.style.height = "66";
 svg.style.width = "25%";
   svg.setAttribute( "viewBox", "0 100 200 50")
 svg.setAttribute( "preserveAspectRatio", "xMaxYMax" );
+
+        var tmp;
+        newDiv.appendChild( tmp = switcher.animator(0.75) );
+        activators.push( tmp );
+
+        tmp.style.height = "64";
+        tmp.style.width = "48";
+        tmp.setAttribute( "viewBox", "0 00 100 175")
+        
+        newDiv.appendChild( tmp = switcher.animator(0.223) );
+        activators.push( tmp );
+        tmp.style.height = "64";
+        tmp.style.width = "48";
+        tmp.setAttribute( "viewBox", "0 00 100 175")
+
+        newDiv.appendChild( svg = shapes.makeSlider() );
+        activators.push( svg );
+        svg.style.height = "128";
+        svg.style.width = "96";
+        svg.setAttribute( "viewBox", "0 00 100 255")
+        svg.setAttribute( "transform", "rotate(-90 0 -25)")
 
         newDiv.appendChild( svg = analyzer.makeAnalyzer( (n)=>{
         	if( n > 4 ) {
@@ -678,14 +720,147 @@ svg.setAttribute( "preserveAspectRatio", "xMaxYMax" );
                 }
         }) );
 
-        svg.style.height = "100%";
-        svg.style.width = "30%";
-        svg.setAttribute( "viewBox", "0 100 430 170")
-        svg.setAttribute( "preserveAspectRatio", "xMaxYMax" );
+        svg.style.position = "relative";
+        svg.style.top = -80;
+        svg.style.zIndex=3;
+        svg.style.height = "150";
+        svg.style.width = "328";
+        svg.setAttribute( "viewBox", "0 00 450 155")
 
-        newDiv.appendChild( shapes.makeSlider() );
 	//newDiv.appendChild( switcher.animator(4) );
-	document.body.appendChild( newDiv );
+	//document.body.appendChild( newDiv );
+}
+
+function addSliderInput( n, x, y ) {
+        var newN = brainBoard.board.PutPeice( brainBoard.sliderInputPeice, x, y, ()=>{
+                //console.log( "Get External" );
+                return 1-activators[2].getValue();
+        } );
+        if( brainBoard.events["added"] )
+                brainBoard.events["added"]( newN );
+}
+
+function addButtonInput( n, x, y ) {
+        var newN = brainBoard.board.PutPeice( brainBoard.buttonInputPeice, x, y, ()=>{
+                if( n < activators.length )
+                        return activators[n].getValue();
+                return 0;
+        } );
+        if( brainBoard.events["added"] )
+               brainBoard.events["added"]( newN );
+}
+
+function addLightOutput( n, x, y ) {
+        var newN = brainBoard.board.PutPeice( brainBoard.lightOutputPeice, x, y, (val)=>{
+                       // console.log( "Set LOight External", val );
+                       return val;
+                } );
+        if( brainBoard.events["added"] )
+               brainBoard.events["added"]( newN );
+}
+
+function setupDemo1(  ) {
+        neuronTable.clear();
+        brainBoard.reset();
+        addLightOutput( 0, 15, 10 );
+}
+
+function setupDemo2(  ) {
+        neuronTable.clear();
+        brainBoard.reset();
+        addButtonInput( 0, 2, 10 );
+        addLightOutput( 0, 15, 10 );
+}
+
+function setupDemo3(  ) {
+        neuronTable.clear();
+        brainBoard.reset();
+        addButtonInput( 0, 2, 10 );
+        addLightOutput( 0, 15, 10 );
+        addLightOutput( 1, 15, 15 );
+}
+
+function setupDemo4(  ) {
+        neuronTable.clear();
+        brainBoard.reset();
+
+        addButtonInput( 0, 2, 9 );
+        addButtonInput( 1, 2, 15 );
+        addLightOutput( 0, 15, 6 );
+        addLightOutput( 1, 15, 10 );
+        addLightOutput( 2, 15, 14 );
+        addLightOutput( 3, 15, 18 );
+}
+
+
+function setupDemo5(  ) {
+        neuronTable.clear();
+        brainBoard.reset();
+
+        addSliderInput( 0, 2, 12 );
+        addLightOutput( 0, 15, 12 );
+}
+
+
+
+function setupDemo6(  ) {
+        neuronTable.clear();
+        brainBoard.reset();
+
+        addSliderInput( 0, 2, 12 );
+        addLightOutput( 0, 15, 6 );
+        addLightOutput( 1, 15, 10 );
+        addLightOutput( 2, 15, 14 );
+        addLightOutput( 3, 15, 18 );
+}
+
+// experiment 6; there's one setup before the first
+function setupDemo7(  ) {
+        neuronTable.clear();
+        brainBoard.reset();
+
+        addButtonInput( 0, 2, 9 );
+        addButtonInput( 1, 2, 15 );
+        addLightOutput( 0, 15, 12 );
+}
+
+// experiment 7; there's one setup before the first
+function setupDemo8(  ) {
+        neuronTable.clear();
+        brainBoard.reset();
+
+        addButtonInput( 0, 2, 9 );
+        addButtonInput( 1, 2, 15 );
+        addLightOutput( 0, 15, 12 );
+}
+
+// experiment 8; there's one setup before the first
+function setupDemo9(  ) {
+        neuronTable.clear();
+        brainBoard.reset();
+
+        addButtonInput( 0, 2, 9 );
+        addButtonInput( 1, 2, 15 );
+        addLightOutput( 0, 15, 12 );
+}
+
+// experiment 8; there's one setup before the first
+function setupDemo10(  ) {
+        neuronTable.clear();
+        brainBoard.reset();
+
+        addButtonInput( 0, 2, 9 );
+        addButtonInput( 1, 2, 15 );
+        addLightOutput( 0, 15, 12 );
+}
+// experiment 8; there's one setup before the first
+function setupDemo11(  ) {
+        neuronTable.clear();
+        brainBoard.reset();
+
+        addButtonInput( 0, 2, 9 );
+        addButtonInput( 1, 2, 15 );
+        addLightOutput( 0, 15, 12 );
 }
 
 function setupToolPanel() {
@@ -693,22 +868,37 @@ function setupToolPanel() {
         var tool;
          tooldiv.appendChild( tool = shapes.makeNeuron() );
          tool.addEventListener( "click", ()=>{
-                 neuronTable.addNeuron( "a" )
+                 var newN = brainBoard.board.PutPeice( brainBoard.NeuronPeice, 0, 0, 0 );
+                 if( brainBoard.events["added"] )
+                        brainBoard.events["added"]( newN );
          })
          tooldiv.appendChild( shapes.makeNode() );
-         tooldiv.appendChild( shapes.makeTrash() );
+         tooldiv.appendChild( tool = shapes.makeTrash() );
+         tool.addEventListener( "click",()=>{
+                neuronTable.clear();
+                brainBoard.reset()
+         })
          tooldiv.appendChild( shapes.makePowerOutput() );
 
-         tooldiv.appendChild( shapes.makeButtonInput() );
-         tooldiv.appendChild( shapes.makeLightOutput() );
-         tooldiv.appendChild( shapes.makeSliderInput() );
+         tooldiv.appendChild( tool = shapes.makeButtonInput() );
+         tool.addEventListener( "click", ()=>{ addButtonInput( 0, 2, 4 ) })
+        tooldiv.appendChild( tool = shapes.makeLightOutput() );
+        tool.addEventListener( "click", ()=>{addLightOutput(0,15,4)} )
+         tooldiv.appendChild( tool = shapes.makeSliderInput() );
+         tool.addEventListener( "click", ()=>{
+                var newN = brainBoard.board.PutPeice( brainBoard.sliderInputPeice, 0, 0, ()=>{
+                        //console.log( "Get External" );
+                        return 1-activators[2].getValue();
+                } );
+                if( brainBoard.events["added"] )
+                       brainBoard.events["added"]( newN );
+        })
         
 }
 
 setupToolPanel();
 
 testTestPanel();
-testSwitch();
 
 function fixupImages() {
         journal.forEach( page=>{
@@ -744,7 +934,8 @@ function setPage( newPage )
 		if( newPage > gameState.journalState ) {
 		 	return;
 		}
-	}
+        }
+        testControl.reset()
 	gameState.journalState = newPage;
 
 	gameState.progressLocked = journal[gameState.journalState].locked || false;
@@ -753,9 +944,9 @@ function setPage( newPage )
 	var pageNum = notebookPanel.querySelector(`[id="pageNum"]`)
 	if( pageNum ) {
                 pageNum.textContent = '' + (gameState.journalState + 1);
-
-
         }
+        if( journal[gameState.journalState].activate )
+                journal[gameState.journalState].activate();
 	
 }
 
@@ -770,9 +961,11 @@ function setupNeuronTable( table ) {
         var statuses = {
                 table : table,
                 clear() {
-                        while(this.table.hasChildNodes())
+                        var row;
+                        while( row = this.table.querySelector( "tr:nth-of-type(2)" ) )
                         {
-                                this.table.removeChild(this.table.firstChild);
+                                row.remove();
+                                //this.table.removeChild(this.table.firstChild);
                         }
                 },
                 addNeuron( n ) {
@@ -799,19 +992,26 @@ function setupNeuronTable( table ) {
                 utilSlider.type = "range";
                 utilSlider.min = 0;
                 utilSlider.max = 100;
+                utilSlider.value = n.threshold * 100;
                 utilCell.appendChild( utilSlider );
                 utilSlider.addEventListener( "input", ()=>{
-                        n.threshold = utilSlider.value;
+                        n.threshold = utilSlider.value/100;
                 })
 
                 var data2 = row.insertCell();
                 data2.innerText = "123";
+                data2.align = "right";
+                data2.width = "25%"
                 var data3 = row.insertCell();
                 data3.innerText = "bbb";
+                data3.align = "right";
+                data3.width = "25%"
                 var thisN = n;
                 function neuronUpdateTick() {
                         data2.innerText = thisN.threshold;
-                        var val = thisN.value.toFixed(3);
+                        var val = thisN.value;
+                        if( val !== undefined ) val = val.toFixed(3);
+                        else val = "???";
                         //val = val - (val % 0.001)
                         data3.innerText = val;
                         setTimeout( neuronUpdateTick, 250 );
@@ -829,6 +1029,7 @@ function setupNeuronTable( table ) {
                 utilSlider.type = "range";
                 utilSlider.min = -100;
                 utilSlider.max = 100;
+                utilSlider.value = n.gain * 100;
                 utilCell.appendChild( utilSlider );
                 utilSlider.addEventListener( "input", ()=>{
                         n.gain = utilSlider.value/100;
@@ -836,8 +1037,12 @@ function setupNeuronTable( table ) {
 
                 var data2 = row.insertCell();
                 data2.innerText = "123";
+                data2.align = "right";
+                data2.width = "25%"
                 var data3 = row.insertCell();
                 data3.innerText = "bbb";
+                data3.align = "right";
+                data3.width = "25%"
                 var thisN = n;
                 function neuronUpdateTick() {
                         data2.innerText = thisN.gain;

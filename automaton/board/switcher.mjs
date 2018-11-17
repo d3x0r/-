@@ -97,7 +97,7 @@
 		animate();
                 
                 newSVG.getValue = function() {
-                	return state;
+                	return 1-state;
                 }
                 
                 return newSVG;

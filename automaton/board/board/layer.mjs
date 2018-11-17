@@ -321,7 +321,7 @@ Layer.prototype.IsLayerAt = function( _x, _y ) {
 					{
 						this.peice.methods.DrawCell( this.peice, this.psvInstance
 										 , ctx
-										 , fill.coords.x, fill.coords.y
+										 , fill.cell.coords.x, fill.cell.coords.y
 										 , x + (node.x + fill.x) * cell.width
 										 , y + (node.y + fill.y) * cell.height );
 		        

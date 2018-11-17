@@ -100,6 +100,7 @@ Neuron.prototype.clone= function(){
 			this.brain.changed = true;
 		}
 
+//-------------------------------------------------------------------------------
 
 export  function Sigmoid(brain) {
 	if( !(this instanceof Sigmoid) ) return new Sigmoid(this);
@@ -117,6 +118,8 @@ Sigmoid.prototype.clone = function() {
 	var newN = Neuron.prototype.clone.call( this );
 	newN.k = n.k;
 }
+
+//-------------------------------------------------------------------------------
 
 export function Oscillator(brain) {
 	if( !(this instanceof Oscillator) ) return new Oscillator(this);
@@ -140,6 +143,7 @@ Oscillator.prototype.output = 	function(n) { return 1/(1+Math.exp( -this.k ) ) }
 		newN.freq = this.freq;
 	}
 
+//-------------------------------------------------------------------------------
 	
 export function TickOscillator( brain,ticks ) {
 	if( !(this instanceof TickOscillator) ) return new TickOscillator(this);
@@ -162,6 +166,7 @@ TickOscillator.prototype.clone = function() {
 	newN.ticks = n.ticks;
 }
 
+//-------------------------------------------------------------------------------
 
 export function External( brain, cb ) {
 	if( !(this instanceof External) ) return new External(this, brain);
@@ -169,13 +174,32 @@ export function External( brain, cb ) {
 	this.cb = cb;
 	this.type = "External";
 }
-External.prototype = Object.create( Neuron );
+External.prototype = Object.create( Neuron.prototype );
 External.prototype.output = 	function(n) { return 1/(1+Math.exp( -this.k ) ) };
 
 Object.defineProperty(External.prototype, "value", {
-	get: cb,
+	get: function() { 
+		return this.cb() 
+	}
 	//set: function(y) { this.setFullYear(y) }
 });
 External.prototype.clone = function() {
-	return new External( this.brain, this,cb );
+	return new External( this.brain, this.cb );
 }
+
+//-------------------------------------------------------------------------------
+
+export function Exporter( brain, cb ) {
+	if( !(this instanceof Exporter) ) return new Exporter(this, brain);
+	Neuron.call(this,brain);
+	this.cb = cb;
+	this.type = "Exporter";
+}
+Exporter.prototype = Object.create( Neuron.prototype );
+Exporter.prototype.output = function(n) { return this.cb(n); };
+
+Exporter.prototype.clone = function() {
+	return new Exporter( this.brain, this.cb );
+}
+
+//-------------------------------------------------------------------------------

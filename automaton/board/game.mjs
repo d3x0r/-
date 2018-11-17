@@ -86,7 +86,7 @@ const journal = [
         	Signals and Lines<BR>
                 I have discovered that bug brains<BR>
                 operate on signals which range from<BR>
-                0(off) to 100(on).<BR>
+                0(off) to 1(on).<BR>
                 <BR>
                 The signals enter the brain through the<BR>
                 input nodes, travel along lines and exit<BR>
@@ -230,7 +230,7 @@ const journal = [
                 below the threshold the neuron is off<BR>
                 (output 0).  If the input to the neuron<BR>
                  is at or above the threshold the neuron is<BR>
-                 on (output 100).<BR>
+                 on (output 1).<BR>
                  <BR>
                  If this is true for these neurons the I<BR>
                  could make a brain which switches on a<BR>
@@ -244,10 +244,10 @@ const journal = [
                 Experiment 4: Neuron Threshold<BR>
                 The input now comes from a slider.<BR>
                 The slider produces a variable signal in<BR>
-                the range from 0 to 100.  I want the light to<BR>
+                the range from 0 to 1.  I want the light to<BR>
                 switch on when the signal is 80 or above.<BR>
                 <BR>
-                <SPAN ID="jim1"></SPAN><SPAN style="line-height:400%;vertical-align:top"> Input from slider : 0 to 100</SPAN><BR>
+                <SPAN ID="jim1"></SPAN><SPAN style="line-height:400%;vertical-align:top"> Input from slider : 0 to 1</SPAN><BR>
                 <SPAN ID="jim2"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output to light</SPAN><BR>
                 <BR>
                 [Click waste bin to clear the brain]<BR>
@@ -292,7 +292,7 @@ const journal = [
                 value of the input.  The more light son,<BR>
                 the higher the input.<BR>
                 <BR>
-                <SPAN ID="jim1"></SPAN><SPAN style="line-height:400%;vertical-align:top"> Input from slider : 0 to 100</SPAN><BR>
+                <SPAN ID="jim1"></SPAN><SPAN style="line-height:400%;vertical-align:top"> Input from slider : 0 to 1</SPAN><BR>
                 <SPAN ID="jim2"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output to lights 1,2,3 and 4</SPAN><BR>
                 <BR>
                 <BR>
@@ -315,7 +315,7 @@ const journal = [
                 The input to a neuron comes through a<BR>
                 synapse (shown as a blue or red blob<BR>
                 on the neuron).  Each synapse has a<BR>
-                weight between -100 and 100.  This is<BR>
+                weight between -1 and 1.  This is<BR>
                 the percent of the signal the synapse<BR>
                 passes through to the neuron.<BR>
                 <BR>
@@ -340,7 +340,7 @@ const journal = [
                 blocks for digital computers. In<BR>
                 computers, signals are either 0 or 1.<BR>
                 The equivalent signals in Bug Brain are<BR>
-                0 (light off) and 100(light on).<BR>
+                0 (light off) and 1(light on).<BR>
                 <BR>
                 <BR>
                 <BR>
@@ -539,7 +539,7 @@ const journal2 = [
                 Experiment 1: Full Steam Ahead<BR>
                 The bug can tell how wide the branch is<BR>
                 in front of it.  The input varies between<BR>
-                0 (no branch) to 100 (full branch).  The<BR>
+                0 (no branch) to 1 (full branch).  The<BR>
                 output causes the bug to move forward.<BR>
                 <BR>
                 <BR>
@@ -572,7 +572,7 @@ const journal2 = [
                 The Lady Bug now has a primitive form<BR>
                 of eye.  It can only detect the<BR>
                 difference between dark (0) and <BR>
-                light(100), but this might e useful.<BR>
+                light(1), but this might e useful.<BR>
                 <BR>
                 <BR>
                 <IMG></IMG>Input : branch width<BR>
@@ -995,7 +995,7 @@ function setupNeuronTable( table ) {
                 utilCell.colSpan=2;
                 var utilSlider = document.createElement( "input" )
                 utilSlider.type = "range";
-                utilSlider.min = 0;
+                utilSlider.min = -100;
                 utilSlider.max = 100;
                 utilSlider.value = n.threshold * 100;
                 utilCell.appendChild( utilSlider );

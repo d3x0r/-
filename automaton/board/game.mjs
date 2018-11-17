@@ -64,7 +64,7 @@ const journal = [
         ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">1</SPAN>
 		<BR>
-        	The logic analyzer and siwtches are run<BR>
+        	The logic analyzer and switches are run<BR>
                 by control boxes on the shelf [above].<BR>
                 <BR>
                 Flip the switch to "Run" to start things<BR>
@@ -96,7 +96,7 @@ const journal = [
                 <DIV ID="jim1"> </DIV><BR>
                 A line is made by grabbing the edge of a<BR>
                 node and dragging it out.  Drop the line<BR>
-                on the center of the target node.<BR>
+                on the edge of the target node.<BR>
                 
          `
          , activate : ()=>{
@@ -121,7 +121,8 @@ const journal = [
                 <SPAN ID="jim2"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output to light</SPAN><BR>
                 <BR>
                 [Build a brain on the Brain Board]<BR>
-                [To test, press Test and switch to Run]<BR>
+                [To test, press Test and wait for timer<BR>
+                to expire]<BR>
                 [Go to the next page when successful]<BR>
          `
          , activate : ()=>{
@@ -250,10 +251,9 @@ const journal = [
                 <SPAN ID="jim2"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output to light</SPAN><BR>
                 <BR>
                 [Click waste bin to clear the brain]<BR>
-                [Click larg egreen button to add neuron]<BR>
-                [Right click on neuron to set threshold]<BR>
-                [See Manual (blue book above) for help<BR>
-                with connection neurons]
+                [Click large egreen button to add neuron]<BR>
+                [Neuron shows in table with slider to set
+                threshold]<BR>
          `
          , activate : ()=>{
                 setupDemo5();
@@ -632,12 +632,12 @@ brainTicker();
 
 var brainBoard = new BrainBoard( brain, boardFrame );
 
-brainBoard.addEventListener( "added", (n)=>{
+brainBoard.addEventListener( "added", (p,n)=>{
         if( n instanceof brain.Neuron ) {
-                neuronTable.addNeuron( n );
+                neuronTable.addNeuron( p,n );
         }
         if( n instanceof brain.Synapse )  {
-                neuronTable.addSynapse(n);
+                neuronTable.addSynapse( p, n);
         }
 })
 
@@ -737,7 +737,7 @@ function addSliderInput( n, x, y ) {
                 return 1-activators[2].getValue();
         } );
         if( brainBoard.events["added"] )
-                brainBoard.events["added"]( newN );
+                brainBoard.events["added"]( brainBoard.sliderInputPeice,newN );
 }
 
 function addButtonInput( n, x, y ) {
@@ -747,7 +747,7 @@ function addButtonInput( n, x, y ) {
                 return 0;
         } );
         if( brainBoard.events["added"] )
-               brainBoard.events["added"]( newN );
+               brainBoard.events["added"]( brainBoard.buttonInputPeice,newN );
 }
 
 function addLightOutput( n, x, y ) {
@@ -756,7 +756,7 @@ function addLightOutput( n, x, y ) {
                        return val;
                 } );
         if( brainBoard.events["added"] )
-               brainBoard.events["added"]( newN );
+               brainBoard.events["added"]( brainBoard.lightOutputPeice,newN );
 }
 
 function setupDemo1(  ) {
@@ -850,8 +850,7 @@ function setupDemo10(  ) {
         brainBoard.reset();
 
         addButtonInput( 0, 2, 9 );
-        addButtonInput( 1, 2, 15 );
-        addLightOutput( 0, 15, 12 );
+        addLightOutput( 0, 15, 9 );
 }
 // experiment 8; there's one setup before the first
 function setupDemo11(  ) {
@@ -866,32 +865,32 @@ function setupDemo11(  ) {
 function setupToolPanel() {
         var tooldiv = document.getElementById("boardToolsFrame" );
         var tool;
-         tooldiv.appendChild( tool = shapes.makeNeuron() );
-         tool.addEventListener( "click", ()=>{
+         tooldiv.appendChild( (tool = shapes.makeNeuron()).on );
+         tool.on.addEventListener( "click", ()=>{
                  var newN = brainBoard.board.PutPeice( brainBoard.NeuronPeice, 0, 0, 0 );
                  if( brainBoard.events["added"] )
-                        brainBoard.events["added"]( newN );
+                        brainBoard.events["added"]( brainBoard.NeuronPeice,newN );
          })
-         tooldiv.appendChild( shapes.makeNode() );
+         //tooldiv.appendChild( (shapes.makeNode()).on );
          tooldiv.appendChild( tool = shapes.makeTrash() );
          tool.addEventListener( "click",()=>{
                 neuronTable.clear();
                 brainBoard.reset()
          })
-         tooldiv.appendChild( shapes.makePowerOutput() );
+         tooldiv.appendChild( (shapes.makePowerOutput()).on );
 
-         tooldiv.appendChild( tool = shapes.makeButtonInput() );
-         tool.addEventListener( "click", ()=>{ addButtonInput( 0, 2, 4 ) })
-        tooldiv.appendChild( tool = shapes.makeLightOutput() );
-        tool.addEventListener( "click", ()=>{addLightOutput(0,15,4)} )
-         tooldiv.appendChild( tool = shapes.makeSliderInput() );
-         tool.addEventListener( "click", ()=>{
+         tooldiv.appendChild( (tool = shapes.makeButtonInput()).on );
+         tool.on.addEventListener( "click", ()=>{ addButtonInput( 0, 2, 4 ) })
+        tooldiv.appendChild( (tool = shapes.makeLightOutput()).on );
+        tool.on.addEventListener( "click", ()=>{addLightOutput(0,15,4)} )
+         tooldiv.appendChild( (tool = shapes.makeSliderInput()).on );
+         tool.on.addEventListener( "click", ()=>{
                 var newN = brainBoard.board.PutPeice( brainBoard.sliderInputPeice, 0, 0, ()=>{
                         //console.log( "Get External" );
                         return 1-activators[2].getValue();
                 } );
                 if( brainBoard.events["added"] )
-                       brainBoard.events["added"]( newN );
+                       brainBoard.events["added"]( brainBoard.sliderInputPeice,newN );
         })
         
 }
@@ -899,6 +898,12 @@ function setupToolPanel() {
 setupToolPanel();
 
 testTestPanel();
+
+function animate() {
+        brainBoard.board.BoardRefresh();
+        requestAnimationFrame(animate);
+}
+animate();
 
 function fixupImages() {
         journal.forEach( page=>{
@@ -913,7 +918,7 @@ function fixupImages() {
                                         var img;
                                         img = notebookPanel.querySelector(`[id="${id}"]`);
                                         if( img )
-                                        img.appendChild( page.inserts[id] );        
+                                        img.appendChild( page.inserts[id].on );        
                                 })
                         }
 
@@ -968,24 +973,24 @@ function setupNeuronTable( table ) {
                                 //this.table.removeChild(this.table.firstChild);
                         }
                 },
-                addNeuron( n ) {
+                addNeuron( p, n ) {
                         var newRow = this.table.insertRow();
                         var newRow2 = this.table.insertRow();
-                        neuron( newRow, newRow2, n );
+                        neuron( newRow, newRow2, n, p );
                 },
-                addSynapse( n ) {
+                addSynapse( p, n ) {
                         var newRow = this.table.insertRow();
                         var newRow2 = this.table.insertRow();
-                        synapse( newRow, newRow2, n );
+                        synapse( newRow, newRow2, n, p );
                 }
         }
         statuses.clear();
         return statuses;
 
-        function neuron( row, row2, n ) {
+        function neuron( row, row2, n, p ) {
                 var underName = row2.insertCell();
                 var data1 = row.insertCell();
-                data1.innerText = n.type;
+                data1.innerText = p.name +":"+n.type;
                 var utilCell = row2.insertCell();
                 utilCell.colSpan=2;
                 var utilSlider = document.createElement( "input" )

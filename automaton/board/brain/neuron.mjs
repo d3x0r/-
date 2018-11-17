@@ -5,6 +5,8 @@ export function Neuron(brain) {
 	
 	this.brain = brain;
 	this.threshold = 0.5;
+	this.input = 0;
+	this.on = false;
 	this.cycle = brain.cycle-1;
 	this. type = "Neuron";
     this. inputs = [],
@@ -30,10 +32,13 @@ Neuron.prototype.clone= function(){
 			var inputs = 0;
            	if( this.cycle != this.brain.cycle ) {
 				this.cycle = this.brain.cycle;
-				inputs = this.inputs.reduce( (inputs,inp)=>inputs + (inp?inp.value:0), 0 );
+				this.input = this.inputs.reduce( (inputs,inp)=>inputs + (inp?inp.value:0), 0 );
 			}
-			if( inputs > this.threshold )
-				return this.output(inputs);
+			if( this.input > this.threshold ) {
+				this.on = true;
+				return this.output(this.input);
+			}
+			this.on = false;
 			return 0;
 		}
 		Neuron.prototype.attachSynapse= function( specific ) {
@@ -175,11 +180,11 @@ export function External( brain, cb ) {
 	this.type = "External";
 }
 External.prototype = Object.create( Neuron.prototype );
-External.prototype.output = 	function(n) { return 1/(1+Math.exp( -this.k ) ) };
+External.prototype.output = 	function(n) { return n };
 
 Object.defineProperty(External.prototype, "value", {
 	get: function() { 
-		return this.cb() 
+		return this.inputs = this.cb() 
 	}
 	//set: function(y) { this.setFullYear(y) }
 });
@@ -196,7 +201,11 @@ export function Exporter( brain, cb ) {
 	this.type = "Exporter";
 }
 Exporter.prototype = Object.create( Neuron.prototype );
-Exporter.prototype.output = function(n) { return this.cb(n); };
+Exporter.prototype.output = function(n) { 
+	var outval = this.cb(n); 
+	this.on = !!outval;
+	return outval;
+};
 
 Exporter.prototype.clone = function() {
 	return new Exporter( this.brain, this.cb );

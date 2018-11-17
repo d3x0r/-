@@ -111,6 +111,9 @@ this.original = image;
 // this should be moved out to a thing which is
 // like re-mip-map :)
 // or recompute based on a new cell size of the main board...
+
+if( "on" in image )
+	image = image.on; // just need one of these for now... 
 if( image )
 {
 	var scale = 0, x, y;
@@ -118,30 +121,45 @@ if( image )
 	this.lastCell = { coords:null, size:this.cellSize };
 	this.image = image;
 	//this.image.src = image;
-	if( !this.image.width ||  this.image.nodeName === "IMG" ) {
+	if( this.image.nodeName === "IMG" ) {
 		this.image.addEventListener( "load", initGrid.bind(this) );
-	} else {
+		if( this.image.width )
+			initGrid.call(this);
+	} else if( this.image.nodeName === "svg" ) {
 		var wrapper;// = document.createElement( "div" );
 		//wrapper.appendChild( image );
+		function convert(image) {
+			var svghtml = image.outerHTML;
+			svghtml =[ svghtml.slice( 0, 5 ), "xmlns='http://www.w3.org/2000/svg' ", svghtml.slice( 5 ) ].join("");
 
-		var svghtml = image.outerHTML;
-		svghtml =[ svghtml.slice( 0, 5 ), "xmlns='http://www.w3.org/2000/svg' ", svghtml.slice( 5 ) ].join("");
+			var svg = "data:image/svg+xml" /*+ ";base64"*/ + "," + encodeURI( svghtml )
+			wrapper = document.createElement( "img" );
+			wrapper.width = 1024;
+			wrapper.height = 1024;
+			wrapper.src = svg;
+			return wrapper;
+		}
+		this.original.on = convert( this.original.on );
+		this.original.off = convert( this.original.off );
+		if( "range" in this.original ) {
+			this.original.range = this.original.range.map( convert );
+		}
+		this.image = this.original;
 
-		var svg = "data:image/svg+xml" /*+ ";base64"*/ + "," + encodeURI( svghtml )
-		wrapper = document.createElement( "img" );
-		wrapper.width = 1000;
-		wrapper.height = 1000;
-		wrapper.src = svg;
-		this.image = wrapper;
+
 		//wrapper.addEventListener( "load", initGrid.bind(this) );
 		initGrid.call(this);
 	}
 	function initGrid(){
 		var width ;
 		var height;
-		if( typeof this.image.width === "number" ) {
-			width = (this.image.width / this.size.cols);
-			height = (this.image.height / this.size.rows);
+		var img = this.image;
+		if( "on" in img )
+			img = img.on;
+
+		if( typeof img.width === "number" ) {
+			width = (img.width / this.size.cols);
+			height = (img.height / this.size.rows);
 		} else {
 			width = ( 66 / this.size.cols);
 			height = (66 / this.size.rows);
@@ -509,11 +527,18 @@ DefaultMethods.prototype.DrawCell = function( peice, psvInstance,  surface,  cel
 	//lprintf( WIDE("Drawing peice instance %p"), psvInstance );
 	//console.log( "Draw Cell: ", cellx, celly, x, y );
 	var from = this.master.getcell( cellx, celly );
-   	surface.drawImage( this.master.image, from.coords.x, from.coords.y, from.size.width, from.size.height
-		, x, y
-		, this.brainboard.board.cellSize.width
-		, this.brainboard.board.cellSize.height  
-	 )
+	if( "on" in this.master.image )
+		surface.drawImage( this.master.image.on, from.coords.x, from.coords.y, from.size.width, from.size.height
+			, x, y
+			, this.brainboard.board.cellSize.width
+			, this.brainboard.board.cellSize.height  
+		)
+	 else
+		surface.drawImage( this.master.image, from.coords.x, from.coords.y, from.size.width, from.size.height
+			, x, y
+			, this.brainboard.board.cellSize.width
+			, this.brainboard.board.cellSize.height  
+		)
 //	BlotImageAlpha( surface
 					  //, peice
 					  //, x, y

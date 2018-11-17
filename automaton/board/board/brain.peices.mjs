@@ -5,7 +5,11 @@
 
 export default {
     cell: { width : 48, height : 48 }
-   , background : { cells : { width : 10, height : 10 }, image : "board/images/background.gif" }
+   , background : { cells : { width : 5, height : 5 }
+	   //, image : "board/images/back1.gif" 
+	   //, image : "board/images/background.gif" 
+	   , image : "board/images/background2.gif" 
+	}
    , neuron : {  
 		cells : { width : 3, height : 3 }
 		, image : "board/images/neuron.png" 

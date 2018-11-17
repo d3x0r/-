@@ -835,7 +835,7 @@ Layer.prototype.FindDirection = function( _x, _y, wX, wY ) // From, To
 			this.y += del_y;
 			this.min_x += del_x;
 			this.min_y += del_y;
-			console.log( "LAYER MOVE:", del_x, del_y, this.x, this.y );
+			//console.log( "LAYER MOVE:", del_x, del_y, this.x, this.y );
 			{
 				this.linked.forEach( (layer)=> {
 					if( layer.flags.bRoute )

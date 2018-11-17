@@ -183,7 +183,7 @@ export function BrainBoard( _brain, container ) {
 
 		var img = document.createElement( "img" );
 		img.src = peices.pathway.image;
-		brainshell.NervePeice = brainshell.board.CreatePeice( "nerve", img
+		brainshell.NervePeice = brainshell.board.CreatePeice( "nerve",  img
 			, 7, 7, 0, 0
 			, brainshell.nerve_methods );
 
@@ -571,30 +571,30 @@ INPUT_METHODS.prototype.Draw = function(  psvInstance,  image,  cell,  x,  y )
 	}
 INPUT_METHODS.prototype.ConnectEnd = function(  psv_to_instance,  x,  y
 									  ,  peice_from,  psv_from_instance )
-	{
-		return false;
-	}
+{
+	return false;
+}
 INPUT_METHODS.prototype.ConnectBegin = function(  psv_to_instance,  x,  y
 									  ,  peice_from,  psv_from_instance )
-	{
-		var n;
-		//if( peice_from == brainboard.NerveMethods )
-		// maybe...
-		var synapse = psv_from_instance;
-		var neuron = psv_to_instance;
-		// validate that peice_from is a nerve_method type
-		for( n = 0; n < 8; n++ )
-			if( DirDeltaMap[n].x == x && DirDeltaMap[n].y == y )
-				break;
-		if( n < 8 )
-			return this.brainboard.brain.LinkSynapseFrom( synapse, neuron.neuron, n );
-		return false;
-	}
+{
+	var n;
+	//if( peice_from == brainboard.NerveMethods )
+	// maybe...
+	var synapse = psv_from_instance;
+	var neuron = psv_to_instance;
+	// validate that peice_from is a nerve_method type
+	for( n = 0; n < 8; n++ )
+		if( DirDeltaMap[n].x == x && DirDeltaMap[n].y == y )
+			break;
+	if( n < 8 )
+		return this.brainboard.brain.LinkSynapseFrom( synapse, neuron.neuron, n );
+	return false;
+}
 INPUT_METHODS.prototype.OnRightClick = function(  psv,  x,  y )
-	{
-      //ShowInputDialog( (PNEURON)psv );
-      return 1;
-	}
+{
+	//ShowInputDialog( (PNEURON)psv );
+	return 1;
+}
 
 INPUT_METHODS.prototype.OnClick = function(  psv,  x, y )
 {
@@ -635,78 +635,78 @@ OUTPUT_METHODS.prototype = Object.create( DefaultMethods.prototype );
 OUTPUT_METHODS.prototype.constructor = OUTPUT_METHODS;
 
 OUTPUT_METHODS.prototype.Create = function(  psvExtra )
-	{
-		//brainboard.create_output_type = (POUTPUT_INPUT)psv;
-		//brainboard.create_output_type.flags.bOutput = 1;
-        console.log( "Creating a new output (peice instance)" );
+{
+	//brainboard.create_output_type = (POUTPUT_INPUT)psv;
+	//brainboard.create_output_type.flags.bOutput = 1;
+	console.log( "Creating a new output (peice instance)" );
 
-		var poi = psvExtra;
+	var poi = psvExtra;
 
-		poi.neuron = this.brainboard.brain.GetOutputNeuron( poi.conn );
-		//DupNeuron( brainboard.DefaultNeuron ))
+	poi.neuron = this.brainboard.brain.GetOutputNeuron( poi.conn );
+	//DupNeuron( brainboard.DefaultNeuron ))
 
-		return psvExtra; // still not the real create...  but this is psviNstance...
-		//return poi.neuron; // still not the real create...  but this is psviNstance...
-		//return (((POUTPUT_INPUT)psvExtra).conn); // still not the real create...  but this is psviNstance...
-		//return (brainboard.create_output_type);
-	}
+	return psvExtra; // still not the real create...  but this is psviNstance...
+	//return poi.neuron; // still not the real create...  but this is psviNstance...
+	//return (((POUTPUT_INPUT)psvExtra).conn); // still not the real create...  but this is psviNstance...
+	//return (brainboard.create_output_type);
+}
 OUTPUT_METHODS.prototype.Draw = function(  psvInstance,  image,  cell,  x,  y )
-	{
-		var cPrimary;
-		var neuron = psvInstance;
-		var poi = psvInstance;
-		//PANYVALUE output = neuron.Output; //(connector*)psvInstance;
-		var value = neuron.get(); //output.get();
-		if( value < 0 )
-			cPrimary = ColorAverage( this.level_colors[1]
-										  , this.level_colors[0]
-											, (int)-(value * 1200), 1000 );
-		else
-			cPrimary = ColorAverage( this.level_colors[1]
-											, this.level_colors[2]
-									  , (int)(value*1200), 1000 );
+{
+	var cPrimary;
+	var neuron = psvInstance;
+	var poi = psvInstance;
+	//PANYVALUE output = neuron.Output; //(connector*)psvInstance;
+	var value = neuron.get(); //output.get();
+	if( value < 0 )
+		cPrimary = ColorAverage( this.level_colors[1]
+										, this.level_colors[0]
+										, (int)-(value * 1200), 1000 );
+	else
+		cPrimary = ColorAverage( this.level_colors[1]
+										, this.level_colors[2]
+									, (int)(value*1200), 1000 );
 
-		BlotImageShaded( image
-								  , cell //master.getcell(cellx, celly)
-								  , x, y
-								  , cPrimary );
-	}
+	BlotImageShaded( image
+								, cell //master.getcell(cellx, celly)
+								, x, y
+								, cPrimary );
+}
 
 OUTPUT_METHODS.prototype.SetColors = function(  c1,  c2,  c3 )
-	{
-		this.level_colors[0] = c1;
-		this.level_colors[1] = c2;
-		this.level_colors[2] = c3;
-	}
+{
+	this.level_colors[0] = c1;
+	this.level_colors[1] = c2;
+	this.level_colors[2] = c3;
+}
 OUTPUT_METHODS.prototype.ConnectEnd = function(  psv_to_instance,  x,  y
 									  ,  peice_from,  psv_from_instance )
+{
+	var n;
+	var success = false;
+	//POUTPUT_INPUT poi = (POUTPUT_INPUT)psv_to_instance;
+	//POUTPUT_INPUT poi = (POUTPUT_INPUT);
+	//connector *output = (connector*)psv_to_instance;
+	//if( peice_from == brainboard.NerveMethods )
+	// maybe...
+	var synapse = psv_from_instance;
+	var neuron = psv_to_instance;
+	// validate that peice_from is a nerve_method type
+	//poi.
+	for( n = 0; n < 8; n++ )
+		if( DirDeltaMap[n].x == x && DirDeltaMap[n].y == y )
+			break;
+	if( n < 8 )
 	{
-		var n;
-		var success = false;
-		//POUTPUT_INPUT poi = (POUTPUT_INPUT)psv_to_instance;
-		//POUTPUT_INPUT poi = (POUTPUT_INPUT);
-		//connector *output = (connector*)psv_to_instance;
-		//if( peice_from == brainboard.NerveMethods )
-		// maybe...
-		var synapse = psv_from_instance;
-		var neuron = psv_to_instance;
-		// validate that peice_from is a nerve_method type
-		//poi.
-		for( n = 0; n < 8; n++ )
-			if( DirDeltaMap[n].x == x && DirDeltaMap[n].y == y )
-				break;
-		if( n < 8 )
-		{
-			var success = this.brainboard.brain.LinkSynapseTo( synapse, neuron.neuron, n );
-			return success;
-		}
-		return false;
+		var success = this.brainboard.brain.LinkSynapseTo( synapse, neuron.neuron, n );
+		return success;
 	}
+	return false;
+}
 OUTPUT_METHODS.prototype.ConnectBegin = function(  psv_to_instance,  x,  y
 									  ,  peice_from,  psv_from_instance )
-	{
-		return false;
-	}
+{
+	return false;
+}
 OUTPUT_METHODS.prototype.OnRightClick = function(  psv,  x,  y )
 	{
 		//ShowOutputDialog( (PNEURON)psv );
@@ -783,63 +783,48 @@ NEURON_METHODS.prototype.Destroy = function(  psv )
       this.brainboard.brain.ReleaseNeuron( psv );
 	}
 	
-NEURON_METHODS.prototype.Draw = function(  psvInstance,  image,  cell,  x,  y )
-	{
-      //console.log( ("---------- DRAW NEURON ------------") );
 
-		var cPrimary, cSecondary, cTertiary;
-	      //var base,range,value,input,threshold;
-		var neuron = psvInstance;
+NEURON_METHODS.prototype.DrawCell = function(  peice, psvInstance,  surface,  cellx, celly, x,  y )
+{
+	//console.log( ("---------- DRAW NEURON ------------") );
 
-		var vals = neuron.get();
+	var cPrimary, cSecondary, cTertiary;
+		//var base,range,value,input,threshold;
+	var neuron = psvInstance;
 
-		//     |(base)   -. range
-		//        0 // 0 origin may not be the center of a neuron...
-		// operational parameters of neurons may be done in such a way
-      // that they are centered around some arbitrary number other than 0
-
-		// base -100 range 500
-		// center is 200
-		// threshold of 100 is
-      //    100-(-100) (200/range)
-
-		var threshold = (2*(vals.threshold - vals.base)) / vals.range;
-		threshold -= 1.0;
-		// threshold is now -1.0 to 1.0 biased.
-
-		var value = ( 2 * ( vals.value - vals.base ) ) / vals.range;
-		value -= 1.0;
-		// value is now -1.0 to 1.0 biased.
-
-		if( value > 1.0 )
-			value = 1.0;
-		else if( value < -1.0 )
-			value = -1.0;
-
-		if( input < 0 )
-			cPrimary = ColorAverage( c_input[1]
-										  , c_input[0]
-											, -(value * 1000)|0, 1000 );
-		else
-			cPrimary = ColorAverage( c_input[1]
-											, c_input[2]
-									  , (value*1000)|0, 1000 );
-
-		if( threshold )
-			cSecondary = ColorAverage( c_threshold[1],
-									  c_threshold[0],
-										 -(threshold*1000)|0, 1000 );
-		else
-			cSecondary = ColorAverage( c_threshold[1],
-										 c_threshold[2],
-										 (threshold*1000)|0, 1000 );
-		cTertiary = 0; // no other value...
-
-		BlotImageMultiShaded( image
-				, cell //master.getcell(cellx, celly)
+	var from = this.master.getcell( cellx, celly );
+	if( "range" in this.master.image ) {
+		if( neuron.value )
+			surface.drawImage( this.master.image.on, from.coords.x, from.coords.y, from.size.width, from.size.height
 				, x, y
-				, cTertiary, cSecondary, cPrimary );
+				, this.brainboard.board.cellSize.width
+				, this.brainboard.board.cellSize.height  
+			)
+		else
+			surface.drawImage( this.master.image.off, from.coords.x, from.coords.y, from.size.width, from.size.height
+				, x, y
+				, this.brainboard.board.cellSize.width
+				, this.brainboard.board.cellSize.height  
+			)
+
+	} else {
+		if( neuron.value )
+
+		surface.drawImage( this.master.image.on, from.coords.x, from.coords.y, from.size.width, from.size.height
+			, x, y
+			, this.brainboard.board.cellSize.width
+			, this.brainboard.board.cellSize.height  
+		)
+		else
+		surface.drawImage( this.master.image.off, from.coords.x, from.coords.y, from.size.width, from.size.height
+			, x, y
+			, this.brainboard.board.cellSize.width
+			, this.brainboard.board.cellSize.height  
+		)
 	}
+//	BlotImageAlpha( surface
+
+}
 
 NEURON_METHODS.prototype.Update = function(  psv,  cycle )
 	{
@@ -848,73 +833,73 @@ NEURON_METHODS.prototype.Update = function(  psv,  cycle )
 
 NEURON_METHODS.prototype.ConnectEnd = function(  psv_to_instance,  x,  y
 									  ,  peice_from,  psv_from_instance )
+{
+	var n;
+	//if( peice_from == brainboard.NerveMethods )
+	// maybe...
+	var synapse = psv_from_instance;
+	var neuron = psv_to_instance;
+	// validate that peice_from is a nerve_method type
+	for( n = 0; n < 8; n++ )
+		if( DirDeltaMap[n].x == x && DirDeltaMap[n].y == y )
+			break;
+	if( n < 8 )
 	{
-		var n;
-		//if( peice_from == brainboard.NerveMethods )
-		// maybe...
-		var synapse = psv_from_instance;
-		var neuron = psv_to_instance;
-		// validate that peice_from is a nerve_method type
-		for( n = 0; n < 8; n++ )
-			if( DirDeltaMap[n].x == x && DirDeltaMap[n].y == y )
-				break;
-		if( n < 8 )
-		{
-			var success = this.brainboard.brain.LinkSynapseTo( synapse, neuron, n );
-			return success;
-		}
-		return false;
+		var success = this.brainboard.brain.LinkSynapseTo( synapse, neuron, n );
+		return success;
 	}
+	return false;
+}
 
 NEURON_METHODS.prototype.ConnectBegin = function(  psv_to_instance,  x,  y
 									  ,  peice_from,  psv_from_instance )
-	{
-		var n;
-		//if( peice_from == brainboard.NerveMethods )
-		// maybe...
-		var synapse = psv_from_instance;
-		var neuron = psv_to_instance;
-				if( this.brainboard.events["added"] )
-					this.brainboard.events["added"]( synapse );
-		// validate that peice_from is a nerve_method type
-		for( n = 0; n < 8; n++ )
-			if( DirDeltaMap[n].x == x && DirDeltaMap[n].y == y )
-				break;
-		if( n < 8 )
-			return this.brainboard.brain.LinkSynapseFrom( synapse, neuron, n );
-		return false;
-	}
+{
+	var n;
+	//if( peice_from == brainboard.NerveMethods )
+	// maybe...
+	var synapse = psv_from_instance;
+	var neuron = psv_to_instance;
+			if( this.brainboard.events["added"] )
+				this.brainboard.events["added"]( this.brainboard.NervePeice, synapse );
+	// validate that peice_from is a nerve_method type
+	for( n = 0; n < 8; n++ )
+		if( DirDeltaMap[n].x == x && DirDeltaMap[n].y == y )
+			break;
+	if( n < 8 )
+		return this.brainboard.brain.LinkSynapseFrom( synapse, neuron, n );
+	return false;
+}
 NEURON_METHODS.prototype.OnRightClick = function(  psv,  x,  y )
-	{
-		console.log( "Show in info panel?");
-		//ShowNeuronDialog( psv );
-		return 1;
-	}
+{
+	console.log( "Show in info panel?");
+	//ShowNeuronDialog( psv );
+	return 1;
+}
 
 NEURON_METHODS.prototype.OnClick = function(  psv,  x,  y )
+{
+	console.log( ("click on neuron! at %d,%d"), x, y );
+	if( x == 0 && y == 0 )
 	{
-		console.log( ("click on neuron! at %d,%d"), x, y );
-		if( x == 0 && y == 0 )
-		{
-			// this is implied to be the current peice that
-			// has been clicked on...
-			// will receive further OnMove events...
-			this.brainboard.board.LockPeiceDrag();
-			return true;
-		}
-		else
-		{
-			if( !this.brainboard.board.BeginPath( this.brainboard.NervePeice, this.brainboard ) )
-			{
-				// attempt to grab existing path...
-				// current position, and current layer
-				// will already be known by the grab path method
-				//brainboard.board.GrabPath();
-			}
-		}
-		// so far there's nothing on this cell to do....
-		return false;
+		// this is implied to be the current peice that
+		// has been clicked on...
+		// will receive further OnMove events...
+		this.brainboard.board.LockPeiceDrag();
+		return true;
 	}
+	else
+	{
+		if( !this.brainboard.board.BeginPath( this.brainboard.NervePeice, this.brainboard ) )
+		{
+			// attempt to grab existing path...
+			// current position, and current layer
+			// will already be known by the grab path method
+			//brainboard.board.GrabPath();
+		}
+	}
+	// so far there's nothing on this cell to do....
+	return false;
+}
 
 
 //---------------------------------------------------
@@ -1059,19 +1044,19 @@ BackgroundMethods.prototype.OnRightClick = function(  psv,  x,  y )
 				console.log( ("Put neuron peice at %d,%d"), x, y );
 				var newN = brainboard.board.PutPeice( brainboard.NeuronPeice, x, y, 0 );
 				if( brainboard.events["added"] )
-					brainboard.events["added"]( newN );
+					brainboard.events["added"](  brainboard.NeuronPeice,newN );
 				return true;
 			case MNU_ADDOSC:
 				console.log( ("Put osc peice at %d,%d"), x, y );
 				var newN = brainboard.board.PutPeice( brainboard.OscillatorPeice, x, y, 0 );
 				if( brainboard.events["added"] )
-					brainboard.events["added"]( newN );
+					brainboard.events["added"]( brainboard.OscillatorPeice, newN );
 				return true;
 			case MNU_ADDTICKOSC:
 				console.log( ("Put tickosc peice at %d,%d"), x, y );
 				var newN = brainboard.board.PutPeice( brainboard.TickOscillatorPeice, x, y, 0 );
 				if( brainboard.events["added"] )
-					brainboard.events["added"]( newN );
+					brainboard.events["added"]( brainboard.TickOscillatorPeice,newN );
 				return true;
 			case MNU_ZOOM:
 			case MNU_ZOOM+1:

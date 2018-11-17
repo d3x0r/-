@@ -6,7 +6,8 @@ export default function Synapse() {
                 this.output = null;
                 this.gain = 1.0;
 }
-Object.defineProperty(Synapse.prototype, "value", {
+
+                Object.defineProperty(Synapse.prototype, "value", {
                 	get: function() {if( this.input )
                         	return this.gain * this.input.value;
                         return 0;

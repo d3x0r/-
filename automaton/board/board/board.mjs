@@ -1,5 +1,5 @@
 
-import {LINK_VIA_START,LINK_VIA_END,Layer,LayerPool,LayerDataPool} from "./layer.mjs";
+import {LINK_VIA_START,LINK_VIA_END,Layer,LayerPool} from "./layer.mjs";
 
 import * as peices from "./peice.mjs";
 
@@ -10,51 +10,6 @@ const MK_MBUTTON = 4;
 // should be 8 pixels on each and every side
 // these will be the default color (black?)
 const SCREEN_PAD = 8;
-
-// c++ compiler is really kinda fucked isn't it
-// this is the next issue in a large chain of them...
-//   struct { struct { var a, b; }; var c, d; } cannot be initialized
-//   defining a array, and then initializing it later cannot be done.
-//   // maybe that's not the real issue.
-//extern DIR_DELTA DirDeltaMap[8];
-
-// I really do hate having circular dependancies....
-
-//----------------------------------------------------------------------
-
-function UpdateRegion( x, y, wd, ht ) {
-	return {
-		x:x, y:y, wd:wd, ht:ht,
-		add(x,y,w,h) {
-			
-			if( this.wd == 0 && this.ht == 0 )
-			{
-				this.x = x;
-				this.y = y;
-			}
-			if( x < this.x )
-			{
-				this.wd += this.x - x;
-				this.x = x;
-			}
-			if( y < this.y )
-			{
-				this.ht += this.y - y;
-				this.y = y;
-			}
-			if( w > this.wd )
-				this.wd = w;
-			if( h > this.ht )
-				this.ht = h;
-		},
-		flush() {
-			//console.log( "Output this region someehow" );
-		},
-	}
-}
-
-
-
 
 
 export function Board( parent ) {
@@ -113,48 +68,42 @@ export function Board( parent ) {
 			return false;
 		}, false );
 
+	// basic configured size.
 	this.cellSize = { width: 16, height:16 };
 
 	// original cell width/height
 	// cell_width, height are updated to reflect scale
 	this._cell_width = 0;
-        this._cell_height = 0;
+	this._cell_height = 0;
 
-	this.default_peice_instance;
-	this.default_peice;
-	this.OnClose;
+	this.default_peice_instance; // the instance of the background of the board.
+	this.default_peice;  // the background of the board.
+
+	this.OnClose;  // unused; would be a callback for when this is 'closed'
 	this.psvClose;
 
-
-	this.peices = [];
-	this.iTimer; // this is the timer used for board refreshes...
-	this.update = UpdateRegion();
+	this.peices = [];  // array of peice types that this board has created
 
 	this.layerPool = LayerPool();
-	this.layerDataPool = LayerDataPool();
 
 	// current layer which has a mouse event dispatched to it.
 	this.mouse_current_layer;
 	this.route_current_layer;
 	this.move_current_layer;
-	this.mousePos = { x:0, y:0 };
-	this.xStart = 0;
-        this.yStart = 0;
-        this.wX = 0;
-        this.wY = 0;
-	this.board_width = 50;
-        this.board_height = 50;
-	// cached based on current layer definitions...
-	// when layers are updated, this is also updated
-	// when board is scrolled...
-	// it's a fairly tedious process so please keep these
-	// updates down to as little as possible...
-	// I suppose I should even hook into the update of the layer
-	// module to update the current top-level cells on the board.
-	// hmm drawing however is bottom-up, and hmm actually this
-	// is a mouse phenomenon - display is a different basis.
+
+	this.mousePos = { x:0, y:0 }; // physical mouse position on the canvas(broser)
+
+	this.xStart = 0; // Lock position for drag/slide/size
+	this.yStart = 0; // Lock position for drag/slide/size
+		
+    this.wX = 0;  // mouse cell position on the board, last working X
+	this.wY = 0;  // mouse cell position on the board, last working Y
+		
+	this.board_width = 50; // visible size of the board in cell count
+    this.board_height = 50; // visible size of the board in cell count
+
 	this.board_origin_x = 0;
-        this.board_origin_y = 0; // [0][0] == this coordinate.
+    this.board_origin_y = 0; // [0][0] == this coordinate.
 
 	this.flags = {
 		bSliding : 0,
@@ -174,7 +123,6 @@ export function Board( parent ) {
 		 viaset : null,
 		 _x :0, _y:0
 	} ;
-
 
 
 	function Init( board )
@@ -198,7 +146,6 @@ export function Board( parent ) {
 		board.flags.bRightChanged = 0;
 		board.flags.bRight = null;
 		board.layerPool = LayerPool();
-		board.layerDataPool = LayerDataPool();
 
 		board.OnClose = null;
 		//setTimeout( board.BoardRefresh.bind(board), 1000 );
@@ -235,8 +182,11 @@ Board.prototype.DrawLayer = function( layer )
 }
 Board.prototype.reset = function( )
 {
+	this.board_origin_x = 0;
+	this.board_origin_y = 0;
+	
+
 	this.layerPool = LayerPool();
-	this.layerDataPool = LayerDataPool();
 }
 
 
@@ -427,7 +377,6 @@ Board.prototype.PutPeice = function(  peice, x, y, psv )
 	peice.psvCreate = psv; // kinda the wrong place for this but we abused this once upon a time.
 	
 	var pl = new Layer( this, peice, x, y, size.cols, size.rows, hot.x, hot.y );
-	//pl.pLayerData = new(&LayerDataPool) LAYER_DATA(peice);
 	// should be portioned...
 	pl.link_top(this.rootLayer);
 	
@@ -437,10 +386,9 @@ Board.prototype.PutPeice = function(  peice, x, y, psv )
 
 
 var errCount = 0;
-Board.prototype. BoardRefresh = function(  )  // put current board on screen.
+Board.prototype.BoardRefresh = function(  )  // put current board on screen.
 {
 	var x,y;
-	//pImage= pDisplay?GetDisplayImage( pDisplay ):pControl?GetControlSurface( pControl ):null;
 	const ctx = this.ctx;
 	const canvas = this.canvas;
 	
@@ -522,7 +470,7 @@ Board.prototype.DoMouse = function(  X,  Y,  b )
 	{
 		if( !this.route_current_layer )
 		{
-			console.log( ("right at %d,%d"), this.wX, this.wY );
+			//console.log( ("right at %d,%d"), this.wX, this.wY );
 			pld = this.GetLayerDataAt( this.wX, this.wY );
 			if( pld )
 			{
@@ -537,7 +485,6 @@ Board.prototype.DoMouse = function(  X,  Y,  b )
 			}
 		}
 	}
-		
 		
 	if( this.flags.bSliding )
 	{
@@ -566,7 +513,6 @@ Board.prototype.DoMouse = function(  X,  Y,  b )
 	{
 		if( this.flags.bLeft )
 		{
-			//DebugBreak();
 			this.move_current_layer.move( this.wX - this.xStart, this.wY - this.yStart );
 			this.xStart = this.wX;
 			this.yStart = this.wY;
@@ -639,13 +585,13 @@ Board.prototype.DoMouse = function(  X,  Y,  b )
 
 Board.prototype.LockDrag = function( )
 {
-	// this method is for locking the drag on the board...
+	// this method is for locking the SLIDING on the board...
 	// cannot lock if neither button is down...??
 	if( this.flags.bLeft || this.flags.bRight )
 	{
 		this.xStart = this.wX;
 		this.yStart = this.wY;
-		this.flags.bSliding = true;
+		this.flags.bSliding = true; // <<----------
 		if( this.flags.bLeft )
 		{
 			this.flags.bLockRight = false;
@@ -659,16 +605,17 @@ Board.prototype.LockDrag = function( )
 	}
 	//Log( ("Based on current OnMouse cell data message, lock that into cursor move...") );
 }
+
 Board.prototype.LockPeiceDrag = function( )
 {
-	// this method is for locking the drag on the board...
+	// this method is for locking the DRAG on the board...
 	// cannot lock if neither button is down...??
 	if( this.flags.bLeft || this.flags.bRight )
 	{
 		this.xStart = this.wX;
 		this.yStart = this.wY;
-		this.flags.bDragging = true;
-		this.move_current_layer = this.mouse_current_layer;
+		this.flags.bDragging = true;  // <<----------
+		this.move_current_layer = this.mouse_current_layer; // <<----------
 		if( this.flags.bLeft )
 		{
 			this.flags.bLockRight = false;
@@ -682,18 +629,13 @@ Board.prototype.LockPeiceDrag = function( )
 	}
 	//Log( ("Based on current OnMouse cell data message, lock that into cursor move...") );
 }
-
-
 
 Board.prototype.destroy = function()
 {
 	//if( OnClose )
 	//	OnClose( psvClose, this );
 	//RemoveTimer( iTimer );
-	//delete update;
-	//DestroyFrame( &pControl );
 	canvas.remote();
-	
 }
 
 Board.prototype.GetSize = function(  )

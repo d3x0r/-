@@ -114,41 +114,22 @@ export function BrainBoard( _brain, container ) {
 		this.brain = _brain;
 		Init( this );
 
-			
+    //---------------------------------------------------
+	this.reset = function(){
+		//	Init(this) 
+		this.board.SetBackground( this.BackgroundPeice );
+		this.board.reset();
+		this.scale = 0;
+	}
 	
-		//---------------------------------------------------
-        	
-		function FindPeiceMethods( type )
-    	{
-			var methods = null;
-	        if( type === ("neuron") )
-				methods =neuron_methods;
-			else if( type === ("background") )
-        		methods =background_methods;
-			else if( type === ("nerve") )
-	    		methods =nerve_methods;
-			else if( type === ("input") )
-       			methods =input_methods;
-			else if(  type === ("output") )
-               		methods =output_methods;
-			if( methods && methods.master )
-	       	{
-				console.log( ("Peice for methods is already defined... there is a tight relationship between a single graphic and these methods") );
-				//return null;
-       		}
-			return methods;
-	    }
+	this.scale = 0;
 		
-		//---------------------------------------------------
-
-                //---------------------------------------------------
-	this.reset = function(){Init(this) }
-        	
 	function Init( brainshell )
 	{
 		//brainboard = this;
 		//InitCommonControls();
-	        
+			
+		
 		brainshell.InputPeice = null;
 		brainshell.OutputPeice = null;
 
@@ -214,70 +195,9 @@ export function BrainBoard( _brain, container ) {
 			,peices.background.cells.width, peices.background.cells.height 
 			, ((peices.background.cells.width-1)/2)|0, ((peices.background.cells.height-1)/2)|0
 			, brainshell.background_methods
-			);
-			brainshell.board.SetBackground( brainshell.BackgroundPeice );
+		);
+		brainshell.board.SetBackground( brainshell.BackgroundPeice );
 
-		/*
-	        
-		        	PARAM( args, TEXTCHAR *, type );
-                		PARAM( args, uint64_t, cx );
-				PARAM( args, uint64_t, cy );
-                        	PARAM( args, TEXTCHAR *, filename );
-				PPEICE_METHODS methods = FindPeiceMethods( type );
-		        	Image image = LoadImageFile( filename );
-				if( image )
-				{
-					console.log( ("Make block %s : %s"), type, filename );
-					PIPEICE pip = board.CreatePeice( type, image
-													, cx, cy
-													, (cx-1)/2, (cy-1)/2
-													, methods 
-                											, this /* brainboard
-													 );
-		        		console.log( ("Make block %s : %s"), type, filename );
-					if( methods == background_methods )
-					{
-					console.log( ("Make block %s : %s"), type, filename );
-                        		}
-					else if( methods == neuron_methods )
-		        		{
-						NeuronPeice = pip;
-					console.log( ("Make block %s : %s"), type, filename );
-                			}
-					else if( methods == input_methods )
-		        		{
-						InputPeice = pip;
-                			console.log( ("Make block %s : %s"), type, filename );
-					}
-                        		else if( methods == output_methods )
-					{
-		        			OutputPeice = pip;
-					console.log( ("Make block %s : %s"), type, filename );
-					}
-                		}
-				else
-		        		console.log( ("Failed to open %s"), filename );
-			}
-	        
-		
-				PPEICE_METHODS methods = FindPeiceMethods( type );
-                		if( methods == neuron_methods )
-				{
-                        		neuron_methods.SetColors( (int)input_or_threshold, c1, c2, c3 );
-				}
-		        	else if( methods == nerve_methods )
-				{
-					//nerve_methods.SetColors( c1, c2, c3 );
-                		}
-				else if( methods == input_methods )
-		        	{
-					input_methods.SetColors( c1,c2,c3 );
-                		}
-				else if( methods == output_methods )
-                        	{
-					output_methods.SetColors( c1,c2,c3 );
-		        	}
-		*/	        
 	        
 		brainshell.connectors = [];
 		if( !brainshell.menus.length ) {
@@ -1065,8 +985,9 @@ BackgroundMethods.prototype.OnRightClick = function(  psv,  x,  y )
 			case MNU_ZOOM:
 			case MNU_ZOOM+1:
 			case MNU_ZOOM+2:
-			brainboard.board.SetScale( result - MNU_ZOOM );
-			break;
+				brainboard.scale =  result - MNU_ZOOM;
+				brainboard.board.SetScale( result - MNU_ZOOM );
+				break;
 			case MNU_SAVE:
 			{
 							var name = PickBoardName( null, false );
@@ -1178,7 +1099,7 @@ function createPopup() {
 						var r = newItem.getBoundingClientRect();
 						console.log( "Item is clicked show that.", evt.target.value, evt.clientX, evt.clientY );
 
-						newItem.value.show( this.board, evt.clientX, r.top, this.cb );
+						newItem.value.show( this.board, evt.clientX, r.top - 10, this.cb );
 					} );
 					newItem.addEventListener( "mouseout", (evt)=>{
 						var r = newItem.getBoundingClientRect();

@@ -681,12 +681,14 @@ svg.style.width = "25%";
   svg.setAttribute( "viewBox", "0 100 200 50")
 svg.setAttribute( "preserveAspectRatio", "xMaxYMax" );
 
+/*
         newDiv.appendChild( svg = testPanel.runStop() );
         svg.style.verticalAlign="top";
 svg.style.height = "66";
 svg.style.width = "25%";
   svg.setAttribute( "viewBox", "0 100 200 50")
 svg.setAttribute( "preserveAspectRatio", "xMaxYMax" );
+*/
 
         var tmp;
         newDiv.appendChild( tmp = switcher.animator(0.75) );
@@ -929,8 +931,8 @@ function setupToolPanel() {
         var tool;
          tooldiv.appendChild( (tool = shapes.makeNeuron()).on );
          tool.on.addEventListener( "click", ()=>{
-                 var pos = findOpenSpot( 10 - brainBoard.board.board_origin_x
-                        , 10 - brainBoard.board.board_origin_y );
+                 var pos = findOpenSpot( 10 * (1<<brainBoard.scale) - brainBoard.board.board_origin_x
+                        , 10* (1<<brainBoard.scale) - brainBoard.board.board_origin_y );
                  var newN = brainBoard.board.PutPeice( brainBoard.NeuronPeice
                                         , pos.x, pos.y
                                         , 0 );
@@ -948,20 +950,20 @@ function setupToolPanel() {
 
          tooldiv.appendChild( (tool = shapes.makeButtonInput()).on );
          tool.on.addEventListener( "click", ()=>{ 
-                var pos = findOpenSpot( 10 - brainBoard.board.board_origin_x
-                        , 10 - brainBoard.board.board_origin_y );
+                var pos = findOpenSpot( 10 * (1<<brainBoard.scale) - brainBoard.board.board_origin_x
+                        , 10 * (1<<brainBoard.scale) - brainBoard.board.board_origin_y );
                  addButtonInput( 0, pos.x, pos.y )
          })
         tooldiv.appendChild( (tool = shapes.makeLightOutput()).on );
         tool.on.addEventListener( "click", ()=>{
-                var pos = findOpenSpot( 10 - brainBoard.board.board_origin_x
-                        , 10 - brainBoard.board.board_origin_y );
+                var pos = findOpenSpot( 10 * (1<<brainBoard.scale) - brainBoard.board.board_origin_x
+                        , 10  * (1<<brainBoard.scale)- brainBoard.board.board_origin_y );
                 addLightOutput(0, pos.x, pos.y)
         } )
          tooldiv.appendChild( (tool = shapes.makeSliderInput()).on );
          tool.on.addEventListener( "click", ()=>{
-                var pos = findOpenSpot( 10 - brainBoard.board.board_origin_x
-                        , 10 - brainBoard.board.board_origin_y );
+                var pos = findOpenSpot( 10 * (1<<brainBoard.scale) - brainBoard.board.board_origin_x
+                        , 10 * (1<<brainBoard.scale) - brainBoard.board.board_origin_y );
                 var newN = brainBoard.board.PutPeice( brainBoard.sliderInputPeice
                         , pos.x, pos.y
                         , ()=>{

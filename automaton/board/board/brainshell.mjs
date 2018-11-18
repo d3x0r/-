@@ -4,12 +4,14 @@
 const  MNU_ADDCOMPONENT = 2048
 const  MNU_MAXCOMPONENT = MNU_ADDCOMPONENT + 256
 
-const  MNU_SIGMOID    = 1021
 
-const  MNU_ZOOM       = 1010 // 0, 1, 2 used...
-const  MNU_ENDZOOM    = 1020
+const  MNU_ZOOM       = 1020 // 0, 1, 2 used...
+const  MNU_ENDZOOM    = 1030
 
-const  MNU_CLOSE      = 1030
+const  MNU_CLOSE      = 1040
+
+const  MNU_NEURON_DIG = 1013
+const  MNU_SIGMOID    = 1012
 const  MNU_ADDOSC     = 1011
 const  MNU_ADDTICKOSC = 1010
 const  MNU_SYNAPSE    = 1009 
@@ -183,8 +185,10 @@ export function BrainBoard( _brain, container ) {
 
 		var img = document.createElement( "img" );
 		img.src = peices.pathway.image;
-		brainshell.NervePeice = brainshell.board.CreatePeice( "nerve",  img
-			, 7, 7, 0, 0
+		//brainshell.NervePeice = brainshell.board.CreatePeice( "nerve",  img
+		//	, 7, 7, 0, 0
+		//	, brainshell.nerve_methods );
+		brainshell.NervePeice = brainshell.board.CreateVia( "nerve",  img
 			, brainshell.nerve_methods );
 
 		brainshell.BackgroundPeice = null;
@@ -1009,7 +1013,7 @@ BackgroundMethods.prototype.OnRightClick = function(  psv,  x,  y )
 	{
 		this.brainboard.RebuildComponentPopups(this);
 
-		this.brainboard.hMenu.show( this.brainboard.board, x, y, (result)=>{
+		this.brainboard.hMenu.show( this.brainboard.board, this.brainboard.board.mousePos.x, this.brainboard.board.mousePos.y, (result)=>{
 			if( result === undefined ) return; // canceled.
 			//DebugBreak();
 			const brainboard = this.brainboard;
@@ -1170,9 +1174,17 @@ function createPopup() {
 				newItem.className = "popup";
 				if( flags & MF_POPUP ) {
 					value.parent = this;
-					newItem.addEventListener( "click", (evt)=>{
-						console.log( "Item is clicked show that.", evt.target.value );
-						newItem.value.show( this.board, evt.clientX, evt.clientY, this.cb );
+					newItem.addEventListener( "mouseover", (evt)=>{
+						var r = newItem.getBoundingClientRect();
+						console.log( "Item is clicked show that.", evt.target.value, evt.clientX, evt.clientY );
+
+						newItem.value.show( this.board, evt.clientX, r.top, this.cb );
+					} );
+					newItem.addEventListener( "mouseout", (evt)=>{
+						var r = newItem.getBoundingClientRect();
+						console.log( "Item is clicked show that.", evt.target.value, evt.clientX, r.top );
+						if( evt.toElement !== newItem.value.container )		
+							newItem.value.hide();
 					} );
 				} else
 					newItem.addEventListener( "click", (evt)=>{
@@ -1183,7 +1195,7 @@ function createPopup() {
 			}
 		},
 		hide( all ) {
-			this.container.style.visiblity = "hidden";
+			this.container.style.visibility = "hidden";
 			if( this.parent ) {
 				if( all )
 					this.parent.hide( all );
@@ -1196,8 +1208,8 @@ function createPopup() {
 			this.cb = cb;
 			mouseCatcher.style.visibility = "visible"
 			this.container.style.visibility = "inherit";
-			this.container.style.left = board.mousePos.x;
-			this.container.style.top = board.mousePos.y;
+			this.container.style.left = x;
+			this.container.style.top = y;
 		},
 		reset() {
 			console.log( "hide everything?" );	

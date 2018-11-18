@@ -862,12 +862,78 @@ function setupDemo11(  ) {
         addLightOutput( 0, 15, 12 );
 }
 
+function findOpenSpot( x, y ) {
+        function test3x3Layer( ) {
+                var layer;
+                layer = brainBoard.board.GetLayerAt( x, y, null );
+                if( layer ) return layer;
+                layer = brainBoard.board.GetLayerAt( x+1, y, null );
+                if( layer ) return layer;
+                layer = brainBoard.board.GetLayerAt( x-1, y, null );
+                if( layer ) return layer;
+
+                layer = brainBoard.board.GetLayerAt( x, y+1, null );
+                if( layer ) return layer;
+                layer = brainBoard.board.GetLayerAt( x+1, y+1, null );
+                if( layer ) return layer;
+                layer = brainBoard.board.GetLayerAt( x-1, y+1, null );
+                if( layer ) return layer;
+
+                layer = brainBoard.board.GetLayerAt( x, y-1, null );
+                if( layer ) return layer;
+                layer = brainBoard.board.GetLayerAt( x+1, y-1, null );
+                if( layer ) return layer;
+                layer = brainBoard.board.GetLayerAt( x-1, y-1, null );
+                if( layer ) return layer;
+
+                return null;
+        }
+        var layer = test3x3Layer();
+        if( !layer ) return { x:x, y:y};
+        var n, m;
+        for( var m = 1; m < 14; m++ ) {
+                x += 4;
+                y -= 4;
+                var layer = test3x3Layer();
+                if( !layer ) return { x:x, y:y};
+                for( var n = 0; n < m*2; n++ ){
+                        y += 4;
+                        var layer = test3x3Layer();
+                        if( !layer ) return { x:x, y:y};
+                }
+
+                for( var n = 0; n < m*2; n++ ){
+                        x -= 4;
+                        var layer = test3x3Layer();
+                        if( !layer ) return { x:x, y:y};
+                }
+
+                for( var n = 0; n < m*2; n++ ){
+                        y -= 4;
+                        var layer = test3x3Layer();
+                        if( !layer ) return { x:x, y:y};
+                }
+                for( var n = 0; n < m*2-1; n++ ){
+                        x += 4;
+                        var layer = test3x3Layer();
+                        if( !layer ) return { x:x, y:y};
+                }
+                x += 4;
+        }
+        
+        return { x:x, y:y};
+}
+
 function setupToolPanel() {
         var tooldiv = document.getElementById("boardToolsFrame" );
         var tool;
          tooldiv.appendChild( (tool = shapes.makeNeuron()).on );
          tool.on.addEventListener( "click", ()=>{
-                 var newN = brainBoard.board.PutPeice( brainBoard.NeuronPeice, 0, 0, 0 );
+                 var pos = findOpenSpot( 10 - brainBoard.board.board_origin_x
+                        , 10 - brainBoard.board.board_origin_y );
+                 var newN = brainBoard.board.PutPeice( brainBoard.NeuronPeice
+                                        , pos.x, pos.y
+                                        , 0 );
                  if( brainBoard.events["added"] )
                         brainBoard.events["added"]( brainBoard.NeuronPeice,newN );
          })
@@ -877,17 +943,30 @@ function setupToolPanel() {
                 neuronTable.clear();
                 brainBoard.reset()
          })
-         tooldiv.appendChild( (shapes.makePowerOutput()).on );
+
+         //tooldiv.appendChild( (shapes.makePowerOutput()).on );
 
          tooldiv.appendChild( (tool = shapes.makeButtonInput()).on );
-         tool.on.addEventListener( "click", ()=>{ addButtonInput( 0, 2, 4 ) })
+         tool.on.addEventListener( "click", ()=>{ 
+                var pos = findOpenSpot( 10 - brainBoard.board.board_origin_x
+                        , 10 - brainBoard.board.board_origin_y );
+                 addButtonInput( 0, pos.x, pos.y )
+         })
         tooldiv.appendChild( (tool = shapes.makeLightOutput()).on );
-        tool.on.addEventListener( "click", ()=>{addLightOutput(0,15,4)} )
+        tool.on.addEventListener( "click", ()=>{
+                var pos = findOpenSpot( 10 - brainBoard.board.board_origin_x
+                        , 10 - brainBoard.board.board_origin_y );
+                addLightOutput(0, pos.x, pos.y)
+        } )
          tooldiv.appendChild( (tool = shapes.makeSliderInput()).on );
          tool.on.addEventListener( "click", ()=>{
-                var newN = brainBoard.board.PutPeice( brainBoard.sliderInputPeice, 0, 0, ()=>{
-                        //console.log( "Get External" );
-                        return 1-activators[2].getValue();
+                var pos = findOpenSpot( 10 - brainBoard.board.board_origin_x
+                        , 10 - brainBoard.board.board_origin_y );
+                var newN = brainBoard.board.PutPeice( brainBoard.sliderInputPeice
+                        , pos.x, pos.y
+                        , ()=>{
+                                //console.log( "Get External" );
+                                return 1-activators[2].getValue();
                 } );
                 if( brainBoard.events["added"] )
                        brainBoard.events["added"]( brainBoard.sliderInputPeice,newN );

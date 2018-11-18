@@ -64,7 +64,7 @@ export function createPeice(  board,  name //= "A Peice"
 							 ,  psv
 							 ) 
 {
-	var peice = new Peice( board, name, image, rows, cols, hotspot_x, hotspot_y, TRUE, FALSE, methods, psv );
+	var peice = new Peice( board, name, image, rows, cols, hotspot_x, hotspot_y, true, false, methods, psv );
 	return peice; // should be able to auto cast this...
 }
 
@@ -79,16 +79,16 @@ export function Peice( board
 	,  cols// = 1
 	,  hotx //= 0//(cols-1)/2
 	,  hoty //= 0//(rows-1)/2
-  ,  bBlock// = 0
+	,  bBlock// = 0
 	,  bVia //= 0
-  ,  methods //= null
-  ,  psv //= 0
+	,  methods //= null
+	,  psv //= 0
   )
 {
 
 
 if( !(this instanceof Peice ) ) return new Peice( board,name,image,rows,cols,hotx,hoty,bBlock,bVia, methods,psv)
-console.trace( image );
+//console.trace( image );
 this.flags =  {
    block:0,
    viaset:0,
@@ -129,13 +129,13 @@ if( image )
 		var wrapper;// = document.createElement( "div" );
 		//wrapper.appendChild( image );
 		function convert(image) {
-			var svghtml = image.outerHTML;
-			svghtml =[ svghtml.slice( 0, 5 ), "xmlns='http://www.w3.org/2000/svg' ", svghtml.slice( 5 ) ].join("");
-
-			var svg = "data:image/svg+xml" /*+ ";base64"*/ + "," + encodeURI( svghtml )
+			var svghtml = new XMLSerializer().serializeToString(image);//image.outerHTML;
+			//svghtml =[ svghtml.slice( 0, 5 ), "xmlns='http://www.w3.org/2000/svg' ", svghtml.slice( 5 ) ].join("");
+			var svg = "data:image/svg+xml" /*+ ";base64"*/ + "," + encodeURI( svghtml ).replace( /\#/g, "%23" );
 			wrapper = document.createElement( "img" );
-			wrapper.width = 1024;
-			wrapper.height = 1024;
+			wrapper.width = image.getAttribute( "width");
+			wrapper.height = image.getAttribute( "height");
+			//console.log( "choppinw with:", wrapper.width, wrapper.height )
 			wrapper.src = svg;
 			return wrapper;
 		}
@@ -226,7 +226,7 @@ export function Via(board
   , psv //= 0
 ) 
 {
-	debugger;
+	Peice.call( this, board, name, image, 7, 7, 0, 0, false, true, methods, psv );
 };
 
 Via.prototype = new Object( Peice.prototype );
@@ -582,16 +582,6 @@ DefaultViaMethods.prototype.OnRightClick = function(  psv,  x,  y )
 DefaultViaMethods.prototype.OnDoubleClick = function(  psv,  x,  y )
 {
 	return 0;
-}
-
-
-export function createVia( board, name //= WIDE("A Peice")
-											 , image //= null
-											 , methods //= null
-											 , psv
-											 )
-{
-	return new Via( board, name, image, methods, psv );
 }
 
 

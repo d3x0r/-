@@ -77,8 +77,8 @@
 	}
  function makeOneNeuron() {
 	var svg = document.createElementNS( "http://www.w3.org/2000/svg","svg" );
-	svg.style.width = 66;
-	svg.style.height = 66;
+	svg.setAttribute( "width", 66 );
+	svg.setAttribute( "height", 66 );
 	svg.setAttribute( "viewBox", "-2 -2 68 68")
 	svg.innerHTML = `
 		<defs>
@@ -99,7 +99,7 @@
 		<circle style="fill: url(&quot;#gradient-4&quot;);" cx="32" cy="32"  r="30" transform="matrix(1.00693, 0, 0, 0.99307, -0.224218, 0.3336)"></circle>
 	`;
 	svg.setColor = function( c ) {
-		var color = svg.querySelector( "[ID='nodeColor']");
+		var color = svg.children.nodeColor;
 		if( color ){
 			color.style.fill = c;
 		}
@@ -110,9 +110,9 @@
 
 export function makeTrash() {
 			var svg = document.createElementNS( "http://www.w3.org/2000/svg","svg" );
-	svg.style.width = 66;
-	svg.style.height = 66;
-	svg.setAttribute( "viewBox", "100 -5 130 170")
+			svg.setAttribute( "width", 66 );
+			svg.setAttribute( "height", 66 );
+			svg.setAttribute( "viewBox", "100 -5 130 170")
 			svg.innerHTML = `   
 				<ellipse cx="164.18392" cy="128.5" fill="#ffffff" id="svg_26" rx="41.17323" ry="12" stroke="#7f7f7f" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="6"/>
 				<ellipse cx="164.18392" cy="123.5" fill="#ffffff" id="svg_27" rx="41.17323" ry="12" stroke="#ffffff" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="6"/>
@@ -177,9 +177,9 @@ export function makePowerBolt() {
 	
 		var svg = document.createElementNS( "http://www.w3.org/2000/svg","svg" );
 
-		svg.style.width = 66;
-		svg.style.height = 66;
-		svg.setAttribute( "viewBox", "0 0 110 110")
+		svg.setAttribute( "width", 66 );
+		svg.setAttribute( "height", 66 );
+			svg.setAttribute( "viewBox", "0 0 110 110")
 	
 		svg.innerHTML = getPowerBolt()
 		return svg;
@@ -187,8 +187,8 @@ export function makePowerBolt() {
 
 export function makeNode( extra ) {
 	var svg = document.createElementNS( "http://www.w3.org/2000/svg","svg" );
-	svg.style.width = 66;
-	svg.style.height = 66;
+	svg.setAttribute( "width", 66 );
+	svg.setAttribute( "height", 66 );
 	svg.setAttribute( "viewBox", "-10 0 150 150")
 	svg.innerHTML = `
 				<defs>
@@ -213,13 +213,13 @@ export function makeNode( extra ) {
 			-->
 		` + (extra?extra():"")  ;
 	svg.setColor = function(c) {
-		var color = svg.querySelector( "[ID='nodeColor']");
+		var color = svg.children.nodeColor;
 		if( color ){
 			color.style.fill = c;
 		}
 	}
 	svg.setIconColor = function(c) {
-		var color = svg.querySelector( "[ID='iconColor']");
+		var color = svg.children.iconColor;
 		if( color ){
 			color.style.fill = c;
 			color.style.stroke = c;
@@ -232,8 +232,8 @@ export function makeNode( extra ) {
 
 export function makeSlider() {
 	var svg = document.createElementNS( "http://www.w3.org/2000/svg","svg" );
-	svg.style.width = 166;
-	svg.style.height = 250;
+	svg.setAttribute( "width", 166 );
+	svg.setAttribute( "height",250 );
 	svg.setAttribute( "viewBox", "-10 0 150 220")
 	svg.innerHTML = `
 		<defs>

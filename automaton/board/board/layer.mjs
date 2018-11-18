@@ -149,7 +149,7 @@ export function Layer( board, peice,  _x,  _y, _w,  _h,  ofsx,  ofsy )
 			newLayerPathNode.cellx = x;
 			newLayerPathNode.celly = y;
 			this.pds_path.push( newLayerPathNode );
-			this.board.addLayerPathNode( newLayerPathNode );
+			//this.board.addLayerPathNode( newLayerPathNode );
 		}
 	}
 }

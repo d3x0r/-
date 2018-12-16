@@ -1,0 +1,28 @@
+{
+  "name": "card-display-quick-start",
+  "version": "1.0.0",
+  "description": "Display some cards",
+  "main": "main.js",
+  "scripts": {
+    "start": "c:/general/extra/electron/electron main.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/atom/electron-quick-start.git"
+  },
+  "keywords": [
+    "Electron",
+    "quick",
+    "start",
+    "tutorial"
+  ],
+  "author": "GitHub",
+  "license": "CC0-1.0",
+  "bugs": {
+    "url": "https://github.com/atom/electron-quick-start/issues"
+  },
+  "homepage": "https://github.com/atom/electron-quick-start#readme",
+  "devDependencies": {
+    "electron-prebuilt": "^0.36.0"
+  }
+}

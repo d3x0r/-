@@ -30,13 +30,13 @@ export default function Brain() {
 			else
 				roots.forEach( n=>n.value );
 		},
-		DupNeuron(n){
+		dupNeuron(n){
 			var newN = n.clone();
 			neurons.push( newN );
 			return newN;
 
 		},
-		DupSynapse(s) {
+		dupSynapse(s) {
 			return s.clone();
 		},
 		UnLinkSynapse( synapse ){

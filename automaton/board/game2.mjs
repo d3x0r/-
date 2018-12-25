@@ -2,6 +2,8 @@
 import Brain from "./brain/brain.mjs";
 import {Neuron} from "./brain/neuron.mjs";
 import {BrainBoard} from "./board/brainshell.mjs"
+import { NaturalControls } from "./NaturalCamera.mjs"
+import * as THREE from "./three.js/build/three.module.mjs"
 
 import * as switcher from "./switcher.mjs";
 import * as testPanel from "./testPanel.mjs";
@@ -984,10 +986,18 @@ function setupToolPanel() {
 }
 
 setupToolPanel();
-
-testTestPanel();
+var viewer = setupWorldView();
+//testTestPanel();
+	var clock = new THREE.Clock()
 
 function animate() {
+
+	var delta = clock.getDelta();
+
+	viewer.renderer.clear();
+	viewer.renderer.render( viewer.scene, viewer.camera );
+	viewer.controls.update(delta);
+
         brainBoard.board.BoardRefresh();
         requestAnimationFrame(animate);
 }
@@ -1028,7 +1038,7 @@ function setPage( newPage )
 		 	return;
 		}
         }
-        testControl.reset()
+        testControl && testControl.reset()
 	gameState.journalState = newPage;
 
 	gameState.progressLocked = journal[gameState.journalState].locked || false;
@@ -1049,6 +1059,80 @@ function setupLightOutput() {
 	
 }
 
+
+function setupWorldView() {
+	var viewer = {
+		canvas: document.getElementById( "worldView" ),
+		renderer : null,
+		scene : new THREE.Scene(),
+		camera : null,
+		controls : null,
+	};
+		viewer.renderer = new THREE.WebGLRenderer( { canvas: viewer.canvas } );
+
+		viewer.camera = new THREE.PerspectiveCamera( 75, viewer.canvas.width / viewer.canvas.height, 0.001, 10000 );
+
+		viewer.camera.matrixAutoUpdate = false;
+		//viewer.camera.position.z = 15;
+		//viewer.camera.matrix.rotateRelative( 0.19229568617010028,-0.9214720761189179, 0 );
+		//viewer.camera.matrix.rotateRelative( 0.19229568617010028,-0.2914720761189179, 0 );
+		//viewer.camera.matrix.rotateRelative( 0.19229568617010028, 0, 0 );
+		//viewer.camera.matrix.rotateRelative( 0.19229568617010028, 0, 0 );
+
+
+		var quat = new THREE.Quaternion(  -0.2438506107593719,  -0.5903994136453138,  -0.1933228014193038,  0.7447091421830025 );
+		viewer.camera.matrix.makeRotationFromQuaternion( quat );
+
+		viewer.camera.matrix.origin.x = -5.72860527740503;
+		viewer.camera.matrix.origin.y = 5.263398318042513;
+		viewer.camera.matrix.origin.z =  4.793901205658764;
+//		viewer.camera.matrix.rotateRelative( 0.19229568617010028,-0.2914720761189179, 0 );
+//		viewer.camera.matrix.rotateRelative( 0.19229568617010028,-0.2914720761189179, 0 );
+//		viewer.camera.matrix.rotateRelative( 0.19229568617010028,-0.2914720761189179, 0 );
+//		viewer.camera.matrix.rotateRelative( 0.19229568617010028,-0.2914720761189179, 0 );
+//		viewer.camera.matrix.rotateRelative( 0.19229568617010028,-0.2914720761189179, 0 );
+
+		viewer.camera.matrixWorldNeedsUpdate = true;
+
+		 // for phong hello world test....
+ 		var light = new THREE.PointLight( 0xffFFFF, 1, 10000 );
+ 		light.position.set( 0, 0, 1000 );
+ 		viewer.scene.add( light );
+		
+		 //initVoxelarium();
+
+
+		//viewer.renderer.setSize( window.innerWidth, window.innerHeight );
+
+		//document.body.appendChild( renderer.domElement );
+
+		var controlNatural = new NaturalControls( viewer.camera, viewer.renderer.domElement );
+		controlNatural.enable( );
+
+		//controlOrbit = new THREE.OrbitControls( camera, renderer.domElement );
+		//controlOrbit.enable();
+
+		viewer.controls = controlNatural;
+
+var objectLoader = new THREE.ObjectLoader();
+//var objectLoader = new ObjLoader2();
+//var objectLoader = new THREE.OBJLoader();
+//var objectLoader = new THREE.OBJLoader2();
+objectLoader.load("models/demoScene1.json", (model)=>{
+	console.log( "Loaded spider" );
+	viewer.scene.add( model );
+});
+objectLoader.load("models/spider.json", (model)=>{
+	console.log( "Loaded spider" );
+	viewer.scene.add( model );
+});
+objectLoader.load("models/aphod.json", (model)=>{
+	console.log( "Loaded aphod" );
+	viewer.scene.add( model );
+});
+
+	return viewer;
+}
 
 function setupNeuronTable( table ) {
 	var itemMap = new WeakMap();

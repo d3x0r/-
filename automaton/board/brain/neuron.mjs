@@ -1,35 +1,66 @@
 "use strict"
 
+const MAX_OUTPUT_VALUE = 1.0;
+
 export function Neuron(brain) {
 	if( !(this instanceof Neuron)) return new Neuron(this);
 	
 	this.brain = brain;
 	this.threshold = 0.5;
+	this.algorithm = 0;
+	this.k = 0.2;
 	this.input = 0;
 	this.on = false;
 	this.cycle = brain.cycle-1;
-	this. type = "Neuron";
-    this. inputs = [],
-	this. outputs = [];
+	this.type = "Neuron";
+	this.inputs = [],
+	this.outputs = [];
 }
 
+Neuron.algo = {
+	digital : 0,
+	analog : 1,
+	sigmoid : 2,
+};
+Object.seal( Neuron.algo );
+
 Neuron.prototype.clone= function(){
-			var newNeuron = new Neuron( this.brain );
-			newNeuron.threshold = this.threshold;
-			newNeuron.cycle = this.cycle;
-			newNeuron.type = this.type;
-			return newNeuron;
-		}
-		Neuron.prototype.output= function(n) {
-			return n - this.threshold;
-		}
-		Object.defineProperty(Neuron.prototype, "value", {
-			get: cb,
-			//set: function(y) { this.setFullYear(y) }
-		  });
+	var newNeuron = new Neuron( this.brain );
+	newNeuron.threshold = this.threshold;
+	newNeuron.cycle = this.cycle;
+	newNeuron.type = this.type;
+	return newNeuron;
+}
+
+Neuron.prototype.output= function(n) {
+	switch( this.algorithm ) {
+	case Neuron.algo.analog:
+		var out = n - this.threshold;
+		if( out > MAX_OUTPUT_VALUE ) out = MAX_OUTPUT_VALUE;
+		if( out < 0 ) out = 0;
+		return out;
+	case Neuron.algo.digital:
+		if( n > this.threshold )
+			return MAX_OUTPUT_VALUE;
+		return 0;
+	case Neuron.algo.sigmoid:
+		 var out = (MAX_OUTPUT_VALUE/(1+Math.exp( -this.k * (n-this.threshold))));
+                 if( out <= 0 )
+                    out = 0;  // trim bottom portion...
+                 else 
+                    if( out > MAX_OUTPUT_VALUE )
+                       out = MAX_OUTPUT_VALUE; 
+		return out;
+	}
+}
+
+Object.defineProperty(Neuron.prototype, "value", {
+	get: cb,
+	//set: function(y) { this.setFullYear(y) }
+});
 	  
         function cb() {
-			var inputs = 0;
+		var inputs = 0;
            	if( this.cycle != this.brain.cycle ) {
 				this.cycle = this.brain.cycle;
 				this.input = this.inputs.reduce( (inputs,inp)=>inputs + (inp?inp.value:0), 0 );
@@ -40,70 +71,71 @@ Neuron.prototype.clone= function(){
 			}
 			this.on = false;
 			return 0;
-		}
-		Neuron.prototype.attachSynapse= function( specific ) {
-			if( specific !== undefined )
-				return { nerves: this.inputs, id: specific }
-			return { nerves: this.inputs, id: this.inputs.length };
-		}
-		Neuron.prototype.attachSynapseFrom= function( specific ) {
-			if( specific !== undefined )
-				return { nerves: this.outputs, id: specific }
-			return { nerves: this.outputs, id: this.outputs.length };
-		}
-		Neuron.prototype.detachSynapse= function( s ) {
-			var id = this.inputs.findIndex( input=>input === s );
-			if( id >= 0 )
-				this.inputs[id] = null;
-		}
-		Neuron.prototype.detachSynapseFrom= function( s ) {
-			var id = this.outputs.findIndex( output=>output === s );
-			if( id >= 0 )
-				this.outputs[id] = null;
-		}
-		Neuron.prototype.attach= function( other ) {
-			var synapse = this.brain.Synapse();
-			this.inputs.push( synapse );
-			other.outputs.push( synapse );
-			synapse.input = other;
-			synapse.output = this;
-			this.brain.changed = true;
-			return synapse;
-		}
+	}
 
-		Neuron.prototype.detach= function( other ) {
-			if( other ) {
-				var index;
-				var synapse;
-				index = this.inputs.findIndex( s=>(s.input === other)?true:false );
-				if( index < 0 ) {
-					index = this.outputs.findIndex( s=>(s.output === other )?true:false );
-					if( index >= 0 ) {
-						synapse = this.outputs[index];
-						this.outputs.splice( index, 1 );
-						synapse.output.inputs.find( (s,idx)=>{ if( s === synapse ) {
-								synapse.output.inputs.splice( idx, 1 );
-								return true;
-							} else return false; 
-						} );
-					}
-				} else {
-					synapse = this.inputs[index];
-					this.inputs.splice( index, 1 );
-					synapse.input.outputs.find( (s,idx)=>{ if( s === synapse ) {
-							synapse.input.outputs.splice( idx, 1 );
-							return true;
-						} else return false; 
-					} );
-				}
-			} else {
-				while( this.inputs.length )
-					this.detach( this.inputs[0].input );
-				while( this.outputs.length )
-					this.detach( this.outputs[0].output );
+Neuron.prototype.attachSynapse= function( specific ) {
+	if( specific !== undefined )
+		return { nerves: this.inputs, id: specific }
+	return { nerves: this.inputs, id: this.inputs.length };
+}
+Neuron.prototype.attachSynapseFrom= function( specific ) {
+	if( specific !== undefined )
+		return { nerves: this.outputs, id: specific }
+	return { nerves: this.outputs, id: this.outputs.length };
+}
+Neuron.prototype.detachSynapse= function( s ) {
+	var id = this.inputs.findIndex( input=>input === s );
+	if( id >= 0 )
+		this.inputs[id] = null;
+}
+Neuron.prototype.detachSynapseFrom= function( s ) {
+	var id = this.outputs.findIndex( output=>output === s );
+	if( id >= 0 )
+		this.outputs[id] = null;
+}
+Neuron.prototype.attach= function( other ) {
+	var synapse = this.brain.Synapse();
+	this.inputs.push( synapse );
+	other.outputs.push( synapse );
+	synapse.input = other;
+	synapse.output = this;
+	this.brain.changed = true;
+	return synapse;
+}
+
+Neuron.prototype.detach= function( other ) {
+	if( other ) {
+		var index;
+		var synapse;
+		index = this.inputs.findIndex( s=>(s.input === other)?true:false );
+		if( index < 0 ) {
+			index = this.outputs.findIndex( s=>(s.output === other )?true:false );
+			if( index >= 0 ) {
+				synapse = this.outputs[index];
+				this.outputs.splice( index, 1 );
+				synapse.output.inputs.find( (s,idx)=>{ if( s === synapse ) {
+						synapse.output.inputs.splice( idx, 1 );
+						return true;
+					} else return false; 
+				} );
 			}
-			this.brain.changed = true;
+		} else {
+			synapse = this.inputs[index];
+			this.inputs.splice( index, 1 );
+			synapse.input.outputs.find( (s,idx)=>{ if( s === synapse ) {
+					synapse.input.outputs.splice( idx, 1 );
+					return true;
+				} else return false; 
+			} );
 		}
+	} else {
+		while( this.inputs.length )
+			this.detach( this.inputs[0].input );
+		while( this.outputs.length )
+			this.detach( this.outputs[0].output );
+	}
+	this.brain.changed = true;
+}
 
 //-------------------------------------------------------------------------------
 
@@ -212,3 +244,12 @@ Exporter.prototype.clone = function() {
 }
 
 //-------------------------------------------------------------------------------
+
+export default {
+	Neuron: Neuron,
+	Oscillator : Oscillator,
+	TickOscillator : TickOscillator,
+	External:External,
+	Exporter:Exporter,
+	
+}

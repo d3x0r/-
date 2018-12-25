@@ -166,10 +166,13 @@ export function BrainBoard( _brain, container ) {
 
 		var img = document.createElement( "img" );
 		img.src = peices.pathway.image;
+
+		var imgNeg = document.createElement( "img" );
+		imgNeg.src = peices.pathway.imageNeg;
 		//brainshell.NervePeice = brainshell.board.CreatePeice( "nerve",  img
 		//	, 7, 7, 0, 0
 		//	, brainshell.nerve_methods );
-		brainshell.NervePeice = brainshell.board.CreateVia( "nerve",  img
+		brainshell.NervePeice = brainshell.board.CreateVia( "nerve",  img, imgNeg
 			, brainshell.nerve_methods );
 
 		brainshell.BackgroundPeice = null;
@@ -257,7 +260,11 @@ export function BrainBoard( _brain, container ) {
 	}
 
 }
-                     
+        
+BrainBoard.prototype.select= function( n ) {
+	this.board.select( n );
+}
+             
 BrainBoard.prototype.addEventListener = function(name,cb) {
 	this.events[name] = cb;
 }
@@ -428,7 +435,7 @@ NERVE_METHODS.prototype.constructor = NERVE_METHODS;
 
 NERVE_METHODS.prototype.Create = function( psvExtra )
 {
-	return this.brainboard.brain.DupSynapse( this.brainboard.DefaultSynapse );
+	return this.brainboard.brain.dupSynapse( this.brainboard.DefaultSynapse );
 }
 NERVE_METHODS.prototype.Destroy = function(  psv )
 {
@@ -444,6 +451,46 @@ NERVE_METHODS.prototype.OnRightClick = function(  psv,  x,  y )
 	console.log( "Show Synapse in Statuses" );
 	//ShowSynapseDialog( (PSYNAPSE)psv );
 	return 1;
+}
+
+NERVE_METHODS.prototype.DrawCell = function(  peice, psvInstance,  surface,  from, x,  y )
+{
+	//console.log( ("---------- DRAW NEURON ------------") );
+
+	var synapse = psvInstance;
+
+	//var from = this.master.getcell( cellx, celly );
+	if( "range" in this.master.image ) {
+		if( synapse.gain >= 0 )
+			surface.drawImage( this.master.image.on, from.coords.x, from.coords.y, from.size.width, from.size.height
+				, x, y
+				, this.brainboard.board.cellSize.width
+				, this.brainboard.board.cellSize.height  
+			)
+		else
+			surface.drawImage( this.master.image.off, from.coords.x, from.coords.y, from.size.width, from.size.height
+				, x, y
+				, this.brainboard.board.cellSize.width
+				, this.brainboard.board.cellSize.height  
+			)
+
+	} else {
+		if( synapse.gain >= 0 )
+
+		surface.drawImage( this.master.image.on, from.coords.x, from.coords.y, from.size.width, from.size.height
+			, x, y
+			, this.brainboard.board.cellSize.width
+			, this.brainboard.board.cellSize.height  
+		)
+		else
+		surface.drawImage( this.master.image.off, from.coords.x, from.coords.y, from.size.width, from.size.height
+			, x, y
+			, this.brainboard.board.cellSize.width
+			, this.brainboard.board.cellSize.height  
+		)
+	}
+//	BlotImageAlpha( surface
+
 }
 
 
@@ -567,7 +614,7 @@ OUTPUT_METHODS.prototype.Create = function(  psvExtra )
 	var poi = psvExtra;
 
 	poi.neuron = this.brainboard.brain.GetOutputNeuron( poi.conn );
-	//DupNeuron( brainboard.DefaultNeuron ))
+	//dupNeuron( brainboard.DefaultNeuron ))
 
 	return psvExtra; // still not the real create...  but this is psviNstance...
 	//return poi.neuron; // still not the real create...  but this is psviNstance...
@@ -697,18 +744,20 @@ NEURON_METHODS.prototype.SetColors = function( bInput,  c1,  c2,  c3 )
 			this.c_threshold[2] = c3;
 		}
 	}
+
 NEURON_METHODS.prototype.Create = function(  psvExtra )
-	{
-		console.log( "Creating a new neuron (peice instance)");
-		return this.brainboard.brain.DupNeuron( this.brainboard.DefaultNeuron );
-	}
+{
+	console.log( "Creating a new neuron (peice instance)");
+	return this.brainboard.brain.dupNeuron( this.brainboard.DefaultNeuron );
+}
+
 NEURON_METHODS.prototype.Destroy = function(  psv )
-	{
+{
       this.brainboard.brain.ReleaseNeuron( psv );
-	}
+}
 	
 
-NEURON_METHODS.prototype.DrawCell = function(  peice, psvInstance,  surface,  cellx, celly, x,  y )
+NEURON_METHODS.prototype.DrawCell = function(  peice, psvInstance,  surface,  from, x,  y )
 {
 	//console.log( ("---------- DRAW NEURON ------------") );
 
@@ -716,7 +765,7 @@ NEURON_METHODS.prototype.DrawCell = function(  peice, psvInstance,  surface,  ce
 		//var base,range,value,input,threshold;
 	var neuron = psvInstance;
 
-	var from = this.master.getcell( cellx, celly );
+	//var from = this.master.getcell( cellx, celly );
 	if( "range" in this.master.image ) {
 		if( neuron.value )
 			surface.drawImage( this.master.image.on, from.coords.x, from.coords.y, from.size.width, from.size.height
@@ -802,6 +851,8 @@ NEURON_METHODS.prototype.OnRightClick = function(  psv,  x,  y )
 
 NEURON_METHODS.prototype.OnClick = function(  psv,  x,  y )
 {
+	if( this.brainboard.events["select"] )
+		this.brainboard.events["select"]( psv );
 	console.log( ("click on neuron! at %d,%d"), x, y );
 	if( x == 0 && y == 0 )
 	{

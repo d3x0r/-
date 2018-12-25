@@ -96,14 +96,14 @@ export function Board( parent ) {
 	this.xStart = 0; // Lock position for drag/slide/size
 	this.yStart = 0; // Lock position for drag/slide/size
 		
-    this.wX = 0;  // mouse cell position on the board, last working X
+	this.wX = 0;  // mouse cell position on the board, last working X
 	this.wY = 0;  // mouse cell position on the board, last working Y
 		
 	this.board_width = 50; // visible size of the board in cell count
-    this.board_height = 50; // visible size of the board in cell count
+	this.board_height = 50; // visible size of the board in cell count
 
 	this.board_origin_x = 0;
-    this.board_origin_y = 0; // [0][0] == this coordinate.
+	this.board_origin_y = 0; // [0][0] == this coordinate.
 
 	this.flags = {
 		bSliding : 0,
@@ -124,6 +124,7 @@ export function Board( parent ) {
 		 _x :0, _y:0
 	} ;
 
+	this.selected = null;
 
 	function Init( board )
 	{
@@ -156,6 +157,11 @@ export function Board( parent ) {
 	Init( this );
 }
 
+Board.prototype.select = function(n) {
+	this.selected = n;
+	this.BoardRefresh();
+}
+
 Board.prototype.GetCellSize = function(  )  {
 	return this.cellSize;
 }
@@ -175,6 +181,9 @@ Board.prototype.SetCellSize = function( cx,  cy )
 	
 Board.prototype.DrawLayer = function( layer )
 {
+	if( this.selected == layer.psvInstance ) {
+		this.ctx.fillStyle = "#20c01040";
+	}
 	layer.Draw( this, this.ctx
 		, SCREEN_PAD + ( this.board_origin_x + (layer.x) ) * this.cellSize.width
 		, SCREEN_PAD + ( this.board_origin_y + (layer.y) ) * this.cellSize.height
@@ -564,7 +573,7 @@ Board.prototype.DoMouse = function(  X,  Y,  b )
 			}
 			else if( this.default_peice )
 			{
-				console.log( ("Default peice click.") );
+				//click on the background.
 				this.default_peice.methods.OnClick(null,this.wX,this.wY);
 			}
 		}
@@ -663,11 +672,12 @@ Board.prototype.CreatePeice = function(  name //= ("A Peice")
 
 Board.prototype.CreateVia = function( name //= ("A Peice")
 											,  image //= null
+											, imageNeg
 											,  methods //= null
 											,  psv
 											)
 {
-	var via = new peices.Via( this, name, image, methods, psv );
+	var via = new peices.Via( this, name, image, imageNeg, methods, psv );
 	this.peices.push( via );
 	return via;
 }

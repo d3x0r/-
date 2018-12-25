@@ -26,6 +26,7 @@ export default {
    ,pathway : { 
 		cells : { width : 7, height:7}
 		, image : "board/images/AlphaNerves.png"
+		, imageNeg : "board/images/AlphaNerves-neg.png"
 	}
 }
 

@@ -293,12 +293,14 @@ Layer.prototype.IsLayerAt = function( _x, _y ) {
 					//console.log( ("Drawing route path node %p %d,%d  %d,%d")
 					//		 , node, node.x, node.y
 					//		 , node.flags.ForeDir, node.flags.BackDir );
+					if( board.selected === this.psvInstance )
+						ctx.fillRect( x + (node.x) * cell.width, y + (node.y) * cell.height, cell.width, cell.height );
 					fill = viaset.GetViaFromTo( node.flags.BackDir, node.flags.ForeDir, scale );
 					if( fill )
 					{
 						this.peice.methods.DrawCell( this.peice, this.psvInstance
 										 , ctx
-										 , fill.coords.x, fill.coords.y
+										 , fill
 										 , x + (node.x) * cell.width
 										 , y + (node.y) * cell.height );
 		        
@@ -310,7 +312,7 @@ Layer.prototype.IsLayerAt = function( _x, _y ) {
 					{
 						this.peice.methods.DrawCell( this.peice, this.psvInstance
 										 , ctx
-										 , fill.cell.coords.x, fill.cell.coords.y
+										 , fill.cell
 										 , x + (node.x + fill.x) * cell.width
 										 , y + (node.y + fill.y) * cell.height );
 					}
@@ -321,7 +323,7 @@ Layer.prototype.IsLayerAt = function( _x, _y ) {
 					{
 						this.peice.methods.DrawCell( this.peice, this.psvInstance
 										 , ctx
-										 , fill.cell.coords.x, fill.cell.coords.y
+										 , fill.cell
 										 , x + (node.x + fill.x) * cell.width
 										 , y + (node.y + fill.y) * cell.height );
 		        
@@ -347,11 +349,14 @@ Layer.prototype.IsLayerAt = function( _x, _y ) {
 					for( xofs = -hot.x; xofs < (size.cols-hot.x); xofs++ )
 						for( yofs = -hot.y; yofs < (size.rows-hot.y); yofs++ )
 						{
+							var from = this.peice.methods.master.getcell( xofs+hot.x, yofs+hot.y );
+							if( board.selected === this.psvInstance )
+								ctx.fillRect( x + (xofs) * cell.width, y + (yofs) * cell.height, cell.width, cell.height );
 							this.peice.methods.DrawCell( 
 											this.peice
 											, this.psvInstance
 											 , ctx
-											  , xofs+hot.x, yofs+hot.y
+											  , from
 											  , x + xofs * cell.width
 											  , y + yofs * cell.height );
 						}

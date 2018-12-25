@@ -93,7 +93,6 @@ this.flags =  {
    block:0,
    viaset:0,
 };
-this.original;
 this.scaled= [];// x1, x2, x4 // [3] ( [rows][cols] ) + 1
 this.current_scale; // set by setting scale...
 this.isBlock = bBlock;
@@ -107,25 +106,27 @@ this.board = board;
 //PEICE_DATA::image = image;
 this.name = name;
 this.original = image;
-
+this.image = image;
 // this should be moved out to a thing which is
 // like re-mip-map :)
 // or recompute based on a new cell size of the main board...
 
 if( "on" in image )
 	image = image.on; // just need one of these for now... 
+else
+	this.image = image;
 if( image )
 {
 	var scale = 0, x, y;
 	this.grid = null;
 	this.lastCell = { coords:null, size:this.cellSize };
-	this.image = image;
+	//this.image = image;
 	//this.image.src = image;
-	if( this.image.nodeName === "IMG" ) {
-		this.image.addEventListener( "load", initGrid.bind(this) );
-		if( this.image.width )
+	if( image.nodeName === "IMG" ) {
+		image.addEventListener( "load", initGrid.bind(this) );
+		if( image.width )
 			initGrid.call(this);
-	} else if( this.image.nodeName === "svg" ) {
+	} else if( image.nodeName === "svg" ) {
 		var wrapper;// = document.createElement( "div" );
 		//wrapper.appendChild( image );
 		function convert(image) {
@@ -222,11 +223,12 @@ Peice.prototype.gethotspot = function(  )
 export function Via(board
   , name
   , image //= null
+  , imageNeg
   , methods //= null
   , psv //= 0
 ) 
 {
-	Peice.call( this, board, name, image, 7, 7, 0, 0, false, true, methods, psv );
+	Peice.call( this, board, name, {on:image,off:imageNeg}, 7, 7, 0, 0, false, true, methods, psv );
 };
 
 Via.prototype = new Object( Peice.prototype );
@@ -518,7 +520,7 @@ DefaultMethods.prototype.Draw = function(  peice, psvInstance,  surface,   x,  y
 					  //, x, y
 					  //, 1 );
 }
-DefaultMethods.prototype.DrawCell = function( peice, psvInstance,  surface,  cellx, celly, x,  y )
+DefaultMethods.prototype.DrawCell = function( peice, psvInstance,  surface,  from, x,  y )
 {
 	//surface.drawImage( this.master.image, 0, 0, 500, 500, 0, 0, 66, 66 )
 	//surface.drawImage( this.master.image, 0, 0, 500, 500, 0, 0, 66, 66 )
@@ -526,9 +528,11 @@ DefaultMethods.prototype.DrawCell = function( peice, psvInstance,  surface,  cel
 	// first 0 is current scale.
 	//lprintf( WIDE("Drawing peice instance %p"), psvInstance );
 	//console.log( "Draw Cell: ", cellx, celly, x, y );
-	var from = this.master.getcell( cellx, celly );
+	//var from = this.master.getcell( cellx, celly );
 	if( "on" in this.master.image )
-		surface.drawImage( this.master.image.on, from.coords.x, from.coords.y, from.size.width, from.size.height
+		surface.drawImage( this.master.image.on
+			, from.coords.x, from.coords.y
+			, from.size.width, from.size.height
 			, x, y
 			, this.brainboard.board.cellSize.width
 			, this.brainboard.board.cellSize.height  

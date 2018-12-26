@@ -316,7 +316,7 @@ export function makeSlider() {
 	}
 	tick();
 	svg.getValue = function() {
-		return 1-state;
+		return state;
 	}
 
 	return svg;

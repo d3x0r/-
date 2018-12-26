@@ -21,7 +21,11 @@ const journal = [
                 <BR><BR><BR>
                 [Click on right side of this<BR>
 		jounral page to go to next page]<BR>
-          ` }
+          ` 
+         , activate : ()=>{
+                setupDemo0();
+		}
+	}
         ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">1</SPAN>
 		<BR>
@@ -618,6 +622,7 @@ const journal2 = [
 var gameState = {
 	journalState : 0,
 	progressLocked : false,
+	getExpectedValue : null,
 }
 
 var neuronTable = setupNeuronTable( document.getElementById("statusTable"))
@@ -658,6 +663,7 @@ notebookPanel.addEventListener( "click", (evt)=>{
 notebookPanel.innerHTML = journal[gameState.journalState].HTML;
 
 var activators = [];
+var outputters = [];
 
 var testControl = null;
 
@@ -667,14 +673,17 @@ function testTestPanel() {
 	//newDiv.style.width = 500;
 	//newDiv.style.position = "relative";
         //newDiv.style.display = "inline-block";
+	newDiv.style.padding = 8;
 	var svg;
 
-        newDiv.appendChild( svg = testPanel.speaker() );
-        svg.style.verticalAlign="top";
-svg.style.height = "66";
-svg.style.width = "15%";
-  svg.setAttribute( "viewBox", "0 0 130 170")
-svg.setAttribute( "preserveAspectRatio", "xMaxYMax" );
+	if( 0 ) {
+                newDiv.appendChild( svg = testPanel.speaker() );
+                svg.style.verticalAlign="top";
+		svg.style.height = "66";
+		svg.style.width = "15%";
+		svg.setAttribute( "viewBox", "0 0 130 170")
+		svg.setAttribute( "preserveAspectRatio", "xMaxYMax" );
+	}
 
         newDiv.appendChild( testControl = svg = testPanel.testButton( (test,on)=>{
                 if( test ) {
@@ -683,10 +692,11 @@ svg.setAttribute( "preserveAspectRatio", "xMaxYMax" );
                 }
         } ) );
         svg.style.verticalAlign="top";
-svg.style.height = "66";
-svg.style.width = "25%";
-  svg.setAttribute( "viewBox", "0 100 200 50")
-svg.setAttribute( "preserveAspectRatio", "xMaxYMax" );
+	svg.style.height = "66";
+	svg.style.width = "25%";
+	svg.style.top = "5";
+	svg.setAttribute( "viewBox", "0 100 200 40")
+	svg.setAttribute( "preserveAspectRatio", "xMaxYMax" );
 
 /*
         newDiv.appendChild( svg = testPanel.runStop() );
@@ -700,13 +710,14 @@ svg.setAttribute( "preserveAspectRatio", "xMaxYMax" );
         var tmp;
         newDiv.appendChild( tmp = switcher.animator(0.75) );
         activators.push( tmp );
-
+        tmp.style.verticalAlign="top";
         tmp.style.height = "64";
         tmp.style.width = "48";
         tmp.setAttribute( "viewBox", "0 00 100 175")
         
         newDiv.appendChild( tmp = switcher.animator(0.223) );
         activators.push( tmp );
+        tmp.style.verticalAlign="top";
         tmp.style.height = "64";
         tmp.style.width = "48";
         tmp.setAttribute( "viewBox", "0 00 100 175")
@@ -719,22 +730,27 @@ svg.setAttribute( "preserveAspectRatio", "xMaxYMax" );
         svg.setAttribute( "transform", "rotate(-90 0 -25)")
 
         newDiv.appendChild( svg = analyzer.makeAnalyzer( (n)=>{
-        	if( n > 4 ) {
+        	if( n >= 4 ) {
+			if( outputters[n-4] ) {
+				return outputters[n-4].value * 100;
+			}	
                 	return 0;
                 }
-                else {
+		if( n == 3 ) {
+		  	if( gameState.getExpectedValue )	
+				return gameState.getExpectedValue();
+                } else {
                 	if( n < activators.length ) 
                         	return activators[n].getValue() * 100;
-                        return 0;
                 }
         }) );
 
         svg.style.position = "relative";
-        svg.style.top = -80;
+        svg.style.top = -65;
         svg.style.zIndex=3;
         svg.style.height = "150";
         svg.style.width = "328";
-        svg.setAttribute( "viewBox", "0 00 450 155")
+        svg.setAttribute( "viewBox", "0 00 450 235")
 
 	//newDiv.appendChild( switcher.animator(4) );
 	//document.body.appendChild( newDiv );
@@ -743,7 +759,7 @@ svg.setAttribute( "preserveAspectRatio", "xMaxYMax" );
 function addSliderInput( n, x, y ) {
         var newN = brainBoard.board.PutPeice( brainBoard.sliderInputPeice, x, y, ()=>{
                 //console.log( "Get External" );
-                return 1-activators[2].getValue();
+                return activators[2].getValue();
         } );
         if( brainBoard.events["added"] )
                 brainBoard.events["added"]( brainBoard.sliderInputPeice,newN );
@@ -764,20 +780,36 @@ function addLightOutput( n, x, y ) {
                        // console.log( "Set LOight External", val );
                        return val;
                 } );
+	outputters.push( newN );
         if( brainBoard.events["added"] )
                brainBoard.events["added"]( brainBoard.lightOutputPeice,newN );
+}
+
+function setupDemo0() {
+	gameState.getExpectedValue = () =>{
+                        	return (activators[0].getValue() & activators[1].getValue() ) * 100;
+	}
+	
 }
 
 function setupDemo1(  ) {
         neuronTable.clear();
         brainBoard.reset();
+
+	outputters.length = 0;
         addLightOutput( 0, 15, 10 );
+
+	gameState.getExpectedValue = () =>{
+                 return activators[0].getValue() * 100;
+	}
+
 }
 
 function setupDemo2(  ) {
         neuronTable.clear();
         brainBoard.reset();
         addButtonInput( 0, 2, 10 );
+	outputters.length = 0;
         addLightOutput( 0, 15, 10 );
 }
 
@@ -785,8 +817,12 @@ function setupDemo3(  ) {
         neuronTable.clear();
         brainBoard.reset();
         addButtonInput( 0, 2, 10 );
+	outputters.length = 0;
         addLightOutput( 0, 15, 10 );
         addLightOutput( 1, 15, 15 );
+	gameState.getExpectedValue = () =>{
+                 return activators[0].getValue() * 200;
+	}
 }
 
 function setupDemo4(  ) {
@@ -795,10 +831,14 @@ function setupDemo4(  ) {
 
         addButtonInput( 0, 2, 9 );
         addButtonInput( 1, 2, 15 );
+	outputters.length = 0;
         addLightOutput( 0, 15, 6 );
         addLightOutput( 1, 15, 10 );
         addLightOutput( 2, 15, 14 );
         addLightOutput( 3, 15, 18 );
+	gameState.getExpectedValue = () =>{
+                        	return ( activators[0].getValue() + activators[1].getValue() ) * 100;
+	}
 }
 
 
@@ -807,7 +847,13 @@ function setupDemo5(  ) {
         brainBoard.reset();
 
         addSliderInput( 0, 2, 12 );
+	outputters.length = 0;
         addLightOutput( 0, 15, 12 );
+
+	gameState.getExpectedValue = () =>{
+                        	return ( activators[2].getValue() > 0.5 )? 100 : 0;
+	}
+
 }
 
 
@@ -817,10 +863,18 @@ function setupDemo6(  ) {
         brainBoard.reset();
 
         addSliderInput( 0, 2, 12 );
+	outputters.length = 0;
         addLightOutput( 0, 15, 6 );
         addLightOutput( 1, 15, 10 );
         addLightOutput( 2, 15, 14 );
         addLightOutput( 3, 15, 18 );
+	gameState.getExpectedValue = () =>{
+		if( activators[2].getValue() > 0.8 ) return 200;
+		if( activators[2].getValue() > 0.6 ) return 150;
+		if( activators[2].getValue() > 0.4 ) return 100;
+		if( activators[2].getValue() > 0.2 ) return 50;
+		return 0;
+	}
 }
 
 // experiment 6; there's one setup before the first
@@ -828,9 +882,16 @@ function setupDemo7(  ) {
         neuronTable.clear();
         brainBoard.reset();
 
+	outputters.length = 0;
         addButtonInput( 0, 2, 9 );
         addButtonInput( 1, 2, 15 );
         addLightOutput( 0, 15, 12 );
+
+	gameState.getExpectedValue = () =>{
+		if( activators[0].getValue() || activators[1].getValue() ) return 100;
+		return 0;
+	}
+
 }
 
 // experiment 7; there's one setup before the first
@@ -838,9 +899,16 @@ function setupDemo8(  ) {
         neuronTable.clear();
         brainBoard.reset();
 
+	outputters.length = 0;
         addButtonInput( 0, 2, 9 );
         addButtonInput( 1, 2, 15 );
         addLightOutput( 0, 15, 12 );
+
+	gameState.getExpectedValue = () =>{
+		if( activators[0].getValue() && activators[0].getValue() ) return 100;
+		return 0;
+	}
+
 }
 
 // experiment 8; there's one setup before the first
@@ -848,9 +916,14 @@ function setupDemo9(  ) {
         neuronTable.clear();
         brainBoard.reset();
 
+	outputters.length = 0;
         addButtonInput( 0, 2, 9 );
         addButtonInput( 1, 2, 15 );
         addLightOutput( 0, 15, 12 );
+	gameState.getExpectedValue = () =>{
+		if( !activators[0].getValue() && activators[1].getValue() ) return 100;
+		return 0;
+	}
 }
 
 // experiment 8; there's one setup before the first
@@ -858,17 +931,31 @@ function setupDemo10(  ) {
         neuronTable.clear();
         brainBoard.reset();
 
+	outputters.length = 0;
         addButtonInput( 0, 2, 9 );
         addLightOutput( 0, 15, 9 );
+
+	gameState.getExpectedValue = () =>{
+		if( !activators[0].getValue() ) return 100;
+		return 0;
+	}
+
 }
 // experiment 8; there's one setup before the first
 function setupDemo11(  ) {
         neuronTable.clear();
         brainBoard.reset();
 
+	outputters.length = 0;
         addButtonInput( 0, 2, 9 );
         addButtonInput( 1, 2, 15 );
         addLightOutput( 0, 15, 12 );
+
+	gameState.getExpectedValue = () =>{
+		if( !!activators[0].getValue() ^ !!activators[1].getValue() ) return 100;
+		return 0;
+	}
+
 }
 
 function findOpenSpot( x, y ) {
@@ -975,7 +1062,7 @@ function setupToolPanel() {
                         , pos.x, pos.y
                         , ()=>{
                                 //console.log( "Get External" );
-                                return 1-activators[2].getValue();
+                                return activators[2].getValue();
                 } );
                 if( brainBoard.events["added"] )
                        brainBoard.events["added"]( brainBoard.sliderInputPeice,newN );

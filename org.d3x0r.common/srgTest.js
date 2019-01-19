@@ -1,18 +1,30 @@
 
 var SaltyRNG = require( "./salty_random_generator" );
 var SRG = SaltyRNG.SaltyRNG();
-
+console.log( "BEFORE FIRST PICK" );
 for( var n = 0; n < 10; n++ ) {
 	console.log( "n:", SRG.getBits() );
 }
 
 var start = Date.now();
-for( var n = 0; n < 100000; n++ ) {
-	SRG.getBits();
+for( var n = 0; n < 1000000; n++ ) {
+	SRG.getBits(1);
 }
 var end = Date.now();
+
 console.log( n, " in ", end-start, n/(end-start));
 
+SRG = SaltyRNG.SaltyRNG( null, {mode:1});
+
+var start = Date.now();
+for( var n = 0; n < 1000000; n++ ) {
+	SRG.getBits(1);
+}
+var end = Date.now();
+
+console.log( n, " in ", end-start, n/(end-start));
+
+process.exit()
 SRG=SaltyRNG.SaltyRNG( (salt)=>{salt.push(1);} );
 
 var start = Date.now();

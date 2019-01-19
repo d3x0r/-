@@ -7,6 +7,29 @@ for( var n = 0; n < 10; n++ ) {
 }
 
 var start = Date.now();
+	var keybuf = new Uint8Array(1);
+	var output;
+for( var n = 0; n < 100000; n++ ) {
+
+	output = SaltyRNG.SRG_XSWS_encryptString( "test", 123, keybuf );
+}
+var end = Date.now();
+
+console.log( n, " in ", end-start, n/(end-start));
+
+var start = Date.now();
+	var keybuf = new Uint8Array(1);
+	
+for( var n = 0; n < 100000; n++ ) {
+
+	var input = SaltyRNG.SRG_XSWS_decryptString( output, 123, keybuf );
+}
+var end = Date.now();
+
+console.log( n, " in ", end-start, n/(end-start));
+
+
+var start = Date.now();
 for( var n = 0; n < 1000000; n++ ) {
 	SRG.getBits(1);
 }

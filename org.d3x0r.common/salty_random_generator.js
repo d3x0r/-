@@ -39,7 +39,6 @@ exports.SaltyRNG = function (f, opt) {
 	const k12buf = opt?( opt.mode === 1 )?KangarooTwelve() : null
                           : null;
 
-
 	function MASK_TOP_MASK(length) {
 		return (0xFF) >>> (8 - (length))
 	};
@@ -928,6 +927,11 @@ function SRG_XSWS_decryptString( objBuf, tick, keyBuf ) {
 		}
 		return out;
 	}
+
+exports.SRG_XSWS_encryptString = SRG_XSWS_encryptString;
+exports.SRG_XSWS_decryptString = SRG_XSWS_decryptString;
+exports.SRG_XSWS_encryptData = SRG_XSWS_encryptData;
+exports.SRG_XSWS_decryptData = SRG_XSWS_decryptData;
 
 if( 0 ) {
 	var keybuf = new Uint8Array(1);

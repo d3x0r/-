@@ -106,11 +106,25 @@ exports.SaltyRNG = function (f, opt) {
 					:null;
 			this.available = 0;
 			this.used = 0;
+			this.total_bits = 0;
 			if( shabuf )
 				shabuf.clean();
 			if( k12buf ) {
 				k12buf.init();
-				k12buf.update( this.entropy );
+			}
+			console
+		},
+		getByte() {
+			if( this.used & 0x7 ) {
+				var arr = new Uint8Array(this.getBuffer(8));
+				return arr[0];
+			} else {
+				if(this.available === this.used)
+					needBits();
+				this.total_bits += 8;
+				var result = this.entropy[(this.used) >> 3]
+				this.used += 8;
+				return result;
 			}
 		},
 		getBits(count, signed) {
@@ -141,7 +155,6 @@ exports.SaltyRNG = function (f, opt) {
 			let resultBuffer = new ArrayBuffer(4 * ((bits + 31) >> 5));
 			let result = new Uint8Array(resultBuffer);
 			this.total_bits += bits;
-			//console.log( "buffer is ", resultBuffer.byteLength );
 			{
 				let tmp;
 				let partial_tmp;
@@ -209,27 +222,26 @@ exports.SaltyRNG = function (f, opt) {
 		if( k12buf ) {
 			if( !k12buf.phase() )
 				console.trace( "PLEASE INIT THIS USAGE!" );
-			console.log( "BUF IS:", k12buf.absorbing()?"absorbing":"??", k12buf.squeezing()?"squeezing":"!!", k12buf.phase() )
-			if( k12buf.absorbing() || RNG.total_bits > K12_SQUEEZE_LENGTH ) {
+			//console.log( "BUF IS:", k12buf.absorbing()?"absorbing":"??", k12buf.squeezing()?"squeezing":"!!", k12buf.phase(),( k12buf.absorbing() || ( RNG.total_bits > K12_SQUEEZE_LENGTH ) ) )
+			if( k12buf.absorbing() || ( RNG.total_bits >= K12_SQUEEZE_LENGTH ) ) {
 				if( k12buf.squeezing() ) {
+	                                //console.log( "Need to init with new entropy (BIT FORCE)" );
 					k12buf.init();
 					k12buf.update( RNG.entropy );
 				}
-
 				if (typeof (RNG.getSalt) === 'function') {
 					RNG.getSalt(RNG.saltbuf);
 					//console.log( "saltbuf.join = ", RNG.saltbuf.join(), RNG.saltbuf.length );
 					var newbuf;
-					if( RNG.saltbuf.length ) {
+					if( RNG.saltbuf.length )
 						k12buf.update( RNG.saltbuf );
 
 				}
 				k12buf.final();
 				RNG.used = 0;
 			}
-			if( k12buf.squeezing() )
-				console.log( "squeezing" );
-				RNG.entropy = k12buf.squeeze(); // customization is a final pad string.
+			if( k12buf.squeezing() ) {
+				RNG.entropy = k12buf.squeeze(64); // customization is a final pad string.
 			}
 		}
 		if( shabuf ) {
@@ -500,8 +512,7 @@ return k12Module.exports;
 
 
 if( 0 ) {
-
-var k = KangarooTwelve();
+	var k = KangarooTwelve();
 
 	k.update( "" );
 	k.final();
@@ -514,7 +525,7 @@ var k = KangarooTwelve();
 	k.release( realBuf );
 
 
-
+	console.log( "init..." );
 
 	k.init();
 	k.update( "asdf" );
@@ -522,8 +533,28 @@ var k = KangarooTwelve();
 	var realBuf = k.squeeze( 64 );
 
 	var outstr = [];
+	console.log( "format..." );
+	realBuf.forEach( v=>outstr.push( v.toString(16)) );
+	console.log( "otuput..." );
+	console.log( "BUF:", outstr.join( " " ) );
+
+
+	var realBuf = k.squeeze( 64 );
+
+	var outstr = [];
 	realBuf.forEach( v=>outstr.push( v.toString(16)) );
 	console.log( "BUF:", outstr.join( " " ) );
+	var realBuf = k.squeeze( 64 );
+
+	var outstr = [];
+	realBuf.forEach( v=>outstr.push( v.toString(16)) );
+	console.log( "BUF:", outstr.join( " " ) );
+	var realBuf = k.squeeze( 64 );
+
+	var outstr = [];
+	realBuf.forEach( v=>outstr.push( v.toString(16)) );
+	console.log( "BUF:", outstr.join( " " ) );
+
 
 	k.release( realBuf );
 
@@ -579,7 +610,7 @@ function KangarooTwelve() {
 			//console.log( "S?", s );
 		},
 		update(buf) {
-			//console.log( "got:", buf );
+			//console.log( "feed update:", buf );
 			
 		        if( buf.length > data.keybuflen ) {
 				if( data.keybuf )
@@ -588,17 +619,27 @@ function KangarooTwelve() {
 				data.keybuf = k12._malloc( buf.length+1 );
 		
 			}
+			var byteLength;
 			if( "string" === typeof buf )
-				k12.stringToUTF8( buf, data.keybuf, buf.length+1 );
-			else if( buf instanceof Uint8Array ) {
-				console.log( "copy keydata from binay" );
-				var keydata = new Uint8Array( k12.HEAPU8.buffer, data.keybuf, buf.len );
-				var b;
-				for( b = 0; b < buf.length; b++ )
+				k12.stringToUTF8( buf, data.keybuf, buf.length*3+1 );
+			else if( buf instanceof Uint32Array ) {
+				var keydata = new Uint32Array( k12.HEAPU32.buffer, data.keybuf, buf.length );
+				byteLength = buf.length * 4;
+				//console.log( "copy keydata from binay", keydata );
+				for( var b = 0; b < buf.length; b++ )
 					keydata[b] = buf[b];
 			}
-			//console.log( "FEEED KEY?", data.keybuf );
-			s = k12._KangarooTwelve_Update( data.k, data.keybuf, buf.length );
+			else if( buf instanceof Uint8Array ) {
+				var keydata = new Uint8Array( k12.HEAPU8.buffer, data.keybuf, buf.length );
+				byteLength = buf.length;
+				//console.log( "copy keydata from binay", keydata );
+				for( var b = 0; b < buf.length; b++ )
+					keydata[b] = buf[b];
+			}
+
+			var keybuf = new Uint8Array( k12.HEAPU8.buffer, data.keybuf, byteLength );
+
+			s = k12._KangarooTwelve_Update( data.k, data.keybuf, byteLength );
 			//console.log( "Update S?", s );
 		},
 		final() {
@@ -607,8 +648,8 @@ function KangarooTwelve() {
 		},
 		squeeze(n) {
 			s = k12._KangarooTwelve_Squeeze( data.k, data.outbuf, n );
-			//console.log( "S?", s );
-			//console.trace( "ARR:", s, data.realBuf );
+			//data.realBuf = new Uint8Array( k12.HEAPU8.buffer, data.outbuf, 64 );
+			//console.log( "Squeeze?", s, n );
 			return data.realBuf;
 		},
 		release(buf) {
@@ -642,3 +683,282 @@ function KangarooTwelve() {
 	return K12;
 }
 
+//-------------- byte xbox ------------------------------
+
+function BlockShuffle_ByteShuffler( ctx ) {
+	//struct byte_shuffle_key *key = New( struct byte_shuffle_key );
+	var key = { map:[], dmap:[] };
+	var n;
+	var srcMap;
+	for( n = 0; n < 256; n++ )
+		key.map[n] = n;
+
+	// simple-in-place shuffler.
+
+	for( n = 0; n < 256; n++ ) {
+		var m;
+		var t;
+		m = ctx.getByte(); //console.log( "swap:", n, m );
+		t = key.map[m];
+		key.map[m] = key.map[n];
+		key.map[n] = t;
+	}
+
+	for( n = 0; n < 256; n++ )
+		key.dmap[key.map[n]] = n;
+	return key;
+}
+
+function  BlockShuffle_SubByte( key, bytes_input ) {
+	return key.map[bytes_input];
+}
+function  BlockShuffle_BusByte( key, bytes_input ) {
+	return key.dmap[bytes_input];
+}
+
+function BlockShuffle_SubBytes( key, bytes_input, bytes_output, offset, byteCount ) 
+{
+	var n;
+	const map = key.map;
+	for( n = 0; n < byteCount; n++ ) {
+		bytes_output[offset+n] = map[bytes_input[offset+n]];
+	}
+}
+
+
+function BlockShuffle_BusBytes( key, bytes_input, bytes_output, offset, byteCount ) 
+{
+	var n;
+	const map = key.dmap;
+	for( n = 0; n < byteCount; n++ ) {
+		bytes_output[offset+n] = map[bytes_input[offset+n]];
+	}
+}
+
+//----------------- K12-XBOX Utilities -----------------------------
+
+// bit size of masking hash.
+const RNGHASH = 256
+const localCiphers = [];
+function SRG_XSWS_encryptData( objBuf, tick, keyBuf ) {
+	if( objBuf.buffer.byteLength & 0x7 ) {
+		throw new Error( "buffer to encode must be a multiple of 64 bits; (should also include last byte of padding specification)" );
+	}
+	function encryptBlock( bytKey
+		, output, output8, offset, outlen 
+		,  bufKey
+	) {
+		var n;
+		var dolen = outlen/4
+		for( n = 0; n < dolen; n++ ) output[n] ^= bufKey [ ((n) % (RNGHASH / 32)) ];
+        	BlockShuffle_SubBytes( bytKey, output8, output8, offset, outlen );
+		var p = 0x55;
+		for( n = 0; n < outlen; n++ )  p = output8[n] = output8[n] ^ p;
+		BlockShuffle_SubBytes( bytKey, output8, output8, offset, outlen );
+		p = 0xAA;
+		for( n = outlen-1; n >= 0; n-- ) p = output8[n] = output8[n] ^ p;
+		BlockShuffle_SubBytes( bytKey, output8, output8, offset, outlen );
+	}
+
+
+	var signEntropy = localCiphers.pop();
+	if( !signEntropy ) {
+		signEntropy = exports.SaltyRNG( null, {mode:1} );
+		signEntropy.initialEntropy = null;
+	}
+	signEntropy.reset();	
+	signEntropy.feed( tick );
+	signEntropy.feed( keyBuf );
+
+	var bufKey = new Uint32Array( signEntropy.getBuffer( RNGHASH ) );
+	var bytKey = BlockShuffle_ByteShuffler( signEntropy );
+
+	var outBufLen = objBuf.length * 4;
+	//outBuf[0] = (uint8_t*)HeapAllocateAligned( NULL, (*outBufLen), 4096 );
+	var outBuf = objBuf;//new Uint32Array( outBufLen / 4 );
+	var outBuf8 = new Uint8Array( outBuf.buffer );
+
+	for( var b = 0; b < outBufLen; b += 4096 ) {
+		var bs = outBufLen - b;
+		if( bs > 4096 )
+			encryptBlock( bytKey, outBuf, outBuf8, b, 4096, bufKey );
+		else
+			encryptBlock( bytKey, outBuf, outBuf8, b, bs, bufKey );
+	}
+
+	localCiphers.push( signEntropy );
+	return outBuf8;
+}
+
+function SRG_XSWS_encryptString( objBuf, tick, keyBuf ) {
+	var tickBuf = new Uint32Array( 2 );
+	
+	tickBuf[0] = tick & 0xFFFFFFFF;
+	tickBuf[1] = ( tick >> 32 ) & 0xFFFFFFFF;
+	var ob = myTextEncoder( objBuf );
+	//console.log( "INPUT BUF?", ob.length );
+	var ob32 = new Uint32Array( ob.buffer );
+	//console.log( "BUF?", ob32, ob32[0], tickBuf, keyBuf );
+	return SRG_XSWS_encryptData( ob32, tickBuf, keyBuf );
+}
+
+function SRG_XSWS_decryptData( objBuf,  tick, keyBuf ) {
+	function decryptBlock( bytKey
+		, input, offset,  len
+		, output, output8
+		, bufKey
+	) {
+		var n;
+	
+		//console.log( "dec Pre sub1:", Array.from(output8).map((val)=>val.toString(16)).join(",") );
+        	BlockShuffle_BusBytes( bytKey, input, output8, offset, len );
+		for( n = 0; n < (len - 1); n++ ) output8[offset+n] = output8[offset+n] ^ output8[offset+n+1];
+        	output8[offset+n] = output[offset+n] ^ 0xAA;
+		BlockShuffle_BusBytes( bytKey, output8, output8, offset, len );
+		for( n = (len - 1); n > 0; n-- ) output8[offset+n] = output8[offset+n] ^ output8[offset+n-1];
+		output8[offset+0] = output8[offset+0] ^ 0x55;
+        	BlockShuffle_BusBytes( bytKey, output8, output8, offset, len );
+		var dolen = len / 4;
+		for( n = 0; n < dolen; n ++ ) output[offset+n] ^= bufKey [ ((n) % (RNGHASH / 32)) ];
+	}
+
+	
+	var signEntropy = localCiphers.pop();
+	if( !signEntropy ) {
+		signEntropy = exports.SaltyRNG( NULL, {mode:1} );
+		signEntropy.initialEntropy = null;
+	}
+	
+	signEntropy.reset();	
+	signEntropy.feed( tick );
+	signEntropy.feed( keyBuf );
+
+	var bufKey = new Uint32Array( signEntropy.getBuffer( RNGHASH ) );
+	var bytKey = BlockShuffle_ByteShuffler( signEntropy );
+
+	var outBuf = new Uint32Array( objBuf.length );
+	var outBuf8 = new Uint8Array( outBuf.buffer );
+	var objBuf8 = new Uint8Array( objBuf.buffer );
+	var blockLen = objBuf.buffer.byteLength;
+	for( var b = 0; b < blockLen; b += 4096 ) {
+		var bs = blockLen - b;
+		if( bs > 4096 )
+			decryptBlock( bytKey, objBuf8, b, 4096, outBuf, outBuf8, bufKey );
+		else
+			decryptBlock( bytKey, objBuf8, b, bs, outBuf, outBuf8, bufKey );
+	}
+	outBuf = new Uint8Array( outBuf8, 0, outBuf.length - outBuf[0] + objBuf.buffer.length - 1 );
+
+	localCiphers.push( signEntropy );
+	return outBuf;
+}
+
+function SRG_XSWS_decryptString( objBuf, tick, keyBuf ) {
+	var tickBuf = new Uint32Array( 2 );
+	
+	tickBuf[0] = tick & 0xFFFFFFFF;
+	tickBuf[1] = ( tick >> 32 ) & 0xFFFFFFFF;
+	var outBuf = SRG_XSWS_decryptData( objBuf, tickBuf, keyBuf );
+	return myTextDecoder( outBuf );
+}
+
+        // string->Uint8
+	function myTextEncoder(s) {	
+		var chars = [...s];
+		var len = 0;
+		for( var n = 0; n < chars.length; n++ ) {
+			var chInt = chars[n].codePointAt(0);
+			if( chInt < 128 ) 
+				len++;
+			else if( chInt < 0x800 ) 
+				len += 2;
+			else if( chInt < 0x10000 ) 
+				len += 3;
+			else if( chInt < 0x110000 ) 
+				len += 4;
+		}
+		len+=2;
+		var out = new Uint8Array( len + ( len&7?(8-(len&7)):0 ) );
+		len = 0;			
+		for( var n = 0; n < chars.length; n++ ) {
+			var chInt = chars[n].codePointAt(0);
+			if( chInt < 128 ) 
+				out[len++] = chInt;
+			else if( chInt < 0x800 ) {
+				out[len++] = ( (chInt & 0x7c0) >> 6 ) | 0xc0;
+				out[len++] = ( (chInt & 0x03f) ) | 0x80;
+			} else if( chInt < 0x10000 ) {
+				out[len++] = ( (chInt & 0xf000) >> 12 ) | 0xE0;
+				out[len++] = ( (chInt & 0x0fc0) >> 6 ) | 0x80;
+				out[len++] = ( (chInt & 0x003f) ) | 0x80;
+			} else if( chInt < 0x110000 ) {
+				out[len++] = ( (chInt & 0x01c0000) >> 18 ) | 0xF0;
+				out[len++] = ( (chInt & 0x003f000) >> 12 ) | 0xE0;
+				out[len++] = ( (chInt & 0x0000fc0) >> 6 ) | 0x80;
+				out[len++] = ( (chInt & 0x000003f) ) | 0x80;
+			}
+		}
+		out[len] = 0xFF;
+		out[out.length-1] = out.length - (len);
+		return out;
+	}
+        // uInt8 ->string
+	function myTextDecoder(buf) {
+		var out = '';
+		var len;
+		for( var n = 0; n < buf.length; n++ ) {
+			if( buf[n] === 0xFF ) break;
+			if( ( buf[n]& 0x80 ) == 0 )
+				out += String.fromCodePoint( buf[n] );
+			else if( ( buf[n] & 0xC0 ) == 0x80 ) {
+				// invalid character... should already be skipped
+			} else if( ( buf[n] & 0xE0 ) == 0xC0 ) {
+				out += String.fromCodePoint( ( ( buf[n] & 0x1f ) << 6 ) | ( buf[n+1] & 0x3f ) );
+				n++;
+			} else if( ( buf[n] & 0xF0 ) == 0xE0 ) {
+				out += String.fromCodePoint( ( ( buf[n] & 0xf ) << 12 ) | ( ( buf[n+1] & 0x3f ) << 6 ) | ( buf[n+2] & 0x3f ) );
+				n+=2;
+			} else if( ( buf[n] & 0xF8 ) == 0xF0 ) {
+				out += String.fromCodePoint( ( ( buf[n] & 0x7 ) << 18 ) | ( ( buf[n+1] & 0x3f ) << 12 ) | ( ( buf[n+2] & 0x3f ) << 6 ) | ( buf[n+3] & 0x3f ) );
+				n+=3;
+			} else if( ( buf[n] & 0xFC ) == 0xF8 ) {
+				out += String.fromCodePoint( ( ( buf[n] & 0x3 ) << 24 ) | ( ( buf[n+1] & 0x3f ) << 18 ) | ( ( buf[n+2] & 0x3f ) << 12 ) | ( ( buf[n+3] & 0x3f ) << 6 ) | ( buf[n+4] & 0x3f ) );
+				n+=4;
+			}
+		}
+		return out;
+	}
+
+if( 0 ) {
+	var keybuf = new Uint8Array(1);
+	
+	var output = SRG_XSWS_encryptString( "test", 123, keybuf );
+	console.log( "ENC OUTPUT? ", output );
+	var input = SRG_XSWS_decryptString( output, 123, keybuf );
+	console.log( "DEC OUTPUT? ", input, input.length );
+	
+	var output = SRG_XSWS_encryptString( "test1", 123, keybuf );
+	console.log( "ENC OUTPUT? ", output );
+	var input = SRG_XSWS_decryptString( output, 123, keybuf );
+	console.log( "DEC OUTPUT? ", input, input.length );
+	
+	var output = SRG_XSWS_encryptString( "test12", 123, keybuf );
+	console.log( "ENC OUTPUT? ", output );
+	var input = SRG_XSWS_decryptString( output, 123, keybuf );
+	console.log( "DEC OUTPUT? ", input, input.length );
+	
+	var output = SRG_XSWS_encryptString( "test123", 123, keybuf );
+	console.log( "ENC OUTPUT? ", output );
+	var input = SRG_XSWS_decryptString( output, 123, keybuf );
+	console.log( "DEC OUTPUT? ", input, input.length );
+	
+	var output = SRG_XSWS_encryptString( "test1234", 123, keybuf );
+	console.log( "ENC OUTPUT? ", output );
+	var input = SRG_XSWS_decryptString( output, 123, keybuf );
+	console.log( "DEC OUTPUT? ", input, input.length );
+	        
+	var output = SRG_XSWS_encryptString( "test1235", 123, keybuf );
+	console.log( "ENC OUTPUT? ", output );
+	var input = SRG_XSWS_decryptString( output, 123, keybuf );
+	console.log( "DEC OUTPUT? ", input, input.length );
+}

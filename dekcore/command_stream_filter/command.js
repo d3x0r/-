@@ -24,7 +24,7 @@ function updateCommands( stree, commands, newcmd ) {
         if( !( other = stree[id[0]] ) ) {
             stree[id[0]] = thisCmd;
             for( n = 1; n < newcmd.length; n++ ) commands[newcmd.substr(0,n)] = cmd;
-            console.log( "commands:", commands );
+            //console.log( "new command:", newcmd );
             
         }
         else {
@@ -56,10 +56,10 @@ function updateCommands( stree, commands, newcmd ) {
                 }
             }
             cmd.opts.min = other.cmd.opts.min = n+1;
-	console.log( "Delete keys up to ...", cmd.opts.min, newcmd.length );
+            //console.log( "Delete keys up to ...", cmd.opts.min, newcmd.length );
           //  for( n = 1; n < cmd.opts.min; n++ ) delete commands[newcmd.substr(0,n)];
             for( cmd.opts.min; n < newcmd.length; n++ ) commands[newcmd.substr(0,n)] = cmd;
-	console.log( "commands:", commands );
+            //console.log( "commands:", commands );
             cmd.opts.helpText = "["+id.substr(0,cmd.opts.min) +"]"+id.substr(cmd.opts.min);
             other.cmd.opts.helpText = "["+other.id.substr(0,other.cmd.opts.min) +"]"+other.id.substr(other.cmd.opts.min);
             stree[id.substr(0,n)] = thisCmd;
@@ -204,7 +204,6 @@ function buildPhrases( words ) {
 
 
 read_command.prototype._transform = function(chunk, encoding, callback) {
-    var string = chunk.toString()
     this.processCommand( chunk );
     callback()
 }
@@ -213,7 +212,7 @@ function processCommand( chunk )
 {
     var word = text.Parse( chunk );
     buildPhrases( word );
-    //console.log( "processCommand : ", this )
+    //console.log( "processCommand : ", word )
     // this.commands, this.sandbox, this.filter?
     var next = word.break();
     while( word ) {
@@ -222,6 +221,11 @@ function processCommand( chunk )
             next = word.break();
     }
     this._processCommand( {text:null} );
+    if( this.state.words ) {
+        this.push( this.state.words.toString() );
+        this.state.words = null;
+    }
+    this.push( "\nEnter Command: " );
 }
 
 function processCommandLine( line ){
@@ -323,10 +327,8 @@ function _processCommand ( word )
         break;
     default:
         // send null for EOF
-        if( word.text ){
-            if( !this.state.words) this.state.words = word;
-            else this.state.words = this.state.words.append( word );
-            this.push( word.text );
+        if( word.text ){ 
+            saveword()
         }
         break;
     }

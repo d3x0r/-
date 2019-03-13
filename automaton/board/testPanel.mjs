@@ -422,14 +422,15 @@ export function testButton( cb ) {
         var testing = false;
 	function tick() {
                 timerArc.setAngle( angle );
-                if( testing )
+                if( testing ) {
                 	angle -= 3;
+		}
                 if( angle < 0 ) {
                         //testSuccess();
                         angle = 0;
                         testing = false;
                         onOff = false;
-                        if( cb( true ) ) {
+                        if( cb( true, false ) ) {
 
                         }
                 }
@@ -445,9 +446,11 @@ export function testButton( cb ) {
 
                         if( onOff ) {
                                 testing = true;
+				cb( false, true );
                                 testButton.setAttribute( "fill", "#f53230" );
                         }else {
                                 testing = false;
+				cb( false, false );
                                 testButton.setAttribute( "fill", "#a51210" );
                                 angle = 360;
                         }
@@ -466,6 +469,7 @@ export function testButton( cb ) {
                 newSVG.reset = function() {
                         angle = 360;
                         testing= false;
+			cb( false, false );
                         onOff = false;
                         setColor();
                 }

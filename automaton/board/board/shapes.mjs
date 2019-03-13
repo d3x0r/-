@@ -185,6 +185,60 @@ export function makePowerBolt() {
 		return svg;
 }
 
+function getBranchSensor() {
+	return `
+		<rect fill="#ffff00" height="77.000002" id="svg_20" stroke="#ffff00" stroke-width="5" width="21.999999" x="54.5" y="41.799999"/>
+	`;
+}
+
+function getBumpSensor() {
+	return `
+		<rect fill="#ffff00" height="31" id="svg_12" stroke-opacity="0" stroke-width="5" transform="matrix(-0.599944 -0.00818002 0.00818002 -0.599944 98.5177 119.743)" width="20" x="40.365688" y="49.620931"/>
+		<path d="m67.382251,57.542228c-0.00818,0.599944 18.841685,15.408308 18.841685,15.408308c0,0 -39.148408,-0.38376 -39.073756,-0.357738c0.074652,0.026022 20.240251,-15.650514 20.232071,-15.05057z" fill="#ffff00" id="svg_13" stroke="#000000" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-opacity="0" stroke-width="5"/>
+		<rect fill="#ffff00" height="0.25" id="svg_15" stroke="#ffff00" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3" transform="matrix(-0.599944 -0.0211095 0.00818002 -1.54823 98.5177 233.17)" width="66.5" x="18.678573" y="113.388967"/>
+	`;
+}
+
+function getLightSensor() {
+	return `
+		<path d="m23,69.5c-0.125,-1.267266 20.809392,-17.000001 46.5,-17.000001c25.690607,0 46.625,14.732735 46.5,17.000001c-0.125,2.267266 -20.809393,17.000001 -46.5,17.000001c-25.690608,0 -46.375,-15.732735 -46.5,-17.000001z" fill="#ffffff" id="svg_14" stroke="#000000" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3"/>
+		<ellipse cx="69" cy="69.5" fill="#3f007f" id="svg_18" rx="16" ry="14" stroke="#000000" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3"/>
+		<ellipse cx="69.5" cy="69" fill="#000000" id="svg_20" rx="4" ry="4" stroke="#000000" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3"/>
+	`;
+
+}
+
+
+function getLeftTurn() {
+	return `
+		<polygon cx="62.604167" cy="110.104167" fill="#ffffff" id="svg_21" orient="point" point="5" r="0" r2="0" shape="star" strokeWidth="3" strokecolor="#000000"/>
+		<rect fill="#ffff00" height="44.124999" id="svg_23" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3" width="9.25" x="64.979167" y="66.145832"/>
+		<path d="m43.729168,58.645832c10.291667,0.166667 25.666667,-1.833333 28,1c2.333333,2.833333 2.291667,1.166667 2.75,7.125l-30.75,-0.375l0,-7.75z" fill="#ffff00" id="svg_24" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3"/>
+		<path d="m44.229167,45.770833l0.645833,33.479168l-19.75,-17.001008" fill="#ffff00" id="svg_27" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3"/>
+	`;
+}
+
+function getRightTurn() {
+	return `
+		<g class="layer" transform="scale(-1,1) translate(-125,0)">
+		<polygon cx="62.604167" cy="110.104167" fill="#ffffff" id="svg_21" orient="point" point="5" r="0" r2="0" shape="star" strokeWidth="3" strokecolor="#000000"/>
+		<rect fill="#ffff00" height="44.124999" id="svg_23" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3" width="9.25" x="64.979167" y="66.145832"/>
+		<path d="m43.729168,58.645832c10.291667,0.166667 25.666667,-1.833333 28,1c2.333333,2.833333 2.291667,1.166667 2.75,7.125l-30.75,-0.375l0,-7.75z" fill="#ffff00" id="svg_24" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3"/>
+		<path d="m44.229167,45.770833l0.645833,33.479168l-19.75,-17.001008" fill="#ffff00" id="svg_27" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-width="3"/>
+		</g>
+	`;
+}
+
+function getMoveForward() {
+	return `
+		<rect fill="#ffff00" height="31" id="svg_12" stroke-opacity="0" stroke-width="5" transform="matrix(-0.599944 -0.00818002 0.00818002 -0.599944 98.5177 119.743)" width="20" x="40.365688" y="49.620931"/>
+		<path d="m67.382251,57.542228c-0.00818,0.599944 18.841685,15.408308 18.841685,15.408308c0,0 -39.148408,-0.38376 -39.073756,-0.357738c0.074652,0.026022 20.240251,-15.650514 20.232071,-15.05057z" fill="#ffff00" id="svg_13" stroke="#000000" stroke-dasharray="null" stroke-linecap="null" stroke-linejoin="null" stroke-opacity="0" stroke-width="5"/>
+	`;
+}
+
+
+
+
 export function makeNode( extra ) {
 	var svg = document.createElementNS( "http://www.w3.org/2000/svg","svg" );
 	svg.setAttribute( "width", 66 );
@@ -391,3 +445,19 @@ export function makePowerOutput() {
 	node.off.setIconColor( "#000000");
 	return node;
 }
+
+
+export function makeBranchInput() {
+	var node = {
+		//var node = makeNode( getArrowButton );//
+		on:  makeNode(  getPowerBolt ),
+		off:makeNode(  getPowerBolt )
+	}
+	node.on.setColor( "#0000c0");
+	node.on.setIconColor( "#eeeee20");
+
+	node.off.setColor( "#000070");
+	node.off.setIconColor( "#000000");
+	return node;	
+}
+

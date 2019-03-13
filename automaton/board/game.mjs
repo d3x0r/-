@@ -8,6 +8,14 @@ import * as testPanel from "./testPanel.mjs";
 import * as analyzer from "./analyzer.mjs";
 import * as shapes from "./board/shapes.mjs";
 
+
+function loadImage( filename ) {
+	var img = document.createElement( "IMG" );
+	img.src = filename;
+	img.style.width = "100%";
+	return img;
+}
+
 const journal = [ 
 	{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">1</SPAN>
@@ -48,6 +56,87 @@ const journal = [
         ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">1</SPAN>
 		<BR>
+        	Tool Panel<BR>
+                <BR>
+                The blue region at the top contains<BR>
+                some of the items you will use to complete<BR>
+                the goals.<BR>
+                <BR>
+                Clicking on them will automatically place<BR>
+                a copy on the board.  Click the large green<BR>
+                circle which is a Neuron.<BR>
+                <BR>
+                Don't worry about making a mess, the<BR>
+                board will be cleared and setup with the<BR>
+                 inputs and outputs to and from the brain<BR>
+                 respectively.<BR>
+                <BR>
+                <BR>
+                <DIV ID="jim1" > </DIV><BR>
+                <BR>
+                <BR>
+         `
+         , inserts: { 
+                jim1:shapes.makeNeuron()
+         }
+         }
+        ,{ HTML : `
+		<SPAN ID="pageNum" style="float:right;margin-right:10">1</SPAN>
+		<BR>
+        	The recycle can...<BR>
+                <DIV ID="jim1"> </DIV><BR>
+                <BR>
+                can be used to clear the board.<BR>
+                <BR>
+                If you accientally clear the test<BR>
+		inputs and outputs, you can restore them<BR>
+		by going to the previous journal page,<BR>
+		and foward again, which will setup<BR>
+                for the current test.<BR>
+                <BR>
+                Red nodes are Inputs, and blue<BR>
+                nodes are outputs.<BR>
+                <BR>
+		The red node with Yellow arrow<br>
+                downward is the first button pushing<BR>
+                rotary wheel<BR>
+                <BR>
+		The red node with Yellow arrow<br>
+                to the right is the slider input<BR>
+                that ranges from 0-1 smoothly.<BR>
+                <BR>
+                <BR>
+         `
+         , inserts: { 
+                jim1:shapes.makeTrash()
+         }
+         }
+        ,{ HTML : `
+		<SPAN ID="pageNum" style="float:right;margin-right:10">1</SPAN>
+		<BR>
+        	This is an example of clicking
+		On the edge of a peice, and dragging
+		away one space.  The connection does
+		not show until the destination is different
+		than the source<BR>
+		<BR>
+		
+                <DIV ID="jim1"> </DIV><BR>
+                <BR>
+                Have fun, be creative...<BR>
+                <BR>
+                <DIV ID="jim2"> </DIV><BR>
+                <BR>
+         `
+         , inserts: { 
+                jim1:loadImage( "images/first-drag.jpg" ),
+		jim2:loadImage( "images/PathPicture.jpg" )
+         }
+         }
+
+        ,{ HTML : `
+		<SPAN ID="pageNum" style="float:right;margin-right:10">1</SPAN>
+		<BR>
         	Monitoring Equpment<BR>
                 <BR>
                 The brain will be used to control lights in<BR>
@@ -69,21 +158,18 @@ const journal = [
         ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">1</SPAN>
 		<BR>
-        	The logic analyzer and switches are run<BR>
-                by control boxes on the shelf [above].<BR>
+        	<BR>
                 <BR>
-                Flip the switch to "Run" to start things<BR>
-                running.<BR>
-                <BR>
-                Press the "Reset" Button to clear the<BR>
-                screen and return things to their original<BR>
-                position.<BR>
-                <BR>
-                TO test a brain, press the "Test" Button<BR>
+                To test a brain, press the "Test" Button<BR>
                 then flip the switch to "Run".  If the<BR>
-                brain has done what it should when the<BR>
-                timer reaches zero, the experiment is a<BR>
+                brain has done what it should while the<BR>
+                timer ticks to zero, the experiment is a<BR>
                 success.<BR>
+                <BR>
+                Testing can begin at any time, and may be<BR>
+		stopped and reset at any time by clicking<BR>
+                the test button again.<BR>
+                <BR>
          `}
         ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">1</SPAN>
@@ -621,8 +707,12 @@ const journal2 = [
 
 var gameState = {
 	journalState : 0,
+	journalStateMax : 0,
 	progressLocked : false,
 	getExpectedValue : null,
+	getTestValue : null,
+	expectedAccum : 0,
+	testing : false,
 }
 
 var neuronTable = setupNeuronTable( document.getElementById("statusTable"))
@@ -686,9 +776,19 @@ function testTestPanel() {
 	}
 
         newDiv.appendChild( testControl = svg = testPanel.testButton( (test,on)=>{
-                if( test ) {
-                        gameState.progressLocked = journal[gameState.journalState].locked = false;
-                        return true;
+		if( !test ) {
+			gameState.testing = on;
+			if( on ) gameState.expectedAccum = 0;
+		}
+		console.log( "Test Button:", test, on );
+                if( test && !on ) {
+			if( gameState.expectedAccum < 1 ) {
+	                        gameState.progressLocked = journal[gameState.journalState].locked = false;
+				setPage( gameState.journalState+1 );
+				return true;
+			}
+			console.log( "Failed." );
+                        return false;
                 }
         } ) );
         svg.style.verticalAlign="top";
@@ -737,8 +837,13 @@ svg.setAttribute( "preserveAspectRatio", "xMaxYMax" );
                 	return 0;
                 }
 		if( n == 3 ) {
-		  	if( gameState.getExpectedValue )	
-				return gameState.getExpectedValue();
+		  	if( gameState.getExpectedValue ) {
+				var expect = gameState.getExpectedValue();
+				if( gameState.testing && gameState.getTestValue ) {
+					gameState.expectedAccum += Math.abs( expect - gameState.getTestValue() );
+				}
+				return expect;
+			}else return 0;
                 } else {
                 	if( n < activators.length ) 
                         	return activators[n].getValue() * 100;
@@ -786,6 +891,7 @@ function addLightOutput( n, x, y ) {
 }
 
 function setupDemo0() {
+	
 	gameState.getExpectedValue = () =>{
                         	return (activators[0].getValue() & activators[1].getValue() ) * 100;
 	}
@@ -801,6 +907,9 @@ function setupDemo1(  ) {
 
 	gameState.getExpectedValue = () =>{
                  return activators[0].getValue() * 100;
+	}
+	gameState.getTestValue = ()=>{
+		return outputters[0].value * 100;
 	}
 
 }
@@ -823,6 +932,9 @@ function setupDemo3(  ) {
 	gameState.getExpectedValue = () =>{
                  return activators[0].getValue() * 200;
 	}
+	gameState.getTestValue = ()=>{
+		return outputters[0].value * 100 + outputters[1].value * 100;
+	}
 }
 
 function setupDemo4(  ) {
@@ -839,6 +951,9 @@ function setupDemo4(  ) {
 	gameState.getExpectedValue = () =>{
                         	return ( activators[0].getValue() + activators[1].getValue() ) * 100;
 	}
+	gameState.getTestValue = ()=>{
+		return outputters[0].value * 50 + outputters[1].value * 50 + outputters[2].value * 50 + outputters[3].value * 50;;
+	}
 }
 
 
@@ -852,6 +967,9 @@ function setupDemo5(  ) {
 
 	gameState.getExpectedValue = () =>{
                         	return ( activators[2].getValue() > 0.5 )? 100 : 0;
+	}
+	gameState.getTestValue = ()=>{
+		return outputters[0].value * 100;
 	}
 
 }
@@ -875,6 +993,9 @@ function setupDemo6(  ) {
 		if( activators[2].getValue() > 0.2 ) return 50;
 		return 0;
 	}
+	gameState.getTestValue = ()=>{
+		return outputters[0].value * 50 + outputters[1].value * 50 + outputters[2].value * 50 + outputters[3].value * 50;;
+	}
 }
 
 // experiment 6; there's one setup before the first
@@ -891,6 +1012,9 @@ function setupDemo7(  ) {
 		if( activators[0].getValue() || activators[1].getValue() ) return 100;
 		return 0;
 	}
+	gameState.getTestValue = ()=>{
+		return outputters[0].value * 100;
+	}
 
 }
 
@@ -905,10 +1029,13 @@ function setupDemo8(  ) {
         addLightOutput( 0, 15, 12 );
 
 	gameState.getExpectedValue = () =>{
-		if( activators[0].getValue() && activators[0].getValue() ) return 100;
+		if( activators[0].getValue() && activators[1].getValue() ) return 100;
 		return 0;
 	}
 
+	gameState.getTestValue = ()=>{
+		return outputters[0].value * 100;
+	}
 }
 
 // experiment 8; there's one setup before the first
@@ -923,6 +1050,9 @@ function setupDemo9(  ) {
 	gameState.getExpectedValue = () =>{
 		if( !activators[0].getValue() && activators[1].getValue() ) return 100;
 		return 0;
+	}
+	gameState.getTestValue = ()=>{
+		return outputters[0].value * 100;
 	}
 }
 
@@ -940,6 +1070,9 @@ function setupDemo10(  ) {
 		return 0;
 	}
 
+	gameState.getTestValue = ()=>{
+		return outputters[0].value * 100;
+	}
 }
 // experiment 8; there's one setup before the first
 function setupDemo11(  ) {
@@ -956,6 +1089,9 @@ function setupDemo11(  ) {
 		return 0;
 	}
 
+	gameState.getTestValue = ()=>{
+		return outputters[0].value * 100;
+	}
 }
 
 function findOpenSpot( x, y ) {
@@ -1074,6 +1210,19 @@ setupToolPanel();
 
 testTestPanel();
 
+function reloadStatus() {
+	var page = Number( localStorage.getItem( "maxPage" ) );
+	if( page ) {
+	        journal.forEach( (jpage,n)=>{
+			if( n < page )
+				journal[n].locked = false;
+		} );
+		setPage( page );
+	} else {
+		setPage( 0 )
+	}
+}
+
 function animate() {
         brainBoard.board.BoardRefresh();
         requestAnimationFrame(animate);
@@ -1092,8 +1241,12 @@ function fixupImages() {
                                 IDs.forEach( id =>{
                                         var img;
                                         img = notebookPanel.querySelector(`[id="${id}"]`);
-                                        if( img )
-                                        img.appendChild( page.inserts[id].on );        
+                                        if( img ) {
+						if( "on" in page.inserts[id] )
+		                                        img.appendChild( page.inserts[id].on );
+						else
+		                                       img.appendChild( page.inserts[id] );
+					}
                                 })
                         }
 
@@ -1104,7 +1257,7 @@ function fixupImages() {
 }
 
 fixupImages();
-setPage( 0 )
+reloadStatus();
 
 //------------ SET PAGE ROUTINE ------------------------------
 
@@ -1117,7 +1270,10 @@ function setPage( newPage )
         }
         testControl.reset()
 	gameState.journalState = newPage;
-
+	if( newPage > gameState.journalStateMax ) {
+		gameState.journalStateMax = newPage;
+		localStorage.setItem( "maxPage", gameState.journalStateMax );
+	}
 	gameState.progressLocked = journal[gameState.journalState].locked || false;
 
 	notebookPanel.innerHTML = journal[gameState.journalState].HTML;

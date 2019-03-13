@@ -15,92 +15,111 @@ const journal = [
 		<SPAN ID="pageNum" style="float:right;margin-right:10">1</SPAN>
 		<BR>
         	<CENTER>Observations<BR>
-                on<BR>Certain Properties<BR>
-                of<BR>
-                Components<BR>
+                on<BR>
+		the Application<BR>
                 of<BR>
                 Synthetic Brains<BR>
-                <BR><BR><BR>
-                [Click on right side of this<BR>
-		jounral page to go to next page]<BR>
+                to<BR>
+                the Survival and Feeding<BR>
+                of<BR>
+		Cocinella Septumpunctata<BR>
+		<BR>
+                <BR>
+		<BR>
           ` }
         ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">1</SPAN>
-		<BR>
-        	I have returned to the lab to continue<BR>
-                my experiments on the brain components<BR>
+		We have set up an observation post in<BR>
+        	a forest clearing.  The Spider is<BR>
+                visible on a branch of a tree below us.<BR>
                 <BR>
-                They are constructing a bug in the<BR>
-                workshop.  Once it is completed I will be<BR>
-                able to use my knowledge of synthetic<br>
-                brains to control it.<BR>
+                Three aphids are also on the branch.<BR>
+                The spider will eat the aphids if it<BR>
+                comes across them.  The goal is to build<br>
+                a brain to get the Spider to the<BR>
+                aphids while staying on the branch.<BR>
                 <BR>
-                I plan to do a series of experiments.<BR>
-                Each will involve creating a brain to<BR>
-                perform a specific function.  The brains<BR>
-                will be built on the brain board<BR>
                 <BR>
-                [Click on left side of this journal page<BR>
-                to return to previous page]<BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
         `}
         ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">1</SPAN>
-		<BR>
-        	Monitoring Equpment<BR>
+		Experiment 1: Full Steam Ahead<BR>
+        	The bug can tell how wide the branch is<BR>
+                in front of it.  The input varies between<BR>
+                0 (no branch) to 1 (full branch).  The<BR>
+                outupt cause the bug to move forward.<BR>
                 <BR>
-                The brain will be used to control lights in<BR>
-                response to inputs from switches.<BR>
+                <br>
+                <SPAN ID="branchInput"></SPAN><SPAN style="line-height:400%;vertical-align:top">Input: branch width</SPAN><BR>
                 <BR>
-                THe input from the switches and the<BR>
-                output to the lights will be monitored by<BR>
-                a Logic Analyzer.  It shows the level of the<BR>
-                output in blue.<BR>
+                <SPAN ID="goForward"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output: go forward</SPAN><BR>
                 <BR>
-                It can be preprogrammed with the<BR>
-                expected output (shown in gold during<BR>
-                a test) and will signal if the actal output<BR>
-                is wrong.<BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
          `
+         , activate : ()=>{
+                setupDemo1();
+        }
+	, inserts: { 
+                branchInput:shapes.makeBranchInput()
+        }
+		, locked : true
          }
 	
 
         ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">1</SPAN>
-		<BR>
-        	The logic analyzer and switches are run<BR>
-                by control boxes on the shelf [above].<BR>
+		Experiment 2: Not so fast<BR>
+        	The input and output are the same but<BR>
+                the branch has been trimmed.<BR>
                 <BR>
-                Flip the switch to "Run" to start things<BR>
-                running.<BR>
                 <BR>
-                Press the "Reset" Button to clear the<BR>
-                screen and return things to their original<BR>
-                position.<BR>
+                <SPAN ID="branchInput"></SPAN><SPAN style="line-height:400%;vertical-align:top">Input: branch width</SPAN><BR>
+                <br>
+                <SPAN ID="goForward"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output: go forward</SPAN><BR>
                 <BR>
-                TO test a brain, press the "Test" Button<BR>
-                then flip the switch to "Run".  If the<BR>
-                brain has done what it should when the<BR>
-                timer reaches zero, the experiment is a<BR>
-                success.<BR>
-         `}
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+        	`
+		, locked : true
+         , activate : ()=>{
+                setupDemo1();
+        }
+	, inserts: { 
+                branchInput:shapes.makeBranchInput()
+        }
+	}
         ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">1</SPAN>
-		<BR>
-        	Signals and Lines<BR>
-                I have discovered that bug brains<BR>
-                operate on signals which range from<BR>
-                0(off) to 1(on).<BR>
+		Experiment 3: Eye in the Sky<BR>
+        	The Spider now has a primitive form<BR>
+                of eye.  It can only detect the<BR>
+                difference between dark (0) and<BR>
+                light (1).  But this might be useful.<BR>
                 <BR>
-                The signals enter the brain through the<BR>
-                input nodes, travel along lines and exit<BR>
-                through output nodes.<BR>
+                <br>
                 <BR>
-                Input Node - Line - Output Node<BR>
-                <DIV ID="jim1"> </DIV><BR>
-                A line is made by grabbing the edge of a<BR>
-                node and dragging it out.  Drop the line<BR>
-                on the edge of the target node.<BR>
-                
+                <SPAN ID="eyeInput"></SPAN><SPAN style="line-height:400%;vertical-align:top">Input: branch width</SPAN><BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
          `
          , activate : ()=>{
                 setupDemo1();
@@ -112,21 +131,21 @@ const journal = [
         ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">6</SPAN>
 		<BR>
-        	Experiment 1: The Start<BR>
-                I have connected the input node to an<BR>
-                automatic switch.  The output node<BR>
-                goes to the light.  To confirm my theory<BR>
-                on the previous page, I will attempt to<BR>
-                make a brain where the light will com<BR>
-                on when the switch is on.<BR>
+        	<BR>
                 <BR>
-                <SPAN ID="jim1"></SPAN><SPAN style="line-height:400%;vertical-align:top">Input from switch</SPAN><BR>
-                <SPAN ID="jim2"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output to light</SPAN><BR>
                 <BR>
-                [Build a brain on the Brain Board]<BR>
-                [To test, press Test and wait for timer<BR>
-                to expire]<BR>
-                [Go to the next page when successful]<BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
          `
          , activate : ()=>{
                 setupDemo2();
@@ -140,35 +159,40 @@ const journal = [
         ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">6</SPAN>
 		<BR>
-		A Success!!!!!<BR>
-		<BR>
-		They have started work on the bug in the<BR>
-		workshop.  I had beter hurry up and<BR>
-		complete these experiments.<BR>
-		<BR>
-		There seems to be a space for connecting<BR>
-		up to 8 lines to the input node.  In<BR>
-		theory then I should be able to drive<BR>
-		more than one light from the same input.<BR>
-		I'll have to test this.<BR>
-		<BR>
-		<BR>
-		<BR>
-		<BR>
+        	<BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
          `}
         ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">6</SPAN>
 		<BR>
-		Experiment 2: Two Lights<BR>
-		I have connected the input node to an<BR>
-		automatic switch.  There are two output<BR>
-		nodes - each goes to a light.  I will<BR>
-		attempt to make a brain where both<BR>
-		lights come on when the switch is on.<BR>
-		<BR>
-		<BR>
-                <SPAN ID="jim1"></SPAN><SPAN style="line-height:400%;vertical-align:top">Input from switch</SPAN><BR>
-                <SPAN ID="jim2"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output to lights 1 and 2</SPAN><BR>
+        	<BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
          `
          , activate : ()=>{
                 setupDemo3();
@@ -182,35 +206,40 @@ const journal = [
         ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">6</SPAN>
 		<BR>
-		Two in a row!!<BR>
-		<BR>
-		Much excitement.  Having a party<BR>
-		to celebrate.  Maybe I could set<BR>
-		up some lights???<BR>
-		<BR>
-		Might as well do it as an<BR>
-		experiment...<BR>
-		<BR>
-		<BR>
-		<BR>
-		<BR>
-		<BR>
+        	<BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
          `}
         ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">6</SPAN>
 		<BR>
-		Experiment 3: Disco<BR>
-		I have set up a second faster automatic<BR>
-		switch and there are now four lights.<BR>
-		I want lights 1 and 3 to swtich slowly<BR>
-		and lights 2 and 4 to switch quickly.<BR>
-		<BR>
-                <SPAN ID="jim1"></SPAN><SPAN style="line-height:400%;vertical-align:top">Input from 1 and 2</SPAN><BR>
-                <SPAN ID="jim2"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output to lights 1,2,3 and 4.</SPAN><BR>
-		[Lines can be removed by grabbing<BR>
-		them in one of the 8 grid squares<BR>
-		that surround the node then dragging<BR>
-		them away and dropping them]<BR>
+        	<BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
          `
          , activate : ()=>{
                 setupDemo4();
@@ -224,39 +253,41 @@ const journal = [
         ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">6</SPAN>
 		<BR>
-                Neurons<BR>
-                The large green spheres are neurons.<BR>
-                Neurons are the thinking part of a brain.<BR>
-                these seem to be simplified versions of<BR>
-                real neurons.  Neurons in general have a<BR>
-                threshold.  If the input to the neuron is <BR>
-                below the threshold the neuron is off<BR>
-                (output 0).  If the input to the neuron<BR>
-                 is at or above the threshold the neuron is<BR>
-                 on (output 1).<BR>
-                 <BR>
-                 If this is true for these neurons the I<BR>
-                 could make a brain which switches on a<BR>
-                 light when the input is above some value.<BR>
+        	<BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
                 <BR>
                 
          `}
          ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">6</SPAN>
+		<BR>
+        	<BR>
                 <BR>
-                Experiment 4: Neuron Threshold<BR>
-                The input now comes from a slider.<BR>
-                The slider produces a variable signal in<BR>
-                the range from 0 to 1.  I want the light to<BR>
-                switch on when the signal is 80 or above.<BR>
                 <BR>
-                <SPAN ID="jim1"></SPAN><SPAN style="line-height:400%;vertical-align:top"> Input from slider : 0 to 1</SPAN><BR>
-                <SPAN ID="jim2"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output to light</SPAN><BR>
                 <BR>
-                [Click waste bin to clear the brain]<BR>
-                [Click large egreen button to add neuron]<BR>
-                [Neuron shows in table with slider to set
-                threshold]<BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
          `
          , activate : ()=>{
                 setupDemo5();
@@ -269,34 +300,37 @@ const journal = [
         }
          ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">6</SPAN>
+		<BR>
+        	<BR>
                 <BR>
-                I have noticed that music equipment<BR>
-                uses a seris of lights to indicate sound<BR>
-                volume.  When the volume gets larger<BR>
-                thre are more lights lit.<BR>
                 <BR>
-                It should be possible to duplicate this<BR>
-                using several neurons.<BR>
                 <BR>
-                [On the Logic Analyzer, the blue line<BR>
-                shows the output and the gold line shows<BR>
-                the expected output.  The blue line should<BR>
-                overlay the gold line.  If you can see a gold<BR>
-                line the otuput is wrong and the test <BR>
-                will fail]
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
          `}
         ,{ HTML : `
 		<SPAN ID="pageNum" style="float:right;margin-right:10">6</SPAN>
+		<BR>
+        	<BR>
                 <BR>
-                Experiment 5: Light Scale<BR>
-                The input comes from the slider.<BR>
-                There are four lights that should be lit<BR>
-                at equally spaced intervals to show the<BR>
-                value of the input.  The more light son,<BR>
-                the higher the input.<BR>
                 <BR>
-                <SPAN ID="jim1"></SPAN><SPAN style="line-height:400%;vertical-align:top"> Input from slider : 0 to 1</SPAN><BR>
-                <SPAN ID="jim2"></SPAN><SPAN style="line-height:400%;vertical-align:top">Output to lights 1,2,3 and 4</SPAN><BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
+                <BR>
                 <BR>
                 <BR>
                 <BR>

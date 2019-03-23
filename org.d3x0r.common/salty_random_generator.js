@@ -95,8 +95,9 @@ exports.SaltyRNG = function (f, opt) {
 			this.entropy = oldState.entropy?oldState.entropy.slice(0):null;
 			this.available = oldState.available;
 			this.used = oldState.used;
-			shabuf = oldState.state.clone();
-			k12buf = oldState.state.clone();
+			//throw new Error( "RESTORE STATE IS BROKEN." );
+			shabuf && shabuf.copy( oldState.state );
+			k12buf && k12buf.copy( oldState.state );
 		},
 		reset() {
 			this.entropy = 
@@ -356,6 +357,7 @@ function blocks(w, v, p, pos, len) {
 }
 
 function SHA256() {
+	if( !(this instanceof SHA256) ) return new SHA256();
 	this.v = new Uint32Array(8)
 	this.w = new Int32Array(64)
 	this.buf = new Uint8Array(128)
@@ -372,6 +374,16 @@ SHA256.prototype.clone = function (){
 	x.buflen = this.buflen;
 	x.len = this.len;
 	return x;
+}
+
+SHA256.prototype.copy = function (from){
+
+	this.v = from.v;
+	this.w = from.w;
+	this.buf = from.buf;
+	this.buflen = from.buflen;
+	this.len = from.len;
+	return this;
 }
 
 SHA256.prototype.reset = function () {
@@ -529,28 +541,28 @@ if( 0 ) {
 	k.init();
 	k.update( "asdf" );
 	k.final();
-	var realBuf = k.squeeze( 64 );
+	realBuf = k.squeeze( 64 );
 
-	var outstr = [];
+	outstr = [];
 	console.log( "format..." );
 	realBuf.forEach( v=>outstr.push( v.toString(16)) );
 	console.log( "otuput..." );
 	console.log( "BUF:", outstr.join( " " ) );
 
 
-	var realBuf = k.squeeze( 64 );
+	realBuf = k.squeeze( 64 );
 
-	var outstr = [];
+	outstr = [];
 	realBuf.forEach( v=>outstr.push( v.toString(16)) );
 	console.log( "BUF:", outstr.join( " " ) );
-	var realBuf = k.squeeze( 64 );
+	realBuf = k.squeeze( 64 );
 
-	var outstr = [];
+	outstr = [];
 	realBuf.forEach( v=>outstr.push( v.toString(16)) );
 	console.log( "BUF:", outstr.join( " " ) );
-	var realBuf = k.squeeze( 64 );
+	realBuf = k.squeeze( 64 );
 
-	var outstr = [];
+	outstr = [];
 	realBuf.forEach( v=>outstr.push( v.toString(16)) );
 	console.log( "BUF:", outstr.join( " " ) );
 
@@ -561,9 +573,9 @@ if( 0 ) {
 	k.init();
 	k.update( "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf" );
 	k.final();
-	var realBuf = k.squeeze( 64 );
+	realBuf = k.squeeze( 64 );
 
-	var outstr = [];
+	outstr = [];
 	realBuf.forEach( v=>outstr.push( v.toString(16)) );
 	console.log( "BUF:", outstr.join( " " ) );
 
@@ -664,6 +676,8 @@ function KangarooTwelve() {
 		squeezing: null,
 		clone() {
 		},
+		copy(from) {
+		},
 		phase() {
 			return k12._KangarooTwelve_phase( data.k );
 		},
@@ -750,15 +764,11 @@ function SRG_XSWS_encryptData( objBuf, tick, keyBuf ) {
 		var n;
 		var dolen = outlen/4
 		for( n = 0; n < dolen; n++ ) output[n] ^= bufKey [ ((n) % (RNGHASH / 32)) ];
-        	BlockShuffle_SubBytes( bytKey, output8, output8, offset, outlen );
 		var p = 0x55;
-		for( n = 0; n < outlen; n++ )  p = output8[n] = output8[n] ^ p;
-		BlockShuffle_SubBytes( bytKey, output8, output8, offset, outlen );
+		for( n = 0; n < outlen; n++ )  p = output8[n] = bytKey.map[output8[n] ^ p];
 		p = 0xAA;
-		for( n = outlen-1; n >= 0; n-- ) p = output8[n] = output8[n] ^ p;
-		BlockShuffle_SubBytes( bytKey, output8, output8, offset, outlen );
+		for( n = outlen-1; n >= 0; n-- ) p = output8[n] = bytKey.map[output8[n] ^ p];
 	}
-
 
 	var signEntropy = localCiphers.pop();
 	if( !signEntropy ) {
@@ -786,6 +796,7 @@ function SRG_XSWS_encryptData( objBuf, tick, keyBuf ) {
 	}
 
 	localCiphers.push( signEntropy );
+
 	return outBuf8;
 }
 
@@ -793,7 +804,7 @@ function SRG_XSWS_encryptString( objBuf, tick, keyBuf ) {
 	var tickBuf = new Uint32Array( 2 );
 	
 	tickBuf[0] = tick & 0xFFFFFFFF;
-	tickBuf[1] = ( tick >> 32 ) & 0xFFFFFFFF;
+	tickBuf[1] = ( tick / 0x100000000 ) & 0xFFFFFFFF;
 	var ob = myTextEncoder( objBuf );
 	//console.log( "INPUT BUF?", ob.length );
 	var ob32 = new Uint32Array( ob.buffer );
@@ -808,15 +819,10 @@ function SRG_XSWS_decryptData( objBuf,  tick, keyBuf ) {
 		, bufKey
 	) {
 		var n;
-	
-		//console.log( "dec Pre sub1:", Array.from(output8).map((val)=>val.toString(16)).join(",") );
-        	BlockShuffle_BusBytes( bytKey, input, output8, offset, len );
-		for( n = 0; n < (len - 1); n++ ) output8[offset+n] = output8[offset+n] ^ output8[offset+n+1];
-        	output8[offset+n] = output[offset+n] ^ 0xAA;
-		BlockShuffle_BusBytes( bytKey, output8, output8, offset, len );
-		for( n = (len - 1); n > 0; n-- ) output8[offset+n] = output8[offset+n] ^ output8[offset+n-1];
-		output8[offset+0] = output8[offset+0] ^ 0x55;
-        	BlockShuffle_BusBytes( bytKey, output8, output8, offset, len );
+		for( n = 0; n < (len - 1); n++ ) output8[offset+n] = bytKey.dmap[input[offset+n]] ^ input[offset+n+1];
+        	output8[offset+n] = bytKey.dmap[output[offset+n]] ^ 0xAA;
+		for( n = (len - 1); n > 0; n-- ) output8[offset+n] = bytKey.dmap[output8[offset+n]] ^ output8[offset+n-1];
+		output8[offset+0] = bytKey.dmap[output8[offset+0]] ^ 0x55;
 		var dolen = len / 4;
 		for( n = 0; n < dolen; n ++ ) output[offset+n] ^= bufKey [ ((n) % (RNGHASH / 32)) ];
 	}
@@ -824,7 +830,7 @@ function SRG_XSWS_decryptData( objBuf,  tick, keyBuf ) {
 	
 	var signEntropy = localCiphers.pop();
 	if( !signEntropy ) {
-		signEntropy = exports.SaltyRNG( NULL, {mode:1} );
+		signEntropy = exports.SaltyRNG( null, {mode:1} );
 		signEntropy.initialEntropy = null;
 	}
 	
@@ -837,14 +843,13 @@ function SRG_XSWS_decryptData( objBuf,  tick, keyBuf ) {
 
 	var outBuf = new Uint32Array( objBuf.length );
 	var outBuf8 = new Uint8Array( outBuf.buffer );
-	var objBuf8 = new Uint8Array( objBuf.buffer );
 	var blockLen = objBuf.buffer.byteLength;
 	for( var b = 0; b < blockLen; b += 4096 ) {
 		var bs = blockLen - b;
 		if( bs > 4096 )
-			decryptBlock( bytKey, objBuf8, b, 4096, outBuf, outBuf8, bufKey );
+			decryptBlock( bytKey, objBuf, b, 4096, outBuf, outBuf8, bufKey );
 		else
-			decryptBlock( bytKey, objBuf8, b, bs, outBuf, outBuf8, bufKey );
+			decryptBlock( bytKey, objBuf, b, bs, outBuf, outBuf8, bufKey );
 	}
 	outBuf = new Uint8Array( outBuf8, 0, outBuf.length - outBuf[0] + objBuf.buffer.length - 1 );
 
@@ -856,7 +861,7 @@ function SRG_XSWS_decryptString( objBuf, tick, keyBuf ) {
 	var tickBuf = new Uint32Array( 2 );
 	
 	tickBuf[0] = tick & 0xFFFFFFFF;
-	tickBuf[1] = ( tick >> 32 ) & 0xFFFFFFFF;
+	tickBuf[1] = ( tick / 0x100000000 ) & 0xFFFFFFFF;
 	var outBuf = SRG_XSWS_decryptData( objBuf, tickBuf, keyBuf );
 	return myTextDecoder( outBuf );
 }
@@ -928,10 +933,23 @@ function SRG_XSWS_decryptString( objBuf, tick, keyBuf ) {
 		return out;
 	}
 
+function GetCurrentTick() {
+	var now = new Date();
+	var tick = now.getTime() * 256;
+	tick |= ( -now.getTimezoneOffset() /15 ) & 0xFF;
+	return tick;
+}
+
+
+function TickToTime( tick ) {
+	var now = new Date( tick / 256 );
+}
 exports.SRG_XSWS_encryptString = SRG_XSWS_encryptString;
 exports.SRG_XSWS_decryptString = SRG_XSWS_decryptString;
 exports.SRG_XSWS_encryptData = SRG_XSWS_encryptData;
 exports.SRG_XSWS_decryptData = SRG_XSWS_decryptData;
+exports.TickToTime = TickToTime;
+exports.GetCurrentTick = GetCurrentTick;
 
 if( 0 ) {
 	var keybuf = new Uint8Array(1);
@@ -941,28 +959,28 @@ if( 0 ) {
 	var input = SRG_XSWS_decryptString( output, 123, keybuf );
 	console.log( "DEC OUTPUT? ", input, input.length );
 	
-	var output = SRG_XSWS_encryptString( "test1", 123, keybuf );
+	output = SRG_XSWS_encryptString( "test1", 123, keybuf );
 	console.log( "ENC OUTPUT? ", output );
-	var input = SRG_XSWS_decryptString( output, 123, keybuf );
+	input = SRG_XSWS_decryptString( output, 123, keybuf );
 	console.log( "DEC OUTPUT? ", input, input.length );
 	
-	var output = SRG_XSWS_encryptString( "test12", 123, keybuf );
+	output = SRG_XSWS_encryptString( "test12", 123, keybuf );
 	console.log( "ENC OUTPUT? ", output );
-	var input = SRG_XSWS_decryptString( output, 123, keybuf );
+	input = SRG_XSWS_decryptString( output, 123, keybuf );
 	console.log( "DEC OUTPUT? ", input, input.length );
 	
-	var output = SRG_XSWS_encryptString( "test123", 123, keybuf );
+	output = SRG_XSWS_encryptString( "test123", 123, keybuf );
 	console.log( "ENC OUTPUT? ", output );
-	var input = SRG_XSWS_decryptString( output, 123, keybuf );
+	input = SRG_XSWS_decryptString( output, 123, keybuf );
 	console.log( "DEC OUTPUT? ", input, input.length );
 	
-	var output = SRG_XSWS_encryptString( "test1234", 123, keybuf );
+	output = SRG_XSWS_encryptString( "test1234", 123, keybuf );
 	console.log( "ENC OUTPUT? ", output );
-	var input = SRG_XSWS_decryptString( output, 123, keybuf );
+	input = SRG_XSWS_decryptString( output, 123, keybuf );
 	console.log( "DEC OUTPUT? ", input, input.length );
 	        
-	var output = SRG_XSWS_encryptString( "test1235", 123, keybuf );
+	output = SRG_XSWS_encryptString( "test1235", 123, keybuf );
 	console.log( "ENC OUTPUT? ", output );
-	var input = SRG_XSWS_decryptString( output, 123, keybuf );
+	input = SRG_XSWS_decryptString( output, 123, keybuf );
 	console.log( "DEC OUTPUT? ", input, input.length );
 }

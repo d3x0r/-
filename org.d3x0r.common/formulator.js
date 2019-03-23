@@ -17,6 +17,7 @@
 //----------------------------------------------------------------------
 
 var text = require( "./text.js" );
+var util = require( "util" );
 
 const debug_ = false;
 
@@ -137,7 +138,7 @@ const ops = { OP_HANG : -1 // used to indicate prior op complete, please hang on
 };
 
 const fullopname = [ "noop", "sub-expr"
-                     ,  "uint8_t",  "uint16_t",  "uint32_t",  "uint64_t" // unsigned int
+                     ,  "Number",  "uint16_t",  "uint32_t",  "uint64_t" // unsigned int
                      , "int8_t", "int16_t", "int32_t", "int64_t" // signed int
                      , "float", "double" // float ops
                      , "string", "character"
@@ -201,7 +202,7 @@ const Relations = [ { thisop:ops.OP_NOOP      , trans:[ { ch:'=', becomes:ops.OP
 function GetOpNode( ) { 
 	var node = {
 		 op : ops.OP_NOOP,
-		data : { number:0, string:'', sub:null },
+		data : { number:0, string:'',external:null, sub:null },
 		left:null,
 		right:null
 	}
@@ -342,7 +343,6 @@ function RelateOpNode( rootObj, rootKey,  node )
 	}
 
 	if( !rootObj[rootKey] ) {
-	console.log( "SET ROOT" );
 		rootObj[rootKey] = node;
 	} else
 	{
@@ -376,7 +376,7 @@ function LogExpression(  root )
 		}
 		else
 		{
-			console.log( "(%s) = %lld", fullopname[root.op], root.data.number );
+			console.log( "(%s) = %d", fullopname[root.op], root.data.number );
 		}
 		root = root.right;
 	}
@@ -395,8 +395,12 @@ function LogExpression(  root )
 //     (op)+/-/##/(
 //--------------------------------------------------------------------------
 
-function BuildExpression( input ) // expression is queued
+function BuildExpression( input, variables ) // expression is queued
 {
+	var expression = {
+		root : null,
+		
+	};
 	var words = text.Parse( input, "\'\"\\({[<>]}):@%/,;!?=*&$^~#`+-" );
 	var word = words;
 	var pExp; // string
@@ -405,8 +409,7 @@ function BuildExpression( input ) // expression is queued
 	var quote = 0;
 	var overflow = 0;
 	var ThisOp = GetOpNode();
-        var br = { branch: null};
-	var branch = null;
+        //var br = { branch: null};
 	var thisword;
 	//return 0; // force false output ... needs work on substitutions...
 
@@ -430,13 +433,13 @@ function BuildExpression( input ) // expression is queued
 	{
 		var n;
 		pExp = GetText( thisword );
-		console.log( "word: %s\n", pExp );
+		debug_ && console.log( "word: %s\n", pExp );
 		if( pExp == '\'' )
 		{
 			if( quote == '\'' )
 			{
 				overflow = 0;
-				RelateOpNode( br, "branch", ThisOp );
+				RelateOpNode( expression, "root", ThisOp );
 			  	ThisOp = GetOpNode();
 				quote = 0;
 			}
@@ -455,7 +458,7 @@ function BuildExpression( input ) // expression is queued
 				var tmp = ThisOp.data.string.toString();
 				//LineRelease( ThisOp.data.string );
 				ThisOp.data.string = tmp;
-				RelateOpNode( br, "branch", ThisOp );
+				RelateOpNode( expression, "root", ThisOp );
 			  	ThisOp = GetOpNode();
 				quote = 0;
 			}
@@ -510,7 +513,7 @@ function BuildExpression( input ) // expression is queued
 			//	fprintf( stddbg, "Adding operation: " );
 			//	LogExpression( ThisOp );
 			//}
-				RelateOpNode( br, "branch", ThisOp );
+				RelateOpNode( expression, "root", ThisOp );
 				ThisOp = GetOpNode();
 			}
 
@@ -520,14 +523,14 @@ function BuildExpression( input ) // expression is queued
 			if( pExp && pExp[0] != ')' )
 			{
 				console.log( "(%s%d Error: Invalid expression\n" );
-				DestroyExpression( br.branch );
+				DestroyExpression( expression.root );
 				DestroyOpNode( ThisOp );
 				return null;
 				// invalid pairing of parens in expression
 			}
 			ThisOp.op = ops.OP_SUBEXPRESSION;
 			ThisOp.data.sub = subexpression;
-			RelateOpNode( br, "branch", ThisOp );
+			RelateOpNode( expression, "root", ThisOp );
 		  	ThisOp = GetOpNode();
 			// pExp = GetText( GetCurrentWord() );
 			// on return check current token as ')'
@@ -536,7 +539,7 @@ function BuildExpression( input ) // expression is queued
 		{
 			if( ThisOp.op != ops.OP_NOOP )
 			{
-				RelateOpNode( br, "branch", ThisOp );
+				RelateOpNode( expression, "root", ThisOp );
 			}
 			else
 				DestroyOpNode( ThisOp );
@@ -545,7 +548,7 @@ function BuildExpression( input ) // expression is queued
 			//	fprintf( stddbg, "Built Expression: ") ;
 			//	LogExpression( branch );
 			//}
-			return br.branch;
+			return expression;
 		}
 		else if( ( pExp[0] >= '0' && pExp[0] <= '9' ) ||
 					( pExp[0] == '.' ) )
@@ -553,37 +556,14 @@ function BuildExpression( input ) // expression is queued
 
 			if( ThisOp.op != ops.OP_NOOP )
 			{
-				RelateOpNode( br, "branch", ThisOp );
+				RelateOpNode( expression, "root", ThisOp );
 				ThisOp = GetOpNode();
 			}
 
 			ThisOp.op = ops.OP_NUMBER;
 			ThisOp.data.number = Number( pExp );
-			RelateOpNode( br, "branch", ThisOp );
+			RelateOpNode( expression, "root", ThisOp );
 			ThisOp = GetOpNode();
-		}
-		else if( pExp[0] == '_' 
-		       || ( pExp[0] >= 'A' && pExp[0] <= 'Z' )
-		       || ( pExp[0] >= 'a' && pExp[0] <= 'z' )  )
-		{
-			// this is unsubstituted, is not a predefined thing, etc,
-			// therefore this is a 0.
-			if( quote )
-			{
-			}
-			else
-			{
-				if( ThisOp.op != ops.OP_NOOP )
-				{
-					RelateOpNode( br, "branch", ThisOp );
-					ThisOp = GetOpNode();
-				}
-				ThisOp.op = ops.OP_NUMBER;
-				console.log( "This shouldl evaluate some sort of callback and get a data type for this." );
-				ThisOp.data.number = 0;
-				RelateOpNode( br, "branch", ThisOp );
-				ThisOp = GetOpNode();
-			}
 		}
 		else {
                 	do {
@@ -592,28 +572,27 @@ function BuildExpression( input ) // expression is queued
 				retry_this_operator:
 					for( n = 0; n < Relations.length; n++ )
 					{
+						//console.log( "test operator:", fullopname[ThisOp.op], n );
 					 	if( Relations[n].thisop == ThisOp.op )
 				 		{
 				 			var o;
-				 			for( o = 0; Relations[n].trans[o].ch; o++ )
+					
+				 			for( o = 0; o < Relations[n].trans.length; o++ )
 					 		{
-					 			if( Relations[n].trans[o].ch == pExp[0] )
+								//console.log( "test thing:", n, o, Relations[n].trans[o].ch, pExp);
+					 			if( Relations[n].trans[o].ch == pExp )
 								{
-									//if( g.bDebugLog )
-									//{
-									//	fprintf( stddbg, "%s becomes %s\n",
-									//			  ThisOp.op<0?"???":fullopname[ThisOp.op], fullopname[Relations[n].trans[o].becomes] );
-									//}
+									//console.log( "operator", fullopname[ThisOp.op], "becomes", fullopname[Relations[n].trans[o].becomes] );
 		 							ThisOp.op = Relations[n].trans[o].becomes;
 				 					break;
 				 				}
 					 		}
-					 		if( !Relations[n].trans[o].ch )
+					 		if( o >= Relations[n].trans.length )
 				 			{
 				 				//fprintf( stddbg, "Invalid expression addition\n" );
 								console.log( " Error invalid operator: %s\n",pExp );
 				 				// invalid expression addition....
-				 				n = Releations.length;
+				 				n = Relations.length;
 					 		}
 					 		break;
 					 	}
@@ -627,12 +606,39 @@ function BuildExpression( input ) // expression is queued
 				{
 					if( ThisOp.op != ops.OP_NOOP )
 					{
-						RelateOpNode( br, "branch", ThisOp );
+						RelateOpNode( expression, "root", ThisOp );
 						ThisOp = GetOpNode();
-						console.log( "New ThisOP; and checking plus again.." );
+						//console.log( "New ThisOP; and checking plus again.." );
 						continue;//goto retry_this_operator;
 					}
-					DestroyExpression( br.branch );
+					if( variables )
+					{
+						// this is unsubstituted, is not a predefined thing, etc,
+						// therefore this is a 0.
+						//console.log( "Test word in variables", word.text, pExp, variables );
+						if( variables[word.text] ){
+							ThisOp.op = ops.OP_EXTERNAL;
+							console.log( "This shouldl evaluate some sort of callback and get a data type for this." );
+							ThisOp.data.external = variables[word.text].getReference( word.text, expression.root );
+							break;
+						}
+						else if( variables.default ) {
+							ThisOp.op = ops.OP_EXTERNAL;
+							console.log( "This shouldl evaluate some sort of callback and get a data type for this." );
+							ThisOp.data.external = variables.default( word.text, expression.root );
+							break;
+						}
+						else
+						{
+							ThisOp.data.string = word.text;
+							RelateOpNode( expression, "root", ThisOp );
+							ThisOp = GetOpNode();
+							break; // next word.
+						}
+					}
+
+					throw new Error( util.format( "invalid opcode sequence at", word.text, "in:", input ) );
+					DestroyExpression( expression.root );
 					return null;
 				}
                                 break;
@@ -652,7 +658,7 @@ function BuildExpression( input ) // expression is queued
 	//	fprintf( stddbg, "Built Expression: ") ;
 	//	LogExpression( branch );
 	//}
-	return br.branch;
+	return expression;
 }
 
 //--------------------------------------------------------------------------
@@ -665,6 +671,8 @@ function IsValue( nodeObj, nodeKey,  collapse_sub )
 	switch( nodeObj[nodeKey].op )
 	{
 	case ops.OP_NUMBER:
+	case ops.OP_STRING:
+		return true;
 		return true;
 
 	case ops.OP_SUBEXPRESSION:
@@ -911,7 +919,7 @@ function ApplyAddition( node1, node2 )
 //--------------------------------------------------------------------------
 
 
-function ResolveExpression( exprObj, exprKey )
+function ResolveExpressionInner( exprObj, exprKey )
 {
 	// find highest operand... next next next next....
 	var node;
@@ -1310,8 +1318,8 @@ function ResolveExpression( exprObj, exprKey )
 		if( node.op == ops.OP_XOR )
 		{
 			var nodes={left:node.left,right:node.right};
-			if( IsValue( nodes, "left", true )
-				&& IsValue( nodes, "right", true ) )
+			if( node.left.op === ops.OP_NUMBER
+				&& node.right.op === ops.OP_NUMBER )
 			{
 				var result;
 				result = ApplyXor( nodes.left, nodes.right );
@@ -1338,8 +1346,8 @@ function ResolveExpression( exprObj, exprKey )
 		if( node.op == ops.OP_BINARYOR )
 		{
 			var nodes={left:node.left,right:node.right};
-			if( IsValue( nodes, "left", true )
-				&& IsValue( nodes, "right", true ) )
+			if( node.left.op === ops.OP_NUMBER
+				&& node.right.op === ops.OP_NUMBER )
 			{
 				var result;
 				result = ApplyBinaryOr( nodes.left, nodes.right );
@@ -1436,14 +1444,21 @@ function ResolveExpression( exprObj, exprKey )
 
 //--------------------------------------------------------------------------
 
-function IsValidExpression( exprObj, objKey )
+function ResolveExpression( expression )
+{
+	return ResolveExpressionInner( expression, "root" );
+}
+
+//--------------------------------------------------------------------------
+
+function IsValidExpression( expression )
 {
 	// check to see if any operands are next to any other operands...
 	// like 3 4 2 is not valid 3 + 4 + 2 is though
 	// though the processing will cause the +'s to dissappear and
 	// subsequently when done - any operands next to each other are
 	// implied +'s
-	var thisnode = { node : exprObj[objKey] };
+	var thisnode = { node : expression.root };
 	var prior_operand = 0;
 	while( thisnode.node )
 	{
@@ -1466,7 +1481,7 @@ function IsValidExpression( exprObj, objKey )
 		{
 			if( prior_operand )
 			{
-				LogExpression( exprObj[objKey] );
+				LogExpression( expression.root );
 				console.log( " Multiple operands with no operator!\n");
 				return false;
 			}
@@ -1483,30 +1498,49 @@ function IsValidExpression( exprObj, objKey )
 
 function ProcessExpression( input )
 {
-	
-	var holder = { tree:BuildExpression( input ) };
-	if( IsValidExpression( holder, "tree" ) )
+	var expression = BuildExpression( input );
+	if( IsValidExpression( expression ) )
 	{
-		ResolveExpression( holder, "tree" );
-		if( !holder.tree )
-			throw( "Failed to parse expression...", input );
-		if( holder.tree.left || holder.tree.right )
+		ResolveExpression( expression );
+		if( !expression.root )
+			throw new Error( "Failed to parse expression...", input );
+		if( expression.root.left || expression.root.right )
 		{
 			console.log( " Expression failed to resolve completely...\n" );
 		}
 		{
 			var resultval = 0;
-			if( holder.tree )
+			if( expression.root )
 			{
-				resultval = holder.tree.data.number;
+				resultval = expression.root.data.number;
 			}
-			DestroyExpression( holder.tree );
+			DestroyExpression( expression.root );
 			return resultval;
 		}
 	}
-	DestroyExpression( holder.tree );
+	DestroyExpression( expression.root );
 	return 0;
 }
 
 
+exports.buildExpression = BuildExpression
+exports.resolveExpression = ResolveExpression
 exports.processExpression = ProcessExpression
+
+
+BuildExpression( "apple + banana", { 
+			default(word,expression) {
+				return { name: "other value", param:word };
+			}
+			, apple: { getReference(word,expression) {
+					return { name : "apple" };
+				}
+			}
+			, banana : { getReference( word,expression) {
+					return {
+						name : "banana"
+					};
+				}
+			}
+		} );
+

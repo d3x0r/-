@@ -30,7 +30,7 @@ function u8xor(a,b) {
 	if( !b.keybuf ) { /*console.trace( "Key needs buf...." );*/ b.keybuf = Buffer.from( b.key, 'utf8' ); }
 	let c = b.keybuf;//Buffer.from(b.key, 'utf8');
 	//var buf = TE.encode(a);
-	let outBuf = new Buffer( buf.length );
+	let outBuf = new Buffer.alloc( buf.length );
 	let o = b.step;
 	b.step += buf.length;
 	let keylen = b.key.length-5;

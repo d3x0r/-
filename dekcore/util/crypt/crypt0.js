@@ -1,7 +1,7 @@
 
 const idGen = require( "../id_generator.js" );
 const ekey = idGen.ukey();
-const vfs = require( "sack.vfs" );
+const vfs = require( "../../../vfs/native" );
 const vol = vfs.Volume();
 
 const fname = process.argv[2];

@@ -1,7 +1,7 @@
 "use strict";
 
-const RNG = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( (saltbuf)=>saltbuf.push( Date.now() ) );
-const RNG2 = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( getSalt2 );
+const RNG = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( (saltbuf)=>saltbuf.push( Date.now() ), { mode:1 } );
+const RNG2 = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( getSalt2, { mode:1 } );
 const u8xor = require( "./u8xor.js" );
 
 var salt = null;
@@ -13,13 +13,7 @@ function getSalt2 (saltbuf) {
 }
 
 exports.generator = function() {
-    // this is an ipv6 + UUID
-	//var b;
     return base64ArrayBuffer( RNG.getBuffer(8*(16+16)) );
-	//var out = new Uint8Array( 32 );
-	//DecodeBase64( out, n );
-	//console.log( "in:", new Uint8Array(b), "out:", out );
-    //return n;
 }
 
 exports.short_generator = function() {
@@ -160,7 +154,26 @@ exports.verify = function( msg, id  ) {
 // http://jsperf.com/encoding-xhr-image-data/5
 // doesn't have to be reversable....
 const encodings = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789$_'
-const decodings = { '=':0 };
+
+	// My JS Encoding $_ and = at the end.  allows most to be identifiers too.
+	// 'standard' encoding +/
+	// variants -/
+	//          +,
+	//          ._
+	// variants -_
+
+const decodings = { '~':0
+		,'=':0
+		,'$':62
+		,'_':63
+		,'+':62
+		,'-':62
+		,'.':62
+		,'/':63
+		,',':63
+};
+
+
 var u8 = '';
 
 
@@ -175,6 +188,7 @@ for( var x = 0; x < 256; x++ ) {
 	else {
 		u8 += String.fromCharCode(x);
 	}
+	Object.freeze( decodings );
 }
 //console.log( "u8 is...", u8 );
 
@@ -227,21 +241,39 @@ function base64ArrayBuffer(arrayBuffer) {
 
 function DecodeBase64( out, buf )
 {
+	var n;
+	var outsize = 0;
+	var l = (buf.length+3)/4;
+	for( n = 0; n < l; n++ )
 	{
-		var n;
-		var l = (buf.length+3)/4;
-		for( n = 0; n < l; n++ )
-		{
-			var index0 = decodings[buf[n*4]];
-			var index1 = decodings[buf[n*4+1]];
-			var index2 = decodings[buf[n*4+2]];
-			var index3 = decodings[buf[n*4+3]];
-			
-			out[n*3+0] = (( index0 ) << 2 | ( index1 ) >> 4);
-			out[n*3+1] = (( index1 ) << 4 | ( ( ( index2 ) >> 2 ) & 0x0f ));
-			out[n*3+2] = (( index2 ) << 6 | ( ( index3 ) & 0x3F ));
-		}
+		var index0 = decodings[buf[n*4]];
+		var index1 = decodings[buf[n*4+1]];
+		var index2 = decodings[buf[n*4+2]];
+		var index3 = decodings[buf[n*4+3]];
+		
+		out[n*3+0] = (( index0 ) << 2 | ( index1 ) >> 4);
+		out[n*3+1] = (( index1 ) << 4 | ( ( ( index2 ) >> 2 ) & 0x0f ));
+		out[n*3+2] = (( index2 ) << 6 | ( ( index3 ) & 0x3F ));
 	}
+
+	// if the buffer is truncated in length, use that as the 
+	// constraint, and if 1 char results with 6 bits, do not
+	// count that as a whole byte of output.
+	if( buf.length % 4 == 1 )
+		outsize = (((buf.length + 3) / 4) * 3) - 3;
+	else if( length % 4 == 2 )
+		outsize = (((buf.length + 3) / 4) * 3) - 2;
+	else if( length % 4 == 3 )
+		outsize = (((buf.length + 3) / 4) * 3) - 1;
+	else if( buf[buf.length - 1] == '=' ) {
+		if( buf[buf.length - 2] == '=' )
+			outsize = (((buf.length + 3) / 4) * 3) - 2;
+		else
+			outsize = (((buf.length + 3) / 4) * 3) - 1;
+	}
+	else
+		outsize = (((buf.length + 3) / 4) * 3);
+	return outsize;
 }
 
 

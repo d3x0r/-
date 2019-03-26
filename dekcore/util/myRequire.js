@@ -1,13 +1,14 @@
 "use strict";
 
-const _debug = true;
-var https = require( 'https' );
+const _debug = false;
+//const https = require( 'https' );
 const sack = require( 'sack.vfs' );
+const https = sack.HTTPS;
+const config = require( "../config.js" );
 const nativeVol = sack.Volume();
+const vm = require( 'vm' );
 var fs;
 
-
-var ws = require( 'ws' );
 
 var loadedModules = [];
 
@@ -25,181 +26,288 @@ var requireConfig = exports.config = { host:"", port:8000, config: null };
 var runningModule = module;
 
 function provideDefault( name, exports ) {
-    loadedModules.push(  {
-        filename: name,
-        file : name,
-        parent : runningModule,
-        paths : ["."],
-        exports : exports,
-        loaded : true,
-        local : true,
-        rawData : '',
-      } )  ;
+	loadedModules.push(  {
+		filename: name,
+		file : name,
+		parent : runningModule,
+		paths : ["."],
+		exports : exports,
+		loaded : true,
+		local : true,
+		rawData : '',
+	} );
 }
 
 provideDefault( "myRequire.js", exports );
 
 function doRequire( file ) {
 
-  var f = stripPath( file );
-  var m = loadedModules.find( (m)=>m.file === f );
-  if( m ) {
-    console.log( "found by filename: ", f )
-    return m.exports;
-  }
+	_debug&&console.log( "DO REQUIRE:", file );
+	var f = stripPath( file );
+	var m = loadedModules.find( (m)=>m.file === f );
+	if( m ) {
+		//console.log( "found by filename: ", f )
+		return m.exports;
+	}
 
-  //console.log( "Require for:", file );
-  var thisModule = {
-    filename: resolvePath( file, runningModule ),
-    file : f,
-    parent : runningModule,
-    paths : [stripFile( file )],
-    exports : {},
-    loaded : false,
-    local : true,
-    rawData : '',
-  };
-    ["rawData"].forEach( key=>{
-        Object.defineProperty( thisModule, key, { enumerable:false, writable:true,configurable:false} );
-    })
+	_debug&&console.log( "Require for:", file );
+	var thisModule = {
+		filename: resolvePath( file, runningModule ),
+		file : f,
+		parent : runningModule,
+		paths : [stripFile( file )],
+		exports : {},
+		loaded : false,
+		local : true,
+		rawData : '',
+	};
+	["rawData"].forEach( key=>{
+		Object.defineProperty( thisModule, key, { enumerable:false, writable:true,configurable:false} );
+	})
 
-  //console.log( "load module:", thisModule)
-  // http access requires leading slash for resources
-  if( thisModule.filename[0] !== '/' )
-    thisModule.filename = '/' + thisModule.filename;
 
-  if( file === "./config.js" || file === "../config.js" ) {
-    console.log( "well... ", file )
-    return requireConfig.config;
-  }
+	if( file === "./config.js" || file === "../config.js" ) {
+		console.log( "well... ", file )
+		return requireConfig.config;
+	}
 
-  console.log( "module is ", file )
-  if( !(file[0] === '.' ) && !( file[0] === '/' ) && (file.indexOf('/')<0) ) {
-      // check for allowed modules.
-      return require( file );
-  }
+	let evalCode = false;
+	let evalJson = false;
+	let evalJson6 = false;
 
-  if( !fs ) fs = sack.Volume( null, "core/cache.dat" );
+	if( file.endsWith( '.json' ) )
+		evalJson = true;
+	else 
+	if( file.endsWith( '.json6' ) )
+		evalJson6 = true;
+	else {
+		evalCode = true;
+	}
 
-  //console.log( "in another level?", file )
-  if( fs.exists( file ) ) {
-	thisModule.rawData = fs.read( file).toString();
-	thisModule.local = true;
-  }
-
-    let evalCode = false;
-    let evalJson = false;
-
-	if( file[0] === ':' )
-	{
-		var buf = nativeVol.read( file.substr( 1 ) );
-		if( buf ) {
-			if( file.includes( ".json" ) )
-				evalJson = true;
-			else
-				evalCode = true;
-			thisModule.rawData = buf.toString();
+	//console.log( "module is ", file )
+	if( file[1] === ':' || file[0] == '/' ) {
+		_debug&&console.log( "doing internal require for absolute path");
+		thisModule.rawData = nativeVol.read( file );
+		if( thisModule.rawData ) {
 			thisModule.loaded = true;
 		}
+		else thisModule.rawData = "";
 	}
 
-if( !thisModule.loaded ) {
-    var opts = {  hostname: requireConfig.host,
-                  port : requireConfig.port,
-                  method : "GET",
-                  rejectUnauthorized: false,
-                  path : thisModule.filename// "/"+file
-                };
+	if( !thisModule.loaded ) {
+		if( !(file[0] === '.' ) && !( file[0] === '/' ) && (file.indexOf('/')<0) ) {
+			// check for allowed modules.
+			_debug&&console.log( "doing internal require for node module")
+			return require( file );
+		}
 
-    //console.log( "options ", opts );
+		if( (file[0] === '.' ) && ( file[1] === '/' ) ) {
+			// check for allowed modules.
+			_debug&&console.log( "doing internal require for local module")
+                        var data = nativeVol.read( file );
+                        if( data ) {
+	       			thisModule.rawData = data.toString();
+				thisModule.local = true;
+				thisModule.loaded = true;
+                        }
+		}
 
-    https.get( opts,
-      (res) => {
-        const statusCode = res.statusCode;
-        const contentType = res.headers['content-type'];
-        let error;
-        if (statusCode !== 200) {
-          error = new Error(`Request Failed.\n` +
-                            `Status Code: ${statusCode}` + JSON.stringify( opts ) );
-        } else if (/^text\/javascript/.test(contentType)) {
-          evalCode = true;
-        } else if (/^application\/javascript/.test(contentType)) {
-          evalCode = true;
-        } else if (/^application\/json/.test(contentType)) {
-          evalJson = true;
-        }
-        else {
-          error = new Error(`Invalid content-type.\n` +
-                            `Expected application/json or application/javascript but received ${contentType}`);
 
-        }
-        if (error) {
-          console.log(error.message);
-          // consume response data to free up memory
-          res.resume();
-          return;
-        }
 
-        res.setEncoding('utf8');
-        res.on('data', (chunk) => thisModule.rawData += chunk);
-        res.on('end', () => {
-          //console.log( "end" );
-          //console.trace( "loaded..." );
-          sack.Λ();
-          thisModule.loaded = true;
-        });
-      }).on('error', (e) => {
-        console.trace(`Got error: ${e.message}`, e);
-      });
+		_debug&&console.log( "check in cache...");
+		if( !fs ) fs = sack.Volume( "core/cache.dat" );
+
+		_debug&&console.log( "in another level?", file )
+                
+		if( fs.exists( file ) ) {
+			var data = fs.read(file);
+			if( data ) {
+				thisModule.rawData = data.toString();
+				thisModule.local = true;
+			}
+		}
+
+		if( file[0] === ':' ) // ':' leading into a path forces reading a file from local storage
+		{
+			var buf = nativeVol.read( file.substr( 1 ) );
+			if( buf ) {
+				thisModule.rawData = buf.toString();
+				thisModule.loaded = true;
+			}
+		}
+
+		//console.log( "load module:", thisModule)
+		// http access requires leading slash for resources
+		if( thisModule.filename[0] !== '/' )
+			thisModule.filename = '/' + thisModule.filename;
+	}
+
+	if( !thisModule.loaded ) {
+		var opts = {  hostname: requireConfig.host,
+					  port : requireConfig.port,
+					  method : "GET",
+					  ca : config.caRoot,
+					  rejectUnauthorized: true,
+					  path : thisModule.filename// "/"+file
+                                          //, agent : false
+					};
+        
+		//console.log( "options ", opts );
+		_debug&&console.log( "DO HTTP REQUIRE:", file );
+if( true ) {        
+		var res = https.get( opts );
+                if( res.error ) {
+			thisModule.loaded = true;
+                        throw new Error( res.error + " FILE : " + file );
+                } else {
+	       		const statusCode = res.statusCode;
+			const contentType = res.headers['Content-Type'];
+			let error;
+                        _debug && console.log( "http get response happened..." );
+			if (statusCode !== 200) {
+				error = new Error(`Request Failed.\n` +
+						`Status Code: ${statusCode}` + opts.path );
+			} else if (/^text\/javascript/.test(contentType)) {
+				evalCode = true;
+			} else if (/^application\/javascript/.test(contentType)) {
+				evalCode = true;
+			} else if (/^application\/json/.test(contentType)) {
+				evalJson = true;
+			}
+			else {
+				error = new Error(`Invalid content-type.\n` +
+								`Expected application/json or application/javascript but received ${contentType}`);
+        
+			}
+			if (error) {
+				console.log(error.message);
+				// consume response data to free up memory
+				//res.resume();
+				return;
+			}
+        		
+			//res.setEncoding('utf8');
+			thisModule.rawData = res.content;
+                        
+			_debug && console.log( "http request ending" );
+			_debug && console.trace( "loaded..." );
+			thisModule.loaded = true;
+		}
 }
-    while(!thisModule.loaded) sack.Δ();
+if( false) {        
+		https.get( opts,
+			(res) => {
+			const statusCode = res.statusCode;
+			const contentType = res.headers['content-type'];
+			let error;
+                        //console.log( "http get response happened..." );
+			if (statusCode !== 200) {
+				error = new Error(`Request Failed.\n` +
+						`Status Code: ${statusCode}` + JSON.stringify( opts ) );
+			} else if (/^text\/javascript/.test(contentType)) {
+				evalCode = true;
+			} else if (/^application\/javascript/.test(contentType)) {
+				evalCode = true;
+			} else if (/^application\/json/.test(contentType)) {
+				evalJson = true;
+			}
+			else {
+				error = new Error(`Invalid content-type.\n` +
+								`Expected application/json or application/javascript but received ${contentType}`);
+        
+			}
+			if (error) {
+				console.log(error.message);
+				// consume response data to free up memory
+				res.resume();
+				return;
+			}
+        
+			res.setEncoding('utf8');
+			res.on('data', (chunk) =>{ thisModule.rawData += chunk} );
+			res.on('end', () => {
+				console.log( "http request ending" );
+				//console.trace( "loaded..." );
+				sack.Λ();
+				thisModule.loaded = true;
+			});
+		}).on('error', (e) => {
+			console.trace(`Got error in ${file}  ${e.message}`, e);
+		});
+		while(!thisModule.loaded) {
+			//console.log( "waiting to block until http request finishes", file )
+			sack.Δ();
+		}
+}
+	}
 
-    var prior = runningModule;
-    //console.log( "Set running Module to ... thisModule" );
-    runningModule = thisModule;
-    if( evalJson ) {
-            try {
-              thisModule.exports = JSON.parse(thisModule.rawData);
-              //console.log( "module resulted in", thisModule.exports, "\nFOR \n", thisModules.rawData)
-            } catch (e) {
-              console.log(e.message);
-            }
+	var prior = runningModule;
+	//console.trace( "Set running Module to ... thisModule" );
+	runningModule = thisModule;
+	if( evalJson || evalJson6 ) {
+			try {
+				if( evalJson6 )
+					thisModule.exports = sack.JSON6.parse(thisModule.rawData);
+				else
+					thisModule.exports = JSON.parse(thisModule.rawData);
+				_debug&&console.log( "module resulted in", thisModule.exports, "\nFOR \n", thisModules.rawData)
+			} catch (e) {
+				console.log(e.message);
+			}
 	}
 	else {
-	    loadedModules.push( thisModule );
-    	if( !thisModule.local )
-    	    fs.write( file, thisModule.rawData );
-        try {
-          var c=['(function(exports,config,module,require){', thisModule.rawData, '})(thisModule.exports,requireConfig.config,thisModule, doRequire);\n//# sourceURL=',file].join("");
-          //console.log( "Evaluating module....", thisModule.file, exports.eval );
-          if( exports.eval )
-            exports.eval( c );
-          else
-            eval(c)
-          //console.trace( "Finished... EXPORTS:", thisModule.exports );
-        } catch( err ) {
-          console.log( "module threw...", err );
-        }
-	}
-    //console.log( "Set running Module to ...", prior );
-    runningModule = prior;
+		loadedModules.push( thisModule );
+		if( !thisModule.local )
+			fs.write( file, thisModule.rawData );
+		try {
+			var c=['//# sourceURL=',file,'\n'
+					//,'try{
+					, '(function(exports,rconfig,module,require){'
+					, thisModule.rawData
+					, '})(thisModule.exports,requireConfig.config,thisModule, doRequire);\n'
+					//,'}catch(err){ console.log( "EvalCatch:", err); console.log( Object.keys(err));}\n'
+					,'//# sourceURL=',file
+					].join("");
+			_debug&&console.log( "Evaluating module....", thisModule.file, exports.eval, c );
+			if( exports.eval )
+				exports.eval( c );
+			else {
+				try {
+					eval(c)
+				} catch( err ) {
+					try {
+						vm.runInThisContext( c );		
+					}catch( err1 ) {
+						console.log( "vm attempt:", err );
+						throw { err,err1 };
+					}
+				}
 
-    return thisModule.exports;
+            }
+			//console.trace( "Finished... EXPORTS:", thisModule.exports );
+		} catch( err ) {
+			console.log( "module threw...", err, " in ", file );
+		}
+	}
+	//console.log( "Set running Module to ...", prior );
+	runningModule = prior;
+
+	return thisModule.exports;
 }
 
 function stripFile( file ) {
-  var i = file.lastIndexOf( "/" );
-  var j = file.lastIndexOf( "\\" );
-  i = ((i>j)?i:j);
-  if( i >= 0 )
-    return file.substr( 0, i );
-  return "";
+	var i = file.lastIndexOf( "/" );
+	var j = file.lastIndexOf( "\\" );
+	i = ((i>j)?i:j);
+	if( i >= 0 )
+		return file.substr( 0, i );
+	return "";
 }
 function stripPath( file ) {
-  //console.log( "File input is : ", file );
-  var i = file.lastIndexOf( "/" );
-  var j = file.lastIndexOf( "\\" );
-  return file.substr( ((i>j)?i:j)+1 );
+	//console.log( "File input is : ", file );
+	var i = file.lastIndexOf( "/" );
+	var j = file.lastIndexOf( "\\" );
+	return file.substr( ((i>j)?i:j)+1 );
 }
 
 function doResolve( path ) {
@@ -208,52 +316,52 @@ function doResolve( path ) {
 }
 
 function resolvePath( base, myModule ) {
-  var tmp = base;
-  var moduleParent = myModule;
-  while( moduleParent
-          && tmp[0] == '.'
-          && tmp[1] !== ':'
-          && !( tmp.startsWith( "//" )
-              || tmp.startsWith( "\\\\" ) )
-        ) {
-	var p = moduleParent.paths[0];
+	var tmp = base;
+	var moduleParent = myModule;
+	while( moduleParent
+		  && tmp[0] == '.'
+		  && tmp[1] !== ':'
+		  && !( tmp.startsWith( "//" )
+			  || tmp.startsWith( "\\\\" ) )
+		) {
+		var p = moduleParent.paths[0];
 
-	_debug&&console.log( "path is ", tmp, moduleParent.paths);
-      if( tmp[1] == '/' )
-        tmp = (p.length?p + "/":"") + tmp.substr( 2 );
-      else
-        tmp = (p.length?p + "/":"") + tmp;
-       // console.log( "new is ", tmp )
-      moduleParent = moduleParent.parent;
-  }
-  do
-  {
-      _debug&&console.log( "build", tmp )
-      let x = tmp.indexOf( "/../" );
-      if( x < 0 )x = tmp.indexOf( "/..\\" );
-      if( x < 0 )x = tmp.indexOf( "\\../" );
-      if( x < 0 )x = tmp.indexOf( "\\..\\" );
-      if( x > 0 ) {
-        var prior = tmp.substr( 0, x );
-        _debug&&console.log( "prior part is", prior );
-        var last1 = prior.lastIndexOf( "/" );
-        var last2 = prior.lastIndexOf( "\\" )
-        var priorStripped = prior.substr( 0, (last1>last2?last1:last2)+1 );
-        tmp = priorStripped + tmp.substr( x + 4 );
-        //console.log( "result:", base )
-      } else {
-	/*
-	if( tmp.startsWith( "..\\" )
-	   || tmp.startsWith( "../" ) )
-	{
-
+		_debug&&console.log( "path is ", tmp, moduleParent.paths);
+		if( tmp[1] == '/' )
+			tmp = (p.length?p + "/":"") + tmp.substr( 2 );
+		else
+			tmp = (p.length?p + "/":"") + tmp;
+		 // console.log( "new is ", tmp )
+		moduleParent = moduleParent.parent;
 	}
-	*/
-        base = tmp;
-        break;
-      }
-  }
-  while( true )
-  //console.log( "using path", base )
-  return base;
+	do
+	{
+		_debug&&console.log( "build", tmp )
+		let x = tmp.indexOf( "/../" );
+		if( x < 0 )x = tmp.indexOf( "/..\\" );
+		if( x < 0 )x = tmp.indexOf( "\\../" );
+		if( x < 0 )x = tmp.indexOf( "\\..\\" );
+		if( x > 0 ) {
+			var prior = tmp.substr( 0, x );
+			_debug&&console.log( "prior part is", prior );
+			var last1 = prior.lastIndexOf( "/" );
+			var last2 = prior.lastIndexOf( "\\" )
+			var priorStripped = prior.substr( 0, (last1>last2?last1:last2)+1 );
+			tmp = priorStripped + tmp.substr( x + 4 );
+			//console.log( "result:", base )
+		} else {
+			/*
+			if( tmp.startsWith( "..\\" )
+				 || tmp.startsWith( "../" ) )
+			{
+		
+			}
+			*/
+		       	base = tmp;
+		       	break;
+		}
+	}
+	while( true )
+	//console.log( "using path", base )
+	return base;
 }

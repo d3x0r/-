@@ -168,6 +168,7 @@ const vol = vfs.Volume();
 const vfsNaked = require('sack.vfs');
 
 const volOverride = `(function(vfs, dataRoot) {
+	vfs.mkdir = vfs.Volume.mkdir;
 	vfs.Volume = (function (orig) {
 		// entities that want to use the VFS will have to be relocated to their local path
 		return function (name, path, a, b) {
@@ -186,7 +187,7 @@ const volOverride = `(function(vfs, dataRoot) {
 
 	vfs.Sqlite = (function(orig) {
 		return function (path) {
-			//console.log("what's config?", config);
+			console.log("what's config?", config);
 			if( path[0] === "$" ) return orig( path );
 			if( path.includes( "." ) ) {
 				var privatePath = dataRoot + "/" + config.run.Λ + "/" + path;
@@ -198,14 +199,14 @@ const volOverride = `(function(vfs, dataRoot) {
 						pathPart = privatePath.substr( 0, zz1 )
 					else
 						pathPart = privatePath.substr( 0, zz2 )
-					//console.log( "Make directory for sqlite?", pathPart )
+					console.log( "Make directory for sqlite?", pathPart, vfs )
 					vfs.mkdir( pathPart );
 				}
-				//console.log("Sqlite overrride called with : ", dataRoot + "/" + config.run.Λ + "/" + path);
+				console.log("Sqlite overrride called with : ", dataRoot + "/" + config.run.Λ + "/" + path);
 				try {
 					return orig( privatePath );
 				} catch(err) {
-					console.log( "limp along?" );
+					console.log( "limp along?", err );
 				}
 			}
 			else return orig( path );
@@ -289,7 +290,7 @@ function sealEntity(o) {
 
 function Entity(obj, name, description, callback, opts) {
 	if (this instanceof Entity) throw new Error("Please do not call with new");
-	//console.log("Called with obj:", obj, createdVoid);
+	console.log("Called with obj:", obj, createdVoid);
 	if (!name && !description) {
 		//var all = all_entities.get(obj);
 		var named = objects.get(obj);
@@ -300,7 +301,7 @@ function Entity(obj, name, description, callback, opts) {
 	if (typeof (obj) === "string") {
 		//console.log( "resolve obj as entity ID")
 		obj = objects.get(obj);
-		if( obj ) return obj;
+		//if( obj ) return obj;
 		//console.log( "resolve obj as entity ID", obj)
 	}
 
@@ -1480,14 +1481,14 @@ function getAttachments(obj, checked) {
 }
 
 function exported_getObjects(o, filter, all, callback) {
-	console.log( "getting objects from:", o.name );
+	//console.log( "getting objects from:", o.name );
 	if (typeof all === 'function') {
 		callback = all;
 		all = null;
 	}
 	if( "string" === typeof o )
 		o = objects.get(o);
-	console.log( "uhmm did we erase o?", o )
+	//console.log( "uhmm did we erase o?", o )
 	if (o)
 		o.getObjects(filter, all, e => { callback(e.sandbox) })
 }

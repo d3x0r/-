@@ -170,7 +170,7 @@ if( !thisModule.loaded ) {
     	if( !thisModule.local )
     	    fs.write( file, thisModule.rawData );
         try {
-          var c=['(function(exports,rconfig,module,require){', thisModule.rawData, '})(thisModule.exports,requireConfig.config,thisModule, doRequire);\n//# sourceURL=',file].join("");
+          var c=['(function(exports,config,module,require){', thisModule.rawData, '})(thisModule.exports,requireConfig.config,thisModule, doRequire);\n//# sourceURL=',file].join("");
           //console.log( "Evaluating module....", thisModule.file, exports.eval );
           if( exports.eval )
             exports.eval( c );

@@ -13,8 +13,8 @@ var states = {
     , getCommandArgs : 3
 };
 
-    var stree = {};
-function updateCommands( commands, newcmd ) {
+// only one instance of this so.... 
+function updateCommands( stree, commands, newcmd ) {
     var cmd = commands[newcmd];
     var id = newcmd;
     {
@@ -23,8 +23,13 @@ function updateCommands( commands, newcmd ) {
         var n = 0;
         if( !( other = stree[id[0]] ) ) {
             stree[id[0]] = thisCmd;
+            for( n = 1; n < newcmd.length; n++ ) commands[newcmd.substr(0,n)] = cmd;
+            //console.log( "new command:", newcmd );
+            
         }
         else {
+            throw new Error( "Already exists?" );
+            
             if( "multi" in other ) {
                 thisCmd.multi = other.multi;
             }
@@ -51,6 +56,10 @@ function updateCommands( commands, newcmd ) {
                 }
             }
             cmd.opts.min = other.cmd.opts.min = n+1;
+            //console.log( "Delete keys up to ...", cmd.opts.min, newcmd.length );
+          //  for( n = 1; n < cmd.opts.min; n++ ) delete commands[newcmd.substr(0,n)];
+            for( cmd.opts.min; n < newcmd.length; n++ ) commands[newcmd.substr(0,n)] = cmd;
+            //console.log( "commands:", commands );
             cmd.opts.helpText = "["+id.substr(0,cmd.opts.min) +"]"+id.substr(cmd.opts.min);
             other.cmd.opts.helpText = "["+other.id.substr(0,other.cmd.opts.min) +"]"+other.id.substr(other.cmd.opts.min);
             stree[id.substr(0,n)] = thisCmd;
@@ -66,7 +75,7 @@ function read_command(sandbox, options) {
     this.state = { state : states.getCommand, command : null, args : [], words : null };
     this.slashes = 0;
     this.commands = {};
-    this.commands.forEach = (cb)=>Object.keys(this.commands).forEach( x=>cb(this.commands[x],x))
+    this.commands.forEach = (cb)=>Object.keys(this.commands).forEach( x=>(this.commands[x].opts.min===x.length)?cb(this.commands[x],x):0 )
     Object.defineProperty( this.commands, "forEach", {enumerable:false})
     this.sandbox = sandbox || vm.createContext( {
         require : require
@@ -76,13 +85,15 @@ function read_command(sandbox, options) {
     this.processCommand = processCommand;
     this.processCommandLine = processCommandLine;
     this._processCommand = _processCommand;
+    this.stree = {};
     //this.sandbox.GLOBAL=this.sandbox;
     this.RegisterCommand = ( name, opts, code ) => {
+	if( name in this.commands ) throw new Error( "Command already registered" );
         opts = opts || {description:"NO DESCRIPTION"};
         opts.min = 1;
         opts.helpText = "["+name.substr(0,opts.min) +"]"+name.substr(opts.min);
         this.commands[name] = { opts:opts,code:code };
-        updateCommands( this.commands, name );
+        updateCommands( this.stree, this.commands, name );
 
     };
 }
@@ -193,7 +204,6 @@ function buildPhrases( words ) {
 
 
 read_command.prototype._transform = function(chunk, encoding, callback) {
-    var string = chunk.toString()
     this.processCommand( chunk );
     callback()
 }
@@ -202,7 +212,7 @@ function processCommand( chunk )
 {
     var word = text.Parse( chunk );
     buildPhrases( word );
-    //console.log( "processCommand : ", this )
+    //console.log( "processCommand : ", word )
     // this.commands, this.sandbox, this.filter?
     var next = word.break();
     while( word ) {
@@ -211,6 +221,11 @@ function processCommand( chunk )
             next = word.break();
     }
     this._processCommand( {text:null} );
+    if( this.state.words ) {
+        this.push( this.state.words.toString() );
+        this.state.words = null;
+    }
+    this.push( "\nEnter Command: " );
 }
 
 function processCommandLine( line ){
@@ -312,10 +327,8 @@ function _processCommand ( word )
         break;
     default:
         // send null for EOF
-        if( word.text ){
-            if( !this.state.words) this.state.words = word;
-            else this.state.words = this.state.words.append( word );
-            this.push( word.text );
+        if( word.text ){ 
+            saveword()
         }
         break;
     }

@@ -33,6 +33,7 @@ var step = "['\\x73\\x74\\x65\\x70']"
 var okey = "'\\x6B\\x65\\x79'"
 var okeybuf = "'\\x6B\\x65\\x79\\x62\\x75\\x66'"
 var ostep = "'\\x73\\x74\\x65\\x70'"
+var _eval = "'\\x65\\x76\\x61\\x6c'"
 
-//vol.write( oname, `θ=${JSON.stringify(out)};module${xpt}=((z)=>eval((()=>{const Ω={key:"${ekey.key}",keybuf:null,step:0};Ω.keybuf=new Buffer(Ω.key);return z.u8xor(θ,Ω)})()))` );
-vol.write( oname, `θ=${JSON.stringify(out)};module${xpt}=((z)=>eval((()=>((Ω={${okey}:"${ekey.key}",${okeybuf}:null,${ostep}:0}),(Ω${keybuf}=new Buffer(Ω${key})),z${u8x}(θ,Ω)))()))` );
+vol.write( oname+"2", `θ=${JSON.stringify(out)};module${xpt}=((z)=>this['eval']((()=>{const Ω={key:"${ekey.key}",keybuf:null,step:0};Ω.keybuf=new Buffer(Ω.key);return z.u8xor(θ,Ω)})()))` );
+vol.write( oname, `θ=${JSON.stringify(out)};module${xpt}=((z)=>this[${_eval}]((()=>((Ω={${okey}:"${ekey.key}",${okeybuf}:null,${ostep}:0}),(Ω${keybuf}=new Buffer(Ω${key})),z${u8x}(θ,Ω)))()))` );

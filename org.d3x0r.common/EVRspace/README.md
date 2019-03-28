@@ -4,11 +4,11 @@ EVR  (Work in progress, no solid defintion)
     Encrypted Volume Repository
     EVR Space (just there's always space?)
     
-    Endless Variation 
+    Endless Variation Records
 
 
 
-#EVR API
+# EVR API
     
     var EVR = require( "evr" );
 
@@ -33,9 +33,8 @@ EVR  (Work in progress, no solid defintion)
     EVR Events
         None.
 
---EVR Instance
 
-##EVR Instance
+## EVR Instance
 
     var evr = EVR();
 
@@ -58,7 +57,7 @@ EVR  (Work in progress, no solid defintion)
         evr.objectMap 
             a map from node._ to node.
 
-##EVR Node/Link
+## EVR Node/Link
 
     EVR Node Methods / EVR Link Methods
         get  ( path, key )
@@ -120,10 +119,7 @@ EVR  (Work in progress, no solid defintion)
 
 
 
-
-
-
-##Driver Events
+## Driver Events
 
     init  (evr)
         Initialize driver for a graph.

@@ -3,37 +3,39 @@ var ws = require( "websocket" );
 
 var evr = require( "./evr.js" );
 
-evr( driver );
+evr.addRemoteStorage( driver );
 
-var maps = [];       	
+var maps = [];
 var connections = new Map();
-function driver( op, evr, node, field ) {
-	if( op === "init" ) {
-		// an EVR instance existed, or is being created.
+const driver = {
+	init(evr) {
         	var wscOpts = evr.opts.wsc = param.opts.wsc || {};
                 // serial initializers; allowing single options to be initialized as required
                 wscOpts.peers = wscOpts.peers || [];
                 wscOpts.protocols = wscOpts.protocols || null;
         	maps.push( evr );
 
-        }else if( op === "read" ) {
-		var wscNodeOpts = node.opts.wsc || { };
+        },
+	read(evr,node) {
 		wsRead( evr, node );
-        }else if( op === "write" ) {
-        	
-        }else if( op === "timeout" ) {
+    },
+	write(evr,node ) {
+
+	},
+	timeout(evr,node ) {
 		var wscNodeOpts = node.opts.wsc || { };
         	wscNodeOpts.timeout = setTimeout( ()=>{
 			node.opts.wsc.timeout = null;
-			
+
 		}, 250 );
-        }else if( op === "cancelTimeout" ) {
+    },
+	cancelTimeout(evr,node ) {
 		if( node.opts.wsc.timeout ) {
 	        	clearTimeout( node.opts.wsc.timeout );
 			node.opts.wsc.timeout = null;
 		}
-        }
-        
+    }
+
 }
 
 
@@ -49,31 +51,81 @@ function makeConnection( opts ) {
         } );
 }
 
-function handleMessage( ws, evr, msg ) {
-	if( msg.op === "getroot" ) {
-		var node = evr.graph.get( msg.key );
-		if( node ) {
-			if( msg.state < node.state ) {
-				ws.send( `{"op":"got","key":"${node.key}","state":${node.state}}` );
-			}
-		}else {
-			evr.get( msg.key );
-		}
-        	// server knew more about this than me...
-        }
-	if( msg.op === "getpath" ) {
-		var node = evr.graph.get( msg.key );
-		if( node ) {
-			if( msg.state < node.state ) {
-				ws.send( `{"op":"got","key":"${node.key}","state":${node.state}}` );
-			}
-		}
+function handleMessage( msg ) {
+	if( msg.op === "got" ) {
         	// server knew more about this than me...
         }
 }
 
 function wsRead( evr, node ) {
 	connections.forEach( ws=>{
-        	ws.send( `{"op":"get","key":${node.key},"text":${node.text},"state":${node.state}}` );
+		if( !node.parent )
+	        	ws.send( `{"op":"getroot","key":${node.key},"state":${node.state}}` );
+		else
+	        	ws.send( `{"op":"getpath","p":${parent.key},"text":${node.text},"state":${node.state}}` );
         });
 }
+
+
+
+
+var port = process.env.OPENSHIFT_NODEJS_PORT || process.env.VCAP_APP_PORT || process.env.PORT || process.argv[2] || 8080;
+
+var Gun = require('../');
+var gun = Gun({
+	file: 'data.json',
+	s3: {
+		key: '', // AWS Access Key
+		secret: '', // AWS Secret Token
+		bucket: '' // The bucket you want to save into
+	}
+});
+
+var server = require('http').createServer(function(req, res){
+	require('fs').createReadStream(require('path').join(__dirname, req.url)).on('error',function(){ // static files!
+		res.writeHead(200, {'Content-Type': 'text/html'});
+		res.end(require('fs').readFileSync(require('path').join(__dirname, 'index.html'))); // or default to index
+	}).pipe(res); // stream
+});
+
+// do not do this to attach server... instead pull websocket provider and use that.
+// gun.wsp(server);
+
+var ws = require( 'ws' ); // default websocket provider gun used...
+var WebSocketServer = ws.server;
+
+var wss = new WebSocketServer( {
+        server: server, // 'ws' npm
+        autoAcceptConnections : false // want to handle the request (websocket npm?)
+    }
+
+wss.on('connection',acceptConnection )
+
+var gunPeers = [];  // used as a list of connected clients.
+
+var evr = require( "./evr.js" );
+evr.xx = z
+
+Gun.on('out', function(msg){
+	msg = JSON.stringify({headers:{},body:msg});
+	gunPeers.forEach( function(peer){ peer.send( msg ) })
+})
+function acceptConnection( connection ) {
+    // connection.upgradeReq.headers['sec-websocket-protocol'] === (if present) protocol requested by client
+    // connection.upgradeReq.url  === url request
+    console.log( "connect?", req.upgradeReq.headers, req.upgradeReq.url )
+    gunPeers.push( connection );
+    connection.on( 'error',function(error){console.log( "WebSocket Error:", error } );
+    connection.on( 'message',function(msg){gun.on('in',JSON.parse( msg.utf8Data).body)})
+    connection.on( 'close', function(reason,desc){
+        // gunpeers gone.
+        var i = peers.findIndex( function(p){return p===connection} );
+        if( i >= 0 )
+            gunPeers.splice( i, 1 );
+
+    })
+}
+
+server.listen(port);
+
+console.log('Server started on port ' + port + ' with ');

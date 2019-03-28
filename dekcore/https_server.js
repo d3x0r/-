@@ -145,18 +145,19 @@ function addProtocol( protocol, connect ) {
     protocols.push( { name:protocol, connect:connect });
 }
 
-function validateWebSock( ws ) {
+function validateWebSock( ws, req ) {
     //console.log( "connect?", ws.upgradeReq.headers, ws.upgradeReq.url )
+console.log( "got:", ws, req );
     var proto = decodeURIComponent( ws.upgradeReq.headers['sec-websocket-protocol'] );
 
 	//console.log( "ws:", ws );
 	console.log( "protocols:", protocols, "\n", proto );
 
-	var ip = ws.upgradeReq.headers['x-forwarded-for'] ||
-	     ws.upgradeReq.connection.remoteAddress ||
-	     ws.upgradeReq.socket.remoteAddress ||
-	     ws.upgradeReq.connection.socket.remoteAddress;
-
+	var ip = req.headers['x-forwarded-for'] ||
+	     req.connection.remoteAddress ||
+	     req.socket.remoteAddress ||
+	     req.connection.socket.remoteAddress;
+	ws.remoteAddress = ip;
 	console.log( "ws Connected from:", ip );
 
 	// this is the way 'websocket' library gives protocols....

@@ -37,15 +37,15 @@ sqlDb.makeTable( `create table ${names.node_props} `
 
 //var maps = [];
 var evr = require( "./evr.js" );
-
+//  so : is always link and . is property else link
 evr.addLocalStorage( driver );
 const driver = {
 	init( evr ) {
-	        var sqlOpts = evr.opts.sql = evr.opts.sql || { prefix: "" };
+	    var sqlOpts = evr.opts.sql = evr.opts.sql || { prefix: "" };
 		sqlOpts.creatingKey = null;
-        	sqlOpts.creatingProperty = null;
-	        //maps.push( evr );
-        	sqlOpts.names = createTables( sqlOpts.prefix );
+        sqlOpts.creatingProperty = null;
+	    //maps.push( evr );
+        sqlOpts.names = createTables( sqlOpts.prefix );
 	},
 	updateKey(evr,node,field ) {
 		// node's ID was updated...
@@ -53,13 +53,13 @@ const driver = {
 		sqlDb.do( "update ${evr.opts.names.nodes} set nodeKey=${makeSqlValue(node.key)} where nodeKey=${makeSqlValue(field)}")
 	},
 	initNode(evr,node ) {
-	       	var nodeOpts = node.opts.sql = node.opts.sql || { };
+	    var nodeOpts = node.opts.sql = node.opts.sql || { };
 		nodeOpts.state = "added";
 	},
 	initLink(evr,node) {
-	       	var linkOpts = node.opts.sql = node.opts.sql || { };
+	    var linkOpts = node.opts.sql = node.opts.sql || { };
 		linkOpts.state = "added";
-        },
+    },
 	read(evr,node ) {
         	var sqlOpts = evr.opts.sql;
 			if( sqlOpts.creatingKey === node.key )  {
@@ -265,7 +265,7 @@ function bench() {
 	var now = Date.now();
 	var n = 0;
 	while( n < 4000000 ) {
-		sqlDb.escape( "Some Arbitrary string that is fialry long ' and has some \0 strange values in 'it'" );
+		sqlDb.escape( "Some Arbitrary string that is fairly long ' and has some \0 strange values in 'it'" );
 		n++;
 	}
 	var end = Date.now();
@@ -274,7 +274,7 @@ function bench() {
 	var now = Date.now();
 	var n = 0;
 	while( n < 4000000 ) {
-		makeSqlValue( "Some Arbitrary string that is fialry long ' and has some \0 strange values in 'it'" );
+		makeSqlValue( "Some Arbitrary string that is fairly long ' and has some \0 strange values in 'it'" );
 		n++;
 	}
 	var end = Date.now();

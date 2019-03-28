@@ -25,6 +25,9 @@ if( !( "svcDb" in config ) ) {
 }
 
 var opdb = vfs.Sqlite( `option.db` );
+if( !opdb ) 
+	opdb = vfs.Sqlite( "svcdb.db" );
+console.log( "vfs?", opdb );
 var vol = opdb.op( "vol", idGen() );
 vol = config.svcDb.vol;
 console.log( "do vol:", vol );

@@ -3,6 +3,8 @@ var text = require('../../org.d3x0r.common/text.js' );
 var filter_base = require( "./filter_base.js")
 var stream = require('stream')
 var util = require('util')
+var sack = require( "../../sack-gui" );
+var JSOX = sack.JSOX;
 
 exports.Filter = Filter;
 exports.doParse = doParse;
@@ -19,7 +21,7 @@ function doParse( string, callback ) {
     var words = text.Parse( string );
     while( words ) {
         var out = { spaces : words.spaces, tabs : words.tabs, text : words.text };
-        callback( JSON.stringify( out ) );//words.text );
+        callback( JSOX.stringify( out ) );//words.text );
             words = words.next;
     }
     callback( '{"text":null}' );
@@ -31,6 +33,7 @@ parse.prototype._transform = function(chunk, encoding, callback) {
 	//console.log( `text parse : ${chunk}` );
 	//console.log( encoding );
 	var string = chunk.toString()
+	console.log( "Text parse input: ", chunk, encoding, string );
     doParse( string, (data)=>{ this.push( data )} );
 	callback()
 }

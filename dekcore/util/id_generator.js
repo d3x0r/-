@@ -2,6 +2,7 @@
 
 const RNG = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( (saltbuf)=>saltbuf.push( Date.now() ) );
 const RNG2 = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( getSalt2 );
+const u8xor = require( "./u8xor.js" );
 
 var salt = null;
 function getSalt2 (saltbuf) {
@@ -13,7 +14,22 @@ function getSalt2 (saltbuf) {
 
 exports.generator = function() {
     // this is an ipv6 + UUID
+	//var b;
     return base64ArrayBuffer( RNG.getBuffer(8*(16+16)) );
+	//var out = new Uint8Array( 32 );
+	//DecodeBase64( out, n );
+	//console.log( "in:", new Uint8Array(b), "out:", out );
+    //return n;
+}
+
+exports.short_generator = function() {
+    // this is an ipv6 + UUID
+    var ID = RNG.getBuffer(8*(12));
+    var now = Date.now() / 1000 | 0;
+    ID[0] = ( now & 0xFF0000 ) >> 16;
+    ID[1] = ( now & 0x00FF00 ) >> 8;
+    ID[2] = ( now & 0x0000FF );
+    return base64ArrayBuffer( ID );
 }
 
 exports.regenerator = function(s) {
@@ -30,20 +46,127 @@ exports.u16generator = function() {
     	var ch = RNG.getBits( 10 ); if( ch < 32 ) ch |= 64;
     	out[c] = String.fromCodePoint( ch );
     }
-
     return out.join('');
 }
 
+function signCheck( buf ) {
+		buf = new Uint8Array(buf);
+		var n, b;
+		var is0 = 0;
+		var is1 = 0;
+		var long0 = 0;
+		var long1 = 0;
+		var longest0 = 0;
+		var longest1 = 0;
+		var ones = 0;
+		for( n = 0; n < 32; n++ ) {
+			for( b = 0; b < 8; b++ ) {
+				if( buf[n] & (1 << b) ) {
+					ones++;
+					if( is1 ) {
+						long1++;
+					}
+					else {
+						if( long0 > longest0 ) longest0 = long0;
+						is1 = 1;
+						is0 = 0;
+						long1 = 1;
+					}
+				}
+				else {
+					if( is0 ) {
+						long0++;
+					}
+					else {
+						if( long1 > longest1 ) longest1 = long1;
+						is0 = 1;
+						is1 = 0;
+						long0 = 1;
+					}
+				}
+			}
+		}
+// 167-128 = 39 = 40+ dif == 30 bits in a row approx
+//const overbal = (167-128)
+const overbal = (167-128)
+		if( longest0 > 29 || longest1 > 29 || ones > (128+overbal) || ones < (128-overbal) ) {
+			if( ones > ( 128+overbal )|| ones < (128 - overbal) )
+				console.log( "STRMb: %d %d  0s:%d 1s:%d ", longest0, longest1, 256-ones, ones );
+			else
+				console.log( "STRMl: %d %d  0s:%d 1s:%d ", longest0, longest1, 256 - ones, ones );
+			return 1;
+		}
+		return 0;
+	}
+
+var signEntropy;
+var nextSalt = new Uint8Array(32);
+exports.sign = function( msg ) {
+
+		//SRGObject *obj = ObjectWrap::Unwrap<SRGObject>( args.This() );
+		var id;
+		var tries = 0;
+		var state = null;
+		var tmp = new Uint8Array(32);
+		//memcpy( nextSalt, *buf, buf.length() );
+		if( !signEntropy ) {
+			signEntropy = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( null );
+			signEntropy.initialEntropy = null;
+		}
+
+		signEntropy.reset();
+		//console.log( "Feed message", msg );
+		signEntropy.feed( msg );
+		state = signEntropy.save();
+		do {
+			signEntropy.restore( state );
+
+			{
+				id = exports.generator();
+				DecodeBase64( nextSalt, id );
+				signEntropy.feed( nextSalt );
+				var bytes = signEntropy.getBuffer( 256 );
+				tries++;
+				if( signCheck( bytes ) ) {
+					//console.log( "bytes:", new Uint8Array( bytes ) );
+					console.log( " %d  %s\n", tries, id );
+				} else {
+					id = null;
+				}
+			}
+		} while( !id );
+		return id;
+		
+}
+
+exports.verify = function( msg, id  ) {
+		if( !signEntropy ) {
+			signEntropy = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( null );
+			signEntropy.initialEntropy = null;
+		}
+		signEntropy.reset();
+		//console.log( "Feed message.", msg );
+		signEntropy.feed( msg );
+		DecodeBase64( nextSalt, id );
+		//console.log( "Feed ID", nextSalt, id );
+		signEntropy.feed( nextSalt );
+		var bytes = signEntropy.getBuffer( 256 );
+		//console.log( "bytes:", new Uint8Array( bytes ) );
+		return signCheck( bytes );
+}
 
 // Converts an ArrayBuffer directly to base64, without any intermediate 'convert to string then
 // use window.btoa' step. According to my tests, this appears to be a faster approach:
 // http://jsperf.com/encoding-xhr-image-data/5
 // doesn't have to be reversable....
 const encodings = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789$_'
+const decodings = { '=':0 };
 var u8 = '';
+
 
 for( var x = 0; x < 256; x++ ) {
 	if( x < 64 ) {
+		decodings[encodings[x]] = x;
 		u8 += String.fromCharCode(x);
 	}
 	else if( x < 128 ) {
@@ -101,6 +224,27 @@ function base64ArrayBuffer(arrayBuffer) {
   return base64
 }
 
+
+function DecodeBase64( out, buf )
+{
+	{
+		var n;
+		var l = (buf.length+3)/4;
+		for( n = 0; n < l; n++ )
+		{
+			var index0 = decodings[buf[n*4]];
+			var index1 = decodings[buf[n*4+1]];
+			var index2 = decodings[buf[n*4+2]];
+			var index3 = decodings[buf[n*4+3]];
+			
+			out[n*3+0] = (( index0 ) << 2 | ( index1 ) >> 4);
+			out[n*3+1] = (( index1 ) << 4 | ( ( ( index2 ) >> 2 ) & 0x0f ));
+			out[n*3+2] = (( index2 ) << 6 | ( ( index3 ) & 0x3F ));
+		}
+	}
+}
+
+
 // Converts an ArrayBuffer directly to base64, without any intermediate 'convert to string then
 // use window.btoa' step. According to my tests, this appears to be a faster approach:
 // http://jsperf.com/encoding-xhr-image-data/5
@@ -117,7 +261,6 @@ for( var a = 0; a < encodings.length; a++  ) {
 }
 xor_code_encodings['='] = {'=': '='};
 
-
 function xor(a,b) {
   var c = "";
   for( var n = 0; n < a.length; n++ ) {
@@ -126,7 +269,6 @@ function xor(a,b) {
   return c
 }
 exports.xor = xor;
-
 
 function dexor(a,b,d,e) {
   var r = "";
@@ -143,60 +285,6 @@ function dexor(a,b,d,e) {
   return r
 }
 exports.dexor=dexor;
-
-var u8xor_code_encodings2 = new Uint8Array( 64* 256 );
-
-var u8xor_code_encodings = {};
-for( var a = 0; a < 64; a++  ) {
-   var r = (u8xor_code_encodings[a]={} );
-   for( var b = 0; b < encodings.length; b++  ) {
-      u8xor_code_encodings2[(a<<8)+encodings.codePointAt(b)] = a^b;
-      r[encodings[b]] = a^b;
-   }
-}
-xor_code_encodings['='] = {'=': '='};
-
-//var TD = new TextDecoder();
-//var TE = new TextEncoder();
-function u8xor(a,b) {
-	let buf = Buffer.from(a, 'utf8');
-    if( !b.keybuf ) { console.trace( "Key needs buf...." ); b.keybuf = Buffer.from( b.key, 'utf8' ); }
-    let c = b.keybuf;//Buffer.from(b.key, 'utf8');
-	//var buf = TE.encode(a);
-	let outBuf = new Buffer( buf.length );
-	let o = b.step;
-	b.step += buf.length;
-	let keylen = b.key.length-5;
-	b.step %= keylen;
-	let _v = 0;
-	let _mask = 0;
-	for( var n = 0; n < buf.length; n++ ) {
-		let v = buf[n];
-		let mask = 0x3f;
-		let __mask = _mask;
-		let highmask = 0;
-		if( (v & 0xE0) == 0xC0 )      { mask=0x1F; }
-		else if( (v & 0xF0) == 0xE0 ) { mask=0xF; }
-		else if( (v & 0xF8) == 0xF0 ) { mask=0x7; }
-		_mask = mask;
-		if( __mask === 0xF )
-			mask = 0x1F;
-		else if( __mask === 0x7 )
-			mask = 0xF;
-		//outBuf[n] = (v & ~mask ) | ( u8xor_code_encodings[v & mask ][b[(n+o)%(keylen)]] & mask )
-		if( mask === 0x3f ) {
-			outBuf[n] = (v & ~mask ) | ( u8xor_code_encodings2[ ((v & mask) <<8) + (c[(n+o)%(keylen)]) ] & mask )
-		} else
-			outBuf[n] = v;
-		//console.log( "input:", v.toString(16), (v&mask).toString(16), outBuf[n].toString(16), mask.toString(16), n+o, c[(n+o)%(keylen)] );
-		_v = v;
-	}
-	//console.log( "buf" , buf.toString('hex') );
-	//console.log( "buf" , outBuf.toString('hex') );
-	//console.log( "buf" , outBuf.toString('utf8') );
-	return outBuf.toString( "utf8" );
-	//return TD.decode(outBuf);
-}
 exports.u8xor=u8xor;
 
 function txor(a,b) {
@@ -206,9 +294,9 @@ function txor(a,b) {
 }
 exports.u16xor=txor;
 
-
 function makeXKey( key, step ) {
-    return { key : key, keybuf: key?Buffer.from(key,'utf8'):null, step: step?step:0, setKey(key,step) { this.key = key; this.keybuf = Buffer.from(key,'utf8'); this.step = step; } };
+    return { key : key, keybuf: key?Buffer.from(key,'utf8'):null, step: step?step:0
+	, setKey(key,step) { this.key = key; this.keybuf = Buffer.from(key,'utf8'); this.step = step?step:0; } };
 }
 
 function makeU16Key( ) {

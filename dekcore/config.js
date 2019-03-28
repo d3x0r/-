@@ -16,6 +16,7 @@ var config = module.exports = exports = {
 		, defaults: null
 		, debug: true
 		, addresses: []  // who I am...
+		, internalAddresses: []  // who I am...
 		, friends: []  // discover should use this setting for off-network contact
 		, timeOffset: new Date().getTimezoneOffset() * 60000
 		, toString() {
@@ -46,6 +47,8 @@ function getLocation() {
 			       "172.24.", "172.25.", "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31."].find( prefix=>i.address.startsWith( prefix ) )
 			  && !i.address.startsWith( "10." ) )
 				config.run.addresses.push( i.address );
+			else
+				config.run.internalAddresses.push( i.address );
 		}
 		here += i.mac 
 	} );
@@ -65,7 +68,6 @@ function saveConfig(callback) {
 //res.redirect(externalURL);
 //
 function loadConfig(path) {
-	//console.log("loadconfig");
 	fc.init();
 	fc.reload( "config.json",
 		function (error, result) {

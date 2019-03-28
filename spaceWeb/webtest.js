@@ -417,6 +417,18 @@ function animate() {
 
 }
 
+function loadOneNode(n) {
+		var node = localStorage.getItem( "Node"+n );
+		if( !node ) { doDraw(); return; }
+		start = Date.now();
+		console.log( "adding ", n );
+		test.nodes.push( test.web.insert( JSON.parse( node ), 0  ) );
+		console.log( "added ", n, Date.now() - start );
+		//setTimeout( ()=>{loadOneNode(n+1)}, 1000 );
+		return loadOneNode(n+1);
+	doDraw();
+}
+
 
 function main()
 {
@@ -430,6 +442,8 @@ function main()
 	//localStorage.clear();
 	test.web = exports.Web();
 
+	loadOneNode( 0 );
+if(0){
 	var n;
 	var start;
 	for( n = 0; ; n++ ) {
@@ -440,26 +454,8 @@ function main()
 		test.nodes.push( test.web.insert( JSON.parse( node ), 0  ) );
 		console.log( "added ", n, Date.now() - start );
 	}
-
-	if(0)
-	{
-		var x, y;
-		for( x = 0; x < 400; x += 50 )
-			for( y = 0; y < 400; y += 50 )
-			{
-				var v = [];
-				v[vRight] = (Math.random()*500);
-				v[vForward] = (Math.random()*500);
-				v[vUp] = 0;
-				var data;
-				test.nodes.push( test.web.insert( v, data = { d:new THREE.Matrix4() } ) );
-				data.d.rotateOrtho( Math.random() * 2 * Math.PI, 0,2 )
-				//d.rotateOrtho( Math.random() * 2 * Math.PI, 0,1 )
-				//d.rotateOrtho( Math.random() * 2 * Math.PI, 1,2 )
-
-			}
-	}
 	doDraw();
+}
     /*
 	{
 		var buf[256];

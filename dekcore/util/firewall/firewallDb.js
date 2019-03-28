@@ -25,7 +25,7 @@ if( !config.firewall ) {
 var db = null;
 
 function init() {
-	DB.db = fc.cvol.Sqlite( `firewall.db` );
+	db = DB.db = fc.cvol.Sqlite( `firewall.db` );
 
 
 

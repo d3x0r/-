@@ -40,7 +40,7 @@ exports.discover = (options) => {
 	//console.log( "hostname is ... ", config.run.hostname );
 	if( !( "filter" in options ) )
 	     	options.filter = true;
-	var interfaces = os.networkInterfaces();
+	var interfaces = options.interfaces || os.networkInterfaces();
 	var addresses = [];
 	for (var k in interfaces) {
 		for (var k2 in interfaces[k]) {

@@ -1,0 +1,6 @@
+{
+	"dataRoot" : "./core",
+        "useIPv6":true,
+	"publicName":"d3x0r.org",
+         "certPath" : "../webInterface/useCert"
+}

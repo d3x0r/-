@@ -1,0 +1,95 @@
+<HTML>
+<HEAD>
+
+	<STYLE>
+
+	.inFrame {
+		visibility:visible;padding:0px;border-color:black;border-width:2px;
+		border-style:solid;z-index:100;position:absolute;
+		left:1024;top:25%;width:25%;height:25%
+	}
+	.inFrameCapt {
+		visibility:visible;padding:0px;
+		background-color:aquamarine;
+		border-width:0px;
+		border-style:solid;
+		z-index:100;
+		position:relative;
+		color :black;
+		left:0;top:0;width:100%;height:25px
+	}
+	</STYLE>
+
+</HEAD>
+<BODY>
+
+<DIV ID="game">
+   <CANVAS ID="board" width="1024" height="1014"></CANVAS>
+   Width: <INPUT ID="board_size_x"></INPUT><BR>
+   Height: <INPUT ID="board_size_y"></INPUT><BR>
+   <BR>
+   <BR>
+   Width: <INPUT></INPUT><BR>
+
+	<div ID="gameChat" style="visibility:visible;padding:0px;border-color:black;border-width:2px;border-style:solid;z-index:100;position:absolute;left:1024;top:25%;width:25%;height:25%">
+		<DIV ID="gameChatCaption" class="inFrameCapt"></DIV>
+	<div ID="gameChatSurface" style="position:absolute;left:5%;top:0%;height:50%;width:90%">
+		show Chat?
+	</DIV>	
+	</DIV>
+
+	<div ID="gameStats" style="visibility:visible;padding:0px;border-color:black;border-width:2px;border-style:solid;z-index:100;position:absolute;left:1024;top:25%;width:25%;height:25%">
+	<div ID="gameStatSurface" style="position:absolute;left:5%;top:50%;height:50%;width:90%">
+		show counts?
+	</DIV>	
+	</DIV>
+	
+
+	<div ID="NewGame" style="visibility:hidden;padding:0px;border-color:black;border-width:2px;border-style:solid;z-index:100;position:absolute;left:25%;top:25%;width:25%;height:25%">
+	<div ID="NewGameSurface" style="position:absolute;left:5%;top:5%;height:90%;width:90%">
+		<CENTER>New Game</CENTER><BR>
+		Player Name : <INPUT ID="Player Name"></INPUT> <BR>
+		Players <INPUT type="radio" name="players" VALUE="2"  >2</INPUT>
+		<INPUT type="radio" name="players" VALUE="3"  >3</INPUT>
+		<INPUT type="radio" name="players" VALUE="4"  >4</INPUT>
+		<INPUT type="radio" name="players" VALUE="5"  >5</INPUT>
+		<INPUT type="radio" name="players" VALUE="6"  >6</INPUT>
+
+		Width <INPUT type="radio" name="width" VALUE="5"  >5</INPUT>
+		<INPUT type="radio" name="width" VALUE="6"  >6</INPUT>
+		<INPUT type="radio" name="width" VALUE="7"  >7</INPUT>
+		<INPUT type="radio" name="width" VALUE="8"  >8</INPUT>
+		<INPUT type="radio" name="width" VALUE="9"  >9</INPUT>
+		<INPUT type="radio" name="width" VALUE="10" >10</INPUT>
+		<INPUT type="radio" name="width" VALUE="11" >11</INPUT>
+		<INPUT type="radio" name="width" VALUE="12" >12</INPUT>
+		<INPUT type="radio" name="width" VALUE="24" >24</INPUT>
+		<INPUT type="radio" name="width" VALUE="36" >36</INPUT>
+		<INPUT type="radio" name="width" VALUE="48" >48</INPUT>
+		<INPUT type="radio" name="width" VALUE="96" >96</INPUT><BR>
+
+		Height <INPUT type="radio" name="height" VALUE="5"  >5</INPUT>
+		<INPUT type="radio" name="height" VALUE="6"  >6</INPUT>
+		<INPUT type="radio" name="height" VALUE="7"  >7</INPUT>
+		<INPUT type="radio" name="height" VALUE="8"  >8</INPUT>
+		<INPUT type="radio" name="height" VALUE="9"  >9</INPUT>
+		<INPUT type="radio" name="height" VALUE="10" >10</INPUT>
+		<INPUT type="radio" name="height" VALUE="11" >11</INPUT>
+		<INPUT type="radio" name="height" VALUE="12" >12</INPUT>
+		<INPUT type="radio" name="height" VALUE="24" >24</INPUT>
+		<INPUT type="radio" name="height" VALUE="36" >36</INPUT>
+		<INPUT type="radio" name="height" VALUE="48" >48</INPUT>
+		<INPUT type="radio" name="height" VALUE="96" >96</INPUT><BR>
+		
+		<BUTTON name="Begin"> Begin</BUTTON> 
+	</DIV>	
+	</DIV>
+
+	
+
+</DIV>
+</BODY>
+
+<SCRIPT src="chainreact.js"></SCRIPT>
+</HTML>
+

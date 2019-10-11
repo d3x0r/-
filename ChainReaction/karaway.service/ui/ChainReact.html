@@ -1,0 +1,296 @@
+<HTML>
+<HEAD>
+
+
+	<STYLE>
+
+		TABLE{
+			color:white;
+		}
+		.tableScoller {
+			overflow: auto;
+			max-height:50vw;
+		}
+
+		.inFrame {
+			visibility:visible;
+			padding:0px;border-color:black;border-width:2px;
+			border-style:solid;z-index:100;position:absolute;
+			left:1024;
+			top:25%;
+			width:max-content;
+			height:max-content;
+			background-color:#05050590;
+			color:turquoise;
+			padding:25px;
+		}
+		.inFrameCapt {
+			padding:0px;
+			background-color:aquamarine;
+			border-width:0px;
+			border-style:solid;
+			position:absolute;
+			color :black;
+			left:0;top:0;width:100%;height:25px;
+			font-size:150%
+		}
+
+    	.button{
+			font-size:100%;
+			border-radius:10px;
+			background:linear-gradient(rgb(76, 139, 176), #8be2de,rgb(76, 148, 176) );
+			padding:1px;
+		}
+    	.buttonInner{
+			border-radius:10px;
+				background:lightgray;
+				padding-left:10px;
+				padding-right:10px;
+				margin:5px;
+				margin-left:25px;
+				margin-right:25px;
+				border-style:inset;
+				color:black;
+				font-weight:bold;
+		}
+
+		.chatSendBox {
+			position:absolute;
+			left:0;
+			right:2em;
+			bottom:0;
+			border-width:1px;
+			border-color:aqua;
+			border-style:solid;
+			max-height:50px;
+			overflow:auto;
+		}
+
+		.chatSendButton {
+			position:absolute;
+			right:0;
+			width:2em;
+			bottom:0;
+		}
+
+		.loginUsername {
+			background-color: teal;
+			text-color:white;
+			
+		}
+		.loginPassword {
+			-webkit-text-security:circle;
+			background-color: teal;
+			text-color:white;
+		}
+		TD.MyGame {
+			border-color:aqua;
+			border-width: 2;
+			border-style: solid;
+		}
+
+
+		.alertContent2{
+
+			color:rgba(0,255,255);
+			position:absolute;
+			text-align:center;
+			 /*margin-top:-1em;*/
+			 margin: auto;
+			top: 80%;
+			left: 0;
+			bottom: 0;
+			right: 0;
+			width: 90%;
+		}
+		.alertContent {
+			font-size:800%;
+			color:rgba(0,255,255,0.1);
+			z-index: 10;
+			position:absolute;
+			text-align:center;
+			 /*margin-top:-1em;*/
+			 margin: auto;
+			top: 0;
+			left: 0;
+			bottom: 0;
+			right: 0;
+			width: 90%;
+			height: min-content;
+			text-shadow:10px 10px 5px black;
+			text-shadow: 1px 1px 2px aquamarine, 0 0 25px green, 0 0 5px darkblue;
+		}
+		.Alert {
+			background-color: #050505b0;
+			width:100vw;
+			height:100vh;
+			top:0;
+			bottom:0;
+			position:absolute;
+			left:0;
+			right:0;
+			z-index: 1000;
+			display:none; 
+		}
+		
+		.gameStatRowActive {
+			background-color:cornsilk;
+		}
+		.gameStatRowInactive {
+
+		}
+		.gameStatPlayerName {
+			color:black;			
+		}
+		.gameStatPlayerColor {
+			text-align: center;
+			
+		}
+		.gameStatPlayerCount {
+			text-align: center;
+			color:black;			
+			
+		}
+		</STYLE>
+	
+</HEAD>
+<BODY>
+<DIV ID="alert" class="Alert" >
+	<DIV ID="alertContent" class="alertContent" >
+		NOT YOUR TURN!
+	</DIV>
+		<DIV class="alertContent2" >
+			Click to Continue
+	</DIV>
+</DIV>
+<DIV  ID="gameBoard" class="inFrame" style="left:0;top:0">
+		<DIV ID="gameBoardCaption" class="inFrameCapt">Game</DIV>
+
+   <CANVAS ID="board" width="800" height="600" style="width:50vw;height:50vh" ></CANVAS>
+</DIV>
+
+	<div ID="gameChat" class="inFrame" style="left:50;top:100">
+		<DIV ID="gameChatCaption" class="inFrameCapt">Game Chat</DIV>
+		<div ID="gameChatSurface" style="position:relative;left:5%;top:0%;height:250;width:250">
+			show Chat?
+		</DIV>	
+		<DIV ID="gameChatSend" contenteditable="true" class="chatSendBox">asdfsdafasdf </DIV>
+		<BUTTON class="chatSendButton" ID="gameChatSendButton">&#x21b2;</BUTTON>
+	</DIV>
+
+	<div ID="foyerDialog" class="inFrame"  style="width:max-content;left:250;top:100" >
+		<DIV ID="foyerCaption" class="inFrameCapt">Game List</DIV>
+		<div ID="gameListScroller" class="tableScoller" style="overflow: auto">
+			<TABLE ID="gameList">
+				<TR>
+					<TH>Game</TH>
+					<TH>Players</TH>
+					<TH COLSPAN=4 >Board Size</TH>
+					<TH></TH>
+				</TR>
+				<TR>
+					<TD ID="myGameName" class="MyGame" style="min-width: 150px;" contenteditable="true">GameName</TD>
+					<TD ID="myGamePlayers" class="MyGame" contenteditable="true" class="">2</TD>
+					<TD width=30></TD>
+					<TD ID="myGameWidth" class="MyGame" contenteditable="true" class="">8</TD>
+					<TD ID="myGameHeight" class="MyGame" contenteditable="true" class="">5</TD>
+					<TD width=30  ></TD>
+					<TD><BUTTON ID="createGame">New</BUTTON></TD>
+				</TR>
+				<TR>
+					<TD>Existing Game></TD>
+					<TD> 3/8</TD>
+					<TD><BUTTON ID="createGame">Join</BUTTON></TD>
+				</TR>
+				<TR>
+					<TD contenteditable="true">GameName</TD>
+					<TD> 3/8</TD>
+					<TD><BUTTON ID="createGame">Join</BUTTON></TD>
+				</TR>
+				<TR>
+					<TD contenteditable="true">GameName</TD>
+					<TD> 3/8</TD>
+					<TD><BUTTON ID="createGame">Join</BUTTON></TD>
+				</TR>
+			</TABLE>
+		</DIV>	
+	</DIV>
+
+
+	<div ID="gameStatusDialog" class="inFrame"  style="left:50;top:100" >
+		<DIV ID="gameStatusCaption" class="inFrameCapt">Game Status</DIV>
+		<div ID="gameStatSurface">
+			<TABLE ID="gameStatusList">
+				<TR>
+					<TH>Player Name</TH>
+					<TH>Color</TH>
+					<TH>Total Pieces </TH>
+				</TR>
+
+			</TABLE>
+		</DIV>	
+		<DIV>
+			<BUtton ID="quitGame">Quit</BUtton>
+		</DIV>
+	</DIV>
+	
+
+	<div ID="NewGame" style="visibility:hidden;padding:0px;border-color:black;border-width:2px;border-style:solid;z-index:100;position:absolute;left:25%;top:25%;width:25%;height:25%">
+	<div ID="NewGameSurface" style="position:absolute;left:5%;top:5%;height:90%;width:90%">
+		<CENTER>New Game</CENTER><BR>
+		Player Name : <INPUT ID="Player Name"></INPUT> <BR>
+		Players <INPUT type="radio" name="players" VALUE="2"  >2</INPUT>
+		<INPUT type="radio" name="players" VALUE="3"  >3</INPUT>
+		<INPUT type="radio" name="players" VALUE="4"  >4</INPUT>
+		<INPUT type="radio" name="players" VALUE="5"  >5</INPUT>
+		<INPUT type="radio" name="players" VALUE="6"  >6</INPUT>
+
+		Width <INPUT type="radio" name="width" VALUE="5"  >5</INPUT>
+		<INPUT type="radio" name="width" VALUE="6"  >6</INPUT>
+		<INPUT type="radio" name="width" VALUE="7"  >7</INPUT>
+		<INPUT type="radio" name="width" VALUE="8"  >8</INPUT>
+		<INPUT type="radio" name="width" VALUE="9"  >9</INPUT>
+		<INPUT type="radio" name="width" VALUE="10" >10</INPUT>
+		<INPUT type="radio" name="width" VALUE="11" >11</INPUT>
+		<INPUT type="radio" name="width" VALUE="12" >12</INPUT>
+		<INPUT type="radio" name="width" VALUE="24" >24</INPUT>
+		<INPUT type="radio" name="width" VALUE="36" >36</INPUT>
+		<INPUT type="radio" name="width" VALUE="48" >48</INPUT>
+		<INPUT type="radio" name="width" VALUE="96" >96</INPUT><BR>
+
+		Height <INPUT type="radio" name="height" VALUE="5"  >5</INPUT>
+		<INPUT type="radio" name="height" VALUE="6"  >6</INPUT>
+		<INPUT type="radio" name="height" VALUE="7"  >7</INPUT>
+		<INPUT type="radio" name="height" VALUE="8"  >8</INPUT>
+		<INPUT type="radio" name="height" VALUE="9"  >9</INPUT>
+		<INPUT type="radio" name="height" VALUE="10" >10</INPUT>
+		<INPUT type="radio" name="height" VALUE="11" >11</INPUT>
+		<INPUT type="radio" name="height" VALUE="12" >12</INPUT>
+		<INPUT type="radio" name="height" VALUE="24" >24</INPUT>
+		<INPUT type="radio" name="height" VALUE="36" >36</INPUT>
+		<INPUT type="radio" name="height" VALUE="48" >48</INPUT>
+		<INPUT type="radio" name="height" VALUE="96" >96</INPUT><BR>
+		
+		<BUTTON name="Begin"> Begin</BUTTON> 
+	</DIV>	
+	</DIV>
+
+	
+
+</DIV>
+</BODY>
+
+!--
+<script src="salty_random_generator.js"></SCRIPT>
+<script src="u8xor.js"></SCRIPT>
+<script src="id_generator.js"></SCRIPT>
+<script src="jsox.js"></SCRIPT>
+<script src="protocol.js"></SCRIPT>
+-->
+<!--
+	<SCRIPT src="protocol.es6.js"></SCRIPT>
+	-->
+	<SCRIPT src="chainreact.js"></SCRIPT>
+	
+</HTML>
+

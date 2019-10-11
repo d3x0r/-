@@ -1,0 +1,5 @@
+{
+	"dataRoot" : "./core",
+	"publicName" : "server.chatment.com",
+        "certPath" : "/etc/letsencrypt/live/server.chatment.com"
+}

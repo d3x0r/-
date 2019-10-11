@@ -1,0 +1,344 @@
+diff --git a/node/chainReact/ui/jsox.js b/node/chainReact/ui/jsox.js
+index 06f6ea9..188c357 100644
+--- a/node/chainReact/ui/jsox.js
++++ b/node/chainReact/ui/jsox.js
+@@ -6,12 +6,12 @@
+ // This file is based off of https://github.com/JSON6/  ./lib/json6.js
+ // which is based off of https://github.com/d3x0r/sack  ./src/netlib/html5.websocket/json6_parser.c
+ //
++var exports = exports || {};
++
+ "use strict";
+ 
+-var JSOX = {};
+-
+-var exports = exports || {};
+-exports.JSOX = JSOX;
++const _JSON=JSON;
++var JSOX = exports;
+ 
+ function privateizeEverything() {
+ const _DEBUG_LL = false;
+@@ -37,6 +37,8 @@ const VALUE_DATE = 11  // unused yet
+ const VALUE_EMPTY = 12 // [,] makes an array with 'empty item'
+ const VALUE_ARRAY = 13 //
+ const knownArrayTypeNames = ["ab","u8","cu8","s8","u16","s16","u32","s32","u64","s64","f32","f64"];
++var arrayToJSOX = null;
++var mapToJSOX = null;
+ const knownArrayTypes = [ArrayBuffer
+                         ,Uint8Array,Uint8ClampedArray,Int8Array
+                         ,Uint16Array,Int16Array
+@@ -88,6 +90,7 @@ const CONTEXT_OBJECT_FIELD_VALUE = 4
+ const CONTEXT_CLASS_FIELD = 5
+ const CONTEXT_CLASS_VALUE = 6
+ const CONTEXT_IN_TYPED_ARRAY = 7
++const CONTEXT_CLASS_FIELD_VALUE = 8
+ const keywords = {	["true"]:true,["false"]:false,["null"]:null,["NaN"]:NaN,["Infinity"]:Infinity,["undefined"]:undefined }
+ 
+ const contexts = [];
+@@ -433,6 +436,7 @@ JSOX.begin = function( cb, reviver ) {
+ 						case VALUE_NAN:  val.string += "NaN"; break
+ 						case VALUE_NEG_NAN:  val.string += "-NaN"; break
+ 						case VALUE_UNDEFINED:  val.string += "undefined"; break
++						case VALUE_STRING: break;
+ 						default:
+ 							console.log( "Value of type " + val.value_type + " is not restored..." );
+ 						}
+@@ -1013,7 +1017,7 @@ JSOX.begin = function( cb, reviver ) {
+ 
+ 					case 58/*':'*/:
+ 						//if(_DEBUG_PARSING) console.log( "colon context:", parse_context );
+-						if( parse_context == CONTEXT_OBJECT_FIELD )
++						if( parse_context == CONTEXT_OBJECT_FIELD || parse_context == CONTEXT_CLASS_FIELD )
+ 						{
+ 							if( word != WORD_POS_RESET
+ 								&& word != WORD_POS_FIELD
+@@ -1026,7 +1030,7 @@ JSOX.begin = function( cb, reviver ) {
+ 							word = WORD_POS_RESET;
+ 							val.name = val.string;
+ 							val.string = '';
+-							parse_context = CONTEXT_OBJECT_FIELD_VALUE;
++							parse_context = CONTEXT_OBJECT_FIELD?CONTEXT_OBJECT_FIELD_VALUE:CONTEXT_CLASS_FIELD_VALUE;
+ 							val.value_type = VALUE_UNSET;
+ 						}
+ 						else
+@@ -1070,7 +1074,8 @@ JSOX.begin = function( cb, reviver ) {
+ 							}
+ 						} else if( ( parse_context == CONTEXT_OBJECT_FIELD ) || ( parse_context == CONTEXT_CLASS_VALUE ) ) {
+ 							if( val.value_type != VALUE_UNSET ) {
+-								val.name = current_class.fields[current_class_field++];
++								if( current_class )
++									val.name = current_class.fields[current_class_field++];
+ 								if( _DEBUG_PARSING ) console.log( "Closing object; set value name, and push...", current_class_field, val );
+ 								objectPush();
+ 							}
+@@ -1656,12 +1661,28 @@ JSOX.parse = function( msg, reviver ) {
+ 	toProtoTypes.set( Float64Array.prototype, { external:true, name:"f64"
+ 	    , cb:function() { return "["+base64ArrayBuffer(this.buffer)+"]" }
+ 	} );
++	toProtoTypes.set( Float64Array.prototype, { external:true, name:"f64"
++	    , cb:function() { return "["+base64ArrayBuffer(this.buffer)+"]" }
++	} );
++
++	toProtoTypes.set( Map.prototype, mapToJSOX = { external:true, name:"map"
++	    , cb:null
++	} );
++	fromProtoTypes.set( "map", function (){
++		var newMap = new Map();
++		for( key in this ) newMap.set( key, this[key] );
++		return newMap;
++	} );
++
++	toProtoTypes.set( Array.prototype, arrayToJSOX = { external:false, name:Array.prototype.constructor.name
++	    , cb: null		    
++	} );
+ 
+ }
+ 
+ JSOX.registerToJSOX = function( name, prototype, f ) {
+ 	//console.log( "SET OBJECT TYPE:", prototype, prototype.prototype, Object.prototype, prototype.constructor );
+-	if( prototype.prototype && prototype.prototype !== Object.prototype ) {
++	if( !prototype.prototype || prototype.prototype !== Object.prototype ) {
+ 		if( toProtoTypes.get(prototype) ) throw new Error( "Existing toJSOX has been registered for prototype" );
+ 		console.log( "PUSH PROTOTYPE" );
+ 		toProtoTypes.set( prototype, { external:true, name:name||f.constructor.name, cb:f } );
+@@ -1681,8 +1702,6 @@ JSOX.registerToFrom = function( prototypeName, prototype, to, from ) {
+ 	JSOX.registerFromJSOX( prototypeName, from );
+ }
+ 
+-var arrayToJSOX;
+-
+ JSOX.stringifier = function() {
+ 	var classes = [];
+ 	var useQuote = '"';
+@@ -1692,11 +1711,6 @@ JSOX.stringifier = function() {
+ 	var localToProtoTypes = new WeakMap();
+ 	var localToObjectTypes = new Map();
+ 
+-	if( !toProtoTypes.get( Array.prototype ) )
+-		toProtoTypes.set( Array.prototype, arrayToJSOX = { external:false, name:Array.prototype.constructor.name
+-		    , cb: null		    
+-		} );
+-
+ 	return {
+ 		defineClass(name,obj) { 
+ 			var cls; 
+@@ -1733,9 +1747,10 @@ JSOX.stringifier = function() {
+ 	function getReference( here ) {
+ 		if( here === null ) return undefined;
+ 		var field = fieldMap.get( here );
+-		_DEBUG_STRINGIFY && console.log( "path:", path.length?JSON.stringify(path):"[]", field );
++		_DEBUG_STRINGIFY && console.log( "path:", _JSON.stringify(path), field );
+ 		if( !field ) {
+-			fieldMap.set( here, path.length?JSON.stringify(path):"[]" );
++			if( !path.length ) return "";
++			fieldMap.set( here, _JSON.stringify(path) );
+ 			return undefined;
+ 		}
+ 		return field;
+@@ -1767,7 +1782,7 @@ JSOX.stringifier = function() {
+ 	function stringify( object, replacer, space ) {
+ 		if( object === undefined ) return "undefined";
+ 		if( object === null ) return;
+-
++		var firstRun = true;
+ 		var gap;
+ 		var indent;
+ 		var meta;
+@@ -1805,11 +1820,14 @@ JSOX.stringifier = function() {
+ 
+ 		path = [];
+ 		fieldMap = new WeakMap();
+-		fieldMap.set( path, "~INTERNAL~PATH~")
+ 
+ 		return str( "", {"":object} );
+ 
+ 		function getIdentifier(s) {
++			
++			if( !isNaN( s ) ) {
++				return ["'",s.toString(),"'"].join('');
++			}
+ 			//var n = s.length;
+ 			/*
+ 			for( n = 0; n < s.length; n++ ) {
+@@ -1821,7 +1839,7 @@ JSOX.stringifier = function() {
+ */
+ 			// should check also for if any non ident in string...
+ 			return ( ( s in keywords /* [ "true","false","null","NaN","Infinity","undefined"].find( keyword=>keyword===s )*/
+-				|| /((\n|\r|\t)|s|S|[ \{\}\(\)\<\>\!\+\-\*\/\.\:\, ])/.test( s ) )?(useQuote + JSOX.escape(s) +useQuote):s )
++				|| /((\n|\r|\t)|[ \{\}\(\)\<\>\!\+\-\*\/\.\:\, ])/.test( s ) )?(useQuote + JSOX.escape(s) +useQuote):s )
+ 			//return s;
+ 
+ 		}
+@@ -1865,6 +1883,26 @@ JSOX.stringifier = function() {
+ 					return v;
+ 				}
+ 			} 
++			function mapToObject(){
++				var tmp = {tmp:null};
++				var out = '{'
++				var first = true;
++				//console.log( "CONVERT:", map);
++				for (var [key, value] of this) {
++					//console.log( "er...", key, value )
++					tmp.tmp = value;
++					out += (first?"":",") + getIdentifier(key) +':' + str("tmp", tmp);
++					first = false;
++				}
++				out += '}';
++				//console.log( "out is:", out );
++				return out;
++			}
++			if( firstRun ) {
++				arrayToJSOX.cb = doArrayToJSOX;
++				mapToJSOX.cb = mapToObject;
++				firstRun = false;
++			}
+ 			arrayToJSOX.cb = doArrayToJSOX;
+ 
+ 		// Produce a string from holder[key].
+@@ -1902,20 +1940,7 @@ JSOX.stringifier = function() {
+ 			) {
+ 				gap += indent;
+ 				if( typeof value === "object" ) {
+-					{
+-						if( value === null ) v = undefined;
+-						else {
+-							var field = fieldMap.get( value );
+-							_DEBUG_STRINGIFY && console.log( "path:", JSON.stringify(path), field );
+-							if( !field ) {
+-								fieldMap.set( value, JSON.stringify(path) );
+-								v = undefined;
+-							}
+-							else
+-								v = field;
+-						}
+-					}
+-					//v = getReference( value );
++					v = getReference( value );
+ 					if( v ) return "ref"+v;
+ 				}
+ 
+@@ -1928,20 +1953,7 @@ JSOX.stringifier = function() {
+ 				gap = mind;
+ 			} else 
+ 				if( typeof value === "object" ) {
+-					{
+-						if( value === null ) v = undefined;
+-						else {
+-							var field = fieldMap.get( value );
+-							_DEBUG_STRINGIFY && console.log( "path:", path.length?JSON.stringify(path):"[]", field );
+-							if( !field ) {
+-								fieldMap.set( value, path.length?JSON.stringify(path):"[]" );
+-								v = undefined;
+-							}
+-							else
+-								v = field;
+-						}
+-					}
+-					 //v = getReference( value );
++					v = getReference( value );
+ 				}
+ 
+ 			// If we were called with a replacer function, then call the replacer to
+@@ -2008,9 +2020,7 @@ JSOX.stringifier = function() {
+ 								if( partialClass ) {
+ 									partial.push(v);
+ 							} else
+-									partial.push( //getIdentifier(k) 
+-									( ( k in keywords /* [ "true","false","null","NaN","Infinity","undefined"].find( keyword=>keyword===k )*/
+-										|| /((\n|\r|\t)|s|S|[ \{\}\(\)\<\>\!\+\-\*\/\.\:\, ])/.test( k ) )?(useQuote + JSOX.escape(k) +useQuote):k )
++									partial.push( getIdentifier(k) 
+ 									+ (
+ 										(gap)
+ 											? ": "
+@@ -2047,10 +2057,7 @@ JSOX.stringifier = function() {
+ 								if( partialClass ) {
+ 									partial.push(v);
+ 							} else
+-									partial.push(//getIdentifier(k)
+-										( ( k in keywords /* [ "true","false","null","NaN","Infinity","undefined"].find( keyword=>keyword===k )*/ 
+-										|| /((\n|\r|\t)|s|S|[ \{\}\(\)\<\>\!\+\-\*\/\.\:\, ])/.test( k ) )?(useQuote + JSOX.escape(k) +useQuote):k )
+-									+ (
++									partial.push(getIdentifier(k) + (
+ 										(gap)
+ 											? ": "
+ 											: ":"
+@@ -2078,8 +2085,7 @@ JSOX.stringifier = function() {
+ 
+ 				var ident = null;
+ 				if( partialClass )
+-					ident = ( ( partialClass.name in keywords /* [ "true","false","null","NaN","Infinity","undefined"].find( keyword=>keyword===partialClass.name )*/
+-						|| /((\n|\r|\t)|s|S|[ \{\}\(\)\<\>\!\+\-\*\/\.\:\, ])/.test( partialClass.name ) )?(useQuote + JSOX.escape(partialClass.name) +useQuote):partialClass.name );
++					ident = getIdentifier( partialClass.name ) ;
+ 				v = c +
+ 					( partial.length === 0
+ 					? "{}"
+@@ -2104,13 +2110,23 @@ JSOX.stringifier = function() {
+ 	// http://jsperf.com/encoding-xhr-image-data/5
+ 	// doesn't have to be reversable....
+ 	const encodings = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+-	const decodings = { '=':-1 };
++	const decodings = { '~':-1
++		,'=':-1
++		,'$':62
++		,'_':63
++		,'+':62
++		,'-':62
++		,'.':62
++		,'/':63
++		,',':63
++	};
+ 	
+ 	for( var x = 0; x < 256; x++ ) {
+ 		if( x < 64 ) {
+         		decodings[encodings[x]] = x;
+ 		}
+ 	}
++	Object.freeze( decodings );
+ 	
+ 	function base64ArrayBuffer(arrayBuffer) {
+ 		var base64    = ''
+@@ -2161,9 +2177,22 @@ JSOX.stringifier = function() {
+ 	
+         function DecodeBase64( buf )
+ 	{	
+-		//console.log( "length:", buf.length, (((buf.length+3)/4)|0), (buf[buf.length-1]==='='?1:0), (buf[buf.length-2]==='='?1:0) )
+-		var ab = new ArrayBuffer( (3*(((buf.length+3)>>2)|0)) - ((buf[buf.length-1]==='='?1:0) + (buf[buf.length-2]==='='?1:0)) );
+-		//console.log( "LENGHT:", (3*(((buf.length+3)/4)|0)) - ((buf[buf.length-1]==='='?1:0) + (buf[buf.length-2]==='='?1:0)) );
++		var outsize;
++		if( buf.length % 4 == 1 )
++			outsize = ((((buf.length + 3) / 4)|0) * 3) - 3;
++		else if( buf.length % 4 == 2 )
++			outsize = ((((buf.length + 3) / 4)|0) * 3) - 2;
++		else if( buf.length % 4 == 3 )
++			outsize = ((((buf.length + 3) / 4)|0) * 3) - 1;
++		else if( decodings[buf[buf.length - 3]] == -1 )
++			outsize = ((((buf.length + 3) / 4)|0) * 3) - 3;
++		else if( decodings[buf[buf.length - 2]] == -1 ) 
++                  	outsize = ((((buf.length + 3) / 4)|0) * 3) - 2;
++		else if( decodings[buf[buf.length - 1]] == -1 ) 
++      			outsize = ((((buf.length + 3) / 4)|0) * 3) - 1;
++		else
++			outsize = ((((buf.length + 3) / 4)|0) * 3);
++		var ab = new ArrayBuffer( outsize );
+ 		var out = new Uint8Array(ab);
+ 		{
+ 			var n;
+@@ -2171,11 +2200,11 @@ JSOX.stringifier = function() {
+ 			for( n = 0; n < l; n++ )
+ 			{
+         			var index0 = decodings[buf[n*4]];
+-				var index1 = decodings[buf[n*4+1]];
+-				var index2 = decodings[buf[n*4+2]];
+-				var index3 = decodings[buf[n*4+3]];
+-				
+-				out[n*3+0] = (( index0 ) << 2 | ( index1 ) >> 4);
++				var index1 = (n*4+1)<buf.length?decodings[buf[n*4+1]]:-1;
++				var index2 = (index1>=0) && (n*4+2)<buf.length?decodings[buf[n*4+2]]:-1 || -1;
++				var index3 = (index2>=0) && (n*4+3)<buf.length?decodings[buf[n*4+3]]:-1 || -1;
++				if( index1 >= 0 )
++					out[n*3+0] = (( index0 ) << 2 | ( index1 ) >> 4);
+ 				if( index2 >= 0 )
+ 					out[n*3+1] = (( index1 ) << 4 | ( ( ( index2 ) >> 2 ) & 0x0f ));
+ 				if( index3 >= 0 )

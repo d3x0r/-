@@ -1,0 +1,766 @@
+diff --git a/node/chainReact/ui/chainreact.js b/node/chainReact/ui/chainreact.js
+index d904738..2944618 100644
+--- a/node/chainReact/ui/chainreact.js
++++ b/node/chainReact/ui/chainreact.js
+@@ -1,6 +1,7 @@
+ 
+ 
+ const _debug = false;
++const targetPlayer = 1;  // this will be more than 1....
+ 
+ const l = {
+ 	rows : 4,
+@@ -23,6 +24,13 @@ const l = {
+ 	updating_board_end : 0,
+ 	winstate : null, // ends up being the l.player element
+ 	RNG : SaltyRNG( salt=>salt.push( Date.now() ) ),
++	timeOut : [],
++	boardOut : [],
++	lastPlay : {x:0,y:0},
++	gameLog : [],
++	noMoveMask : [],
++	canMoveMask : [],
++	tick : 0,
+ }
+ 
+ var GuestName = localStorage.getItem( "guestName" );
+@@ -337,6 +345,87 @@ function handleService (a,b,c) {
+ }
+ 
+ 
++	function dumpGame() {
++		l.timeOut[l.tick] = true;		
++		var o = 0;
++		for( var n = 0; n < l.rows; n++ ) {
++			for( var m = 0; m < l.cols; m++ ) {
++				//console.log( "PLAYER:", n, m, l.board[n][m].player, l.currentPlayer, !( ( l.board[n][m].player === -1 ) || ( l.board[n][m].player === l.currentPlayer ) ) );
++				l.boardOut[7*o + 0] = ( l.board[n][m].player === targetPlayer /*l.currentPlayer*/ );
++				l.boardOut[7*o + 1] = !( ( l.board[n][m].player === -1 ) || ( l.board[n][m].player === targetPlayer /*l.currentPlayer*/ ) );
++				l.boardOut[7*o + 2] = ( l.board[n][m].player === -1 );
++	        
++				l.boardOut[7*o + 3] = l.board[n][m].count > 0;
++				l.boardOut[7*o + 4] = l.board[n][m].count > 1;
++				l.boardOut[7*o + 5] = l.board[n][m].count > 2;
++				l.boardOut[7*o + 6] = l.board[n][m].count > 3;
++	        
++				if( l.boardOut[7*o+0] || l.boardOut[7*o+2] )
++					l.canMoveMask[n*l.cols + m] = 1;
++				else
++					l.canMoveMask[n*l.cols + m] = 0;
++	        
++				//l.boardOut[8*o + 7] = l.board[n][m].count > 4; // last game can have large counts.
++				o++;
++				
++			}
++		}
++
++
++		var s = [];
++		for( var n = 0; n < o; n++ ) {
++				s.push(0);
++		}
++	        
++		l.gameLog.push( { 
++			tick: l.timeOut.map( x=>x?1:0)
++			, board:l.boardOut.map(x=>x?1:0)
++			, canMove:l.currentPlayer === targetPlayer ?l.canMoveMask.map(n=>n):l.noMoveMask
++			, lastMove:s
++		} );
++		// reset this tick mark for next.
++		l.timeOut[l.tick] = false;
++		return l.tick++;
++	}
++
++	function putPiece(x,y,dx,dy) {
++				if( l.currentPlayer == 0 && !l.players[0].moves ) {
++					l.players.forEach( player=>player.active = true);
++				}
++				if( l.winstate )  {
++					alertForm.caption = "Game has been won!";
++					alertForm.show();
++					return;
++				}
++				if( !l.board[y][x].count ){
++					l.boardAtoms[y][x][l.board[y][x].count].x = dx;
++					l.boardAtoms[y][x][l.board[y][x].count].y = dy;
++					l.board[y][x].count = 1;
++					l.board[y][x].player = l.currentPlayer;
++					l.players[l.currentPlayer].count++;
++					l.players[l.currentPlayer].moves++;
++					l.board[y][x].stable = false;
++					gameStatusForm.update();
++					dumpGame();
++				} else if( l.board[y][x].player === l.currentPlayer ) {
++					l.boardAtoms[y][x][l.board[y][x].count].x = dx;
++					l.boardAtoms[y][x][l.board[y][x].count].y = dy;
++					l.board[y][x].count++;
++					l.players[l.currentPlayer].count++;
++					l.players[l.currentPlayer].moves++;
++					l.board[y][x].stable = false;
++					gameStatusForm.update();
++					dumpGame();
++				} else {
++					passField.textContent = "";
++				}
++				do {
++					l.currentPlayer++;
++					if( l.currentPlayer >= l.players.length )
++						l.currentPlayer = 0;
++				}while( !l.players[l.currentPlayer].active );
++	}
++
+ 
+ function initLoginForm() {
+ 	var connection = createPopup( "Connecting", null );
+@@ -451,6 +540,7 @@ function initLoginForm() {
+        	guestLogin.appendChild( guestLoginInner );
+ 
+ 
++
+ 	connection.divFrame.appendChild( topPadding );
+ 	center.appendChild( userPrompt );
+ 	center.appendChild( userField );
+@@ -778,6 +868,14 @@ function makePlayer() {
+ 
+ 
+ function initBoard() {
++
++	l.tick = 0;
++	l.gameLog.length = 0;
++	l.noMoveMask.length = 0;
++	l.timeOut.length = 0;
++	l.noMoveMask.length = 0;
++	l.canMoveMask.length = 0;
++
+ 	gameStatusForm.players = l.players.length;
+ 
+ 	var del1 = gameBoard.height / (l.rows+0);
+@@ -790,25 +888,39 @@ function initBoard() {
+ 	var pad2 = ( gameBoard.width - ( l.cols * del2 ) ) / 2;
+ 	var rows = [];
+ 	l.currentPlayer = 0;
+-	l.boardAtoms = [];
+-	l.board = [];
++	l.boardAtoms.length = 0;
++	l.board.length = 0;
+ 	l.peiceSize = del1/3;
+ 	l.peiceDist = ((l.peiceSize*11)/16 )
+ 	l.ExplodeHead = l.ExplodeTail = 0;
+ 	l.Explode = [];//new Array( l.rows*l.cols ); // maximum number of cells that can be queued...
+-	for( var r = 0; r <= l.rows; r++ ) {
++	for( var r = 0; r < l.rows; r++ ) {
+ 		var rx = (pad1 + r * del1 )|0;
+ 		rows.push( rx ) ;
+ 		l.board.push([]);
+ 		l.boardAtoms.push([]);
+-		for( var c = 0; c <= l.cols; c++ ) {
++		for( var c = 0; c < l.cols; c++ ) {
+ 			l.Explode.push( {x:0,y:0})
+ 			l.board[r].push( {player:-1,count:0,stable:true} );
+ 			l.boardAtoms[r].push( [] );
++
++			if( r && ( r < (l.rows-1) ) )
++				l.timeOut.push(false);
++			if( c && ( c < (l.cols-1) ) )
++				l.timeOut.push(false);
++			l.timeOut.push(false);
++			l.timeOut.push(false);
++			l.noMoveMask.push(0);
++			l.canMoveMask.push(1);
++
+ 			for( var depth = 0; depth < 8; depth++ ) 
+ 				l.boardAtoms[r][c].push( { x:0,y:0 } );
+ 		}
+ 	}
++	{
++		var rx = (pad1 + l.rows * del1 )|0;
++		rows.push( rx ) ;
++	}
+ 	var cols = [];
+ 	for( var r = 0; r <= l.cols; r++ ) {
+ 		var ry = (pad2 + r* del2 )|0;
+@@ -923,24 +1035,6 @@ gameBoard.addEventListener( "click", (evt)=>{
+ 		alertForm.caption = "Illegal Move";
+ 		alertForm.show();
+ 	}
+-	/*
+-	if( !l.board[y][x].count ){
+-		l.boardAtoms[y][x][l.board[y][x].count].x = clientX - l.cellx[x];
+-		l.boardAtoms[y][x][l.board[y][x].count].y = clientY - l.celly[y];
+-		l.board[y][x].count = 1;
+-		l.board[y][x].player = l.currentPlayer;
+-		l.board[y][x].stable = false;
+-	} else if( l.board[y][x].player === l.currentPlayer ) {
+-		l.boardAtoms[y][x][l.board[y][x].count].x = clientX - l.cellx[x];
+-		l.boardAtoms[y][x][l.board[y][x].count].y = clientY - l.celly[y];
+-		l.board[y][x].count++;
+-		l.board[y][x].stable = false;
+-	}
+-
+-	l.currentPlayer++;
+-	if( l.currentPlayer >= l.players.length )
+-		l.currentPlayer = 0;
+-	*/
+ })
+ 
+ loadImage( images[image_index++] );
+@@ -1362,6 +1456,45 @@ function updateBoard(  )
+ 	return false;
+ }
+ 
++
++var tfModel = null;
++
++async function initAI(  ) {
++	tfModel = await tf.loadLayersModel( "./playBrain/model.json" );
++	console.log( "model:", tfModel );
++}
++initAI();
++
++async function pickAiMove_generation_one() {
++	var thisTick = l.tick-1;
++	var thisMove = l.gameLog[thisTick];
++	
++		var tickTensor = tf.tensor3d( [[thisMove.tick]] );
++		//var tickTensorBatch = tf.tensor2d( [tickTensor], [1,tickTensor.shape[0]] )
++		// 160 bits
++
++		var boardTensor = tf.tensor3d( [[thisMove.board]] );
++		// 40 * 7
++		var canMoveTensor = tf.tensor3d( [[thisMove.canMove]] );
++		// 40 bits (mask on softmax activation)
++		var lastMoveTensor = tf.tensor3d( [[thisMove.lastMove]] );
++		var maskTensor = tf.zeros([1,1,1]);
++
++		var prediction = await tfModel.predict( [tickTensor,boardTensor,maskTensor] );
++		prediction.print();
++		var thing = tf.argMax(prediction, 2).dataSync();
++
++	var m = thing%l.cols;
++	var n = ( thing / l.cols ) | 0;
++	if( l.board[n][m].player < 0 || l.board[n][m].player == l.currentPlayer )
++		chainReactService.putPiece( m, n, 0, 0 );
++	else {
++		console.log( "MOve is illegal; rechoosing" );
++		pickAiMove_generation_zero();
++	}
++
++}
++
+ function pickAiMove_generation_zero() {
+ 	if( l.winstate )
+ 		return;
+@@ -1409,4 +1542,4 @@ function findWinner() {
+ 
+ function sendMessage( msg ) {
+ 
+-}
+\ No newline at end of file
++}
+diff --git a/node/chainReact/ui/index.html b/node/chainReact/ui/index.html
+index 01e4032..5e74ed3 100644
+--- a/node/chainReact/ui/index.html
++++ b/node/chainReact/ui/index.html
+@@ -330,6 +330,7 @@
+ <!--
+ 	<SCRIPT src="protocol.es6.js"></SCRIPT>
+ 	-->
++	<SCRIPT src="tensorflow/tf.js"></SCRIPT>
+ 	<SCRIPT src="chainreact.js"></SCRIPT>
+ 	</DIV>
+ </HTML>
+diff --git a/node/chainReact/ui/jsox.js b/node/chainReact/ui/jsox.js
+index 06f6ea9..30c4c13 100644
+--- a/node/chainReact/ui/jsox.js
++++ b/node/chainReact/ui/jsox.js
+@@ -6,11 +6,12 @@
+ // This file is based off of https://github.com/JSON6/  ./lib/json6.js
+ // which is based off of https://github.com/d3x0r/sack  ./src/netlib/html5.websocket/json6_parser.c
+ //
++var exports = exports || {};
++
+ "use strict";
+ 
++const _JSON=JSON;
+ var JSOX = {};
+-
+-var exports = exports || {};
+ exports.JSOX = JSOX;
+ 
+ function privateizeEverything() {
+@@ -37,6 +38,8 @@ const VALUE_DATE = 11  // unused yet
+ const VALUE_EMPTY = 12 // [,] makes an array with 'empty item'
+ const VALUE_ARRAY = 13 //
+ const knownArrayTypeNames = ["ab","u8","cu8","s8","u16","s16","u32","s32","u64","s64","f32","f64"];
++var arrayToJSOX = null;
++var mapToJSOX = null;
+ const knownArrayTypes = [ArrayBuffer
+                         ,Uint8Array,Uint8ClampedArray,Int8Array
+                         ,Uint16Array,Int16Array
+@@ -88,6 +91,7 @@ const CONTEXT_OBJECT_FIELD_VALUE = 4
+ const CONTEXT_CLASS_FIELD = 5
+ const CONTEXT_CLASS_VALUE = 6
+ const CONTEXT_IN_TYPED_ARRAY = 7
++const CONTEXT_CLASS_FIELD_VALUE = 8
+ const keywords = {	["true"]:true,["false"]:false,["null"]:null,["NaN"]:NaN,["Infinity"]:Infinity,["undefined"]:undefined }
+ 
+ const contexts = [];
+@@ -433,6 +437,7 @@ JSOX.begin = function( cb, reviver ) {
+ 						case VALUE_NAN:  val.string += "NaN"; break
+ 						case VALUE_NEG_NAN:  val.string += "-NaN"; break
+ 						case VALUE_UNDEFINED:  val.string += "undefined"; break
++						case VALUE_STRING: break;
+ 						default:
+ 							console.log( "Value of type " + val.value_type + " is not restored..." );
+ 						}
+@@ -1013,7 +1018,7 @@ JSOX.begin = function( cb, reviver ) {
+ 
+ 					case 58/*':'*/:
+ 						//if(_DEBUG_PARSING) console.log( "colon context:", parse_context );
+-						if( parse_context == CONTEXT_OBJECT_FIELD )
++						if( parse_context == CONTEXT_OBJECT_FIELD || parse_context == CONTEXT_CLASS_FIELD )
+ 						{
+ 							if( word != WORD_POS_RESET
+ 								&& word != WORD_POS_FIELD
+@@ -1026,7 +1031,7 @@ JSOX.begin = function( cb, reviver ) {
+ 							word = WORD_POS_RESET;
+ 							val.name = val.string;
+ 							val.string = '';
+-							parse_context = CONTEXT_OBJECT_FIELD_VALUE;
++							parse_context = CONTEXT_OBJECT_FIELD?CONTEXT_OBJECT_FIELD_VALUE:CONTEXT_CLASS_FIELD_VALUE;
+ 							val.value_type = VALUE_UNSET;
+ 						}
+ 						else
+@@ -1070,7 +1075,8 @@ JSOX.begin = function( cb, reviver ) {
+ 							}
+ 						} else if( ( parse_context == CONTEXT_OBJECT_FIELD ) || ( parse_context == CONTEXT_CLASS_VALUE ) ) {
+ 							if( val.value_type != VALUE_UNSET ) {
+-								val.name = current_class.fields[current_class_field++];
++								if( current_class )
++									val.name = current_class.fields[current_class_field++];
+ 								if( _DEBUG_PARSING ) console.log( "Closing object; set value name, and push...", current_class_field, val );
+ 								objectPush();
+ 							}
+@@ -1656,12 +1662,28 @@ JSOX.parse = function( msg, reviver ) {
+ 	toProtoTypes.set( Float64Array.prototype, { external:true, name:"f64"
+ 	    , cb:function() { return "["+base64ArrayBuffer(this.buffer)+"]" }
+ 	} );
++	toProtoTypes.set( Float64Array.prototype, { external:true, name:"f64"
++	    , cb:function() { return "["+base64ArrayBuffer(this.buffer)+"]" }
++	} );
++
++	toProtoTypes.set( Map.prototype, mapToJSOX = { external:true, name:"map"
++	    , cb:null
++	} );
++	fromProtoTypes.set( "map", function (){
++		var newMap = new Map();
++		for( key in this ) newMap.set( key, this[key] );
++		return newMap;
++	} );
++
++	toProtoTypes.set( Array.prototype, arrayToJSOX = { external:false, name:Array.prototype.constructor.name
++	    , cb: null		    
++	} );
+ 
+ }
+ 
+ JSOX.registerToJSOX = function( name, prototype, f ) {
+ 	//console.log( "SET OBJECT TYPE:", prototype, prototype.prototype, Object.prototype, prototype.constructor );
+-	if( prototype.prototype && prototype.prototype !== Object.prototype ) {
++	if( !prototype.prototype || prototype.prototype !== Object.prototype ) {
+ 		if( toProtoTypes.get(prototype) ) throw new Error( "Existing toJSOX has been registered for prototype" );
+ 		console.log( "PUSH PROTOTYPE" );
+ 		toProtoTypes.set( prototype, { external:true, name:name||f.constructor.name, cb:f } );
+@@ -1681,8 +1703,6 @@ JSOX.registerToFrom = function( prototypeName, prototype, to, from ) {
+ 	JSOX.registerFromJSOX( prototypeName, from );
+ }
+ 
+-var arrayToJSOX;
+-
+ JSOX.stringifier = function() {
+ 	var classes = [];
+ 	var useQuote = '"';
+@@ -1692,11 +1712,6 @@ JSOX.stringifier = function() {
+ 	var localToProtoTypes = new WeakMap();
+ 	var localToObjectTypes = new Map();
+ 
+-	if( !toProtoTypes.get( Array.prototype ) )
+-		toProtoTypes.set( Array.prototype, arrayToJSOX = { external:false, name:Array.prototype.constructor.name
+-		    , cb: null		    
+-		} );
+-
+ 	return {
+ 		defineClass(name,obj) { 
+ 			var cls; 
+@@ -1733,9 +1748,10 @@ JSOX.stringifier = function() {
+ 	function getReference( here ) {
+ 		if( here === null ) return undefined;
+ 		var field = fieldMap.get( here );
+-		_DEBUG_STRINGIFY && console.log( "path:", path.length?JSON.stringify(path):"[]", field );
++		_DEBUG_STRINGIFY && console.log( "path:", _JSON.stringify(path), field );
+ 		if( !field ) {
+-			fieldMap.set( here, path.length?JSON.stringify(path):"[]" );
++			if( !path.length ) return "";
++			fieldMap.set( here, _JSON.stringify(path) );
+ 			return undefined;
+ 		}
+ 		return field;
+@@ -1767,7 +1783,7 @@ JSOX.stringifier = function() {
+ 	function stringify( object, replacer, space ) {
+ 		if( object === undefined ) return "undefined";
+ 		if( object === null ) return;
+-
++		var firstRun = true;
+ 		var gap;
+ 		var indent;
+ 		var meta;
+@@ -1805,11 +1821,14 @@ JSOX.stringifier = function() {
+ 
+ 		path = [];
+ 		fieldMap = new WeakMap();
+-		fieldMap.set( path, "~INTERNAL~PATH~")
+ 
+ 		return str( "", {"":object} );
+ 
+ 		function getIdentifier(s) {
++			
++			if( !isNaN( s ) ) {
++				return ["'",s.toString(),"'"].join('');
++			}
+ 			//var n = s.length;
+ 			/*
+ 			for( n = 0; n < s.length; n++ ) {
+@@ -1821,7 +1840,7 @@ JSOX.stringifier = function() {
+ */
+ 			// should check also for if any non ident in string...
+ 			return ( ( s in keywords /* [ "true","false","null","NaN","Infinity","undefined"].find( keyword=>keyword===s )*/
+-				|| /((\n|\r|\t)|s|S|[ \{\}\(\)\<\>\!\+\-\*\/\.\:\, ])/.test( s ) )?(useQuote + JSOX.escape(s) +useQuote):s )
++				|| /((\n|\r|\t)|[ \{\}\(\)\<\>\!\+\-\*\/\.\:\, ])/.test( s ) )?(useQuote + JSOX.escape(s) +useQuote):s )
+ 			//return s;
+ 
+ 		}
+@@ -1865,6 +1884,26 @@ JSOX.stringifier = function() {
+ 					return v;
+ 				}
+ 			} 
++			function mapToObject(){
++				var tmp = {tmp:null};
++				var out = '{'
++				var first = true;
++				//console.log( "CONVERT:", map);
++				for (var [key, value] of this) {
++					//console.log( "er...", key, value )
++					tmp.tmp = value;
++					out += (first?"":",") + getIdentifier(key) +':' + str("tmp", tmp);
++					first = false;
++				}
++				out += '}';
++				//console.log( "out is:", out );
++				return out;
++			}
++			if( firstRun ) {
++				arrayToJSOX.cb = doArrayToJSOX;
++				mapToJSOX.cb = mapToObject;
++				firstRun = false;
++			}
+ 			arrayToJSOX.cb = doArrayToJSOX;
+ 
+ 		// Produce a string from holder[key].
+@@ -1902,20 +1941,7 @@ JSOX.stringifier = function() {
+ 			) {
+ 				gap += indent;
+ 				if( typeof value === "object" ) {
+-					{
+-						if( value === null ) v = undefined;
+-						else {
+-							var field = fieldMap.get( value );
+-							_DEBUG_STRINGIFY && console.log( "path:", JSON.stringify(path), field );
+-							if( !field ) {
+-								fieldMap.set( value, JSON.stringify(path) );
+-								v = undefined;
+-							}
+-							else
+-								v = field;
+-						}
+-					}
+-					//v = getReference( value );
++					v = getReference( value );
+ 					if( v ) return "ref"+v;
+ 				}
+ 
+@@ -1928,20 +1954,7 @@ JSOX.stringifier = function() {
+ 				gap = mind;
+ 			} else 
+ 				if( typeof value === "object" ) {
+-					{
+-						if( value === null ) v = undefined;
+-						else {
+-							var field = fieldMap.get( value );
+-							_DEBUG_STRINGIFY && console.log( "path:", path.length?JSON.stringify(path):"[]", field );
+-							if( !field ) {
+-								fieldMap.set( value, path.length?JSON.stringify(path):"[]" );
+-								v = undefined;
+-							}
+-							else
+-								v = field;
+-						}
+-					}
+-					 //v = getReference( value );
++					v = getReference( value );
+ 				}
+ 
+ 			// If we were called with a replacer function, then call the replacer to
+@@ -2008,9 +2021,7 @@ JSOX.stringifier = function() {
+ 								if( partialClass ) {
+ 									partial.push(v);
+ 							} else
+-									partial.push( //getIdentifier(k) 
+-									( ( k in keywords /* [ "true","false","null","NaN","Infinity","undefined"].find( keyword=>keyword===k )*/
+-										|| /((\n|\r|\t)|s|S|[ \{\}\(\)\<\>\!\+\-\*\/\.\:\, ])/.test( k ) )?(useQuote + JSOX.escape(k) +useQuote):k )
++									partial.push( getIdentifier(k) 
+ 									+ (
+ 										(gap)
+ 											? ": "
+@@ -2047,10 +2058,7 @@ JSOX.stringifier = function() {
+ 								if( partialClass ) {
+ 									partial.push(v);
+ 							} else
+-									partial.push(//getIdentifier(k)
+-										( ( k in keywords /* [ "true","false","null","NaN","Infinity","undefined"].find( keyword=>keyword===k )*/ 
+-										|| /((\n|\r|\t)|s|S|[ \{\}\(\)\<\>\!\+\-\*\/\.\:\, ])/.test( k ) )?(useQuote + JSOX.escape(k) +useQuote):k )
+-									+ (
++									partial.push(getIdentifier(k) + (
+ 										(gap)
+ 											? ": "
+ 											: ":"
+@@ -2078,8 +2086,7 @@ JSOX.stringifier = function() {
+ 
+ 				var ident = null;
+ 				if( partialClass )
+-					ident = ( ( partialClass.name in keywords /* [ "true","false","null","NaN","Infinity","undefined"].find( keyword=>keyword===partialClass.name )*/
+-						|| /((\n|\r|\t)|s|S|[ \{\}\(\)\<\>\!\+\-\*\/\.\:\, ])/.test( partialClass.name ) )?(useQuote + JSOX.escape(partialClass.name) +useQuote):partialClass.name );
++					ident = getIdentifier( partialClass.name ) ;
+ 				v = c +
+ 					( partial.length === 0
+ 					? "{}"
+@@ -2104,13 +2111,23 @@ JSOX.stringifier = function() {
+ 	// http://jsperf.com/encoding-xhr-image-data/5
+ 	// doesn't have to be reversable....
+ 	const encodings = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+-	const decodings = { '=':-1 };
++	const decodings = { '~':-1
++		,'=':-1
++		,'$':62
++		,'_':63
++		,'+':62
++		,'-':62
++		,'.':62
++		,'/':63
++		,',':63
++	};
+ 	
+ 	for( var x = 0; x < 256; x++ ) {
+ 		if( x < 64 ) {
+         		decodings[encodings[x]] = x;
+ 		}
+ 	}
++	Object.freeze( decodings );
+ 	
+ 	function base64ArrayBuffer(arrayBuffer) {
+ 		var base64    = ''
+@@ -2161,9 +2178,22 @@ JSOX.stringifier = function() {
+ 	
+         function DecodeBase64( buf )
+ 	{	
+-		//console.log( "length:", buf.length, (((buf.length+3)/4)|0), (buf[buf.length-1]==='='?1:0), (buf[buf.length-2]==='='?1:0) )
+-		var ab = new ArrayBuffer( (3*(((buf.length+3)>>2)|0)) - ((buf[buf.length-1]==='='?1:0) + (buf[buf.length-2]==='='?1:0)) );
+-		//console.log( "LENGHT:", (3*(((buf.length+3)/4)|0)) - ((buf[buf.length-1]==='='?1:0) + (buf[buf.length-2]==='='?1:0)) );
++		var outsize;
++		if( buf.length % 4 == 1 )
++			outsize = ((((buf.length + 3) / 4)|0) * 3) - 3;
++		else if( buf.length % 4 == 2 )
++			outsize = ((((buf.length + 3) / 4)|0) * 3) - 2;
++		else if( buf.length % 4 == 3 )
++			outsize = ((((buf.length + 3) / 4)|0) * 3) - 1;
++		else if( decodings[buf[buf.length - 3]] == -1 )
++			outsize = ((((buf.length + 3) / 4)|0) * 3) - 3;
++		else if( decodings[buf[buf.length - 2]] == -1 ) 
++                  	outsize = ((((buf.length + 3) / 4)|0) * 3) - 2;
++		else if( decodings[buf[buf.length - 1]] == -1 ) 
++      			outsize = ((((buf.length + 3) / 4)|0) * 3) - 1;
++		else
++			outsize = ((((buf.length + 3) / 4)|0) * 3);
++		var ab = new ArrayBuffer( outsize );
+ 		var out = new Uint8Array(ab);
+ 		{
+ 			var n;
+@@ -2171,11 +2201,11 @@ JSOX.stringifier = function() {
+ 			for( n = 0; n < l; n++ )
+ 			{
+         			var index0 = decodings[buf[n*4]];
+-				var index1 = decodings[buf[n*4+1]];
+-				var index2 = decodings[buf[n*4+2]];
+-				var index3 = decodings[buf[n*4+3]];
+-				
+-				out[n*3+0] = (( index0 ) << 2 | ( index1 ) >> 4);
++				var index1 = (n*4+1)<buf.length?decodings[buf[n*4+1]]:-1;
++				var index2 = (index1>=0) && (n*4+2)<buf.length?decodings[buf[n*4+2]]:-1 || -1;
++				var index3 = (index2>=0) && (n*4+3)<buf.length?decodings[buf[n*4+3]]:-1 || -1;
++				if( index1 >= 0 )
++					out[n*3+0] = (( index0 ) << 2 | ( index1 ) >> 4);
+ 				if( index2 >= 0 )
+ 					out[n*3+1] = (( index1 ) << 4 | ( ( ( index2 ) >> 2 ) & 0x0f ));
+ 				if( index3 >= 0 )
+diff --git a/node/chainReact/ui/package-lock.json b/node/chainReact/ui/package-lock.json
+deleted file mode 100644
+index 59e65b7..0000000
+--- a/node/chainReact/ui/package-lock.json
++++ /dev/null
+@@ -1,13 +0,0 @@
+-{
+-  "name": "chainreaction",
+-  "version": "1.0.0",
+-  "lockfileVersion": 1,
+-  "requires": true,
+-  "dependencies": {
+-    "sack.vfs": {
+-      "version": "0.9.117",
+-      "resolved": "https://registry.npmjs.org/sack.vfs/-/sack.vfs-0.9.117.tgz",
+-      "integrity": "sha512-ashaQjMrHR0TzLVxnKmFOWQ2v0D4HgjoZZCB82fBUJaSpVelNV8GzNIYw8u4veLXziW6d+5bgJEsjByqVB5jjQ=="
+-    }
+-  }
+-}
+diff --git a/node/chainReact/ui/protocol.js b/node/chainReact/ui/protocol.js
+index a0245e8..9090502 100644
+--- a/node/chainReact/ui/protocol.js
++++ b/node/chainReact/ui/protocol.js
+@@ -61,7 +61,8 @@ if( typeof localStorage === "undefined" ) {
+ JSON = exports.JSOX;
+ 
+ //var peer = `wss://chatment.com:8000/userAuth`;
+-var peer = "wss://" + location.host + "/userAuth";
++//var peer = "wss://" + location.host + "/userAuth";
++var peer = `wss://www.d3x0r.org:8000/userAuth`;
+ 
+ function connect(cb) {
+ 	//console.log( "calling connect?" );
+@@ -170,7 +171,7 @@ function openSocket( protocol, _stage, cb, passkey, redirect ) {
+ 		var msg = JSON.parse( tmpmsg );
+ 		if( !msg ) return;
+ 		//_debug && 
+-		//console.log( "got message:", protocol, _stage, msg );
++		_debug && console.log( "got message:", protocol, _stage, msg );
+ 		if( _stage > 0 ) {
+ 			if( msg.op === "addMethod" ) {
+ 				try {
+diff --git a/node/chainReact/ui/testWsHttp.js b/node/chainReact/ui/testWsHttp.js
+deleted file mode 100644
+index c9ea29a..0000000
+--- a/node/chainReact/ui/testWsHttp.js
++++ /dev/null
+@@ -1,75 +0,0 @@
+-
+-
+-var sack = require( "sack.vfs" );
+-const path = require( "path" );
+-var server = sack.WebSocket.Server( { port: 8081 } )
+-var disk = sack.Volume();
+-console.log( "serving on 8081" );
+-
+-
+-server.onrequest( function( req, res ) {
+-
+-	var ip = ( req.headers && req.headers['x-forwarded-for'] ) ||
+-		 req.connection.remoteAddress ||
+-		 req.socket.remoteAddress ||
+-		 req.connection.socket.remoteAddress;
+-	//ws.clientAddress = ip;
+-
+-	//console.log( "Received request:", req );
+-	if( req.url === "/" ) req.url = "/index.html";
+-	var filePath = "." + unescape(req.url);
+-	var extname = path.extname(filePath);
+-	var contentType = 'text/html';
+-	console.log( ":", extname, filePath )
+-	switch (extname) {
+-		  case '.js':
+-			  contentType = 'text/javascript';
+-			  break;
+-		  case '.css':
+-			  contentType = 'text/css';
+-			  break;
+-		  case '.json':
+-			  contentType = 'application/json';
+-			  break;
+-		  case '.png':
+-			  contentType = 'image/png';
+-			  break;
+-		  case '.jpg':
+-			  contentType = 'image/jpg';
+-			  break;
+-		  case '.wav':
+-			  contentType = 'audio/wav';
+-			  break;
+-	}
+-	if( disk.exists( filePath ) ) {
+-		res.writeHead(200, { 'Content-Type': contentType });
+-		console.log( "Read:", "." + req.url );
+-		res.end( disk.read( filePath ) );
+-	} else {
+-		console.log( "Failed request: ", req );
+-		res.writeHead( 404 );
+-		res.end( "<HTML><HEAD>404</HEAD><BODY>404</BODY></HTML>");
+-	}
+-} );
+-
+-server.onaccept( function ( protocols, resource ) {
+-	console.log( "Connection received with : ", protocols, " path:", resource );
+-        if( process.argv[2] == "1" )
+-		this.reject();
+-        else
+-		this.accept();
+-		//this.accept( protocols );
+-} );
+-
+-server.onconnect( function (ws) {
+-	//console.log( "Connect:", ws );
+-
+-	ws.onmessage( function( msg ) {
+-        	console.log( "Received data:", msg );
+-                ws.send( msg );
+-		//ws.close();
+-        } );
+-	ws.onclose( function() {
+-        	console.log( "Remote closed" );
+-        } );
+-} );
+diff --git a/node/chainReact/ui/testcert.pem b/node/chainReact/ui/testcert.pem
+deleted file mode 100644
+index 380d041..0000000
+--- a/node/chainReact/ui/testcert.pem
++++ /dev/null
+@@ -1,24 +0,0 @@
+------BEGIN CERTIFICATE-----
+-MIID7zCCAtegAwIBAgICBBswDQYJKoZIhvcNAQENBQAwbzELMAkGA1UEBhMCVVMx
+-CzAJBgNVBAgMAk5WMRIwEAYDVQQHDAlMYXMgVmVnYXMxDjAMBgNVBAsMBVRlc3Rz
+-MRswGQYDVQQKDBJGcmVlZG9tIENvbGxlY3RpdmUxEjAQBgNVBAMMCVJvb3QgQ2Vy
+-dDAeFw0xOTAyMTMyMzA4MjNaFw0yMDAyMTMyMzA4MjNaMG8xCzAJBgNVBAYTAlVT
+-MQswCQYDVQQIDAJOVjESMBAGA1UEBwwJTGFzIFZlZ2FzMQ4wDAYDVQQLDAVUZXN0
+-czEbMBkGA1UECgwSRnJlZWRvbSBDb2xsZWN0aXZlMRIwEAYDVQQDDAlSb290IENl
+-cnQwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQD3x7zVZX4uwi8PM8Og
+-dK/YABPzfc7hM7uIqDyLiY/4DPluTpAiw1z+6yVwxIlqBpjleenpBk653lbOW443
+-yQYowGB6gU8/2+USHP8WIf0+KOqNoT35rB7iakuM/XhCqgveT3ydSHSbPclHjp8s
+-C1w3jmP6/7qPOLBLTRXQqQ5IMYCXyVLCMnJdBOhjvs+B0zUG+Qxgk0/ZxpiDm+wo
+-lZryKmQB+N1hdU255lkRX3VKZz1UVKATHTmPuwDIGkaRNEu7L72/jfV3wMpvXCHi
+-UpoMKEf3Kheg1yvjUzLWGmS1njwpMaUViflxwCV269qlgMBJco+SKDDG1/ztAABc
+-/OuZAgMBAAGjgZQwgZEwNQYDVR0OBC4ELFA5aFBfYjZVMkR2UTVDaGJBbTNfaXhR
+-SjRVN003YV9XMVVqODJPY2FDNUE9MDcGA1UdIwQwMC6ALFA5aFBfYjZVMkR2UTVD
+-aGJBbTNfaXhRSjRVN003YV9XMVVqODJPY2FDNUE9MA8GA1UdEwEB/wQFMAMBAQEw
+-DgYDVR0PAQH/BAQDAgGGMA0GCSqGSIb3DQEBDQUAA4IBAQBdmzm+uKOQucDzHulQ
+-xedY9hW7n2Oq84lDaXpQgg7JWZqWSCp6WokJfwQ/EayumCieHxm1RKytQsEZBNG+
+-E1LQUuvYoKYPiB8GhUElnQU5PiJz9bgko+2UcbrXsPpzI81AdQcdmzOkIQknafMk
+-ATVsJNvB5HBpt/aD3Gj6iLTlhf/SAHU3ELICUtIf3FtDfBIj10Ttg8YuVUip3Npg
+-31GwW4Fe9w20YsvBUu+rfEDAM1gVHI6Ye1lZf4Z2dk/kD6O+hA2r+RTrJYMT2DmV
+-wYYg14V6b5ArEWQ5NnKbghL2C8sbjeGQ8qZdyYRXAF5PCAeB46O+tuUrd51khmhN
+-Jv2A
+------END CERTIFICATE-----

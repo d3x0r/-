@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "main": "void.js",
   "dependencies": {
-    "gun": "^0.9.7",
+    "gun": "^0.2019.416",
     "gun-db": "^1",
     "gun-file": "^1",
     "gun-ws": "^1",

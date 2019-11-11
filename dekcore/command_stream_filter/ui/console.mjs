@@ -1,10 +1,17 @@
 
 import {popups} from "./popups.mjs";
 
+import {JSOX} from "./jsox.mjs";
 
 const l = {
 	ws : null, 
+	commandHistory : null,
+	commandIndex : 0,
 };
+
+var history = localStorage.getItem( "Command History" );
+l.commandHistory = history &&JSOX.parse( history ) || [];
+
 
 function openSocket() {
 
@@ -24,6 +31,9 @@ function openSocket() {
   };
   ws.onclose = function() { 
 	l.ws = null;
+	while( remoteConsole.output.childNodes[0] != remoteConsole.input )
+		remoteConsole.output.childNodes[0].remove();
+
 	setTimeout( openSocket, 5000 ); // 5 second delay.
   	// websocket is closed. 
   };
@@ -60,6 +70,7 @@ function createConsole() {
 		},
 	};
 	var root = document.body;
+	var firstKey = true;
 
 	vcon.output = document.createElement( "div" );
 	vcon.output.className = "consoleOutputContent";
@@ -70,13 +81,57 @@ function createConsole() {
 	vcon.input.className = "consoleinputContent";
 	
 	vcon.input.placeHolder = "<input text here>";
+
+
+function setCaretToEnd(target/*: HTMLDivElement*/) {
+  const range = document.createRange();
+  const sel = window.getSelection();
+  range.selectNodeContents(target);
+  range.collapse(false);
+  sel.removeAllRanges();
+  sel.addRange(range);
+  target.focus();
+  range.detach(); // optimization
+
+  // set scroll to the end if multiline
+  target.scrollTop = target.scrollHeight; 
+}
+
 	vcon.input.addEventListener( "keydown", (evt)=>{
 		console.log( evt );
 		if( evt.key === 'Enter' && ( evt.ctrlKey || evt.altKey ) ) {
-			evt.preventDefault();
-			
+			evt.preventDefault();			
 			sendCommand();
+			return;
+		} else if( evt.key === "ArrowUp" ) {
+			if( firstKey ) l.commandIndex = 0;
+			if( l.commandIndex < (l.commandHistory.length-1) ) {
+				evt.preventDefault();			
+				l.commandIndex++;
+				vcon.input.textContent = l.commandHistory[l.commandHistory.length-l.commandIndex].command;
+
+				evt.preventDefault();			
+				//vcon.input.focus();
+                                setCaretToEnd( vcon.input );
+				
+			}
+		} else if( evt.key === "ArrowDown" ) {
+			if( l.commandIndex > 0 ) {
+				if( !firstKey )
+					l.commandIndex--;
+				if( l.commandIndex )
+					vcon.input.textContent = l.commandHistory[l.commandHistory.length-l.commandIndex].command;
+				else
+					vcon.input.textContent = "";
+				
+				evt.preventDefault();			
+				//vcon.input.focus();
+                                setCaretToEnd( vcon.input );
+			}
 		}
+		firstKey = false;
+
+
 	} );
 
 	vcon.output.appendChild( vcon.input );
@@ -100,6 +155,10 @@ function createConsole() {
 		var cmd = vcon.input.textContent;
 			//var newspanbr = document.createElement( "br" );
 			//vcon.output.insertBefore( newspanbr, vcon.input );
+		l.commandHistory.push( { command:cmd } );
+		firstKey = true;
+		
+		localStorage.setItem( "Command History", JSOX.stringify( l.commandHistory ) );
 		l.ws.send( JSON.stringify( { op:"write", data:cmd } ) );
 		vcon.input.textContent = '';
 		vcon.input.focus();

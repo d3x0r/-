@@ -3,6 +3,8 @@
 var util = require('util')
 var vm = require('vm');
 var Entity = require( '../Entity/entity.js');
+const JSOX = require( "../../sack-gui").JSOX;
+const text = require( "../../org.d3x0r.common/text.js");
 Entity.netRequire.provide( "shell.js", exports );
 Entity.Sentience = exports;
 //Entity.
@@ -24,13 +26,14 @@ function Filter( sandbox ) {
                 filter.commands.forEach( (command,id)=>{
                     //console.log( command );
                     out += command.opts.helpText + " - " + command.opts.description + "\n";
+                    //console.log( "is helptext indented? ["+command.opts.helpText+"]" );
                 } )
-                console.log( out );
+                sandbox.console.log( out );
         } );
         filter.RegisterCommand( "create", 
             { description:"create an entity <name <description>> "},
             (args)=>{
-            //console.log( argarray )
+            	console.trace( args )
                 if( !args[0] ) return;
                 var desc = "nondescript."
                 if( args.length > 1 )  
@@ -40,10 +43,10 @@ function Filter( sandbox ) {
                         else
                             desc = args[1].toString(); 
                     }else desc = args[1].toString();
-                    
-                    console.log( "create for ", filter.sandbox.me, args[0].toString(), desc )
+                    args[0].spaces = 0;
+                    //console.log( "create for ", filter.sandbox.me, args[0].toString(), desc )
                     filter.result = Entity.create( filter.sandbox.me, args[0].toString(), desc, (e)=>{
-                        // new entity exitsts now... (feedback created?)
+                        // new entity exists now... (feedback created?)
                     } );
                 } );
         filter.RegisterCommand( "script", 
@@ -67,6 +70,15 @@ function Filter( sandbox ) {
             , {min:0,max:0,description:"Without parameters, show objects that are externally visible."}
             , (args)=> Look( filter.sandbox, args ) 
         );
+        filter.RegisterCommand( "grab"
+            , {min:3,max:0,description:"grab <entity>"}
+            , (args)=> Grab( filter.sandbox, args ) );
+        filter.RegisterCommand( "drop"
+            , {min:3,max:0,description:"drop <attached-entity>"}
+            , (args)=> Drop( filter.sandbox, args ) );
+        filter.RegisterCommand( "store"
+            , {min:3,max:0,description:"store <attached-entity>"}
+            , (args)=> Store( filter.sandbox, args ) );
         filter.RegisterCommand( "wake", 
             { description:"wake up an entity"},
             (args)=> Wake( filter.sandbox, args ) 
@@ -86,9 +98,9 @@ function Script( sandbox, src ) {
     if( src ) {
         {
             var code = `(()=>{var core = {}; 
-            	var fs = this.require( 'fs' );
+            	var fs = this.require( 'sack' ).Volume();
                 try {
-	                var file = fs.readFileSync( "${src}", {encoding:'utf8'} );
+	                var file = fs.readAsString( "${src}" );
                 }catch(err) {
                    console.log( "File failed... is it a HTTP request?", err );
                 }
@@ -111,12 +123,35 @@ function Script( sandbox, src ) {
 }
 
 
+function Grab( sandbox, args ) {
+    Entity.getObjects( sandbox.me, args, ( foundSandbox, where )=>{
+        //console.log( "got", sandbox )
+	    sandbox.grab( foundSandbox );
+    });
+}
+
+function Drop( sandbox, args ) {
+    Entity.getObjects( sandbox.me, args, ( foundSandbox, where )=>{
+        //console.log( "got", foundSandbox.entity.name, where )
+        if( where == "holding" )
+	        sandbox.drop( foundSandbox );
+    });
+}
+
+function Store( sandbox, args ) {
+    Entity.getObjects( sandbox.me, args, ( foundSandbox, where )=>{
+        //console.log( "got", foundSandbox.entity.name, where )
+        if( where == "holding" )
+	        sandbox.store( foundSandbox );
+    });
+}
 
 function Wake( sandbox, args ) {
     Entity.getObjects( sandbox.me, args, ( sandbox )=>{
         //console.log( "got", sandbox )        
         if( !sandbox.io.command ){
             sandbox.io.command = Filter( sandbox );
+            Object.defineProperty(sandbox.io, "command", { enumerable: false, writable: true, configurable: true });
             //console.log( 'create command processor related with object and sandbox', sandbox.me.name, Object.keys( sandbox.io.command ) );
         }
         else console.log( "already awake.")
@@ -144,8 +179,8 @@ function Tell( sandbox, args ) {
                 //console.log( "can't tell a dead object.  Try exec instead." );
                 //Tell( sandbox, args );
                 try {
-				sandbox.scripts.push( { type:"command", code:tail.toString() } );
-                vm.runInContext( tail.toString(), sandbox /*, { filename:"", lineOffset:"", columnOffset:"", displayErrors:true, timeout:10} */)
+			sandbox.scripts.push( { type:"command", code:tail.toString() } );
+	                vm.runInContext( tail.toString(), sandbox /*, { filename:"", lineOffset:"", columnOffset:"", displayErrors:true, timeout:10} */)
                 } catch(err){
                     console.log( err );
                 }
@@ -154,33 +189,40 @@ function Tell( sandbox, args ) {
 }
 function Inventory( sandbox, src ) {
     var i = sandbox.entity.inventory;
-    console.log( i );
+    if( sandbox.io.command )
+        sandbox.io.command.push( JSOX.stringify(i) );
+    return i;
 }
 function Look( sandbox, src ) {
     var items = [];
         //console.log( entity.look( ) );
         //console.trace( "using", sandbox );
-        Entity.getObjects( sandbox.me, src, false, ( sandbox, location )=>{
-                console.log( "something", location, sandbox.entity.name );
-            if( location === "near" )
-                items.push( sandbox.entity.name );
-            else
-                console.log( "something", location, sandbox.entity.name );
+        console.log( "Look source:",src );
+        Entity.getObjects( sandbox.me, src, false, ( foundSandbox, location )=>{
+            //console.log( JSOX.stringify( sandbox.entity.near ))
+            //sandbox.io.command.push( util.format( "something", location, foundSandbox.entity.name ) );
+            sandbox.io.command.push( util.format( location, foundSandbox.entity.name ) );
+            if( location === "near" ) {
+                sandbox.io.command.push( util.format( location, foundSandbox.entity.name ) );
+                //items.push( foundSandbox.entity.name );
+            }
         });
-        console.log( items );
 }
 function Exec( sandbox, src ) {
     if( !src ) return;
+    //console.trace( "Called with :", JSOX.stringify( src ) );
     //console.log( "Exec called with", sandbox )
-    //console.log( src )
-    //console.log( src.toString() )
+    //console.log( "ExEC:", src );
+    //console.log( "EXEC TOSTR:", src.map(val=>val.toString()).join( "" ) );
     try {
-        var code = src.toString();
+        var code = src.reduce((acc,val)=>acc.append(val), new text.Text() ).toString();
         //console.log( "runincontext?", code)
-		sandbox.scripts.push( { type:"Exec command", code:code } );
-        return vm.runInContext(code, sandbox /*, { filename:"", lineOffset:"", columnOffset:"", displayErrors:true, timeout:10} */)
+        var res =  vm.runInContext(code, sandbox /*, { filename:"", lineOffset:"", columnOffset:"", displayErrors:true, timeout:10} */)
+	    sandbox.scripts.push( { type:"Exec command", code:code } );
+        return res;
     }catch(err){
-        console.log( err );
+        sandbox.io.command.push( err.toString() );
+	throw err;
     }
     return null;
 }

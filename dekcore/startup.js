@@ -3,16 +3,20 @@
 function buildPiping(){
       // opens our internal weak parser on the current object.
       // only one of these can work though. 
+//	var webCons = require( './command_stream_filter/webConsole.js' ).Filter();
+
+    var cons = require( './command_stream_filter/psi_console.js' ).Filter();
     var newline = require(  './command_stream_filter/strip_newline.js' );
     var monitor = require( './command_stream_filter/monitor_filter.js' );
-    var commandFilter = require( './command_stream_filter/command.js');
+    //var commandFilter = require( './command_stream_filter/command.js');
+
     var shell = io.command;
     var nl = newline.Filter();
-    var cmd = commandFilter.Filter();
+    //var cmd = commandFilter.Filter();
     
-    nl.connectInput( process.stdin );
+    nl.connectInput( cons.filter );//process.stdin );
     nl.connectOutput( shell.filter );
-    shell.connectOutput( process.stdout );
+    shell.connectOutput( cons.filter );//process.stdout );
 }
 
 buildPiping();

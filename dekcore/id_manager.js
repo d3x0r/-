@@ -1,8 +1,19 @@
 "use strict";
-console.trace( "required by..." );
+//console.trace( "required by..." );
+const _debug = false;
+
 //console.log( "using require: ", require, module )
 const fs = require('fs');
 const server = require( './https_server.js');
+const sack = require( "../sack-gui" );
+const JSOX=sack.JSOX;
+const JSON=sack.JSOX;
+
+const myStringifier = JSOX.stringifier();
+var stringifierInitialized = false;
+const myParser = JSOX.begin( receiveJSOXObject );
+
+//const db = sack.Sqlite( "id.db" );
 var config = require('./config.js');
 //console.log( "config is ", config.run.root, "and which require ?" );
 
@@ -11,15 +22,45 @@ const Entity = require('./Entity/entity.js')
 var IdGen = require("./util/id_generator.js");
 var idGen = IdGen.generator;
 var key_frags = new Map();
-const _debug = false;
 // key_frags[key] = keys
 // #1: { }
-//Map.prototype.length = function() { return Object.keys( keys ).length - 5
+//Map.prototype.length = function() { return Object.keys( keyTracker.keys ).length - 5
 //}
-var keys = new Map();
-var mkey;
+
+
+
+function KeyTracker() {
+	this.Λ = null;
+	this.mkey = null;
+	this.lkey = null;
+	this.pkey = null;
+	this.keys = new Map();
+	this.fragMaps = null;
+}
+
+var keyTracker = new KeyTracker();
+
+
+//JSOX.registerToFrom( "idkt", keyTracker.prototype );
+
+// default strinigfy behavior; but wraps result prefixed by classname
+myStringifier.registerToJSOX( "idkt", KeyTracker.prototype );
+// default parser behavior; but revives using KeyTracker prototype
+myParser.registerFromJSOX( "idkt", KeyTracker.prototype );
+
+function receiveJSOXObject( value ) {
+	
+}
+
+//var local_authkey;
+//var public_authkey;
+//var keys = new Map();
+//var mkey;
+
+
 
 function initKeys() {
+/*
 	keys.toString = () => {
 		var leader = `{"Λ":"${keys.Λ}"
 			,"mkey":"${mkey && mkey.Λ}"
@@ -35,8 +76,10 @@ function initKeys() {
 		if (buffer) buffer += '}';
 		return leader + buffer + footer;
 	}
+*/        
 }
-initKeys();
+//initKeys();
+
 
 
 function keyProto(Λ, o) {
@@ -48,28 +91,16 @@ function keyProto(Λ, o) {
 		, trusted: false // boolean
 		, invalid: false // fail all auth and do not persist
 		, authonly: true // don't send copies to other things
-		, created: new Date().getTime()
-		, time: config.run.timeOffset
+		, created: new Date()
 	};
+	if( !stringifierInitialized ) {
+		myStringifier.defineClass( "id", key );
+		stringifierInitialized = true;
+	}
+
 	["made", "authed"].forEach(prop => {
 		Object.defineProperty(key, prop, { enumerable: false, writable: true, configurable: false, value: [] });
 	})
-
-	//var mystring;
-	key.toString = () => {
-		//if( !mystring ){
-		var _a = key.authby;
-		if (!_a) key.authby = key.Λ;
-		else key.authby = key.authby.Λ;
-
-		//console.log( "debug keytostring:", key.maker );
-		var mystring = JSON.stringify(key);
-		//console.log( mystring );
-		key.authby = _a;
-		//key.maker = _m;
-		//}
-		return mystring;
-	}
 
 	return key;
 }
@@ -81,13 +112,13 @@ function Key(maker_key, askey) {
 	var key = null;
 	var real_key;
 	//console.log( "KEY IS OF COURSE :", typeof maker_key)
-	if ( ( typeof (maker_key) !== "string" ) && ( "Λ" in maker_key ) ) real_key = keys.get(maker_key.Λ);
-	else real_key = keys.get(maker_key);
+	if ( ( typeof (maker_key) !== "string" ) && ( "Λ" in maker_key ) ) real_key = keyTracker.keys.get(maker_key.Λ);
+	else real_key = keyTracker.keys.get(maker_key);
 	if (real_key) maker_key = real_key.Λ;
 	//console.log( "maker", maker_key );
 
 	key = keyProto(idGen());
-	key.maker = maker_key; // always by name here (real key is maker)
+	key.maker = real_key; // always by name here (real key is maker)
 
 	//console.log( "raw key is:", key.Λ, key.maker, maker_key );
 	if (real_key) {
@@ -98,7 +129,7 @@ function Key(maker_key, askey) {
 		pendingOps.push({ maker: maker_key, key: key });
 	}
 	//console.log("SET KEY ", key.Λ, key);
-	keys.set(key.Λ, key);
+	keyTracker.keys.set(key.Λ, key);
 	//console.log( "generated key ", key.Λ )
 	return key;
 }
@@ -118,18 +149,18 @@ function KeyFrag(fragof) {
 }
 
 exports.Auth = (key) => {
-	if (keys.get(key))
-		return validateKey(key, (k) => { return k.authby });
+	if (keyTracker.keys.get(key.Λ))
+		return validateKey(key, (k) => k.authby );
 	return false;
 }
 
 exports.authBy = (key, auth, cb) => {
-	auth = keys.get(auth);
+	auth = keyTracker.keys.get(auth);
 	if (!auth){
 		cb(false);
  		return false;
 	}
-	if (keys.get(key)) {
+	if (keyTracker.keys.get(key)) {
 		do {
 			if (key.maker === maker) {
 			  cb( true );
@@ -147,12 +178,12 @@ exports.authBy = (key, auth, cb) => {
 }
 
 exports.madeFrom = (key, maker, cb) => {
-	let _maker = keys.get(maker);
+	let _maker = keyTracker.keys.get(maker);
 	if (!_maker) {
 		cb(false);
 		return;
 	}
-	if (keys.get(key)) {
+	if (keyTracker.keys.get(key)) {
 		do {
 			if (key.maker === maker){
 				cb(true);
@@ -171,30 +202,28 @@ exports.madeFrom = (key, maker, cb) => {
 	return;
 }
 
-var local_authkey;
 Object.defineProperty(exports, "localAuthKey", {
 	get: function () {
 		//console.log( "local authkey request..." );
-		if (local_authkey)
-			return local_authkey;
+		if (keyTracker.lkey)
+			return keyTracker.lkey;
 		//console.log( "create a new local authority", config.run.Λ );
-		local_authkey = Key(config.run.Λ)
+		keyTracker.lkey = Key(config.run.Λ)
 		// this is one of those illegal operations.
-		local_authkey.authby = keys.get(config.run.Λ);
-		return local_authkey;
+		keyTracker.lkey.authby = keyTracker.keys.get(config.run.Λ);
+		return keyTracker.lkey;
 	}
 });
 
-var public_authkey;
 Object.defineProperty(exports, "publicAuthKey", {
 	get: function () {
-		if (public_authkey)
-			return public_authkey;
+		if (keyTracker.pkey)
+			return keyTracker.pkey;
 		//console.log( "create a new local authority", config.run.Λ );
-		public_authkey = Key(config.run.Λ)
+		keyTracker.pkey = Key(config.run.Λ)
 		// this is one of those illegal operations.
-		public_authkey.authby = keys.get(config.run.Λ);
-		return public_authkey;
+		keyTracker.pkey.authby = keyTracker.keys.get(config.run.Λ);
+		return keyTracker.pkey;
 	}
 });
 
@@ -202,16 +231,16 @@ exports.delete = function deleteKey(key, maker) {
 	if( !maker )
 		throw new Error( "Key deletion requires maker" );
 	
-	key = (typeof key === 'object' && 'Λ' in key) ? key : keys.get(key);
+	key = (typeof key === 'object' && 'Λ' in key) ? key : keyTracker.keys.get(key);
 	if (key) {
-		var makerKey = keys.get(maker);
+		var makerKey = keyTracker.keys.get(maker);
 		var index = makerKey.made.find( k => k === key );
 		makerKey.made.splice( index, 1 );
 
 		index = key.authby.authed.find( k=>k===key );
 		key.authby.authed.splic( index, 1 );
 
-		keys.delete(key);
+		keyTracker.keys.delete(key);
 		key.made.forEach((m) => { deleteKey(m) });
 		key.authed.forEach((a) => { deleteKey(a) });
 	}
@@ -222,28 +251,28 @@ exports.delete = function deleteKey(key, maker) {
 
 exports.ID = ID; function ID(making_key, authority_key, callback) {
 	//stackTrace();
-	console.log( "Making a key...... ", making_key, authority_key )
-	//console.log( config.run.Λ );
-	//console.log( keys[making_key.Λ] );
+	_debug && console.log( "Making a key...... ", JSOX.stringify(making_key,null,"\t"), JSOX.stringify(authority_key,null,"\t") )
+	//_debug && console.log( "CONFIG RUN:", JSOX.stringify( config.run.Λ, null, 4 ), JSOX.stringify( keyTracker.keys.get( config.run.Λ),null,3 )  );
+	//console.log( keyTracker.keys[making_key.Λ] );
 	if (!making_key) throw new Error("Must specify at least the maker of a key");
-	if (!keys.get(config.run.Λ)) {
-		//console.trace("ID() waiting for config...", config.run, keys)
+	if (!keyTracker.keys.get(config.run.Λ)) {
+			console.trace("ID() waiting for config...", JSOX.stringify(config.run), keyTracker.keys)
 		config.injectStart(() => { ID(making_key, authority_key, callback); });
 		config.defer(); // save any OTHER config things for later...
 		return;
 	}
 	if (!authority_key)
-		authority_key = keys.get(config.run.Λ)
+		authority_key = keyTracker.keys.get(config.run.Λ)
 
 	if (!making_key.Λ)
-		making_key = keys.get(making_key);
+		making_key = keyTracker.keys.get(making_key);
 	else
-		making_key = keys.get(making_key.Λ); // things that have the ID might not be THE Key.
+		making_key = keyTracker.keys.get(making_key.Λ); // things that have the ID might not be THE Key.
 
 	if (!authority_key.Λ)
-		authority_key = keys.get(authority_key);
+		authority_key = keyTracker.keys.get(authority_key);
 	else
-		authority_key = keys.get(authority_key.Λ);
+		authority_key = keyTracker.keys.get(authority_key.Λ);
 
 	//console.log( `making_key ${making_key.toString()}` );
 	//console.log( `authority_key ${authority_key.toString()}` );
@@ -251,13 +280,13 @@ exports.ID = ID; function ID(making_key, authority_key, callback) {
 	if (making_key === authority_key)
 		throw new Error("Invalid source keys");
 
-	if( (!making_key || !validateKey(making_key, (k) => { return keys.get(k.maker) }))
+	if( (!making_key || !validateKey(making_key, (k) => { return k.maker }))
 		|| (!authority_key || !validateKey(authority_key, (k) => { return k.authby }))) {
-			throw new Error({ msg: "Invalid source key", maker: making_key, auth: authority_key });
+			throw new Error( JSON.stringify( { msg: "Invalid source key", maker: making_key, auth: authority_key } ) );
 		}
 	var newkey = Key(making_key);
 	newkey.authby = authority_key;
-	//console.log( "authkey", newkey.Λ, authority_key )
+	_debug && console.log( "authkey", newkey.Λ, authority_key )
 
 	authority_key.authed.push(newkey);
 	flushKeys();
@@ -272,6 +301,7 @@ exports.ID = ID; function ID(making_key, authority_key, callback) {
 
 var flushTimer = null;
 process.on( 'exit', ()=>{
+	console.trace( "Exit event in id_manager" );
 	if( flushTimer ) {
 		tickFlushKeys();
 		clearTimeout( flushTimer );
@@ -292,9 +322,9 @@ function validateKey(key, next, callback) {
 	if (!key) {
 		return false;
 	}
-	if (key.Λ) ID = keys.get(key.Λ);
-	else ID = keys.get(key);
-	//console.log( "validate key ", ID )
+	if (key.Λ) ID = keyTracker.keys.get(key.Λ);
+	else ID = keyTracker.keys.get(key);
+	_debug && console.log( "validate key ", JSOX.stringify(ID,null, '\t') )
 	if (ID) {
 		//console.log( "validate key had a key find", ID)
 		if (ID.invalid)
@@ -304,11 +334,11 @@ function validateKey(key, next, callback) {
 		//if( ID.key == key )
 		//    return false;
 		ID.requested++;
-		if (key === config.run.Λ) {
+		if (key.Λ === config.run.Λ) {
 			console.log("validate success because key is config.run")
 			return true;
 		}
-		if (ID.maker === ID.Λ)
+		if (ID.maker === ID)
 			return true;
 		return validateKey(next(ID), next);//.maker ) && validateKey( ID.authby );
 	}
@@ -329,8 +359,8 @@ function isKeyCreator(key, next, callback) {
 	if (!key) {
 		return false;
 	}
-	if (key.Λ) ID = keys.get(key.Λ);
-	else ID = keys.get(key);
+	if (key.Λ) ID = keyTracker.keys.get(key.Λ);
+	else ID = keyTracker.keys.get(key);
 	//console.log( "validate key ", ID )
 	if (ID) {
 		//console.log( "validate key had a key find", ID)
@@ -341,11 +371,12 @@ function isKeyCreator(key, next, callback) {
 		//if( ID.key == key )
 		//    return false;
 		ID.requested++;
-		if (key === config.run.Λ) {
+		if (key.Λ === config.run.Λ) {
 			console.log("validate success because key is config.run")
 			return true;
 		}
-		if (ID.maker === ID.Λ)
+
+		if (ID.maker === ID)
 			return true;
 		return isKeyCreator(next(ID), next);//.maker ) && validateKey( ID.authby );
 	}
@@ -364,8 +395,8 @@ function isKeyCreator(key, next, callback) {
 
 function saveKeys(callback) {
 	var fileName = config.run.defaults.dataRoot + "/id.json"
-	//console.log( "Saving keys:", keys );
-	fc.store(fileName, keys, callback);
+	console.log( "Saving keys:", fileName );
+	fc.store(fileName, myStringifier.stringify( keyTracker, null, '\t' ), callback);
 }
 
 function TrackKeyFrags() {
@@ -375,7 +406,7 @@ function TrackKeyFrags() {
 		var fixup = () => {
 			if (typeof Entity !== "Object")
 				config.start(fixup);
-			key_frags = Entity.create(config.run).create(keys);
+			key_frags = Entity.create(config.run).create(keyTracker.keys);
 			//key_frags.Λ = Key( config.run.Λ ).Λ;
 			//frag = KeyFrag( config.run.Λ );
 			//frag_ent = Entity( frag  );
@@ -426,7 +457,7 @@ function loadKeyFragments(o) {
 					var data = fc.Utf8ArrayToStr(buffer);
 					try {
 						//console.log( "about to parse this as json", data );
-						var reloaded_keys = JSON.parse(data);
+						var reloaded_keys = JSOX.parse(data);
 						console.log("no error", reloaded_keys);
 						//if( keys.length === 0 )
 					} catch (error) {
@@ -446,33 +477,36 @@ function loadKeys() {
 	//_debug&&console.log("CONFIG DEFER.... ");
 	//config.defer(); // save any OTHER config things for later...
 
-	_debug&&console.log("RELOAD STATIC FILE....")
+	_debug&&console.log("RELOAD STATIC FILE....", fileName )
 
 	//console.log( "fc.reload... ")
 	fc.reload(fileName, (error, buffer) => {
 		if (error) {
-			console.log("Reload failed", error, "Initialize root keys")
+			_debug&&console.log(  "Reload failed", error, "Initialize root keys")
 			//if( keys.size === 1 ) {
 			//let newkey =  idGen.generator();
 			//console.log(  newkey.toString() );
 			var runKey = Key(config.run.Λ);
 			Object.defineProperty(config.run, "authed", { enumerable: false, writable: true, configurable: false, value: [] });
 			runKey.trusted = true;
-			keys.Λ = runKey.Λ;//config.run.Λ;
+			keyTracker.Λ = runKey.Λ;//config.run.Λ;
 			//console.log( "2 set key ", keys.Λ)
 			//keys.set( keys.Λ, runKey );
 
 
 			var runKey2 = Key(config.run.Λ);
+			runKey2.trusted = true;
 			// generated a ID but throw it away; create config.run key record.
-			keys.delete(runKey2.Λ);
+			keyTracker.keys.delete(runKey2.Λ);
 			runKey2.Λ = config.run.Λ;
 			runKey2.authby = runKey;
+			runKey2.maker = runKey2;
 			runKey.authby = runKey2;
+			runKey.maker = runKey;
 
 			//console.log( "3 set key ", runKey2.Λ)
-			keys.set(runKey2.Λ, runKey2);
-			mkey = runKey2;
+			keyTracker.keys.set(runKey2.Λ, runKey2);
+			keyTracker.mkey = runKey2;
 
 			pendingOps.forEach((p, index) => {
 				if (p.maker === runKey2.Λ)
@@ -485,39 +519,40 @@ function loadKeys() {
 
 			saveKeys( config.resume );
 		} else {
-			//console.log( "GOT FILE BACK???")
+			//console.log( "GOT FILE BACK???", buffer)
 			var data = fc.Utf8ArrayToStr(buffer);
 			//console.log( "...", data.length );
 			try {
-				//console.log( "json parse?")
-				var loaded_keys = JSON.parse(data);
-				//console.log( "data to parse ", loaded_keys);
-				keys.Λ = loaded_keys.Λ;
+				//console.log( "json parse?", data )
+				var loaded_keys = JSOX.parse(data);
+				_debug && console.log( "data to parse ", loaded_keys);
+				keyTracker = loaded_keys;
+
 				var keyids;
 				(keyids = Object.keys(loaded_keys.keys)).forEach((keyid) => {
-					//console.log( "key and val ", keyid, val );
+					_debug && console.log( "key and val ", keyid, loaded_keys.keys[keyid] );
 					var key = keyProto(keyid, loaded_keys.keys[keyid]);
-					//console.log( "recover key", keyid, key )
-					keys.set(keyid, key);
+					_debug && console.log( "recover key", keyid, key )
+					keyTracker.keys.set(keyid, key);
 					//key.toString =
 				});
 				keyids.forEach((keyid) => {
-					var key = keys.get(keyid);
+					var key = keyTracker.keys.get(keyid);
 					if (!key.maker) {
 						console.log("Bad Key:", keyid, key);
 						return;
 					}
-					var maker = keys.get(key.maker);
+					var maker = keyTracker.keys.get(key.maker);
 					//console.trace( "key and val ", keyid, key );
 					//console.log( "maker failed?", maker, key.maker )
 					maker.made.push(key);
-					if (key.authby = keys.get(key.authby))
+					if (key.authby = keyTracker.keys.get(key.authby))
 						key.authby.authed.push(key);
 					//console.log( "recover  key authby ", key, key.authby )
 				});
-				mkey = keys.get(loaded_keys.mkey);
-				local_authkey = keys.get( loaded_keys.lkey );
-				public_authkey = keys.get( loaded_keys.pkey );
+				keyTracker.mkey = keyTracker.keys.get( loaded_keys.mkey );
+				keyTracker.lkey = keyTracker.keys.get( loaded_keys.lkey );
+				keyTracker.pkey = keyTracker.keys.get( loaded_keys.pkey );
 				Object.defineProperty(config.run, "authed", { enumerable: false, writable: true, configurable: false, value: [] });
 
 				//console.log( "new keys after file is ... ", keys );
@@ -529,42 +564,42 @@ function loadKeys() {
 		}
 		//console.log("no error", keys.length());
 		//#ifdef IS_VOID
-		if (keys.size === 0) {
+		if (keyTracker.keys.size === 0) {
 			//console.log( Object.keys( keys ).length)
 			console.log("NEED  A KEY")
 			var key = Key(config.run.Λ);
 			key.authby = key;
 			key.trusted = true;
 			//console.log( "created root key", key );
-			mkey = key;
-			//keys.set( key.Λ,  key );
-			//console.log( keys )
-			keys.first = keys.get(key.Λ);
-			//console.log( "new keys after file is ... ", keys );
+			keyTracker.mkey = key;
+			//keyTracker.keys.set( key.Λ,  key );
+			//console.log( keyTracker.keys )
+			keyTracker.keys.first = keyTracker.keys.get(key.Λ);
+			//console.log( "new keys after file is ... ", keyTracker.keys );
 
 			console.log("first run key set")
-			keys.set(config.run.Λ, config.run);
+			keyTracker.keys.set(config.run.Λ, config.run);
 
 			ID(key, config.run.Λ, (runkey) => {
 				//console.log( "created root key", runkey );
 				runkey.authby = key;
 				//console.log( "throwing away ", runkey.Λ );
-				keys.delete(runkey.Λ);
+				keyTracker.keys.delete(runkey.Λ);
 				console.log("replace run key set")
-				keys.set(config.run.Λ, runkey);
+				keyTracker.keys.set(config.run.Λ, runkey);
 				runkey.Λ = config.run.Λ;
-				mkey = key;
-				//console.log( "new keys ", Object.keys(keys) );
+				keyTracker.mkey = key;
+				//console.log( "new keys ", Object.keys(keyTracker.keys) );
 			});
 			//console.log( "fragment keys is a function??", key_frags[0] )
 			//key_frags.keys[frag.Λ] = key.Λ;
 
 		}
 		//#endif
-		if (keys.size < 100) {
+		if (keyTracker.keys.size < 100) {
 			//console.log("manufacture some keys......-----------", mkey)
 			//Key( keys. )
-			ID(mkey, mkey.authby, (key) => {
+			ID(keyTracker.mkey, keyTracker.mkey.authby, (key) => {
 				//console.log("newkey:", key)
 				saveKeys();
 			})
@@ -586,15 +621,15 @@ exports.setRunKey = setRunKey;
 
 function setRunKey(key) {
 	if (config.run.Λ !== key) {
-		var oldkey = keys.get(config.run.Λ);
+		var oldkey = keyTracker.keys.get(config.run.Λ);
 		if( !oldkey ) {
 			oldkey = Key(key);
-			oldkey.authby = keys.get(key);
+			oldkey.authby = keyTracker.keys.get(key);
 		}
 		console.log("Set new run key: ", key, config.run.Λ, oldkey);
 			// delete old key from map
 
-		keys.delete(oldkey.Λ);
+		keyTracker.keys.delete(oldkey.Λ);
 		console.log( "old run key: ", oldkey );
 		config.run.Λ = oldkey.Λ = key;
 		//console.log( "config.run is now? ", config.run.Λ )
@@ -605,7 +640,7 @@ function setRunKey(key) {
 		//oldkey.authed.forEach( m=>m.authby=key );
 		//console.log( "old key made: ", oldkey.made )
 		// setup new key
-		keys.set(key, oldkey);
+		keyTracker.keys.set(key, oldkey);
 		flushKeys();
 	}
 
@@ -651,14 +686,14 @@ var branches = [];
 
 server.addProtocol( "id.core", (ws)=>{
 	ws.on( 'message',(_msg)=>{
-		var msg = JSON.parse( _msg );
+		var msg = JSOX.parse( _msg );
 		console.log( "received ", msg );
 		if( msg.op === "hello" ) {
 			var test = IdGen.xor( msg.runkey, config.run.Λ );
-			var testkey = keys.get( test );
+			var testkey = keyTracker.keys.get( test );
 			if( testkey ) {
 				// this remote might know how to validate a key...
-				ws.send( JSON.stringify( { op:"hello" } ) );
+				ws.send( JSOX.stringify( { op:"hello" } ) );
 			}
 			else {
 				console.log( "Key from remote failed." );
@@ -674,20 +709,20 @@ server.addProtocol( "id.core", (ws)=>{
 		}
 		else if( msg.op === "request" ) {
 				ID( msg.auth, msg.maker, (key)=>{
-					ws.send( JSON.stringify( { op:"key", newKey:key.Λ, key:msg.key } ) );
+					ws.send( JSOX.stringify( { op:"key", newKey:key.Λ, key:msg.key } ) );
 				})
 			}
 			else if( msg.op === "auth" ) {
 				if( exports.authBy( msg.key, msg.auth ) )
-					ws.send( JSON.stringify( { op:"auth", status:true } ) );
+					ws.send( JSOX.stringify( { op:"auth", status:true } ) );
 				else
-					ws.send( JSON.stringify( { op:"auth", status:true } ) );
+					ws.send( JSOX.stringify( { op:"auth", status:false } ) );
 			}
 			else if( msg.op === "maker" ) {
 				if( exports.madeFrom( msg.key.msg.maker ) )
-					ws.send( JSON.stringify( { op:"made", status:true } ) );
+					ws.send( JSOX.stringify( { op:"made", status:true } ) );
 				else
-					ws.send( JSON.stringify( { op:"made", status:true } ) );
+					ws.send( JSOX.stringify( { op:"made", status:false } ) );
 			}
 	})
 	ws.on( 'error', (err)=>{
@@ -698,5 +733,7 @@ server.addProtocol( "id.core", (ws)=>{
 			var i = peers.findIndex( p=>p===ws );
 			if( i >= 0 )
 					peers.splice( i, 1 );
+			else
+				console.log( "Error: Close on an untracked socket" );
 	})
 })

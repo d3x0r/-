@@ -4,7 +4,7 @@
 var server = require( "./https_server.js")
 var config = require('./config.js');
 //console.log( "config is ", config.run.root, "and which require ?" );
-const vfs = require( "sack.vfs" );
+const vfs = require( "../sack-gui" );
 
 const fc = require('./file_cluster.js')
 const Entity = require('./Entity/entity.js')

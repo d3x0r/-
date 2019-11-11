@@ -22,7 +22,7 @@ function openSocket() {
     // Web Socket is connected. You can send data by send() method.
     //ws.send("message to send"); 
 	l.ws = ws;
-	ws.send( '{ op: "hello" }' );
+	ws.send( '{ op: "write", data:"/help" }' );
   };
   ws.onmessage = function (evt) { 
   	const msg_ = JSON.parse( evt.data );
@@ -169,3 +169,4 @@ function setCaretToEnd(target/*: HTMLDivElement*/) {
 const remoteConsole = createConsole();
 
 remoteConsole.write( "Welcome to the virtual object playground...\n" );
+

@@ -68,9 +68,9 @@ var services = db.do( 'select * from services')
 
 if( services.length === 0 ) {
 	var userId;
-	db.do( `insert into user (user_id,name,email,passHash)values("${userId=idGen()}","root","root@d3x0r.chatment.karaway.net",encrypt("changeme"))`)
+	db.do( `insert into user (user_id,name,email,passHash)values('${userId=idGen()}','root','root@d3x0r.chatment.karaway.net',encrypt('changeme'))`)
 	var core_id;
-	db.do( `insert into services(service_id,name)values ("${core_id=idGen()}","c0r3")` );
+	db.do( `insert into services(service_id,name)values ('${core_id=idGen()}','c0r3')` );
 	services = db.do( 'select * from services');
 
 	console.log( "doing insert into subscriptions.... sohould get values back??")

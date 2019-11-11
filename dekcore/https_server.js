@@ -1,7 +1,7 @@
 "use strict";
 const webRoot = "./uiRoot";
 //var fs = require( 'fs');
-var vfs = require( 'sack.vfs');
+var vfs = require( '../sack-gui');
 var vol = vfs.Volume();
 const config = require ( "./config.js" )
 const idGen = require( "./util/id_generator.js")
@@ -147,8 +147,8 @@ function addProtocol( protocol, connect ) {
 
 function validateWebSock( ws, req ) {
     //console.log( "connect?", ws.upgradeReq.headers, ws.upgradeReq.url )
-console.log( "got:", ws, req );
-    var proto = decodeURIComponent( ws.upgradeReq.headers['sec-websocket-protocol'] );
+    console.log( "validate websock got:", ws.protocol );//, JSOX.stringify(ws,null,3), JSOX.stringify(req,null,3) );
+    var proto = decodeURIComponent( req.headers['sec-websocket-protocol'] );
 
 	//console.log( "ws:", ws );
 	console.log( "protocols:", protocols, "\n", proto );

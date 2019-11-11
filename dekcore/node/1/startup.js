@@ -37,11 +37,11 @@ function scriptServer( port ) {
 	    if( req.upgrade ) {
         	console.log( "is upgrade, how to switch here?" );
         }
-      console.log( "got request" + req.url );
-            {
-                        res.writeHead(404);
-                        res.end('<HTML><head><script src="userAuth/unauthorized.js"></script></head></HTML>');
-            }
+      	console.log( "got request" + req.url );
+        {
+                    res.writeHead(404);
+                    res.end('<HTML><head><script src="userAuth/unauthorized.js"></script></head></HTML>');
+        }
     });
     server.listen( port, ( err ) => {
 	if( err ) console.log( "Err?", err );

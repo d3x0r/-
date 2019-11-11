@@ -3,10 +3,10 @@
   "version": "0.0.1",
   "main": "void.js",
   "dependencies": {
-    "gun": "^0.2019.416",
-    "gun-db": "^1",
-    "gun-file": "^1",
-    "gun-ws": "^1",
-    "sack.vfs": "^0"
+    "gun": "latest",
+    "gun-db": "latest",
+    "gun-file": "latest",
+    "gun-ws": "latest",
+    "sack.vfs": "^0.9.146"
   }
 }

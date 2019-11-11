@@ -328,7 +328,7 @@ function _processCommand ( word )
                 //console.log( "Args:", JSOX.stringify(this.state.args ) );
                 {
                     //console.log( `call with unphrased args? ${args}`)
-                    //console.log( "4 args is now ", this.state.args );
+                    console.warn( "4 args is now ", this.state.args );
                     this.result = this.state.command.code( this.state.args );
                 }
             }else {

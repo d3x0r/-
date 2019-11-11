@@ -117,7 +117,7 @@ if ("WebSocket" in window) {
   }
   else
 	  var peer = `${location.protocol==="https:"?"wss":"ws"}://${location.hostname}:${Number(location.port)}/userAuth`;
-  openSocket( "karaway.core", 0 );
+  openSocket( "dekware.core", 0 );
 } else {
   // the browser doesn't support WebSocket.
   if( !location.host.length )

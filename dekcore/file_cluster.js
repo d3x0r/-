@@ -1,11 +1,12 @@
-
+const debug_ = false;
 const fs = require( 'fs');
 const config = require( "./config.js" );
-const vfs = require( 'sack.vfs' );
+const vfs = require( '../sack-gui' );
 const idGen = require( './util/id_generator.js' );
 const vol = vfs.Volume();
 var keys;
 var cvol;
+var disk = vol;
 
 var fc_local = {
 	authorities : []
@@ -16,10 +17,12 @@ var inited = false;
 module.exports = exports = {
 	init() {
 		if( inited ) return;
+		var cvolName;
 		keys = [idGen.regenerator( "0" + config.Λ ), idGen.regenerator( "1" + config.Λ )];
-		cvol = vfs.Volume( null, './core/' + config.Λ, keys[0], keys[1] );
-                console.log( "cvol", cvol );
-                exports.cvol = cvol;
+		cvol = vfs.Volume( null, cvolName = './core/' + config.Λ, keys[0], keys[1] );
+		if( debug_ ) console.log( cvol.dir() );
+		console.log( "cvol", cvolName );
+		exports.cvol = cvol;
 		inited = true;
 	},
 	addAuthority( addr ) {
@@ -66,56 +69,9 @@ module.exports = exports = {
 				}
 				 //fileName = getpath( filename, object );
 		}
-		console.trace( "WRITE FILE ", fileName )
-		cvol.write( fileName, object.toString() );
+		debug_ && console.trace( "WRITE FILE ", fileName )
+		disk.write( fileName, object.toString() );
 		if( callback ) callback();
-
-/*
-		mkdir( fileName, ()=>{
-			vol.write( fileName, object.toString() );
-			if( callback ) callback();
-		} );
-*/
-
-/*
-				 //console.log( " store filestat of ", fileName);
-			fs.stat(fileName, (error, stats)=>{
-					 console.log( "Write to" ,fileName,error  );
-					 var f =  ()=>{
-
-							 fs.open(fileName, "w", (error, fd)=>{
-								 var buffer;// = JSON.stringify( object );
-								 //if( !buffer ) {
-
-									 //sorry this  HAS To be tostring; json.stringify fails to save key maps....
-									buffer = object.toString();
-									 //console.log( "why is json of ", object );
-								 //}
-								 //console.log( "error token keys", error );
-								 if( !error ) {
-									 //console.log( "error", error );
-									 //console.log( "write : JSON : ", buffer, buffer.length );
-									 fs.write(fd, buffer
-										 , (error, bytesWritten, buffer)=>{
-												if( error ) { console.log( "write had errror: ", error ); }
-												fs.truncate(fd,bytesWritten,(err)=>{
-													if( err) { console.log( "truncate had error:", error ); }
-												   	fs.close(fd, (err)=>{
-														if( err ) console.log( "close had an error?", err );
-														if( callback ) callback();
-												 	} );
-												} )
-									  });
-								 }
-							 });
-					 };
-					 if( error )
-						 mkdir( fileName,f );
-				   else f();
-
-				});
-*/
-
 	},
 	reloadFrom( pathobject, callback ) {
 		if( pathobject.Λ )
@@ -136,7 +92,10 @@ module.exports = exports = {
 		var fileName = filename
 		if( cvol.exists( fileName ) ) {
 			callback( false, cvol.read( fileName ) );
-		} else callback( true );
+		} else {
+			console.log( "not exists:", fileName, "in cvol:",  );
+			callback( true );
+		}
 /*
 		fs.stat(fileName, function(error, stats) {
 			var fileData;

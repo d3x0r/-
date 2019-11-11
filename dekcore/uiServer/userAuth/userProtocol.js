@@ -50,7 +50,7 @@ function openHello() {
 	console.log( "firewall interface:" , firewall )
 
 	var confirmed = false;
-	var ws = new WebSocket('wss://localhost:8000', ["karaway.core"], {
+	var ws = new WebSocket('wss://localhost:8000', ["dekware.core"], {
 		perMessageDeflate: false
 	});
 

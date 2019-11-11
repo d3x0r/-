@@ -4,5 +4,7 @@
 	"webRoot" : "./uiRoot",
 	"serverRoot" : "./uiServer",
 	"dataRoot" : "./core",
-	"routeablePorts" : [ { "from":10000, "to":20000 }, {"from":30000, "to":40000 } ]
+	"routeablePorts" : [ { "from":10000, "to":20000 }, {"from":30000, "to":40000 } ],
+        "allowRootCertGen" : true,
+        "useIPv6" : false
 }

@@ -1,6 +1,6 @@
 "use strict";
 
-const RNG = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( (saltbuf)=>saltbuf.push( Date.now() ), { mode:1 } );
+const RNG = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( (saltbuf)=>saltbuf.push( new Date().toISOString() ), { mode:1 } );
 const RNG2 = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( getSalt2, { mode:1 } );
 const u8xor = require( "./u8xor.js" );
 
@@ -176,7 +176,6 @@ const decodings = { '~':0
 
 var u8 = '';
 
-
 for( var x = 0; x < 256; x++ ) {
 	if( x < 64 ) {
 		decodings[encodings[x]] = x;
@@ -188,8 +187,8 @@ for( var x = 0; x < 256; x++ ) {
 	else {
 		u8 += String.fromCharCode(x);
 	}
-	Object.freeze( decodings );
 }
+Object.freeze( decodings );
 //console.log( "u8 is...", u8 );
 
 function base64ArrayBuffer(arrayBuffer) {
@@ -339,3 +338,8 @@ exports.xkey = makeXKey;
 exports.ukey = makeU16Key;
 
 Object.freeze( exports );
+
+
+if( !module.parent ) {
+	console.log( "TEST:", exports.generator(), exports.regenerator("12344") );
+}

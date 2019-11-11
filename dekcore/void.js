@@ -10,7 +10,8 @@ for( var arg = 2; arg < args.length; args++ ) {
 		}
 	}
 }
-
+const sack = require( "../sack-gui" );
+const JSOX=sack.JSOX;
 var config = require ('./config.js');
 const fc = require( "./file_cluster.js" );
 var https = require( "./https_server.js" );
@@ -37,7 +38,7 @@ https.addProtocol( "entity-ethernet", (ws)=>{
     var state = 0;
 
     ws.on( "message", (msg)=>{
-        msg = JSON.parse( msg.utf8Data );
+        msg = JSOX.parse( msg.utf8Data );
         console.log( "msg", msg );
 
 		if( msg.op === "identify" ) {
@@ -94,7 +95,7 @@ https.addProtocol( "dekware.core", (ws)=>{
     ws.on( "message", (msg)=>{
 		//console.log( "got:", msg, ws.keyr )
 		try {
-	        msg = JSON.parse( msg );
+	        msg = JSOX.parse( msg );
 		} catch( err ){
 			console.log( "protocol error.", msg );
 			ws.close();
@@ -122,7 +123,7 @@ https.addProtocol( "dekware.core", (ws)=>{
 				if( !a ) a = msg.key;
 
 				console.log( "... get service" );
-				ws.send( JSON.stringify( { op: "redirect", url:"wss://chatment.com:6000", protocol: auth.Λ+"karaway.core" } ) );
+				ws.send( JSOX.stringify( { op: "redirect", url:"wss://chatment.com:6000", protocol: auth.Λ+"karaway.core" } ) );
 			}
 			else if( msg.op === "createUser" ) {
 				var result = authDb.createUser();
@@ -156,11 +157,10 @@ function BigBang() {
 			// onLoadComplete
 			//console.log( "Okay now ... how to start this?")
 
+			// reconnect on reload; should probably be done now (other than the get phase)
 			MOOSE = Entity.getEntity( config.run.MOOSE );
 			MOOSE.sandbox.io.command = shell.Filter( MOOSE.sandbox );
-
 			//MOOSE.sandbox.require( "./startup.js" ); // still do first run on first object?
-
 			//run(); // enable discovery; services are stil loading...
 
 		},
@@ -185,6 +185,9 @@ function BigBang() {
 					Entity.saveAll();
 					//run();
 			})
+			o.create( "MOOSE-HTTP", "(HTTP)Master Operator of System Entites.", (o)=>{
+					o.sandbox.require( "startupWeb.js" );
+			})
 		} );
 	});
 }
@@ -203,9 +206,10 @@ var reassignments = [];
 var d;
 
 function run() {
-    var vfs = require( "./file_cluster.js" );
-    var discoverer = require( "./util/discovery.js" );
-    firewall.init();
+	//console.log( "RUN" );
+	var vfs = require( "./file_cluster.js" );
+	var discoverer = require( "./util/discovery.js" );
+	firewall.init();
     d = discoverer.discover( { timeout: 1000
         , master : true
         , filter : false // expects to hear on localhost and/or same interfaces
@@ -221,12 +225,12 @@ function run() {
 			var rid = idMan.xor( parts[0], parts[2] );
 			mapRemote( d, parts, rid, raddr, addr );
                 } else if( parts[1] === "identity" ) {
-			console.log( "I've been told to be someone else?" );
+			console.log( "I've been told to be someone else?", parts );
                 	// parts[2] == my new run ID...
                 }
         }
         , ontimeout : ()=>{
-            console.log( "i'm all alone.", config.run.Λ, idMan.localAuthKey )
+            console.log( "i'm all alone.", config.run.Λ, JSOX.stringify(idMan.localAuthKey,null,3) )
             // really all of my keys are on my config.run key anyway
             //   so this shouldn't be done here?
             idMan.setKeys( idMan.ID( idMan.localAuthKey ) );
@@ -297,7 +301,7 @@ function recoverRemotes() {
 		}else {
 			fc.Utf8ArrayToStr( buffer )
 			try {
-				var loaded_map = JSON.parse(data);
+				var loaded_map = JSOX.parse(data);
 				Object.keys(loaded_map).forEach((mapid) => {
 					//console.log( "key and val ", keyid, val );
 					var key = remotes.set( mapid, loaded_map[keyid]);
@@ -324,7 +328,8 @@ function saveRemotes() {
 var remotes = new Map();
 
 function mapRemote( d, parts, rid, raddr, addr ) {
-	console.log( "remote args:", d, "p:", parts, "rid:", rid, "Entity:", Entity )
+	//console.log( "remote args:", d, "p:", parts, "rid:", rid, "Entity:", Entity )
+	console.log( "remote args:", d, "p:", parts, "rid:", rid  )
 	var remap = remotes.get( rid );
 	if( !remap ) {
 		reassign( parts, rid, raddr, addr );
@@ -332,7 +337,7 @@ function mapRemote( d, parts, rid, raddr, addr ) {
 	else {
 		console.log( "Got map:", remap );
 		var e = Entity.getEntity(remap);
-		console.log( "e:", e );
+		console.log( "e:", JSOX.stringify(e,null,"\t") );
 		var replyKey = null;
                 var key = idMan.xor( replyKey = idMan.xor( e.Λ, config.run.Λ ), rid );
 		console.log( "Send 0?", replyKey + " identity " + key + " " + config.run.defaults.defaultPort );

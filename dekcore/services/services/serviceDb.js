@@ -139,7 +139,7 @@ DB.loginService = (client_id,username,address,oldcid, confirm )=>{
 		// but it could already exist.
 		db.do( `delete from serviceLogin where service_login_id=${client_id}`)
 		
-		db.do( `insert into userLogin(service_login_id,name,address,client_id)values(${user.user_id},"${address}","${newClientId}")`)
+		db.do( "insert into userLogin(service_login_id,name,address,client_id)values(?,?,?)", user.user_id,address,newClientId );
 		//console.log( "inserted into thing.")
 		//console.log( "resulting with a NEW SERVICE LOGIN HERE")
 		result = { key:client_id
@@ -174,7 +174,7 @@ DB.getServiceLogin = ( remote, clientkey )=>{
 	//console.log( "userLogins:", db.do( `select * from userLogin` ) );
 	//console.log( "service login is : ", login, "for", remote, clientkey );
 	if( !login ) {
-		login = db.do( `select service_login_id key,name,authorized,client_id from serviceLogin WHERE address="${remote}" AND service_login_id="${clientkey}"`)
+		login = db.do( 'select service_login_id key,name,authorized,client_id from serviceLogin WHERE address=? AND service_login_id=?', remote, clientKey )
 		console.log( 'logins is ....', login)
 		if( login.length === 1 ) {
 			
@@ -218,8 +218,8 @@ DB.createServiceLogin = ( name, address, client_id )=>{
 	//console.log( "userLogins:", db.do( `select * from userLogin` ) );
 	var newClientId = idGen();
 	db.do( `delete from serviceLogin where service_login_id='${client_id}'`)
-	db.do( `insert into serviceLogin(service_login_id,name,address,client_id)values('${client_id}',"${name}","${address}","${newClientId}")`);
-	console.log( "resulting with a NEW SERVICE LOGIN HERE")
+	db.do( `insert into serviceLogin(service_login_id,name,address,client_id)values('${client_id}','${name}','${address}','${newClientId}')`);
+	console.log( 'resulting with a NEW SERVICE LOGIN HERE')
 	var login = { name: name,
 				key:client_id,
 				cid:newClientId,

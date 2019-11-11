@@ -42,15 +42,15 @@ provideDefault( "myRequire.js", exports );
 
 function doRequire( file ) {
 
-	_debug&&console.log( "DO REQUIRE:", file );
+	_debug&&console.warn( "DO REQUIRE:", file );
 	var f = stripPath( file );
 	var m = loadedModules.find( (m)=>m.file === f );
 	if( m ) {
-		//console.log( "found by filename: ", f )
+		//console.warn( "found by filename: ", f )
 		return m.exports;
 	}
 
-	_debug&&console.log( "Require for:", file );
+	_debug&&console.warn( "Require for:", file );
 	var thisModule = {
 		filename: resolvePath( file, runningModule ),
 		file : f,
@@ -67,7 +67,7 @@ function doRequire( file ) {
 
 
 	if( file === "./config.js" || file === "../config.js" ) {
-		console.log( "well... ", file )
+		console.warn( "well... ", file )
 		return requireConfig.config;
 	}
 
@@ -84,9 +84,9 @@ function doRequire( file ) {
 		evalCode = true;
 	}
 
-	//console.log( "module is ", file )
+	//console.warn( "module is ", file )
 	if( file[1] === ':' || file[0] == '/' ) {
-		_debug&&console.log( "doing internal require for absolute path");
+		_debug&&console.warn( "doing internal require for absolute path");
 		thisModule.rawData = nativeVol.read( file );
 		if( thisModule.rawData ) {
 			thisModule.loaded = true;
@@ -97,13 +97,13 @@ function doRequire( file ) {
 	if( !thisModule.loaded ) {
 		if( !(file[0] === '.' ) && !( file[0] === '/' ) && (file.indexOf('/')<0) ) {
 			// check for allowed modules.
-			_debug&&console.log( "doing internal require for node module")
+			_debug&&console.warn( "doing internal require for node module")
 			return require( file );
 		}
 
 		if( (file[0] === '.' ) && ( file[1] === '/' ) ) {
 			// check for allowed modules.
-			_debug&&console.log( "doing internal require for local module")
+			_debug&&console.warn( "doing internal require for local module")
                         var data = nativeVol.read( file );
                         if( data ) {
 	       			thisModule.rawData = data.toString();
@@ -114,10 +114,10 @@ function doRequire( file ) {
 
 
 
-		_debug&&console.log( "check in cache...");
+		_debug&&console.warn( "check in cache...");
 		if( !fs ) fs = sack.Volume( "core/cache.dat" );
 
-		_debug&&console.log( "in another level?", file )
+		_debug&&console.warn( "in another level?", file )
                 
 		if( fs.exists( file ) ) {
 			var data = fs.read(file);
@@ -136,7 +136,7 @@ function doRequire( file ) {
 			}
 		}
 
-		//console.log( "load module:", thisModule)
+		//console.warn( "load module:", thisModule)
 		// http access requires leading slash for resources
 		if( thisModule.filename[0] !== '/' )
 			thisModule.filename = '/' + thisModule.filename;
@@ -152,8 +152,8 @@ function doRequire( file ) {
                                           //, agent : false
 					};
         
-		//console.log( "options ", opts );
-		_debug&&console.log( "DO HTTP REQUIRE:", file );
+		//console.warn( "options ", opts );
+		_debug&&console.warn( "DO HTTP REQUIRE:", file );
 if( true ) {        
 		var res = https.get( opts );
                 if( res.error ) {
@@ -163,7 +163,7 @@ if( true ) {
 	       		const statusCode = res.statusCode;
 			const contentType = res.headers['Content-Type'];
 			let error;
-                        _debug && console.log( "http get response happened..." );
+                        _debug && console.warn( "http get response happened..." );
 			if (statusCode !== 200) {
 				error = new Error(`Request Failed.\n` +
 						`Status Code: ${statusCode}` + opts.path );
@@ -180,7 +180,7 @@ if( true ) {
         
 			}
 			if (error) {
-				console.log(error.message);
+				console.warn(error.message);
 				// consume response data to free up memory
 				//res.resume();
 				return;
@@ -189,7 +189,7 @@ if( true ) {
 			//res.setEncoding('utf8');
 			thisModule.rawData = res.content;
                         
-			_debug && console.log( "http request ending" );
+			_debug && console.warn( "http request ending" );
 			_debug && console.trace( "loaded..." );
 			thisModule.loaded = true;
 		}
@@ -200,7 +200,7 @@ if( false) {
 			const statusCode = res.statusCode;
 			const contentType = res.headers['content-type'];
 			let error;
-                        //console.log( "http get response happened..." );
+                        //console.warn( "http get response happened..." );
 			if (statusCode !== 200) {
 				error = new Error(`Request Failed.\n` +
 						`Status Code: ${statusCode}` + JSON.stringify( opts ) );
@@ -217,7 +217,7 @@ if( false) {
         
 			}
 			if (error) {
-				console.log(error.message);
+				console.warn(error.message);
 				// consume response data to free up memory
 				res.resume();
 				return;
@@ -226,7 +226,7 @@ if( false) {
 			res.setEncoding('utf8');
 			res.on('data', (chunk) =>{ thisModule.rawData += chunk} );
 			res.on('end', () => {
-				console.log( "http request ending" );
+				console.warn( "http request ending" );
 				//console.trace( "loaded..." );
 				sack.Λ();
 				thisModule.loaded = true;
@@ -235,7 +235,7 @@ if( false) {
 			console.trace(`Got error in ${file}  ${e.message}`, e);
 		});
 		while(!thisModule.loaded) {
-			//console.log( "waiting to block until http request finishes", file )
+			//console.warn( "waiting to block until http request finishes", file )
 			sack.Δ();
 		}
 }
@@ -250,9 +250,9 @@ if( false) {
 					thisModule.exports = sack.JSON6.parse(thisModule.rawData);
 				else
 					thisModule.exports = JSON.parse(thisModule.rawData);
-				_debug&&console.log( "module resulted in", thisModule.exports, "\nFOR \n", thisModules.rawData)
+				_debug&&console.warn( "module resulted in", thisModule.exports, "\nFOR \n", thisModules.rawData)
 			} catch (e) {
-				console.log(e.message);
+				console.warn(e.message);
 			}
 	}
 	else {
@@ -265,10 +265,10 @@ if( false) {
 					, '(function(exports,rconfig,module,require){'
 					, thisModule.rawData
 					, '})(thisModule.exports,requireConfig.config,thisModule, doRequire);\n'
-					//,'}catch(err){ console.log( "EvalCatch:", err); console.log( Object.keys(err));}\n'
+					//,'}catch(err){ console.warn( "EvalCatch:", err); console.warn( Object.keys(err));}\n'
 					,'//# sourceURL=',file
 					].join("");
-			_debug&&console.log( "Evaluating module....", thisModule.file, exports.eval, c );
+			_debug&&console.warn( "Evaluating module....", thisModule.file, exports.eval, c );
 			if( exports.eval )
 				exports.eval( c );
 			else {
@@ -278,7 +278,7 @@ if( false) {
 					try {
 						vm.runInThisContext( c );		
 					}catch( err1 ) {
-						console.log( "vm attempt:", err );
+						console.warn( "vm attempt:", err );
 						throw { err,err1 };
 					}
 				}
@@ -286,10 +286,10 @@ if( false) {
             }
 			//console.trace( "Finished... EXPORTS:", thisModule.exports );
 		} catch( err ) {
-			console.log( "module threw...", err, " in ", file );
+			console.warn( "module threw...", err, " in ", file );
 		}
 	}
-	//console.log( "Set running Module to ...", prior );
+	//console.warn( "Set running Module to ...", prior );
 	runningModule = prior;
 
 	return thisModule.exports;
@@ -304,16 +304,17 @@ function stripFile( file ) {
 	return "";
 }
 function stripPath( file ) {
-	//console.log( "File input is : ", file );
+	//console.warn( "File input is : ", file );
 	var i = file.lastIndexOf( "/" );
 	var j = file.lastIndexOf( "\\" );
 	return file.substr( ((i>j)?i:j)+1 );
 }
 
 function doResolve( path ) {
-	console.log( "returning just path; is there... a current?", runningModule );
+	console.warn( "returning just path; is there... a current?", runningModule );
 	return resolvePath( path, runningModule );
 }
+doRequire.resolve = doResolve;
 
 function resolvePath( base, myModule ) {
 	var tmp = base;
@@ -326,29 +327,29 @@ function resolvePath( base, myModule ) {
 		) {
 		var p = moduleParent.paths[0];
 
-		_debug&&console.log( "path is ", tmp, moduleParent.paths);
+		_debug&&console.warn( "path is ", tmp, moduleParent.paths);
 		if( tmp[1] == '/' )
 			tmp = (p.length?p + "/":"") + tmp.substr( 2 );
 		else
 			tmp = (p.length?p + "/":"") + tmp;
-		 // console.log( "new is ", tmp )
+		 // console.warn( "new is ", tmp )
 		moduleParent = moduleParent.parent;
 	}
 	do
 	{
-		_debug&&console.log( "build", tmp )
+		_debug&&console.warn( "build", tmp )
 		let x = tmp.indexOf( "/../" );
 		if( x < 0 )x = tmp.indexOf( "/..\\" );
 		if( x < 0 )x = tmp.indexOf( "\\../" );
 		if( x < 0 )x = tmp.indexOf( "\\..\\" );
 		if( x > 0 ) {
 			var prior = tmp.substr( 0, x );
-			_debug&&console.log( "prior part is", prior );
+			_debug&&console.warn( "prior part is", prior );
 			var last1 = prior.lastIndexOf( "/" );
 			var last2 = prior.lastIndexOf( "\\" )
 			var priorStripped = prior.substr( 0, (last1>last2?last1:last2)+1 );
 			tmp = priorStripped + tmp.substr( x + 4 );
-			//console.log( "result:", base )
+			//console.warn( "result:", base )
 		} else {
 			/*
 			if( tmp.startsWith( "..\\" )
@@ -362,6 +363,6 @@ function resolvePath( base, myModule ) {
 		}
 	}
 	while( true )
-	//console.log( "using path", base )
+	//console.warn( "using path", base )
 	return base;
 }

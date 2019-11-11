@@ -4,6 +4,7 @@ var util = require('util')
 var filter_base = require( "./filter_base.js");
 var text = require( '../../org.d3x0r.common/text.js')
 var vm = require( 'vm' );
+var JSOX = require( "../../sack-gui").JSOX;
 
 exports.Filter = Filter;
 
@@ -28,7 +29,7 @@ function updateCommands( stree, commands, newcmd ) {
             
         }
         else {
-            throw new Error( "Already exists?" );
+            //throw new Error( "Already exists?" + newcmd + " in " + JSON.stringify(stree));
             
             if( "multi" in other ) {
                 thisCmd.multi = other.multi;
@@ -58,12 +59,16 @@ function updateCommands( stree, commands, newcmd ) {
             cmd.opts.min = other.cmd.opts.min = n+1;
             //console.log( "Delete keys up to ...", cmd.opts.min, newcmd.length );
           //  for( n = 1; n < cmd.opts.min; n++ ) delete commands[newcmd.substr(0,n)];
-            for( cmd.opts.min; n < newcmd.length; n++ ) commands[newcmd.substr(0,n)] = cmd;
+            for( cmd.opts.min; n < newcmd.length; n++ ) 
+                Object.defineProperty( commands, newcmd.substr(0,n), {value:cmd} );
+		//commands[newcmd.substr(0,n)] = cmd;
             //console.log( "commands:", commands );
             cmd.opts.helpText = "["+id.substr(0,cmd.opts.min) +"]"+id.substr(cmd.opts.min);
             other.cmd.opts.helpText = "["+other.id.substr(0,other.cmd.opts.min) +"]"+other.id.substr(other.cmd.opts.min);
-            stree[id.substr(0,n)] = thisCmd;
-            stree[other.id.substr(0,n)] = other;
+            Object.defineProperty( stree, id.substr(0,n), {value:thisCmd} );
+            Object.defineProperty( stree, other.id.substr(0,n), {value:other} );
+            //stree[id.substr(0,n)] = thisCmd;
+            //stree[other.id.substr(0,n)] = other;
         }
     }
 }
@@ -133,8 +138,10 @@ function finishPhrase( cur, endToken )
                         cur.next.next = next;
                     }
                     //console.log( "returning to prior point....", word)
-                    if( word )
+                    if( word ) {
+                        //console.log( "returning word:", word.toString() );
                         return word;
+                    }
                     console.log( "return cur.here (no words)")
                     return cur.here;
                 }
@@ -194,6 +201,7 @@ function finishPhrase( cur, endToken )
         return null;
     }
     //console.log( "return phrases...")
+    //console.log( "ch returning word:", cur.here.toString() );
     return cur.here;
 }
 
@@ -204,7 +212,11 @@ function buildPhrases( words ) {
 
 
 read_command.prototype._transform = function(chunk, encoding, callback) {
-    this.processCommand( chunk );
+    try {
+        this.processCommand( chunk );
+    } catch(err) {
+        this.push( err.toString() + "\n"+err.stack );
+    }
     callback()
 }
 
@@ -242,10 +254,10 @@ function processCommandLine( line ){
 
 function _processCommand ( word )
 {
-    //console.log( "processCommand segment : ", word.text )
     const saveword = ()=>{
         if( !this.state.words ) this.state.words = word;
         else this.state.words = this.state.words.append( word );
+        //console.log( "save segment : ", word.spaces, word.tabs, word.text )
     }
     if( word.text === '/' ) {
         //console.log( "found slash")
@@ -306,10 +318,14 @@ function _processCommand ( word )
 	        //console.log( "dispatch command." );
             //console.log( "args is ", this.state.words&&this.state.words.first().toString() );//this.state.args);//, " and command is still ", this.state.command.toString() )
             //console.log( "collected args: ", this.state.args );
-            this.state.args.forEach( (arg)=>{arg.breakBefore();arg.spaces=0;arg.tabs=0;} )
+            this.state.args.forEach( (arg)=>{arg.breakBefore();
+                /*arg.spaces=0;arg.tabs=0;*/
+            } )
+            var err_ = null;
+            try {
             if( this.state.words )
             {
-                var args =  this.state.words.first();
+                //console.log( "Args:", JSOX.stringify(this.state.args ) );
                 {
                     //console.log( `call with unphrased args? ${args}`)
                     //console.log( "4 args is now ", this.state.args );
@@ -318,11 +334,13 @@ function _processCommand ( word )
             }else {
                 this.result = this.state.command.code( null, this.state.args );//this.state.args );
             }
+		} catch(err) { err_ = err }
             this.state.words = null;
             this.state.slashes = 0;
             this.state.args = [];
             //console.log( "args is empty ", this.state.args );
             this.state.state = states.getCommand;
+            if( err_ ) throw err_;
         }
         break;
     default:

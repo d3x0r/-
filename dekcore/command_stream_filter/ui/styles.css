@@ -1,0 +1,33 @@
+
+
+.body {
+	position:relative;
+}
+
+.consoleOutputContent{
+
+	height:80vh;
+
+	position:relative;
+	left:0;
+	right:0;
+	top:0;
+	bottom:-50;
+	overflow:auto;
+}
+
+.consoleinputContent{
+	width:100%;
+	border:1px solid black;
+	padding-left:1em;
+	padding-right:1em;
+
+}
+
+.consoleinputSender{
+}
+.outputSpan{
+	white-space:pre-wrap;
+	word-wrap:break-word;
+	word-break: break-all;
+}

@@ -1,15 +1,127 @@
-'"\({[<>]}):@%/,;!?=*&$^~#`
-config is  .
-Schedule loadKeys with config.start
+Adding protcol: id.core
+Called with obj: The Void Glimmering matte black pebbles line the shore... undefined false
 had to wait for config.run The Void Glimmering matte black pebbles line the shore...
-parsing {"Λ":"pkgDFcf2h_w2r7YUSa5PKwdryOhQkxGsEmUr5nOFiMo=","hostname":"Panther-PC","root":".","debug":true,"addresses":[],"friends":[],"timeOffset":25200000}
-config.resume.... [ [Function: loadKeys], [Function] ]
-Load Keys
-config.defer....
-fc.reload... 
-got deferred... [ [Function] ]
-clear deferred 
-config.resume.... [ [Function] ]
-The Void  config.run.Λ pkgDFcf2h_w2r7YUSa5PKwdryOhQkxGsEmUr5nOFiMo=
-MOOSE  config.run.Λ pkgDFcf2h_w2r7YUSa5PKwdryOhQkxGsEmUr5nOFiMo=
-clear deferred 
+15:44:33.063|648800006388~winlogic.cpp(736):Render Console...487 477 0
+15:44:33.063|648800006388~winlogic.cpp(1119):Begin render history line
+15:44:33.063|648800006388~winlogic.cpp(1121):Begin render history locked
+15:44:33.063|648800006388~winlogic.cpp(1228):Done render history line
+cvol sack.vfs.Volume {}
+Trace: WRITE FILE  config.run.json
+    at Object.store (M:\javascript\dekcore\file_cluster.js:70:11)
+    at saveConfig (M:\javascript\dekcore\config.js:138:5)
+    at M:\javascript\dekcore\config.js:160:8
+    at Object.reload (M:\javascript\dekcore\file_cluster.js:93:10)
+    at M:\javascript\dekcore\config.js:153:8
+    at Object.reload (M:\javascript\dekcore\file_cluster.js:93:10)
+    at loadConfig (M:\javascript\dekcore\config.js:150:5)
+    at Object.resume (M:\javascript\dekcore\config.js:248:7)
+    at Object.<anonymous> (M:\javascript\dekcore\command_stream_filter\test_graph2.js:77:8)
+    at Module._compile (internal/modules/cjs/loader.js:734:30)
+Reload failed true Initialize root keys
+Trace: WRITE FILE  ./core/id.json
+    at Object.store (M:\javascript\dekcore\file_cluster.js:70:11)
+    at saveKeys (M:\javascript\dekcore\id_manager.js:398:5)
+    at fc.reload (M:\javascript\dekcore\id_manager.js:519:4)
+    at Object.reload (M:\javascript\dekcore\file_cluster.js:93:10)
+    at loadKeys (M:\javascript\dekcore\id_manager.js:482:5)
+    at resume (M:\javascript\dekcore\config.js:248:7)
+    at Object.store (M:\javascript\dekcore\file_cluster.js:72:18)
+    at saveConfig (M:\javascript\dekcore\config.js:138:5)
+    at M:\javascript\dekcore\config.js:160:8
+    at Object.reload (M:\javascript\dekcore\file_cluster.js:93:10)
+Called with obj: The Void Glimmering matte black pebbles line the shore... undefined false
+Setting void to localAuthkey...
+Sandbox is local? true
+AFter sealing: {_timers:null,clearInterval:null,config:{run:{Λ:"0mxTNkgp67eN3ytUcA0wOX0rOysNnXS37QVREG_9UQ4="}},entity:{description:"Glimmering matte black pebbles line the shore...",inventory:{in:[],on:[]},name:"The Void",value:null,Λ:"urv_cJrGuZMDKOKbeJOOR_pDsPi6jzFiSJ_aPPw2CXQ="},global:ref[],io:{},me:"urv_cJrGuZMDKOKbeJOOR_pDsPi6jzFiSJ_aPPw2CXQ=",now:"Mon Mar 25 2019 15:44:33 GMT-0700 (Pacific Daylight Time)",scripts:{code:[],index:0}}
+before easling: {attached_to:map{},child:null,command:null,contains:map{},created:[{_events:{},_eventsCount:0,attached_to:ref["attached_to"],child:null,command:null,contains:ref["contains"],created:{',0,':ref["created",0]},created_by:ref["created",0],description:"Glimmering matte black pebbles line the shore...",has_value:false,loaded:false,name:"The Void",permissions:{allow_file_system:true},sandbox:null,value:null,vol:null,within:null,Λ:null}],created_by:ref["created",0],description:"Glimmering matte black pebbles line the shore...",has_value:false,loaded:false,name:"The Void",permissions:ref["created",0,"permissions"],sandbox:{_timers:null,clearInterval:null,config:{run:{Λ:"0mxTNkgp67eN3ytUcA0wOX0rOysNnXS37QVREG_9UQ4="}},entity:{description:"Glimmering matte black pebbles line the shore...",inventory:{in:[],on:[]},name:"The Void",value:null,Λ:"urv_cJrGuZMDKOKbeJOOR_pDsPi6jzFiSJ_aPPw2CXQ="},global:ref["sandbox"],io:{},me:"urv_cJrGuZMDKOKbeJOOR_pDsPi6jzFiSJ_aPPw2CXQ=",now:"Mon Mar 25 2019 15:44:33 GMT-0700 (Pacific Daylight Time)",scripts:{code:[],index:0}},value:null,vol:null,within:ref[],Λ:"urv_cJrGuZMDKOKbeJOOR_pDsPi6jzFiSJ_aPPw2CXQ="}
+ THe VOid created
+Called with obj: MOOSE Master Operator of System Entities 
+{
+	attached_to: map{},
+	child: null,
+	command: null,
+	contains: map{},
+	created: [
+		{
+					_events: {},
+					_eventsCount: 0,
+					attached_to: ref["attached_to"],
+					child: null,
+					command: null,
+					contains: ref["contains"],
+					created: {
+						',0,': ref["created",0]
+					},
+					created_by: ref["created",0],
+					description: "Glimmering matte black pebbles line the shore...",
+					has_value: false,
+					loaded: false,
+					name: "The Void",
+					permissions: {
+						allow_file_system: true
+					},
+					sandbox: null,
+					value: null,
+					vol: null,
+					within: null,
+					Λ: null
+		}
+],
+	created_by: ref["created",0],
+	description: "Glimmering matte black pebbles line the shore...",
+	has_value: false,
+	loaded: false,
+	name: "The Void",
+	permissions: ref["created",0,"permissions"],
+	value: null,
+	vol: null,
+	within: ref[]
+} 
+{
+	authby: {
+		authby: {
+			authby: ref["authby"],
+			authonly: true,
+			created: 2019-03-25T15:44:33-07:00,
+			invalid: false,
+			maker: ref["authby","authby"],
+			requested: 0,
+			trusted: true,
+			Λ: "bspisBDXBDaWd_BTCp5mbrWNbB1$KcTDRJ3AeDdE4O4="
+		},
+		authonly: true,
+		created: 2019-03-25T15:44:33-07:00,
+		invalid: false,
+		maker: ref["authby"],
+		requested: 0,
+		trusted: true,
+		Λ: "EFWAlVw1C$DYY7Ua0BFb2heKAWClfXzkAhWR2Az8GA4="
+	},
+	authonly: true,
+	created: 2019-03-25T15:44:33-07:00,
+	invalid: false,
+	maker: ref["authby"],
+	requested: 2,
+	trusted: false,
+	Λ: "$l3P6ZgXXZoQnrg4Wr3ZnGKT7PsG_tAVBrPlJ4wXnRc="
+}
+Sandbox is local? true
+AFter sealing: {_timers:null,clearInterval:null,config:{run:{Λ:"BspE4m6BZ89sF0Y$GJ8T9dQKcxn2slUp5YvgrkmIuhk="}},entity:{description:"Master Operator of System Entities",inventory:{in:[],on:[]},name:"MOOSE",value:null,Λ:"6J5ektly83NZcMEfEg8ljKjfaL9RFF0dysmgcnlLrzY="},global:ref[],io:{},me:"6J5ektly83NZcMEfEg8ljKjfaL9RFF0dysmgcnlLrzY=",now:"Mon Mar 25 2019 15:44:33 GMT-0700 (Pacific Daylight Time)",scripts:{code:[],index:0}}
+before easling: {attached_to:map{},child:null,command:null,contains:map{},created:[],created_by:{attached_to:map{},child:null,command:null,contains:map{6J5ektly83NZcMEfEg8ljKjfaL9RFF0dysmgcnlLrzY=:ref[]},created:[{_events:{},_eventsCount:0,attached_to:ref["created_by","attached_to"],child:null,command:null,contains:ref["created_by","contains"],created:{',0,':ref["created_by","created",0],',1,':{_events:{},_eventsCount:0,attached_to:ref["attached_to"],child:null,command:null,contains:ref["contains"],created:ref["created"],created_by:ref["created_by"],description:"Master Operator of System Entities",has_value:false,loaded:false,name:"MOOSE",permissions:{allow_file_system:true},sandbox:null,value:null,vol:null,within:ref["created_by"],Λ:null}},created_by:ref["created_by","created",0],description:"Glimmering matte black pebbles line the shore...",has_value:false,loaded:false,name:"The Void",permissions:{allow_file_system:true},sandbox:null,value:null,vol:null,within:null,Λ:null},ref["created_by","created",0,"created","1"]],created_by:ref["created_by","created",0],description:"Glimmering matte black pebbles line the shore...",has_value:false,loaded:false,name:"The Void",permissions:ref["created_by","created",0,"permissions"],value:null,vol:null,within:ref["created_by"]},description:"Master Operator of System Entities",has_value:false,loaded:false,name:"MOOSE",permissions:ref["created_by","created",0,"created","1","permissions"],sandbox:{_timers:null,clearInterval:null,config:{run:{Λ:"BspE4m6BZ89sF0Y$GJ8T9dQKcxn2slUp5YvgrkmIuhk="}},entity:{description:"Master Operator of System Entities",inventory:{in:[],on:[]},name:"MOOSE",value:null,Λ:"6J5ektly83NZcMEfEg8ljKjfaL9RFF0dysmgcnlLrzY="},global:ref["sandbox"],io:{},me:"6J5ektly83NZcMEfEg8ljKjfaL9RFF0dysmgcnlLrzY=",now:"Mon Mar 25 2019 15:44:33 GMT-0700 (Pacific Daylight Time)",scripts:{code:[],index:0}},value:null,vol:null,within:ref["created_by"],Λ:"6J5ektly83NZcMEfEg8ljKjfaL9RFF0dysmgcnlLrzY="}
+Trace: WRITE FILE  ./core/id.json
+    at Object.store (M:\javascript\dekcore\file_cluster.js:70:11)
+    at saveKeys (M:\javascript\dekcore\id_manager.js:398:5)
+    at ID (M:\javascript\dekcore\id_manager.js:603:5)
+    at ID (M:\javascript\dekcore\id_manager.js:297:3)
+    at fc.reload (M:\javascript\dekcore\id_manager.js:601:4)
+    at Object.reload (M:\javascript\dekcore\file_cluster.js:93:10)
+    at loadKeys (M:\javascript\dekcore\id_manager.js:482:5)
+    at resume (M:\javascript\dekcore\config.js:248:7)
+    at Object.store (M:\javascript\dekcore\file_cluster.js:72:18)
+    at saveConfig (M:\javascript\dekcore\config.js:138:5)
+Trace: WRITE FILE  ./core/id.json
+    at Object.store (M:\javascript\dekcore\file_cluster.js:70:11)
+    at saveKeys (M:\javascript\dekcore\id_manager.js:398:5)
+    at Timeout.tickFlushKeys [as _onTimeout] (M:\javascript\dekcore\id_manager.js:315:2)
+    at listOnTimeout (timers.js:327:15)
+    at processTimers (timers.js:271:5)

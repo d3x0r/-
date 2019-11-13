@@ -151,77 +151,73 @@ function validateWebSock( ws, req ) {
     var proto = decodeURIComponent( req.headers['sec-websocket-protocol'] );
 
 	//console.log( "ws:", ws );
-	console.log( "protocols:", protocols, "\n", proto );
+	//console.log( "protocols:", protocols, "\n", proto );
 
 	var ip = req.headers['x-forwarded-for'] ||
 	     req.connection.remoteAddress ||
 	     req.socket.remoteAddress ||
 	     req.connection.socket.remoteAddress;
 	ws.remoteAddress = ip;
-	console.log( "ws Connected from:", ip );
+	//console.log( "ws Connected from:", ip );
 
 	// this is the way 'websocket' library gives protocols....
 	//console.log( "other", ws.protocolFullCaseMap[ws.requestedProtocols[0]])
-    wsServer.acceptingProtocol = null;
-    if( !protocols.find( p=>{
-            //if( p.name === ws.protocolFullCaseMap[ws.requestedProtocols[0]] ) {
-            if( p.name === proto ) {
-                console.log( "accept websock:", p )
-                //wsServer.acceptingProtocol = p;
-				ws.send = ((orig)=>(buf)=>{
-					buf = idGen.u8xor( buf, ws.keyt );
-					orig(buf);
-				})(ws.send.bind(ws));
-
-                Object.defineProperty( ws, "onmessage", {
-                    set(cb) { ws.on( "message", cb ) },
-                    get() { console.log( "getting 'onmessage' callback?" ) }
-                })
-                Object.defineProperty( ws, "onclose", {
-                    set(cb) { ws.on( "close", cb ) },
-                    get() { console.log( "getting 'onclose' callback?" ) }
-                })
-                Object.defineProperty( ws, "onopen", {
-                    set(cb) { ws.on( "open", cb ) },
-                    get() { console.log( "getting 'onopen' callback?" ) }
-                })
-                Object.defineProperty( ws, "onerror", {
-                    set(cb) { ws.on( "error", cb ) },
-                    get() { console.log( "getting 'onerror' callback?" ) }
-                })
-
-				ws.on = ((orig)=>(event,cb)=>{
-                    if( typeof( cb ) !== "function" )
-                        throw new Error( "Callback is not a function?" );
-                    //console.trace( "websock on: ", event, cb)
-					if( event === "message" ) {
-						orig(event, (msg)=>{
-						console.log( "Raw Recieve:", typeof( msg ), msg );
-							if( !ws.keyt ) {
-								ws.keyt = idGen.xkey( msg, 1 );
-								ws.keyr = idGen.xkey(msg);
-								return;
-							}
-							console.log( "got:", msg, ws.keyr )
-							try {
-								msg = idGen.u8xor( msg, ws.keyr );
-							} catch( err ){
-								console.trace( "protocol error.", msg );
-								ws.close();
-								return;
-							}
-                            				console.log( "Decoded msg: ", msg )
-							cb( msg );
-						})
-					} else {
-                        orig( event, cb )
-                    }
-				})(ws.on.bind(ws));
-                p.connect(ws);
-                //ws.accept( ws.requestedProtocols[0], null );
-                return true;
-            }
-            return false;
+	wsServer.acceptingProtocol = null;
+	if( !protocols.find( p=>{
+		if( p.name === proto ) {
+			ws.send = ((orig)=>(buf)=>{
+				buf = idGen.u8xor( buf, ws.keyt );
+				orig(buf);
+	        	})(ws.send.bind(ws));
+		
+			Object.defineProperty( ws, "onmessage", {
+			    set(cb) { ws.on( "message", cb ) },
+			    get() { console.log( "getting 'onmessage' callback?" ) }
+			})
+			Object.defineProperty( ws, "onclose", {
+			    set(cb) { ws.on( "close", cb ) },
+			    get() { console.log( "getting 'onclose' callback?" ) }
+			})
+			Object.defineProperty( ws, "onopen", {
+			    set(cb) { ws.on( "open", cb ) },
+			    get() { console.log( "getting 'onopen' callback?" ) }
+			})
+			Object.defineProperty( ws, "onerror", {
+			    set(cb) { ws.on( "error", cb ) },
+			    get() { console.log( "getting 'onerror' callback?" ) }
+	        	})
+		
+			ws.on = ((orig)=>(event,cb)=>{
+				if( typeof( cb ) !== "function" )
+					throw new Error( "Callback is not a function?" );
+				//console.trace( "websock on: ", event, cb)
+				if( event === "message" ) {
+					orig(event, (msg)=>{
+						//console.log( "Raw Recieve:", typeof( msg ), msg );
+						if( !ws.keyt ) {
+							ws.keyt = idGen.xkey( msg, 1 );
+							ws.keyr = idGen.xkey(msg);
+							return;
+						}
+						//console.log( "got:", msg, ws.keyr )
+						try {
+							msg = idGen.u8xor( msg, ws.keyr );
+						} catch( err ){
+							console.trace( "protocol error.", msg );
+							ws.close();
+							return;
+	        				}
+        	        			//console.log( "Decoded msg: ", msg )
+						cb( msg );
+					})
+				} else {
+					orig( event, cb )
+				}
+	        	})(ws.on.bind(ws));
+                        p.connect(ws);
+			return true;
+		}
+        	return false;
         } )
       ) {
           console.log( "unkown protocol:", proto )

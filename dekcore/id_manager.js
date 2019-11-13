@@ -5,7 +5,7 @@ const _debug = false;
 //console.log( "using require: ", require, module )
 const fs = require('fs');
 const server = require( './https_server.js');
-const sack = require( "../sack-gui" );
+const sack = require( "sack.vfs" );
 const JSOX=sack.JSOX;
 const JSON=sack.JSOX;
 
@@ -108,10 +108,9 @@ function keyProto(Λ, o) {
 var pendingOps = [];
 
 function Key(maker_key, askey) {
-
 	var key = null;
 	var real_key;
-	//console.log( "KEY IS OF COURSE :", typeof maker_key)
+	//console.log( "KEY IS OF COURSE :", typeof maker_key, maker_key)
 	if ( ( typeof (maker_key) !== "string" ) && ( "Λ" in maker_key ) ) real_key = keyTracker.keys.get(maker_key.Λ);
 	else real_key = keyTracker.keys.get(maker_key);
 	if (real_key) maker_key = real_key.Λ;
@@ -122,7 +121,6 @@ function Key(maker_key, askey) {
 
 	//console.log( "raw key is:", key.Λ, key.maker, maker_key );
 	if (real_key) {
-		//console.log( "maker now has ", real_key.made.length +1, "keys")
 		real_key.made.push(key);
 	}
 	else {
@@ -395,7 +393,7 @@ function isKeyCreator(key, next, callback) {
 
 function saveKeys(callback) {
 	var fileName = config.run.defaults.dataRoot + "/id.json"
-	console.log( "Saving keys:", fileName );
+	console.log( "Saving keys:", fileName,  );
 	fc.store(fileName, myStringifier.stringify( keyTracker, null, '\t' ), callback);
 }
 
@@ -523,36 +521,29 @@ function loadKeys() {
 			var data = fc.Utf8ArrayToStr(buffer);
 			//console.log( "...", data.length );
 			try {
-				//console.log( "json parse?", data )
+				//console.log( "jsox parse?", data )
 				var loaded_keys = JSOX.parse(data);
-				_debug && console.log( "data to parse ", loaded_keys);
+				//_debug && 
+                                //console.log( "data parsed ", loaded_keys);
 				keyTracker = loaded_keys;
 
 				var keyids;
-				(keyids = Object.keys(loaded_keys.keys)).forEach((keyid) => {
-					_debug && console.log( "key and val ", keyid, loaded_keys.keys[keyid] );
-					var key = keyProto(keyid, loaded_keys.keys[keyid]);
-					_debug && console.log( "recover key", keyid, key )
-					keyTracker.keys.set(keyid, key);
-					//key.toString =
-				});
-				keyids.forEach((keyid) => {
-					var key = keyTracker.keys.get(keyid);
+				for( let key of loaded_keys.keys ) {
+					keyProto(key.Λ, key[1] );
+				}
+
+				for( let keypair of loaded_keys.keys ) {
+					var key = keypair[1];
 					if (!key.maker) {
-						console.log("Bad Key:", keyid, key);
+						console.log("Bad Key:", key);
 						return;
 					}
-					var maker = keyTracker.keys.get(key.maker);
-					//console.trace( "key and val ", keyid, key );
-					//console.log( "maker failed?", maker, key.maker )
-					maker.made.push(key);
-					if (key.authby = keyTracker.keys.get(key.authby))
-						key.authby.authed.push(key);
+
+					key.maker.made.push(key);
+					key.authby.authed.push(key);
 					//console.log( "recover  key authby ", key, key.authby )
-				});
-				keyTracker.mkey = keyTracker.keys.get( loaded_keys.mkey );
-				keyTracker.lkey = keyTracker.keys.get( loaded_keys.lkey );
-				keyTracker.pkey = keyTracker.keys.get( loaded_keys.pkey );
+				}
+				Object.defineProperty(config.run, "made", { enumerable: false, writable: true, configurable: false, value: [] });
 				Object.defineProperty(config.run, "authed", { enumerable: false, writable: true, configurable: false, value: [] });
 
 				//console.log( "new keys after file is ... ", keys );
@@ -566,7 +557,7 @@ function loadKeys() {
 		//#ifdef IS_VOID
 		if (keyTracker.keys.size === 0) {
 			//console.log( Object.keys( keys ).length)
-			console.log("NEED  A KEY")
+			console.log("NEED  ROOT KEY INITIALIZATION")
 			var key = Key(config.run.Λ);
 			key.authby = key;
 			key.trusted = true;
@@ -599,6 +590,7 @@ function loadKeys() {
 		if (keyTracker.keys.size < 100) {
 			//console.log("manufacture some keys......-----------", mkey)
 			//Key( keys. )
+			//console.log( "GOT:", keyTracker, keyTracker.mkey.made );
 			ID(keyTracker.mkey, keyTracker.mkey.authby, (key) => {
 				//console.log("newkey:", key)
 				saveKeys();

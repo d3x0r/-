@@ -1,4 +1,4 @@
-const debug_ = false;
+const debug_ = true;
 const fs = require( 'fs');
 const config = require( "./config.js" );
 const vfs = require( '../sack-gui' );
@@ -69,15 +69,14 @@ module.exports = exports = {
 				}
 				 //fileName = getpath( filename, object );
 		}
-		debug_ && console.trace( "WRITE FILE ", fileName )
-		disk.write( fileName, object.toString() );
+		cvol.write( fileName, object.toString() );
 		if( callback ) callback();
 	},
 	reloadFrom( pathobject, callback ) {
 		if( pathobject.Λ )
 			if( !pathobject.ΛfsPath )
-			  pathobject.ΛfsPath = GetFilename( pathobject );
-			  console.log( "readdir of, ", pathobject.ΛfsPath+"Λ")
+				pathobject.ΛfsPath = GetFilename( pathobject );
+			console.log( "readdir of, ", pathobject.ΛfsPath+"Λ")
 			fs.readdir(  pathobject.ΛfsPath+"Λ", callback );
 	},
 	reload(filename, callback){

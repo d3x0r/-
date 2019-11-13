@@ -1,5 +1,5 @@
 {
-	"defaultPort" : 8000,
+	"defaultPort" : 8550,
 	"firstServicePort" : 8100,
 	"webRoot" : "./uiRoot",
 	"serverRoot" : "./uiServer",

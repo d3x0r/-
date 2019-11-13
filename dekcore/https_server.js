@@ -1,7 +1,7 @@
 "use strict";
 const webRoot = "./uiRoot";
 //var fs = require( 'fs');
-var vfs = require( '../sack-gui');
+var vfs = require( '../sack.vfs');
 var vol = vfs.Volume();
 const config = require ( "./config.js" )
 const idGen = require( "./util/id_generator.js")
@@ -13,7 +13,7 @@ const path = require('path');
 
 
 //------ setup websocket compatibility
-const ws = require( 'ws' );
+const ws = vfs.WebSocket;
 const WebSocket = ws.Client;
 const WebSocketServer = ws.Server;
 
@@ -46,7 +46,7 @@ var ID = require( './util/id_generator.js' );
 var wsServer = null;
 
 function scriptServer( port, internal ) {
-    if( !port ) port = 8000;
+    if( !port ) port = 8550;
 
     console.log( "Starting Script Services on port", port );
     var privateKey = vol.read('ca-key.pem').toString();

@@ -21,7 +21,7 @@ exports.provide = provideDefault;
 exports.sack = sack;
 exports.eval = null;
 
-var requireConfig = exports.config = { host:"", port:8000, config: null };
+var requireConfig = exports.config = { host:"", port:8550, config: null };
 
 var runningModule = module;
 

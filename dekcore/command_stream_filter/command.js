@@ -4,7 +4,7 @@ var util = require('util')
 var filter_base = require( "./filter_base.js");
 var text = require( '../../org.d3x0r.common/text.js')
 var vm = require( 'vm' );
-var JSOX = require( "../../sack-gui").JSOX;
+var JSOX = require( "sack.vfs").JSOX;
 
 exports.Filter = Filter;
 

@@ -10,12 +10,11 @@ const path = require( 'path' );
 const cp = require( 'child_process');
 const vm = require('vm');
 const fs = require('fs');
-const ws = require('ws');
 const stream = require('stream');
 const util = require('util');
 const process = require('process');
 const crypto = require('crypto');
-const sack = require( "../../sack-gui" );
+const sack = require( "../../sack.vfs" );
 const JSOX = sack.JSOX;
 
 //const idMan = require('../id_manager.js');
@@ -37,7 +36,7 @@ function sandboxWS( url, protocols ) {
 	if( !(this instanceof sandboxWS) )
 		return new sandboxWS( url, protocols );
 
-	this.ws = new ws( url, protocols );
+	this.ws = new sack.WebSocket.Client( url, protocols );
 	this.keyt = entity.idMan.xkey(null);
 	this.keyr = entity.idMan.xkey(null);
 	console.log( "Key is:", this.keyt)
@@ -173,9 +172,9 @@ var fc = require('../file_cluster.js');
 
 const config = require('../config.js');
 
-const vfs = require('../../sack-gui');
+const vfs = require('../../sack.vfs');
 const vol = vfs.Volume();
-const vfsNaked = require('../../sack-gui');
+const vfsNaked = require('../../sack.vfs');
 
 const volOverride = `(function(vfs, dataRoot) {
 	vfs.mkdir = vfs.Volume.mkdir;

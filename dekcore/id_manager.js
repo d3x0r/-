@@ -5,7 +5,7 @@ const _debug = false;
 //console.log( "using require: ", require, module )
 const fs = require('fs');
 const server = require( './https_server.js');
-const sack = require( "sack.vfs" );
+const sack = require( "../sack.vfs" );
 const JSOX=sack.JSOX;
 const JSON=sack.JSOX;
 
@@ -454,7 +454,7 @@ function loadKeyFragments(o) {
 				} else {
 					var data = fc.Utf8ArrayToStr(buffer);
 					try {
-						//console.log( "about to parse this as json", data );
+						console.log( "about to parse this as json\n", data );
 						var reloaded_keys = JSOX.parse(data);
 						console.log("no error", reloaded_keys);
 						//if( keys.length === 0 )
@@ -521,10 +521,9 @@ function loadKeys() {
 			var data = fc.Utf8ArrayToStr(buffer);
 			//console.log( "...", data.length );
 			try {
-				//console.log( "jsox parse?", data )
+				console.log( "jsox parse?", data )
 				var loaded_keys = JSOX.parse(data);
-				//_debug && 
-                                //console.log( "data parsed ", loaded_keys);
+				//_debug && console.log( "data parsed ", loaded_keys);
 				keyTracker = loaded_keys;
 
 				var keyids;

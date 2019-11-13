@@ -5,7 +5,8 @@ function buildPiping(){
       // only one of these can work though. 
 //	var webCons = require( './command_stream_filter/webConsole.js' ).Filter();
 
-    var cons = require( './command_stream_filter/psi_console.js' ).Filter();
+    //var cons = require( './command_stream_filter/psi_console.js' ).Filter();
+   
     var newline = require(  './command_stream_filter/strip_newline.js' );
     var monitor = require( './command_stream_filter/monitor_filter.js' );
     //var commandFilter = require( './command_stream_filter/command.js');
@@ -14,9 +15,9 @@ function buildPiping(){
     var nl = newline.Filter();
     //var cmd = commandFilter.Filter();
     
-    nl.connectInput( cons.filter );//process.stdin );
+    nl.connectInput( process.stdin );
     nl.connectOutput( shell.filter );
-    shell.connectOutput( cons.filter );//process.stdout );
+    shell.connectOutput( process.stdout );
 }
 
 buildPiping();

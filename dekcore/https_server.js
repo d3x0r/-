@@ -1,7 +1,7 @@
 "use strict";
 const webRoot = "./uiRoot";
 //var fs = require( 'fs');
-var vfs = require( '../sack.vfs');
+var vfs = require( 'sack.vfs');
 var vol = vfs.Volume();
 const config = require ( "./config.js" )
 const idGen = require( "./util/id_generator.js")

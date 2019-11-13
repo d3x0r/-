@@ -1,7 +1,7 @@
 const debug_ = true;
 const fs = require( 'fs');
 const config = require( "./config.js" );
-const vfs = require( '../sack.vfs' );
+const vfs = require( 'sack.vfs' );
 const idGen = require( './util/id_generator.js' );
 const vol = vfs.Volume();
 var keys;

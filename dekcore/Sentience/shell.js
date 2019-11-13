@@ -3,7 +3,7 @@
 var util = require('util')
 var vm = require('vm');
 var Entity = require( '../Entity/entity.js');
-const JSOX = require( "../../sack.vfs").JSOX;
+const JSOX = require( "sack.vfs").JSOX;
 const text = require( "../../org.d3x0r.common/text.js");
 Entity.netRequire.provide( "shell.js", exports );
 Entity.Sentience = exports;

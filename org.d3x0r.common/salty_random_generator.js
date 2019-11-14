@@ -636,7 +636,6 @@ function KangarooTwelve() {
 			//console.log( "S?", s );
 		},
 		update(buf) {
-			if( buf.length > data.keybuflen ) {
 			var byteLength;
 			if( buf instanceof Array ) {
 				buf = buf.join();

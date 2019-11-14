@@ -637,18 +637,17 @@ function KangarooTwelve() {
 			if( buf instanceof Array ) {
 				buf = buf.join();
 			}
-			console.log( "feed K12 update:", buf );
-		        if( buf.length > data.keybuflen ) {
+			var byteLength;
+				byteLength = k12.lengthBytesUTF8( buf );
+		        if( byteLength > data.keybuflen ) {
 				if( data.keybuf )
 					k12._free( data.keybuf );
-				data.keybuflen = buf.length+1;
-				data.keybuf = k12._malloc( buf.length+1 );
+				data.keybuflen = byteLength+1;
+				data.keybuf = k12._malloc( data.keybuflen );
 		
 			}
-			var byteLength;
 			if( "string" === typeof buf ) {
-				k12.stringToUTF8( buf, data.keybuf, buf.length*3+1 );
-				byteLength = k12.lengthBytesUTF8( buf );
+				k12.stringToUTF8( buf, data.keybuf, byteLength );
 			}else if( buf instanceof Uint32Array ) {
 				var keydata = new Uint32Array( k12.HEAPU32.buffer, data.keybuf, buf.length );
 				byteLength = buf.length * 4;
@@ -665,8 +664,6 @@ function KangarooTwelve() {
 			}
 
 			var keybuf = new Uint8Array( k12.HEAPU8.buffer, data.keybuf, byteLength );
-			console.log( "got buffer?", keybuf, byteLength )
-
 			s = k12._KangarooTwelve_Update( data.k, data.keybuf, byteLength );
 			//console.log( "Update S?", s );
 		},

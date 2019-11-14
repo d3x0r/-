@@ -10,6 +10,7 @@ var rdb = require( "rdb-dataset" );
 | type | Usage |
 |-----|----|
 | DataSet | This is a related set of tables.  
+| Graph | This is a related set of nodes.  (basically an alias for DataSet).
 | DataTable | This represents a SQL table with named columns and types for data | 
 | DataColumn | This is a column in a DataTable; it's usually not utilized directly |
 
@@ -21,12 +22,14 @@ var rdb = require( "rdb-dataset" );
 | parse | DataSet or DataTable \[ , where \[, order by \]\] | returns a JS object |
 | write | DataSet or DataTable \[ , where \[, order by \]\]  | not really any storage... write to where?  Options to mark tables temp or non-writable? |
 
-## DataSet methods
+## DataSet/Graph methods
 
 | Method | Arguments | Description |
 |----|:----:|----|
-| Table |  String:Table Name  | Create a table in the dataset.  This adds the member 'Table Name' to the dataset.  `dataset['Table Name']`
-| Relation | {property object with at least : Name, (Column(from), Column(to)) or (Columns(from),columns(to))} | Defines a relationship between tables (foreign keys)
+| Table |  String:Table Name  | Create or get a table in the dataset.  This adds the member 'Table Name' to the dataset.  `dataset['Table Name']` |
+| Class |  String:Class Identity  | Create a node type for use in the dataset.  Can used as a type in other classes; will create an edge. |
+| Node |  String:Node Identity  | Create or get a graph root in the dataset.  This adds the member 'Node Identity' to the dataset.  `dataset['Node Identity']` |
+| Relation | {property object with at least : Name, (Column(from), Column(to)) or (Columns(from),columns(to))} | Defines a relationship between tables (foreign keys) |
 
 ### DataSet properties
 
@@ -34,10 +37,11 @@ var rdb = require( "rdb-dataset" );
 |----|:----:|----|
 | prefix | string | a prefix used on the table name when translating to the database; default blank |
 | name | string | the name of this table; this should be variable name friendly; default blank |
-| &lt;table names&gt;| DataTable | A table.
-| tables | \[ DataTable \] | An array of tables this dataset has.
-| &lt;relation names&gt;| DataRelation | A relation
-| relations | \[ DataRelation \] | An array of constraints this table has.
+| classes | array of Class | classes defined in this Graph |
+| &lt;table names&gt;| DataTable | A table. |
+| tables | \[ DataTable \] | An array of tables this dataset has. |
+| &lt;relation names&gt;| DataRelation | A relation |
+| relations | \[ DataRelation \] | An array of constraints this table has. |
 
 prefix and name can be done to referenece server for prefix and database as name.    users,  transactions,  options etc... 
 prefix could be used for tmp_users, tmp_transactions, tmp_options....

@@ -3,7 +3,7 @@
 const DEBUG_ALL = false;
 const debugBreakLink= false || DEBUG_ALL;
 const debugInvalidate = false || DEBUG_ALL;
-const debugValidate = false || DEBUG_ALL;
+const debugValidate = true || DEBUG_ALL;
 const debugMigrate = false || DEBUG_ALL;
 const debugWithin = false || DEBUG_ALL;
 const debugPreval = false || DEBUG_ALL;
@@ -34,8 +34,9 @@ var makeWebLinkData = ()=>{
 			plane : { o:{x:0,y:0,z:0},
 				n:{x:0,y:0,z:0},
 				t:{x:0,y:0,z:0},
-				ends:{from:0,to:0},
-				bounds:[] },
+				ends:{from:0,to:0}, // in 2d, the 'plane' is a line... space requires differnt boundaries
+				bounds:[]  // in 3d, bounds is used for the boundary on the intersection plane.
+			},
 			from : null, // weblink
 			to : null,  // WEBLINK
 			delete : ()=>webLinkDataPool.push( linkData ),
@@ -235,11 +236,11 @@ function makeWebNode( ) {
 						}
 						
 						if( debugRelink )console.log( "make real link")
-						near_node.link( newNode );
-						ValidateLink( near_node, null,newNode );
+						var newlink = near_node.link( newNode );
+						//ValidateLink( near_node, newlink,newNode );
 					}
         
-					newNode.invalidateLinks( null, 1 );
+					//newNode.invalidateLinks( null, 1 );
         
 					boundLinks.forEach( (link)=>{
 						var from = link.data.from.node;
@@ -248,7 +249,7 @@ function makeWebNode( ) {
 						var t;
 						console.log( "Checking boundary that was ", NodeIndex( from ), NodeIndex( to ), NodeIndex(newNode) );
 						sub2( tmp1, newNode.point, from.point );
-						t = PointToPlaneT( tmp1, from.point, to.point );
+						t = PointToPlaneT( from.point, tmp1, to.point );
 						if( t > 1 )  {
 							from.breakSingleNodeLink( to );
 						}
@@ -291,7 +292,7 @@ function makeWebNode( ) {
 					if( result < 0 )
 						throw new Error( "Node is not a reflected link", node, other );
 				}
-				return true;
+				return link;
 			}
 			else
 			{
@@ -322,7 +323,7 @@ function makeWebNode( ) {
 					if( !check ) return;
 					var t;
 					sub2( tmp1, check.node.point, node.point );
-					t = PointToPlaneT( tmp1, node.point, p_dest );
+					t = PointToPlaneT( node.point, tmp1, p_dest );
 					if( debugMigrate ) console.log( ("%d.%d  %g"), NodeIndex( node ), NodeIndex( check.node ), t );
 					if( t > 1 )
 						return true;
@@ -339,7 +340,7 @@ function makeWebNode( ) {
 					//DebugBreak();
 					if( debugMigrate ) console.log( ("Fell outside the lines... best to orphan, and rebuild (probably)") );
 					var boundLinks = []
-					FindNearest2( pListNear, null, boundLinks, this, node, p_dest, 0 );
+					FindNearest2( pListNear, []/* unused result of where it already came from */, boundLinks, this, node, p_dest, 0 );
 					{
 						var near_node;
 						var near_link;
@@ -385,7 +386,7 @@ function makeWebNode( ) {
 							var to = link.data.to;
 							var t;
 							sub2( tmp1, from.point, node.point );
-							t = PointToPlaneT( tmp1, node.point, to.point );
+							t = PointToPlaneT( node.point, tmp1, to.point );
 							if( t > 0 && t < 1 )  {
 								from.breakSingleNodeLink( to );
 							}
@@ -401,7 +402,7 @@ function makeWebNode( ) {
 
 					var pListNear = [];
 					var boundLinks = [];
-					FindNearest2( pListNear, null, boundLinks, this, node, p_dest, 0 );
+					FindNearest2( pListNear, []/*unused result*/, boundLinks, this, node, p_dest, 0 );
 					{
 						pListNear.forEach( (near_node)=>{
 							if( near_node == node )
@@ -561,16 +562,16 @@ function makeWebNode( ) {
 		},
 
 		// this does have an 'affinity' or directionality...
-		link : ( linkto )=>
+		link( linkto )
 		{
 			var linked_data;
 			if( node == linkto )
 				throw new Error( "Attempt to link to itself" );
-
-			if( node.isLinked(  linkto ) )
+			var oldLink;
+			if( oldLink = node.isLinked(  linkto ) )
 			{
 				//console.log( ("Link already exists...(%d to %d)"), NodeIndex( node ), NodeIndex( linkto ) );
-				return 0;
+				return node.links[oldLink-1];
 			}
 			//console.log( ("link %d to %d"), NodeIndex( node ), NodeIndex( linkto ) );
 
@@ -579,8 +580,9 @@ function makeWebNode( ) {
 				var link = makeWebLink( false, node, data );
 
 				SetPoint( data.plane.o, node.point );
+				console.log( "link data plan o is set now to:", data.plane.o, node.point );
 				sub2( data.plane.n, linkto.point, node.point );
-				data.plane.t = [data.plane.n['z'], data.plane.n['y'],-data.plane.n['x'] ];
+				data.plane.t = {x:data.plane.n['z'], y:data.plane.n['y'],z:-data.plane.n['x'] };
 				//data.plane.ends['from'] = -2.5;
 				//data.plane.ends['to'] = 2.5;
 
@@ -596,8 +598,8 @@ function makeWebNode( ) {
 
 				push( linkto.links, link );
 				linkto.near_count++;
+				return link;
 			}
-			return 1;
 		},
 
 		unlink() {
@@ -687,13 +689,17 @@ function makeWebNode( ) {
 					var _check2  = node.links[idx2];
 					if( !_check2 ) continue;
 					var check2 = (_check2.to);
+					if( check === check2 ) {
+						// node is linked to itself.
+						continue;  // node has a link to this twice?
+					}
 					// test check2 point above node.check1
 					var other = check2;
-					var t = PointToPlaneT( tmp1, new_point || node.point, other.point );
+					var t = PointToPlaneT( new_point || node.point, tmp1, other.point );
 					{
 						// test check point above node.check2
 						sub2( tmp2, other.point, new_point||node.point )
-						var t2 = PointToPlaneT( tmp2, new_point||node.point, check.point );
+						var t2 = PointToPlaneT( new_point||node.point, tmp2, check.point );
 						//#if ( DEBUG_ALL )
 						if( debugInvalidate )
 							console.log( ("Hrm..%d(base) %d vs %d %g  %g"), NodeIndex( node ), NodeIndex( check ), NodeIndex( other ), t, t2 );
@@ -711,6 +717,7 @@ function makeWebNode( ) {
 							// remove check2 from self...
 
 							// remove self, so linking won't fail. (though, if link fails... do we get orphans)
+
 							if( !PrevalLink( check, check2, node, new_point ) ) {
 								check2.breakSingleNodeLink( node );
 							}
@@ -800,7 +807,7 @@ function makeWeb() {
 		},
 		insert( pt, psv ) {
 			var node = this.makeWebNode();
-			node.point = {x:pt['x'],y:pt['y'],z:pt['z']};
+			node.point = {x:pt.x,y:pt.y,z:pt.z};
 			node.data = psv;
 			//logFind = 1;
 			this.relinkNode( node );
@@ -902,7 +909,7 @@ function IsNodeWithinEx(  node, new_point,  test_node, new_test_point )
 			return false;
 
 		var t;
-		t = PointToPlaneT( link.data.plane.n, link.data.plane.o, new_test_point?new_test_point:test_node.point );
+		t = PointToPlaneT( link.data.plane.o, link.data.plane.n, new_test_point?new_test_point:test_node.point );
 		if( link.invert )
 			t = -t;
 		if( t > 0.5 )
@@ -929,7 +936,7 @@ function IsWithin(  node, check1, check2 )
 {
 	var t;
 	sub2( tmp1, check1.point, node.point );
-	t = PointToPlaneT( tmp1, check1.point, check2.point );
+	t = PointToPlaneT( check1.point, tmp1, check2.point );
 	if( debugWithin ) {
 		PrintVector( "check1.point", check1.point );
 		PrintVector( "check2.point", check2.point );
@@ -949,7 +956,7 @@ function IsOutside(  node, check1, check2 )
 {
 	var t;
 	sub2( tmp1, check1.point, node.point );
-	t = PointToPlaneT( tmp1, node.point, check2.point );
+	t = PointToPlaneT( node.point, tmp1, check2.point );
 	if( debugWithin ) {
 		PrintVector( "check1.point", check1.point );
 		PrintVector( "check2.point", check2.point );
@@ -973,7 +980,7 @@ function CameThrough(  node,  new_point,  check1,  check2 )
 	{
 		var t;
 		sub2( tmp1, check1.point, new_point?new_point:node.point )
-		t = PointToPlaneT( tmp1, new_point?new_point:node.point, check2.point );
+		t = PointToPlaneT( new_point?new_point:node.point, tmp1, check2.point );
 		//console.log( ("one is "), t );
 		if( t < 0 )
 		{
@@ -993,7 +1000,7 @@ function IsBeyond(  node,  new_point, check1, check2 )
 	{
 		var t;
 		sub2( tmp1, check1.point, new_point?new_point:node.point )
-		t = PointToPlaneT( tmp1, check1.point, check2.point );
+		t = PointToPlaneT( check1.point, tmp1, check2.point );
 		console.log( ("one is %g"), t );
 		if( t > 0 )
 		{
@@ -1052,7 +1059,7 @@ function PrevalLink(  check,  check2,  removing,  new_point )
 				if( !check_near || check_near.node == removing )
 					return false;
 				sub2( tmp3, check_near.node.point, check2.point )
-				t3 = PointToPlaneT( tmp3, check_near.node.point, check.point );
+				t3 = PointToPlaneT( check_near.node.point, tmp3, check.point );
 				//console.log( ("%d.%d v %d = %g"), NodeIndex( check ), NodeIndex( check2 ), NodeIndex( check_near ), t3 );
 				if( t3 > 0 )
 				{
@@ -1069,7 +1076,7 @@ function PrevalLink(  check,  check2,  removing,  new_point )
 				if( !check_near || check_near.node == removing )
 					return false;
 				sub2( tmp3, check_near.node.point, check.point )
-				t3 = PointToPlaneT( tmp3, check_near.node.point, check2.point );
+				t3 = PointToPlaneT( check_near.node.point, tmp3, check2.point );
 				//console.log( ("%d.%d v %d = %g"), NodeIndex( check2 ), NodeIndex( check ), NodeIndex( check_near ), t3 );
 				if( t3 > 0 )
 				{
@@ -1087,11 +1094,33 @@ function PrevalLink(  check,  check2,  removing,  new_point )
 }
 
 
+function intersectLinks( node ){
+	var m, n;
+	for( m = 0; m < node.links.length; m++ )
+		for( n = m+1; n < node.links.length; n++ ) {
+			var link1 = node.links[m];
+			var link2 = node.links[n];
+			var intersect = FindIntersectionTime( link1.data.plane.t, link1.data.plane.o, link2.data.plane.t, link2.data.plane.o );
+			if( intersect ) {
+					sub2( tmp1, link1.to.point, node.point );
+					sub2( tmp2, link2.to.point, node.point );
+					var dot = dotproduct( tmp1, tmp2 );
+					if( dot > 0 ) {
+						link1.data.plane.ends.to = intersect.t1;
+						link2.data.plane.ends.from = intersect.t2;
+					} else {
+						link1.data.plane.ends.from = intersect.t1;
+						link2.data.plane.ends.to = intersect.t2;
+					}
+					// plane is sourced from the far side... and normal points at me.
+			}
+		}
+}
 
 // makes suare all links from here are valid for myself
 // (if they are valid for what they are linked to, they must also stay
 // near_node
-function ValidateLink( resident, new_point, node )
+function ValidateLink( resident, new_link, node )
 {
 	var near2;
 	var link;
@@ -1102,10 +1131,13 @@ function ValidateLink( resident, new_point, node )
 	// migrate a link to node from the resident
 
 	// from resident . node delta
+	if( resident.links.length > 1 )
+		intersectLinks( resident );
 
 	resident.links.forEach( (link)=>{
 		if( !link ) return;
 		var t;
+		var t2;
 		var data = link.data;
 		// don't check the node against itself.
 		near2 = link.to;
@@ -1113,26 +1145,44 @@ function ValidateLink( resident, new_point, node )
 			return;
 
 		// compare node base point versus near2 (the relative of near that I'm linked against)
-		t = PointToPlaneT( data.plane.o, data.plane.n, near2.point );
+		t = PointToPlaneT( data.plane.o, data.plane.n, node.point );
 		if( link.invert ) t = -t;
+		t += 0.5;
 
-		if( debugValidate )
-			console.log( ("%d.%d v %d is"), NodeIndex( resident ), NodeIndex( node ), NodeIndex( near2 ), t );
-		if( t > 1)
+		t2 = PointToPlaneT( data.plane.o, data.plane.t, node.point );
+		if( Math.abs(t) < Math.abs(t2) )
+			return;
+		//t2 = PointToPlaneT( new_link.data.plane.o, new_link.data.plane.n, near2.point );
+
+		if( debugValidate ){
+			console.log( ("%d.%d v %d is"), NodeIndex( resident ), NodeIndex( node ), NodeIndex( near2 ), t, t2 );
+			console.log( ` points: ${resident.point.x},${resident.point.y},${resident.point.z}  ${node.point.x},${node.point.y},${node.point.z}  ${near2.point.x},${near2.point.y},${near2.point.z}   data.plane.o ${data.plane.o} `)
+		}
+
+		if( t2 > -0.5 && t2 < 0.5 )
+		{
+			node.link( near2 );
+		}
+		if( t > -0.5 && t < 0.5 )
 		{
 			if( debugValidate )
 				console.log( ("So we steal the link to me %d , and remove from resident %d  (%d)")
 						, NodeIndex( node ), NodeIndex( resident ), NodeIndex( near2 ) );
 			// one for one exchange
-			/*
-			link( node, resident );
-			//BreakSingleNodeLink( resident, near2 );
+			
+			if( t > -0.5 && t < 0.5 )
+			{
+				var newLink = node.link( near2 );
+				node.link( resident );
+				resident.breakSingleNodeLink( near2 );
+				ValidateLink( near2, newLink, node );
+			}
+			//node.link(resident );
 
-			if( IsNodeWithin( near2, null, resident ) )
-				BreakSingleNodeLink( resident, near2 );
-			console.log( ("And again validate my own links? considering the near2 as resident and me new") );
+		//	if( IsNodeWithin( near2, null, resident ) )
+			//	BreakSingleNodeLink( resident, near2 );
+			//console.log( ("And again validate my own links? considering the near2 as resident and me new") );
 			//ValidateLink( near2, null, node );
-			*/
 		}
 		else
 			if( debugValidate )
@@ -1258,7 +1308,7 @@ function FindNearest( nodes, came_from, boundaries, targetNode, from,  to,  pain
 			if( came_from[came_from.length-1] === otherCheck || came_from.find( l=>l===otherCheck ) )
 			{
 				sub2( tmp1, otherCheck.point, current.point )
-				t = PointToPlaneT( tmp1, current.point, to );
+				t = PointToPlaneT( current.point, tmp1, to );
 				if( logFind ) console.log( "already checked...; but do check to invalidate this one...", t );
 				if( t > 1.0 )
 				{
@@ -1273,7 +1323,7 @@ function FindNearest( nodes, came_from, boundaries, targetNode, from,  to,  pain
 
 			// from here along the link to check....
 			sub2( tmp1, otherCheck.point, current.point )
-			t = PointToPlaneT( tmp1, current.point, to );
+			t = PointToPlaneT( current.point, tmp1, to );
 
 			if( logFind ) console.log( `??${to} vs ${current}.${check} is ${t}` );
 
@@ -1323,14 +1373,14 @@ function FindNearest( nodes, came_from, boundaries, targetNode, from,  to,  pain
 		came_from.forEach( (node)=>{
 			if( node == node2 )
 				return;
-			t = PointToPlaneT( tmp1, to, node.point );
+			t = PointToPlaneT( to, tmp1, node.point );
 			if( t < 1 ) {
 				// could be added...
 				if( !nodes.find( (node3)=>{
 					if( node3 == node2 ) return false;
 					if( node3 == node ) return false;
 					sub2( tmp2, node3.point, to );
-					t = PointToPlaneT( tmp2, to, node.point );
+					t = PointToPlaneT( to, tmp2, node.point );
 					if( t > 1 ) // found a closer point that we could pass through...
 						return true;
 					return false;
@@ -1348,7 +1398,6 @@ function FindNearest( nodes, came_from, boundaries, targetNode, from,  to,  pain
 function NodeIndex( node ) {
 	return node.web.nodes.findIndex( n=>n===node );
 }
-
 
 
 // find nearest does a recusive search and finds nodes
@@ -1440,6 +1489,7 @@ function FindNearest2( nodes, came_from, boundaries, targetNode, from,  to,  pai
 	var min_dist = Infinity;
 	var min_len = Infinity;
 	var min_node = null;
+	var possibles = [];
 	while( check = openSet.pop() ) {
 		if( check.node === targetNode ) {
 			min_node = check;
@@ -1457,13 +1507,45 @@ function FindNearest2( nodes, came_from, boundaries, targetNode, from,  to,  pai
 		// win condition is tough.... there is no exact answer.... 		
 		closedSet.add( check );
 
-		check.node.links.forEach( neighbor=>{
-			if( !neighbor ) return;
-			neighbor = neighbor.to;
+		// if we did link to 'check'
+		sub2( tmp1, to, check.node.point );
+		check.node.links.forEach( neighbor_=>{
+			if( !neighbor_ ) return;
+			var neighbor = neighbor_.to;
 			var find;
 			var node;
-			if( closedSet.find( neighbor ) ) return;
+			if( closedSet.find( neighbor ) ) return; // already checked from here, don't check to here
+
 			var newg = dist( check.node.point, neighbor.point ) + check.g;
+
+			var T = PointToPlaneT( neighbor_.data.plane.o, neighbor_.data.plane.n, to );
+			if( T > 0.5 ){
+				openSet.add( neighbor, newg ); // move towards this point via this neighbor.
+				return;
+			}
+			if( T < -0.5 ) {
+				return; // neighbor is definatly in the wrong direction.
+			}
+
+			if( possibles.length ) {
+				for( var p = 0; p < possibles.length; p++ ) {
+					if( !possibles[p] ) continue;
+					sub2( tmp2, to, possibles[p].from.point );
+					var T = PointToPlaneT( possibles[p].from.point, tmp2, neighbor.point );
+					if( T > 0 && T < 1 )
+					   possibles[p] = null;
+					//PointToPlaneT( )
+				}
+			}
+
+			if( !possibles.find( p=>p?p.node == neighbor:false ))
+				possibles.push( { node:neighbor, from:check.node } );
+			if( !possibles.find( p=>p?p.node == check.node:false ))
+				possibles.push( { node:check.node, from:check.node } );
+
+			//var T2 = PointToPlaneT( to, tmp1, neighbor.point );
+
+
 			
 			//if( newg > min_len ) return;
 				
@@ -1489,19 +1571,36 @@ function FindNearest2( nodes, came_from, boundaries, targetNode, from,  to,  pai
 		} );
 		
 	}
-	
-	console.log( "closed length:", closedSet.length, openSet.length );
 
-	if( min_node ) {
-	nodes.push( min_node.node );
-	
-	var spot = min_node;
-	while( spot ) {
-		came_from.push( spot.node );
-		spot = spot.parent;
+	for( var p = 0; p < possibles.length; p++ ) {
+		if( !possibles[p] ) continue;
+		sub2( tmp2, possibles[p].node.point, to );
+		for( var q = p+1; q < possibles.length; q++ ) {
+			if( !possibles[q] ) continue;
+			//sub2( tmp2, possibles[q].node.point, to );
+			var T = PointToPlaneT( to, tmp2, possibles[q].node.point);
+			if( T > 1 || T < 0.5 ) {
+				possibles[p] = null;
+				break;
+			}
+		}
 	}
 
-	if( logFind ) console.log( ("Completed find.") );
+
+	//console.log( "closed length:", closedSet.length, openSet.length );
+	possibles.forEach( p=>p?nodes.push(p.node):false);
+
+	if( min_node ) {
+		if( !nodes.find( node=>node===min_node.node ))
+			nodes.push( min_node.node );
+	
+		var spot = min_node;
+		while( spot ) {
+			came_from.push( spot.node );
+			spot = spot.parent;
+		}
+
+		if( logFind ) console.log( ("Completed find.") );
 	}
 
 	return nodes; // returns a list really.
@@ -1641,7 +1740,7 @@ function PrintVector(n,v) {
 }
 
 // from plane normal,origin to point
-function PointToPlaneT(n,o,p) {
+function PointToPlaneT(o,n,p) {
 	//var t = [0];
 	//var i = {x:-n['x'],y:-n['y'],z:-n['z']};
 	//IntersectLineWithPlane( i, p, n, o, t );
@@ -1654,6 +1753,86 @@ function PointToPlaneT(n,o,p) {
 	    + n['y'] * n['y']
 	    + n['z'] * n['z'] );
 }
+
+
+function FindIntersectionTime( s1, o1, s2, o2) {
+		var result = {
+			t1: 0.0,
+			t2: 0.0
+		};
+		var R1, R2, denoms;
+		var t1, t2, denom;
+
+		var a = (o1.x)
+		var b = (o1.y)
+		var c = (o1.z)
+
+		var d = (o2.x)
+		var e = (o2.y)
+		var f = (o2.z)
+
+		var na = (s1.x)
+		var nb = (s1.y)
+		var nc = (s1.z)
+
+		var nd = (s2.x)
+		var ne = (s2.y)
+		var nf = (s2.z)
+
+		function NearZero(denom) {
+			return Math.abs(denom) < 0.00001;
+		}
+		denoms = crossproduct(s1, s2); // - result...
+		denom = denoms.z;
+		//	denom = ( nd * nb ) - ( ne * na );
+		if (NearZero(denom)) {
+			denom = denoms.y;
+			//		denom = ( nd * nc ) - (nf * na );
+			if (NearZero(denom)) {
+				denom = denoms.x;
+				//			denom = ( ne * nc ) - ( nb * nf );
+				if (NearZero(denom)) {
+					return null;
+				} else {
+					//DebugBreak();
+					t1 = (ne * (c - f) + nf * (b - e)) / denom;
+					t2 = (nb * (c - f) + nc * (b - e)) / denom;
+				}
+			} else {
+				//DebugBreak();
+				t1 = (nd * (c - f) + nf * (d - a)) / denom;
+				t2 = (na * (c - f) + nc * (d - a)) / denom;
+			}
+		} else {
+			// this one has been tested.......
+			t1 = (nd * (b - e) + ne * (d - a)) / denom;
+			t2 = (na * (b - e) + nb * (d - a)) / denom;
+		}
+
+		R1.x = a + na * t1;
+		R1.y = b + nb * t1;
+		R1.z = c + nc * t1;
+
+		R2.x = d + nd * t2;
+		R2.y = e + ne * t2;
+		R2.z = f + nf * t2;
+
+		// epsilon delta instead?
+		function COMPARE(a, b) {
+			return a === b;
+		}
+
+		if ((!COMPARE(R1.x, R2.x)) ||
+			(!COMPARE(R1.y, R2.y)) ||
+			(!COMPARE(R1.z, R2.z))) {
+			return null;
+		}
+		result.t2 = t2;
+		result.t1 = t1;
+		return result;
+	}
+
+
 
 //----------------------------------------------------------------------------
 // list utility - fill in null's then push....

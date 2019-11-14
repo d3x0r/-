@@ -38,10 +38,11 @@ const constants = {
 };
 
 module.exports = exports = {
-   constants : constants,
-   DataSet: DataSet,
-  DataTable : DataTable,
-  DataColumn : DataColumn,
+	constants : constants,
+	DataSet: DataSet,
+	Graph: DataSet,
+	DataTable : DataTable,
+	DataColumn : DataColumn,
 }
 
 	function singularize( string ) {
@@ -56,24 +57,37 @@ module.exports = exports = {
         
 
 function DataSet() {
-	var ds = {
-        	prefix : ""
-                , name : ""
+	if( !(this instanceof DataSet) )
+		return new DataSet();
+	Object.assign( this, {
+       	prefix : ""
+		, name : ""
 		, tables : []
-        	, Table : Table
-		, push : push
-        }
-        function Table( name ) {
-        	var table = DataTable( name );
-		return this.push( table );
-        }
-	function push( table ) {
-        	ds.tables.push( table );
-		ds[table.name] = table;
-                table.dataSet = ds;
-                return table;
-	}
-        return ds;
+       
+       	, Table( name ) {
+       		var table = DataTable( name );
+			return this.push( table );
+       	}
+		, push( table ) {
+       		ds.tables.push( table );
+			ds[table.name] = table;
+			table.dataSet = ds;
+			return table;
+		}
+	} );
+    return ds;
+}
+
+function Table( name ) {
+	var table = DataTable( name );
+ 	return this.push( table );
+}
+
+DataSet.prototype.Table =
+DataSet.prototype.Node = function( ident ) {
+	if( !(this instanceof DataSet.prototype.Node))
+		return new DataSet.prototype.Node( ident );
+	return this.Table( name )
 }
 
 function newRow( table ) {

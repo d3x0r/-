@@ -32,7 +32,16 @@ var test = {
 	 root:0,
 	 pRoot:null,
 	 paint:0,
-} ;
+	 findData : null,
+	 cycle : 0,
+	} ;
+
+var resetButton = document.getElementById( "clearStorage");
+if( resetButton )
+	resetButton.addEventListener( "click", ()=>{
+		localStorage.clear();
+		location.href = location.href;
+	})
 
 
 c.onmousedown = (evt)=>{  var rect = c.getBoundingClientRect(); mouse(evt.clientX-rect.left,evt.clientY-rect.top,evt.buttons);} 
@@ -109,7 +118,7 @@ function drawData( node, data, v )
 		var c = 0;
 		c = node.countNear();
 
-		//ctx.font = "30px Comic Sans MS";
+		ctx.font = "12px Comic Sans MS";
 		ctx.fillStyle = "white";
 		//ctx.textAlign = "center";
 		//console.log( "output a point?")
@@ -145,6 +154,23 @@ function drawData( node, data, v )
 				// already painted
 				return;
 			}
+
+			var o = {x:link.data.plane.o.x + link.data.plane.t.x*0.1
+					,y:link.data.plane.o.y + link.data.plane.t.y*0.1
+					,z:link.data.plane.o.z + link.data.plane.t.z*0.1
+					}
+			var oo = {x :link.data.plane.o.x - link.data.plane.t.x*0.5, y:link.data.plane.o.y - link.data.plane.t.y*0.5, z:link.data.plane.o.z - link.data.plane.t.z*0.5 };
+			DrawLine( oo, o, "#000000" );
+
+			var o = {x:link.data.plane.o.x + link.data.plane.t.x*link.data.plane.ends.to
+					,y:link.data.plane.o.y + link.data.plane.t.y*link.data.plane.ends.to
+					,z:link.data.plane.o.z + link.data.plane.t.z*link.data.plane.ends.to
+					}
+			var oo = {x :link.data.plane.o.x - link.data.plane.t.x*link.data.plane.ends.from
+				, y:link.data.plane.o.y - link.data.plane.t.y*link.data.plane.ends.from
+				, z:link.data.plane.o.z - link.data.plane.t.z*link.data.plane.ends.from };
+			DrawLine( oo, o, "#FFFFFF" );
+
 			//console.log( "links")
 			link.data.paint = data.paint;
 			dest = (link.invert?link.data.from:link.data.to).node;
@@ -154,7 +180,6 @@ function drawData( node, data, v )
 					     ,node.point[vRight], node.point[vForward]
 					    , dest.point[vRight], dest.point[ vForward ] );
         
-			ctx.lineWidth = 3;
 			/*
 			var a = [0,0,0];
 			var b = [0,0,0];
@@ -292,7 +317,7 @@ function doDraw( )
 	if( test.web )
 	{
 		// for each node in web, draw it.
-		data = drawdata();
+		var data = drawdata();
 		data.step = 0;
 		data.prior = null;
 		data.paint = ++test.paint;
@@ -307,17 +332,20 @@ function doDraw( )
 		{
 			var v = {x:test.x,y:0,z:test.y};
 			if( test.web.root ) {
-				console.log( "begin finding..." );
-				FindNearest( data.path, data.pathway, data.bounds, data.checked
+				//console.log( "begin finding..." );
+				FindNearest2( data.path, data.pathway, data.bounds, data.checked
 							, test.pRoot
 							, v, 0 );
-				console.log( "end finding..." );
+				//console.log( "end finding..." );
 			}
 			//console.log( ("Draw.") );
 		}
 
-		console.log( "------------- drawing a set of points -----------------", data );
+		//console.log( "------------- drawing a set of points -----------------", data );
 		n = [0,0,0,0];
+
+		test.findData = data;
+		//drawData( test.pRoot, data, v );
 
 		test.web.nodes.forEach( (node)=>{
 			drawData( node, data, v );
@@ -344,6 +372,15 @@ document.body.onkeydown = (key )=>
 		doDraw();
 	}
 
+	if( key.code == "KeyS" )
+	{
+		if( test.findData )
+			test.pRoot = test.findData.path[0];
+		test.root = test.web.nodes.find( node=>node==test.pRoot );
+		test.root++;
+		doDraw();
+	}
+
 	if( key.code == "KeyN" )
 	{
 		test.root++;
@@ -358,7 +395,6 @@ document.body.onkeydown = (key )=>
 	return 0;
 }
 
-	var cycle = 0;
 function MoveWeb( )
 {
 	var node;
@@ -382,8 +418,8 @@ function MoveWeb( )
 //		update_pause = 150000;
 	//else
 	//   update_pause = 1000;
-	cycle++;
-	console.log( ("cycle %d"), cycle );
+	test.cycle++;
+	//console.log( ("cycle %d"), test.cycle );
 	var tick = Date.now();
 	test.nodes.forEach( (node,idx)=>{
 		//if( idx %10 == 0 )
@@ -412,13 +448,12 @@ function MoveWeb( )
 	setTimeout( MoveWeb, 250 )
 }
 
-setTimeout( MoveWeb, 250 )
 function animate() {
 
 }
 
 function loadOneNode(n) {
-		var node = localStorage.getItem( "Node"+n );
+	var node = localStorage.getItem( "Node"+n );
 		if( !node ) { doDraw(); return; }
 		start = Date.now();
 		console.log( "adding ", n );
@@ -432,52 +467,10 @@ function loadOneNode(n) {
 
 function main()
 {
-	//test.file = fopen( "points.dat", "at+" );
-	//fseek( test.file, 0, SEEK_SET );
-	//test.tester = MakeNamedCaptionedControl( NULL, ("VWeb Tester"), 0, 0, 512, 512, -1, ("Test Space Web") );
-	//test.surface = OpenDisplaySizedAt( DISPLAY_ATTRIBUTE_LAYERED, 512, 512, 0, 0 );
-	//AttachFrameToRenderer( test.tester, test.surface );
-	//DisplayFrame( test.tester );
-	//Redraw( test.surface );
-	//localStorage.clear();
 	test.web = exports.Web();
 
 	loadOneNode( 0 );
-if(0){
-	var n;
-	var start;
-	for( n = 0; ; n++ ) {
-		var node = localStorage.getItem( "Node"+n );
-		if( !node ) break;
-		start = Date.now();
-		console.log( "adding ", n );
-		test.nodes.push( test.web.insert( JSON.parse( node ), 0  ) );
-		console.log( "added ", n, Date.now() - start );
-	}
-	doDraw();
-}
-    /*
-	{
-		var buf[256];
-		var x, y;
-
-		while( fgets( buf, sizeof( buf ), test.file ) )
-		{
-			VECTOR v;
-			//sscanf( buf, ("%d,%d"), &x, &y );
-			v[vRight] = x;
-			v[vForward] = y;
-			v[vUp] = 0;
-			console.log( ("----------------- NEW NODE -----------------------") );
-			//fprintf( test.file, ("%d,%d\n"), x, y );
-			AddLink( &test.nodes, AddWebNode( test.web, v, 0 ) );
-		}
-		//fseek( test.file, 0, SEEK_SET );
-	}
-    */
-
-	//Redraw( test.surface );
-	//AddTimer( 5, MoveWeb, 0 );
+	setTimeout( MoveWeb, 250 )
 }
 
 main();

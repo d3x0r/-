@@ -1,9 +1,6 @@
 
 if( !THREE.REVISION.includes( "d3x0r" ) ) {
 
-if( Number(THREE.REVISION) === 74 ) {
-}
-
 var vector3Pool = [];
 THREE.Vector3Pool = {
 	new : function(x,y,z) {
@@ -88,23 +85,6 @@ THREE.Vector3Down = new      THREE.Vector3(  0, -1,  0 );
 	Object.defineProperty(THREE[key], "y", { writable: false })
 	Object.defineProperty(THREE[key], "z", { writable: false })
 })
-
-var oldProto = THREE.Matrix4.prototype;
-var oldMatrixContructor = THREE.Matrix4.prototype.constructor;
-THREE.Matrix4x = function() {
-	this.elements = new Float32Array( [
-
-		1, 0, 0, 0,
-		0, 1, 0, 0,
-		0, 0, 1, 0,
-		0, 0, 0, 1
-
-	] );
-
-	Object.defineProperty(this, "elements", { writable:false } );
-
-
-}
 
 THREE.Matrix4.prototype.__defineGetter__( "motion", function(){
 	if( !this._motion ){

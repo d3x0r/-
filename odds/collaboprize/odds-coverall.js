@@ -119,7 +119,9 @@ for( var z = 0;  z < 1000; z++ )  {
 	runGame();
 	
 }	
-
+		bestwin.forEach( (w,n)=>{
+			bestwin[n] = 1000-bestwin.reduce( (acc,val,idx)=>(idx >= n)?(acc+val):acc, 0 );
+		} );
 		for( var x = 0; x < hotballs; x++ )  {
 			counters[1][x] = counters[0].reduce( (acc,val,idx)=>(idx >= x)?(acc+val):acc, 0 );
 			//counters[1][x] = counters[1][x];

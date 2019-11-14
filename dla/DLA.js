@@ -1,13 +1,12 @@
 
+var dlaConfig = {};
 var config = {};
 
 if( typeof document !== "undefined" ) {
-	config.canvas = document.getElementById( "testSurface" );
-	config.ctx = config.canvas.getContext("2d");
-	config.canvas2 = document.getElementById( "testSurface2" );
-	config.ctx2 = config.canvas2.getContext("2d");
+	dlaConfig.canvas = document.getElementById( "testSurfaceDla" );
+	dlaConfig.ctx = dlaConfig.canvas.getContext("2d");
 } else {
-	config.lib = true;
+	dlaConfig.lib = true;
 }
 
 
@@ -33,13 +32,14 @@ const BASE_COLOR_DARK_BROWN = [0x54,0x33,0x1c,255];  //54331C
 const BASE_COLOR_LIGHT_TAN = [0xE2,0xB5,0x71,255];    //E2B571
 
 
-const SURFACE_SIZE =  1024;
+const SURFACE_SIZE =  512;
+//const SURFACE_SIZE =  1024;
 const SURFACE_PAD = 100;
 const WORK_SIZE = ((2*SURFACE_PAD)+SURFACE_SIZE);
 
 
-config.canvas.width = SURFACE_SIZE;
-config.canvas.height = SURFACE_SIZE;
+dlaConfig.canvas.width = SURFACE_SIZE;
+dlaConfig.canvas.height = SURFACE_SIZE;
 
 //#define WORKTYPE uint16_t
 function roamer(x,y) { return {x:x,y:y} }
@@ -57,7 +57,7 @@ void MoreSalt( uintptr_t psv, POINTER *salt, size_t *salt_size )
 
 const l = {
 	range_colors : [],
-	white : BASE_COLOR_WHITE,
+	white : BASE_COLOR_BLACK,
 	working_plane:[],  // WORKTYPE
 	 roamer_count:0,
 	 roamers:[],
@@ -86,16 +86,17 @@ function ColorAverage( a, b, i,m) {
     return c;//`#${(c[0]<16?"0":"")+c[0].toString(16)}${(c[1]<16?"0":"")+c[1].toString(16)}${(c[2]<16?"0":"")+c[2].toString(16)}`
 }
 
+    var _output = dlaConfig.ctx.getImageData(0, 0, SURFACE_SIZE, SURFACE_SIZE);
+    var output = _output.data;
 
 function drawDIsplay(  )
 {
 	var x, y;
 
-	//config.ctx.clearRect( 0, 0, SURFACE_SIZE, SURFACE_SIZE );
-	config.ctx.fillRect( 0, 0, SURFACE_SIZE, SURFACE_SIZE );
-
-    var _output = config.ctx.getImageData(0, 0, SURFACE_SIZE, SURFACE_SIZE);
-    var output = _output.data;
+	dlaConfig.ctx.clearRect( 0, 0, SURFACE_SIZE, SURFACE_SIZE );
+	//dlaConfig.ctx.fillRect( 0, 0, SURFACE_SIZE, SURFACE_SIZE );
+	//dlaConfig
+    //var _output = dlaConfig.ctx.getImageData(0, 0, SURFACE_SIZE, SURFACE_SIZE);
 	var surface = null;
     var output_offset = 0;
 
@@ -107,15 +108,25 @@ function drawDIsplay(  )
         output[output_offset*4+3] = d[3]; 
         output_offset++
         //output++;
-    }
+	}
+	if(0)
+	for( y = 0; y < SURFACE_SIZE; y++ ) {
+		var here = (( (y) ) * SURFACE_SIZE+ ( 0 ))*4;
+		for( x = 0; x < SURFACE_SIZE; x++, wpl++, here += 4 ){
+			output[ here+0 ] = 0;
+			output[ here+1 ] = 0;
+			output[ here+2 ] = 0;
+			output[ here+3 ] = 0;
+		}
+	}
 
 	for( y = 0; y < SURFACE_SIZE; y++ ) {
 		var wpl = (y + SURFACE_PAD) * WORK_SIZE + 0 + SURFACE_PAD;
 		var here = (( (y) ) * SURFACE_SIZE+ ( 0 ))*4;
 		for( x = 0; x < SURFACE_SIZE; x++, wpl++, here += 4 ){
 			var b;
-			if( b = l.working_plane[ wpl ] ) {
-				var color = ColorAverage( l.range_colors[((b/64)|0)%5], l.range_colors[(((b/64)|0) + 1) % 5], b%64, 64 );
+			if( (b = l.working_plane[ wpl ] ) > 1 ) {
+				var color = ColorAverage( l.range_colors[((b/64)|0)%l.range_colors.length], l.range_colors[(((b/64)|0) + 1) % l.range_colors.length], b%64, 64 );
 				output[ here+0 ] = color[0];
 				output[ here+1 ] = color[1];
 				output[ here+2 ] = color[2];
@@ -131,7 +142,7 @@ function drawDIsplay(  )
 				&& roamer.x < (SURFACE_PAD+SURFACE_SIZE)
 				&& roamer.y < (SURFACE_PAD+SURFACE_SIZE) ){
 					var here = (( roamer.x - SURFACE_PAD ) + ( ( (roamer.y - SURFACE_PAD) ) * SURFACE_SIZE ))*4;
-					output[ here+0]  = l.white[0];
+					output[ here+0]  = 0;//l.white[0];
 					output[ here+1]  = l.white[1];
 					output[ here+2]  = l.white[2];
 					output[ here+3]  = l.white[3];
@@ -139,7 +150,7 @@ function drawDIsplay(  )
 
 		})
 	}
-	config.ctx.putImageData(_output, 0,0);
+	dlaConfig.ctx.putImageData(_output, 0,0);
 
 }
 
@@ -157,8 +168,8 @@ function AddRoamer( )
 	var here;
 	do
 	{
-		x = SURFACE_PAD + l.entropy.getBits( 20 ) % SURFACE_SIZE;
-		y = SURFACE_PAD + l.entropy.getBits( 20 ) % SURFACE_SIZE;
+		x = SURFACE_PAD + Math.random() * SURFACE_SIZE;//l.entropy.getBits( 20 ) % SURFACE_SIZE;
+		y = SURFACE_PAD + Math.random() * SURFACE_SIZE;//l.entropy.getBits( 20 ) % SURFACE_SIZE;
 		here = ( x ) + ( y ) * WORK_SIZE;
 	}
 	while( l.working_plane[here+0] 
@@ -247,25 +258,27 @@ function UpdateRoamers( start ) // offset in thousands
 				&& ( roamer.y > 0/*SURFACE_PAD*/ ) 
 				&& roamer.y < ( SURFACE_SIZE+2*SURFACE_PAD - 1) )
 			{
+                        const globalGen = false;
+                        
 				if( l.working_plane[here-1] )
-					l.working_plane[here+0] = generation;//1+(l.working_plane[here-1]);
+					l.working_plane[here+0] = globalGen?generation:(1+(l.working_plane[here-1]));
 				else if( l.working_plane[here+1] )
-					l.working_plane[here+0] = generation;//1+(l.working_plane[here+1]);
+					l.working_plane[here+0] = globalGen?generation:(1+(l.working_plane[here+1]));
 
 				else if(l.working_plane[ here+1 + WORK_SIZE] )
-					l.working_plane[here+0] = generation;//1+(l.working_plane[here+1 + WORK_SIZE]);
+					l.working_plane[here+0] = globalGen?generation:(1+(l.working_plane[here+1 + WORK_SIZE]));
 				else if( l.working_plane[here+1 - WORK_SIZE] )
-					l.working_plane[here+0] = generation;//1+(l.working_plane[here+1 - WORK_SIZE]);
+					l.working_plane[here+0] = globalGen?generation:(1+(l.working_plane[here+1 - WORK_SIZE]));
 
 				else if( l.working_plane[here-1 + WORK_SIZE] )
-					l.working_plane[here+0] = generation;//1+(l.working_plane[here-1 + WORK_SIZE]);
+					l.working_plane[here+0] = globalGen?generation:(1+(l.working_plane[here-1 + WORK_SIZE]));
 				else if( l.working_plane[here-1 - WORK_SIZE] )
-					l.working_plane[here+0] = generation;//1+(l.working_plane[here-1 - WORK_SIZE]);
+					l.working_plane[here+0] = globalGen?generation:(1+(l.working_plane[here-1 - WORK_SIZE]));
 
 				else if( l.working_plane[here+WORK_SIZE] )
-					l.working_plane[here+0] = generation;//1+(l.working_plane[here+WORK_SIZE]);
+					l.working_plane[here+0] = globalGen?generation:(1+(l.working_plane[here+WORK_SIZE]));
 				else if( l.working_plane[here-WORK_SIZE] )
-					l.working_plane[here+0] = generation;//1+(l.working_plane[here-WORK_SIZE]);
+					l.working_plane[here+0] = globalGen?generation:(1+(l.working_plane[here-WORK_SIZE]));
 
 				if( l.working_plane[here+0] )
 				{
@@ -288,7 +301,7 @@ function UpdateRoamerThread(  )
 	//SetLink( &l.roamers, 120000, 1 );
 	//SetLink( &l.roamers, 120000, 0 );
 		if( !started ) {
-			while( l.roamer_count >= start * 200000 && l.roamer_count < (start+1) * 200000 )
+			while( l.roamer_count >= start * 25000 && l.roamer_count < (start+1) * 25000 )
 				AddRoamer();
 			started = true;
 		}
@@ -301,16 +314,30 @@ function UpdateRoamerThread(  )
 		setTimeout( UpdateRoamerThread, 5 );
 }
 
-/*
+function InitPerlinWater( config )
+{	
+	var waters = 0;
+	const ps = config.patchSize;
+	for( var y = 0; y < ps; y++ )
+		for( var x = 0; x < ps; x++ ) {
+			if( config.gen_noise[y*ps+x] < 0.20 ) {
+				l.working_plane[(SURFACE_PAD+y)*WORK_SIZE+(SURFACE_PAD+x)] = 1;
+				waters++;
+			}
+		}
+
+	console.log( "There's something silly here:", waters );
+}
+
 function InitSkyAndLand(  )
 {
 	var n;
 	for( n = 0; n < SURFACE_SIZE; n++ )
 	{
-		l.working_plane[ (SURFACE_PAD) * ( WORK_SIZE ) 
+		l.working_plane[ (SURFACE_SIZE+SURFACE_PAD) * ( WORK_SIZE ) 
 						+ SURFACE_PAD + n ] = 1;
 	}
-
+/*
 	for( n = 0; n < SURFACE_SIZE; n += 16 )
 	{
 		var source = {x:0,y:0};
@@ -319,6 +346,7 @@ function InitSkyAndLand(  )
 		l.sources.push( source );
 		l.source_count++;
 	}
+	*/
 	{
 		l.source_bits = 0;
 		for( n = 0; n < 32; n++ )
@@ -327,10 +355,10 @@ function InitSkyAndLand(  )
 		l.source_bits++;
 	}
 }
-*/
 
-/*
-function InitSkyAndSmallLand(  )
+
+
+function InitVerticalBar(  )
 {
 	var n;
 	for( n = 0; n < 20; n++ )
@@ -344,6 +372,7 @@ function InitSkyAndSmallLand(  )
 						+ SURFACE_PAD + SURFACE_SIZE / 2  ] = 1;
 	}
 
+/*
 	for( n = 0; n < SURFACE_SIZE; n += 16 )
 	{
 		struct roamer *source = New( struct roamer );
@@ -352,6 +381,7 @@ function InitSkyAndSmallLand(  )
 		AddLink( &l.sources, source );
 		l.source_count++;
 	}
+	*/
 	{
 		l.source_bits = 0;
 		for( n = 0; n < 32; n++ )
@@ -360,7 +390,7 @@ function InitSkyAndSmallLand(  )
 		l.source_bits++;
 	}
 }
-*/
+
 
 function InitSpaceSparks(  )
 {
@@ -382,7 +412,7 @@ function InitSpaceSparks(  )
 	for( n = 0; n < 125; n ++ )
 	{
 		var source = {x:0,y:0};
-		var n = l.entropy.getBits( 20, 0 ) % SURFACE_SIZE * 4;
+		var n =  Math.random() * SURFACE_SIZE*4;// l.entropy.getBits( 20, 0 ) % SURFACE_SIZE * 4;
 		if( n < SURFACE_SIZE )
 		{
 			source.x = n + SURFACE_PAD;
@@ -419,12 +449,19 @@ function InitSpaceSparks(  )
 
 function main()
 {
+
+	if( !config.gen_noise )
+		setTimeout( main, 10);
+
 	for( var n = 0; n < WORK_SIZE*WORK_SIZE; n++ )
 		l.working_plane[n] = 0;
 
-	InitSpaceSparks();
+	//InitSpaceSparks();
+	//InitVerticalBar();
+	//InitSkyAndLand();
+	InitPerlinWater( config );
 
-	l.white = BASE_COLOR_WHITE;
+	l.white = BASE_COLOR_BLACK;
 
 	const RANGES = [BASE_COLOR_BLACK, BASE_COLOR_DARK_BLUE
 				, BASE_COLOR_MID_BLUE, BASE_COLOR_LIGHT_TAN
@@ -432,12 +469,12 @@ function main()
 				, BASE_COLOR_DARK_BROWN, BASE_COLOR_WHITE
 				, BASE_COLOR_BLACK ];
 
-	l.range_colors[0] = BASE_COLOR_BLUE;
+	l.range_colors[0] = BASE_COLOR_LIGHTBLUE;
 	l.range_colors[1] = BASE_COLOR_LIGHT_TAN;
 	l.range_colors[2] = BASE_COLOR_DARK_GREEN;
-	l.range_colors[3] = BASE_COLOR_LIGHT_TAN;
-	l.range_colors[4] = BASE_COLOR_DARK_BROWN;
-	l.range_colors[5] = BASE_COLOR_WHITE;
+	l.range_colors[3] = BASE_COLOR_DARK_BROWN;
+	l.range_colors[4] = BASE_COLOR_YELLOW;
+	l.range_colors[5] = BASE_COLOR_MAGENTA;
 
 	TickUpdateDisplay();
 	UpdateRoamerThread();

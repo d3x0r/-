@@ -21,6 +21,10 @@ const popups = {
 	create : createPopup,
 	simpleForm : createSimpleForm,
 	simpleNotice : createSimpleNotice,
+        list : createList,
+        makeCheckbox : makeCheckbox,
+        makeNameInput : makeNameInput,
+        makeTextInput : makeTextInput,
 }
 
 var popupTracker;
@@ -338,6 +342,238 @@ function createSimpleNotice( title, question, ok ) {
 	popup.center();
 	popup.hide();
 	return popup;
+}
+
+
+
+function createList( parentList, toString ) {
+	var selected = null;
+	var groups = [];
+	var itemOpens = false;
+	var groupList = {
+		divTable:parentList.parent,		
+
+		push(group, toString_, opens) {
+			var itemList = this.divTable.childNodes;
+			var nextItem = null;
+			for( nextItem of itemList) {
+				if( nextItem.textContent > toString(group) ) 
+					break;
+				nextItem = null;
+			}
+			
+			var newLi = document.createElement( "LI" );
+			newLi.className = "listItem"
+			
+			this.divTable.insertBefore( newLi, nextItem );//) appendChild( newLi );
+			newLi.addEventListener( "click", (e)=>{
+				e.preventDefault();
+				if( selected )
+					selected.classList.remove("selected");
+				newLi.classList.add( "selected" );
+				selected = newLi;
+			})
+
+			var newSubList = document.createElement( "UL");
+			newSubList.className = "listSubList";
+			if( parentList.parentItem )
+				parentList.parentItem.enableOpen( parentList.thisItem );
+			if( opens ) {
+			//	this.enableOpen(newLi);
+			}
+
+			var treeLabel = document.createElement( "span" );
+			treeLabel.textContent = toString(group);
+			treeLabel.className = "listItemLabel";
+			newLi.appendChild( treeLabel );
+
+			//var newSubDiv = document.createElement( "DIV");
+			newLi.appendChild( newSubList );
+			//newSubList.appendChild( newSubDiv);
+			var newRow;
+			var listParams;
+			var subItems = createList( listParams = { thisItem: null, parentItem: this, parent: newSubList }, toString_, true );
+			groups.push( newRow={ opens : false, group:group, item: newLi, subItems:subItems, parent:parentList } );
+			listParams.thisItem = newRow;
+			return newRow;
+		},
+		enableOpen(item) {
+			if( item.opens) return;
+			item.opens = true;
+				var treeKnob = document.createElement( "span" );
+				treeKnob.textContent = "-";
+				treeKnob.className = "knobOpen";
+				item.item.insertBefore( treeKnob, item.item.childNodes[0] );
+				treeKnob.addEventListener( "click", (e)=>{
+					e.preventDefault();
+					if( treeKnob.className === "knobClosed"){
+						treeKnob.className = "knobOpen";
+						treeKnob.textContent = "-";
+						item.subItems.items.forEach( sub=>{
+							sub.item.style.display="";
+						})
+					}else{
+						treeKnob.className = "knobClosed";
+						treeKnob.textContent = "+";
+						item.subItems.items.forEach( sub=>{
+							sub.item.style.display="none";
+						})
+
+					}
+				})
+		},
+		enableDrag(type,item,key1,item2,key2) {
+			item.item.setAttribute( "draggable", true );
+			item.item.addEventListener( "dragstart", (evt)=>{
+				//if( evt.dataTransfer.getData("text/plain" ) )
+				//	evt.preventDefault();
+				if( item2 )
+					evt.dataTransfer.setData( "text/" + type, item.group[key1]+","+item2.group[key2])
+				else
+					evt.dataTransfer.setData( "text/" + type, item.group[key1])
+				evt.dataTransfer.setData("text/plain",  evt.dataTransfer.getData("text/plain" ) + JSON.stringify( {type:type,val1:item.group[key1],val2:item2 && item2.group[key2] } ) );
+				console.log( "dragstart:", type );
+				if( item )
+					evt.dataTransfer.setData("text/item", item.group[key1] );
+				if( item2 )
+					evt.dataTransfer.setData("text/item2", item2.group[key2] );
+			})
+		},
+		enableDrop( type, item, cbDrop ) {
+			item.item.addEventListener( "dragover", (evt)=>{
+				evt.preventDefault();
+				evt.dataTransfer.dropEffect = "move";
+				//console.log( "Dragover:", evt.dataTransfer.getData( "text/plain" ), evt );
+			})
+			item.item.addEventListener( "drop", (evt)=>{
+				evt.preventDefault();
+				var objType = evt.dataTransfer.getData( "text/plain" );
+				JSOX.begin( (event)=>{
+					if( type === event.type ){
+						//console.log( "drop of:", evt.dataTransfer.getData( "text/plain" ) );
+						cbDrop( accruals.all.get( event.val1 ) );
+					}
+				} ).write( objType );
+			})
+		},
+		update(group) {
+			var item = groups.find( group_=>group_.group === group );
+			item.textContent = toString( group );
+		},
+		get items() {
+			return groups;
+		},
+		reset() {
+			while( this.divTable.childNodes.length )
+				this.divTable.childNodes[0].remove();
+		}
+	}
+	return groupList;
+}
+
+function makeCheckbox( form, o, text, field ) 
+{
+	var textCountIncrement = document.createElement( "SPAN" );
+	textCountIncrement.textContent = text;
+	var inputCountIncrement = document.createElement( "INPUT" );
+	inputCountIncrement.setAttribute( "type", "checkbox");
+	inputCountIncrement.className = "checkOption rightJustify";
+	inputCountIncrement.checked = o[field];
+	//textDefault.
+
+	var binder = document.createElement( "div" );
+	binder.className = "fieldUnit";
+	binder.addEventListener( "click", (e)=>{ if( e.target===inputCountIncrement) return; e.preventDefault(); inputCountIncrement.checked = !inputCountIncrement.checked; })
+	form.appendChild(binder );
+	binder.appendChild( textCountIncrement );
+	binder.appendChild( inputCountIncrement );
+	//form.appendChild( document.createElement( "br" ) );
+	return {
+		get checked() {
+			return inputCountIncrement.checked;
+		},
+		set checked(val) {
+			inputCountIncrement.checked = val;
+		},
+		get value() { return this.checked; },
+		set value(val) { this.checked = val; },
+	}
+}
+
+function makeTextInput( form, input, text, value, money, percent ){
+
+	var textMinmum = document.createElement( "SPAN" );
+	textMinmum.textContent = text;
+	var inputMinimum = document.createElement( "INPUT" );
+	inputMinimum.className = "textInputOption rightJustify";
+	//textDefault.
+	if( money ) {
+		inputMinimum.value = utils.to$(input[value]);
+		inputMinimum.addEventListener( "change", (e)=>{
+			var val = utils.toD(inputMinimum.value);
+			inputMinimum.value = utils.to$(val);
+		})
+	} else if( percent ) {
+		inputMinimum.value = utils.toP(input[value]);
+		inputMinimum.addEventListener( "change", (e)=>{
+			var val = utils.fromP(inputMinimum.value);
+			inputMinimum.value = utils.toP(val);
+		})
+	}else {
+		inputMinimum.value = input[value];
+	}
+
+	var binder = document.createElement( "div" );
+	binder.className = "fieldUnit";
+	form.appendChild(binder );
+	binder.appendChild( textMinmum );
+	binder.appendChild( inputMinimum );
+	return {
+		get value () {
+			if( money )
+				return utils.toD(inputMinimum.value);
+			if( percent ) 
+				return utils.fromP(inputMinimum.value);
+			return inputMinimum.value;
+		},
+		set value (val) {
+			if( money )
+				inputMinimum.value = utils.to$(val);
+			else if( percent )
+				inputMinimum.value = utils.toP(val);
+			else
+				inputMinimum.value = val;			
+		}
+	}
+}
+
+function makeNameInput( form, input, text ){
+	var binder;
+	var textLabel = document.createElement( "SPAN" );
+	textLabel.textContent = text;
+
+	var text = document.createElement( "SPAN" );
+	text.textContent = input.name;
+
+	var buttonRename = document.createElement( "Button" );
+	buttonRename.textContent = "(rename)";
+	buttonRename.className="buttonOption rightJustify";
+
+	binder = document.createElement( "div" );
+	binder.className = "fieldUnit";
+	form.appendChild(binder );
+	binder.appendChild( textLabel );
+	binder.appendChild( text );
+	binder.appendChild( buttonRename );
+	//binder.appendChild( document.createElement( "br" ) );
+	return {
+		get value() {
+			return text.textContent;
+		}		,
+		set value(val) {
+			text.textContent = val;
+		}
+	}
 }
 
 

@@ -10,7 +10,7 @@ for( var arg = 2; arg < args.length; args++ ) {
 		}
 	}
 }
-const sack = require( "../sack.vfs" );
+const sack = require( "sack.vfs" );
 const JSOX=sack.JSOX;
 var config = require ('./config.js');
 const fc = require( "./file_cluster.js" );

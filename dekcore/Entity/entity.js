@@ -14,7 +14,7 @@ const stream = require('stream');
 const util = require('util');
 const process = require('process');
 const crypto = require('crypto');
-const sack = require( "../../sack.vfs" );
+const sack = require( "sack.vfs" );
 const JSOX = sack.JSOX;
 
 //const idMan = require('../id_manager.js');
@@ -172,9 +172,9 @@ var fc = require('../file_cluster.js');
 
 const config = require('../config.js');
 
-const vfs = require('../../sack.vfs');
+const vfs = require('sack.vfs');
 const vol = vfs.Volume();
-const vfsNaked = require('../../sack.vfs');
+const vfsNaked = require('sack.vfs');
 
 const volOverride = `(function(vfs, dataRoot) {
 	vfs.mkdir = vfs.Volume.mkdir;

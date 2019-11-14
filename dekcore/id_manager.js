@@ -5,7 +5,7 @@ const _debug = false;
 //console.log( "using require: ", require, module )
 const fs = require('fs');
 const server = require( './https_server.js');
-const sack = require( "../sack.vfs" );
+const sack = require( "sack.vfs" );
 const JSOX=sack.JSOX;
 const JSON=sack.JSOX;
 
@@ -106,6 +106,7 @@ function keyProto(Λ, o) {
 	if( !stringifierInitialized ) {
 		myStringifier.defineClass( "id", key );
 		stringifierInitialized = true;
+		myParser.registerFromJSOX( "id", keyProto.prototype );
 	}
 
 	["made", "authed"].forEach(prop => {
@@ -403,10 +404,10 @@ function isKeyCreator(key, next, callback) {
 }
 
 function saveKeys(callback) {
-	var fileName = config.run.defaults.dataRoot + "/id.json";
-	var msg =  myStringifier.stringify( keyTracker, null, '\t' );
-	//console.log( "Saving keys:", fileName, msg );
-	fc.store(fileName, msg, callback);
+	var fileName = config.run.defaults.dataRoot + "/id.json"
+	var src = myStringifier.stringify( keyTracker, null, '\t' );
+	//console.log( "Saving keys:", fileName, "\n", src );
+	fc.store(fileName, src, callback);
 }
 
 function TrackKeyFrags() {

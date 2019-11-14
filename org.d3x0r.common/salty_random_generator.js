@@ -636,29 +636,29 @@ function KangarooTwelve() {
 			//console.log( "S?", s );
 		},
 		update(buf) {
-	       		var byteLength;
+			if( buf.length > data.keybuflen ) {
+			var byteLength;
 			if( buf instanceof Array ) {
-                                buf = buf.join();
-        	        	byteLength = k12.lengthBytesUTF8( buf );
-                        } else if( "string" === typeof buf ) {
-        	        	byteLength = k12.lengthBytesUTF8( buf );
-                        } else if( buf instanceof Uint32Array ) {
+				buf = buf.join();
+				byteLength = k12.lengthBytesUTF8( buf );
+			} else if( "string" === typeof buf ) {
+				byteLength = k12.lengthBytesUTF8( buf );
+			} else if( buf instanceof Uint32Array ) {
 				byteLength = buf.length * 4;
-                        } else if( buf instanceof Uint8Array ) {
+			} else if( buf instanceof Uint8Array ) {
 				byteLength = buf.length;
-                        }
-                        
-		        if( byteLength > data.keybuflen ) {
+			}
+
+			if( byteLength > data.keybuflen ) {
 				if( data.keybuf )
 					k12._free( data.keybuf );
 				data.keybuflen = byteLength*2+1;
 				data.keybuf = k12._malloc( data.keybuflen );
 		
 			}
-                        
-			if( "string" === typeof buf )
+			if( "string" === typeof buf ) {
 				k12.stringToUTF8( buf, data.keybuf, byteLength );
-			else if( buf instanceof Uint32Array ) {
+			}else if( buf instanceof Uint32Array ) {
 				var keydata = new Uint32Array( k12.HEAPU32.buffer, data.keybuf, buf.length );
 				//console.log( "copy keydata from binay", keydata );
 				for( var b = 0; b < buf.length; b++ )
@@ -1050,10 +1050,10 @@ function  Shuffle( numbers, count, RNG )
 exports.Shuffler = function( opts ) {
 	var RNG;
 	if( opts && opts.salt ) {
-		RNG = SaltyRNG( opts.salt, {mode:1} );
+		RNG = exports.SaltyRNG( opts.salt, {mode:1} );
 	}
 	else 
-		RNG = SaltyRNG( shuffleSeeder, {mode:1} );
+		RNG = exports.SaltyRNG( shuffleSeeder, {mode:1} );
 	return {
 		shuffle(numbers,count) {
 			 return Shuffle(numbers,count, RNG);

@@ -79,6 +79,17 @@ function initKeys() {
 */        
 }
 //initKeys();
+console.log( "Startup:", idGen() );
+console.log( "Startup:", idGen() );
+console.log( "Startup:", idGen() );
+console.log( "Startup:", idGen() );
+console.log( "Startup:", idGen() );
+console.log( "Startup:", idGen() );
+console.log( "Startup:", idGen() );
+console.log( "Startup:", idGen() );
+console.log( "Startup:", idGen() );
+console.log( "Startup:", idGen() );
+console.log( "Startup:", idGen() );
 
 
 
@@ -149,7 +160,7 @@ function KeyFrag(fragof) {
 
 exports.Auth = (key) => {
 	if (keyTracker.keys.get(key.Λ))
-		return validateKey(key, (k) => k.authby );
+		return validateKey(key, (k) =>{ if( k.authby === k ) throw new Error( "Hey, you're at the root already."); return k.authby } );
 	return false;
 }
 
@@ -203,7 +214,6 @@ exports.madeFrom = (key, maker, cb) => {
 
 Object.defineProperty(exports, "localAuthKey", {
 	get: function () {
-		//console.log( "local authkey request..." );
 		if (keyTracker.lkey)
 			return keyTracker.lkey;
 		//console.log( "create a new local authority", config.run.Λ );
@@ -255,7 +265,7 @@ exports.ID = ID; function ID(making_key, authority_key, callback) {
 	//console.log( keyTracker.keys[making_key.Λ] );
 	if (!making_key) throw new Error("Must specify at least the maker of a key");
 	if (!keyTracker.keys.get(config.run.Λ)) {
-			console.trace("ID() waiting for config...", JSOX.stringify(config.run), keyTracker.keys)
+		console.trace("ID() waiting for config...", JSOX.stringify(config.run), keyTracker.keys)
 		config.injectStart(() => { ID(making_key, authority_key, callback); });
 		config.defer(); // save any OTHER config things for later...
 		return;
@@ -279,8 +289,8 @@ exports.ID = ID; function ID(making_key, authority_key, callback) {
 	if (making_key === authority_key)
 		throw new Error("Invalid source keys");
 
-	if( (!making_key || !validateKey(making_key, (k) => { return k.maker }))
-		|| (!authority_key || !validateKey(authority_key, (k) => { return k.authby }))) {
+	if( (!making_key || !validateKey(making_key, (k) => { if( k === k.maker ) throw new Error( "HEY YOU're AT THE ROOT" ); return k.maker }))
+		|| (!authority_key || !validateKey(authority_key, (k) => { if( k === k.authby ) throw new Error( "HEY You're at the root" ); return k.authby }))) {
 			throw new Error( JSON.stringify( { msg: "Invalid source key", maker: making_key, auth: authority_key } ) );
 		}
 	var newkey = Key(making_key);
@@ -323,7 +333,7 @@ function validateKey(key, next, callback) {
 	}
 	if (key.Λ) ID = keyTracker.keys.get(key.Λ);
 	else ID = keyTracker.keys.get(key);
-	_debug && console.log( "validate key ", JSOX.stringify(ID,null, '\t') )
+	//_debug && console.log( "validate key ", !!ID, ID.trusted, ID.maker.Λ, ID.Λ, config.run.Λ );
 	if (ID) {
 		//console.log( "validate key had a key find", ID)
 		if (ID.invalid)
@@ -456,9 +466,9 @@ function loadKeyFragments(o) {
 				} else {
 					var data = fc.Utf8ArrayToStr(buffer);
 					try {
-						console.log( "about to parse this as json\n", data );
+						//console.log( "about to parse this as json\n", data );
 						var reloaded_keys = JSOX.parse(data);
-						console.log("no error", reloaded_keys);
+						//console.log("no error", reloaded_keys);
 						//if( keys.length === 0 )
 					} catch (error) {
 						console.log(data);
@@ -523,7 +533,7 @@ function loadKeys() {
 			var data = fc.Utf8ArrayToStr(buffer);
 			//console.log( "...", data.length );
 			try {
-				//console.log( "jsox parse?", data )
+				//_debug && console.log( "jsox parse?", data )
 				var loaded_keys = JSOX.parse(data);
 				//_debug && console.log( "data parsed ", loaded_keys);
 				keyTracker = loaded_keys;
@@ -577,7 +587,6 @@ function loadKeys() {
 				runkey.authby = key;
 				//console.log( "throwing away ", runkey.Λ );
 				keyTracker.keys.delete(runkey.Λ);
-				console.log("replace run key set")
 				keyTracker.keys.set(config.run.Λ, runkey);
 				runkey.Λ = config.run.Λ;
 				keyTracker.mkey = key;

@@ -1,6 +1,8 @@
 
 
-.body {
+body {
+	color:turquoise;
+	background-color:black;
 	position:relative;
 }
 

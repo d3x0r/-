@@ -35,13 +35,15 @@ else {
 
 entity.create( "Command And Control", "user manager", "userManagerStartup.js" )
 
+create( "MOOSE-HTTP", "(HTTP)Master Operator of System Entites.", "startupWeb.js" )
+
 //entity.create( "Command And Control-HTTP", "http MOOSE console", "webShell/shellServer.js" );
 
 // these are private To MOOSE anyway... so they're not a lot of good?
 var services = null;
 var firewall = null;
 var auth = null;
-console.log( "------- create servcies ------------")
+console.log( "------- create services ------------")
 entity.create( "Services"
 		, "Service Directory Manager and authenticator"
 		, "services/services/serviceService.js"

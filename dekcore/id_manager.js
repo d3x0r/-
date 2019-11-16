@@ -79,19 +79,6 @@ function initKeys() {
 */        
 }
 //initKeys();
-console.log( "Startup:", idGen() );
-console.log( "Startup:", idGen() );
-console.log( "Startup:", idGen() );
-console.log( "Startup:", idGen() );
-console.log( "Startup:", idGen() );
-console.log( "Startup:", idGen() );
-console.log( "Startup:", idGen() );
-console.log( "Startup:", idGen() );
-console.log( "Startup:", idGen() );
-console.log( "Startup:", idGen() );
-console.log( "Startup:", idGen() );
-
-
 
 function keyProto(Λ, o) {
 	var key = o || {

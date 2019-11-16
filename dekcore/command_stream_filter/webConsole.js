@@ -16,7 +16,7 @@ const root = require.resolve("./ui");
 var disk = sack.Volume();
 var myDisk = sack.Volume( "myDisk" );
 
-//console.warn( "Disk is open in:", disk.dir() );
+console.warn( "Disk is open in:", disk.dir() );
 
 
 function createSpawnServer( sandbox ) {
@@ -42,12 +42,12 @@ function createSpawnServer( sandbox ) {
 			req.connection.socket.remoteAddress;
 		//ws.clientAddress = ip;
 
-		console.trace( "Received request:", req.url );
+		console.warn( "Received request:", req.url );
 		if( req.url === "/" ) req.url = "/index.html";
 		var filePath = root + unescape(req.url);
 		var extname = path.extname(filePath);
 		var contentType = 'text/html';
-		console.trace( ":", extname, filePath )
+		console.warn( ":", extname, filePath )
 		switch (extname) {
 			case '.js':
 			case '.mjs':
@@ -100,7 +100,7 @@ function createSpawnServer( sandbox ) {
 	server.onconnect( function (ws) {
 
 		var entity = null;	
-			var sendTo = null;
+		var sendTo = null;
 		spawnEntity( ws, sandbox, (e, input )=>{
 			entity = e;
 					sendTo = input;
@@ -120,11 +120,9 @@ function createSpawnServer( sandbox ) {
 				//console.log( "Remote closed" );
 			} );
 	} );
-
-
 }
 
-
+var counter = 1;
 
 function spawnEntity( ws, sandbox, resultTo ) {
 
@@ -158,13 +156,22 @@ function spawnEntity( ws, sandbox, resultTo ) {
         	        ,connectOutput : function(stream) { 
                 		this.filter.pipe( stream );
 	                } 
-        	};
+			};
+			tmp.filter.on("finish", ()=>{
+				console.trace( "WebConsole Finish Event");
+			});
+			tmp.filter.on("end", ()=>{
+				console.trace( "WebConsole End Event");
+			});
+			tmp.filter.on("close", ()=>{
+				console.trace( "WebConsole Close Event");
+			});
 	        return tmp;
 
 	}
 	                
-        create( sandbox.name, sandbox.description, 
-                (e)=>{
+	create( sandbox.name+":"+counter, sandbox.description, 
+		(e)=>{
 			// new entity exists now... (feedback created?)
 			
 			if( !("io" in e.sandbox) ) e.sandbox.io = {};
@@ -172,7 +179,7 @@ function spawnEntity( ws, sandbox, resultTo ) {
 			var shellFilter = e.sandbox.io.command = shell.Filter( e.sandbox );
 
 			var cons = clientFilter();
-                        var send = cons.filter.push.bind(cons.filter);
+			var send = cons.filter.push.bind(cons.filter);
 
 			var nl = require(  './command_stream_filter/strip_newline.js' ).Filter();
 			    
@@ -181,9 +188,8 @@ function spawnEntity( ws, sandbox, resultTo ) {
 			shellFilter.connectInput( nl.filter);			
 			shellFilter.connectOutput( cons.filter );
     
-			//send( "/help" );
-                        resultTo( e, send );
-                    } );
+			resultTo( e, send );
+		} );
 
 
 }

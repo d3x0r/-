@@ -6,16 +6,16 @@ function Filter( transform ) {
 	var tmp = transform;
 	Object.assign( tmp, {
         	filter : transform
-        	, connectInput : function(stream) {
+        	, connectInput(stream) {
             	stream.pipe( this.filter );
             }
-            ,connectOutput : function(stream) {
+            ,connectOutput(stream) {
             	this.filter.pipe( stream );
             }
-            , disconnectInput : function(stream) {
+            , disconnectInput(stream) {
                 stream.unpipe( this.filter );
             }
-            , disconnectOutput : function(stream) {
+            , disconnectOutput(stream) {
                 this.filter.unpipe( stream );
             }
         } );

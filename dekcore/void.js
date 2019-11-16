@@ -153,6 +153,7 @@ https.addProtocol( "dekware.core", (ws)=>{
 
 function BigBang() {
 	console.log( "Creating the void....");
+	/*
 	Entity.reloadAll( ()=>{
 			// onLoadComplete
 			//console.log( "Okay now ... how to start this?")
@@ -162,9 +163,14 @@ function BigBang() {
 			MOOSE.sandbox.io.command = shell.Filter( MOOSE.sandbox );
 			//MOOSE.sandbox.require( "./startup.js" ); // still do first run on first object?
 			//run(); // enable discovery; services are stil loading...
+			//console.log( "What is a MOOSE then?", MOOSE );
+			//MOOSE.container.create( "(recover)MOOSE-HTTP", "(HTTP)Master Operator of System Entites.", (o)=>{
+			//	o.sandbox.require( "startupWeb.js" );
+			//})
 
 		},
 		()=>{
+			*/
 		Entity.create( null, "The Void", "Glistening transparent black clouds swirl in the dark.", (o)=>{
 			console.log( "Creating first entity" );
 			Entity.theVoid = o;
@@ -189,7 +195,7 @@ function BigBang() {
 					o.sandbox.require( "startupWeb.js" );
 			})
 		} );
-	});
+	//});
 }
 
 //------------- some initial startup modes

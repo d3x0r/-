@@ -37,8 +37,6 @@ function openSocket() {
 	setTimeout( openSocket, 5000 ); // 5 second delay.
   	// websocket is closed. 
   };
-
-
 }
 
 
@@ -82,6 +80,7 @@ function createConsole() {
 	
 	vcon.input.placeHolder = "<input text here>";
 
+	vcon.output.addEventListener( "click", ()=>setCaretToEnd( vcon.input));
 
 function setCaretToEnd(target/*: HTMLDivElement*/) {
   const range = document.createRange();
@@ -98,8 +97,12 @@ function setCaretToEnd(target/*: HTMLDivElement*/) {
 }
 
 	vcon.input.addEventListener( "keydown", (evt)=>{
-		console.log( evt );
-		if( evt.key === 'Enter' && ( evt.ctrlKey || evt.altKey ) ) {
+		//console.log( evt );
+		if( evt.key === 'Enter'  ) {
+			if( evt.shiftKey ) {
+				//&& ( evt.ctrlKey || evt.altKey )
+
+			}
 			evt.preventDefault();			
 			sendCommand();
 			return;
@@ -111,7 +114,6 @@ function setCaretToEnd(target/*: HTMLDivElement*/) {
 				vcon.input.textContent = l.commandHistory[l.commandHistory.length-l.commandIndex].command;
 
 				evt.preventDefault();			
-				//vcon.input.focus();
                                 setCaretToEnd( vcon.input );
 				
 			}
@@ -125,7 +127,6 @@ function setCaretToEnd(target/*: HTMLDivElement*/) {
 					vcon.input.textContent = "";
 				
 				evt.preventDefault();			
-				//vcon.input.focus();
                                 setCaretToEnd( vcon.input );
 			}
 		}

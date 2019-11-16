@@ -285,7 +285,9 @@ function sealSandbox(sandbox) {
 
 function sealEntity(o) {
 	//console.log( "before sealing:", JSOX.stringify(o ) );
-	["container", "contents", "attached_to", "created", "created_by"
+	[ //"container", 
+		//"contents", 
+		"attached_to", "created", "created_by"
 	].forEach(key => {
 		Object.defineProperty(o, key, { enumerable: true, writable: true, configurable: false });
 	})
@@ -392,8 +394,9 @@ function makeEntity(obj, name, description, callback, opts) {
 		sealEntity(o);
 
 		o.within.sandbox.emit("created", o);
-		o.within.sandbox.emit("inserted", o);
-		o.within.contains.forEach(near => (near !== o) ? near.sandbox.emit("joined", o) : 0 );
+		o.within.sandbox.emit("stored", o);
+
+		o.within.contains.forEach(near => (near !== o) ? near.sandbox.emit("joined", o.sandbox.entity) : 0 );
 
 		if (!callback)
 			throw ("How are you going to get your object?");
@@ -434,8 +437,11 @@ var timerId;  // static varible to create timer identifiers.
 			, Buffer: Buffer
 			, create: o.create.bind(o)
 			, look : o.look.bind(o)
+			, leave : o.leave.bind(o)
+			, enter : o.enter.bind(o)
 			, grab : o.grab.bind(o)
 			, drop : o.drop.bind(o)
+			, store: o.store.bind(o)
 			, crypto: crypto
 			, config: {
 				commit() {
@@ -749,11 +755,20 @@ function addDriver( o, name, iName, iface) {
 				a = objects.get(a.Λ);
 				o.store(a);
 			},
+			attach(a){
+				a = objects.get(a.Λ)
+				o.attach(a);
+			},
+			detach(a){
+				a = objects.get(a.Λ)
+				o.detach(a);
+			},
 			run(statement) {
 				o.run(statement);
 			},
 			get(o) { return objects.get(o)&&objects.get(o).sandbox.entity; },
 			get parent() { return o.parent&&o.parent.sandbox.entity; },
+			get container() { return o.container&&o.container.sandbox.entity; },
 			//get value() { return o.value; }
 		}
 		return i;
@@ -816,6 +831,11 @@ function addDriver( o, name, iName, iface) {
 
 				var oldModule = o.sandbox._module;
 				var root = cache.closure.root;
+				if( !cache.closure.paths ){
+					console.log( "About to log error?" );
+					console.log( "Undefined paths:", cache.closure.paths, __dirname , ".");
+					cache.closure.paths = [process.cwd()];
+				}
 				var thisModule = {
 					filename: cache.closure.filename
 					, src : cache.closure.src
@@ -827,6 +847,8 @@ function addDriver( o, name, iName, iface) {
 					, includes : []
 					, loaded: false
 				}
+				//console.log( "NEW MODULE HERE CHECK PATHS:", cache.closure.paths, cache.closure.filename )
+
 				oldModule.includes.push( thisModule );
 				//        { name : src.substr( pathSplit+1 ), parent : o.sandbox.module, paths:[], root : rootPath, exports:{} };
 				//oldModule.children.push( thisModule );
@@ -955,9 +977,10 @@ function sandboxRequireResolve(path){
 		//console.log( "final otuput:", tmp );
 		return tmp;
 	}
-	//console.log( "RESOLVE IS TRYING:", path /*, o.sandbox._module */ );
+	console.log( "RESOLVE IS TRYING:", path , o.sandbox._module.paths, o.sandbox.name );
 
-	var tmp = o.sandbox._module.paths[0] + "/" + path;
+	var usePath = o.sandbox._module.paths?o.sandbox._module.paths[0]+"/":"";
+	var tmp = usePath + path;
 	//console.log( "append:", tmp );
 	tmp = tmp.replace( /[/\\]\.[/\\]/ , '/' );
 	tmp = tmp.replace( /[^/\\]*[/\\]\.\.[/\\]/g , '' );
@@ -997,22 +1020,27 @@ function Entity(obj,name,desc ) {
 
 
 var entityMethods = {
-		get container() { return this.within; }
+		get container() { /*console.log( "Getting container:",this); */return this.within; }
 		, create(name, desc, cb, value) {
 			//console.trace("Who calls create?  We need to return sandbox.entity?");
 			if (typeof desc === 'function') {
 				cb = desc; desc = null;
 			}
+			var this_ = this;
 			makeEntity(this, name, desc, (newo) => {
 				console.warn( "Make Entity result with entity...", cb );
 				newo.value = value;
+				//this_.sandbox.emit('stored', newo.sandbox.entity );
+				//this_.contains.forEach( peer=>{
+				//	peer.sandbox.emit('joined', newo.sandbox.entity );
+				//});
 				if (typeof cb === 'string') {
-					//console.trace( "cb is a script, call value as callback......")
 					newo.sandbox.require(cb); // load and run script in entity sandbox
 					if (value) value(newo);
 				} else
 					if (cb) cb(newo) // this is a callback that is in a vm already; but executes on this vm instead of the entities?
 			});
+			
 		}
 		, birth( ) {
 			remotes.set( this, this );
@@ -1083,45 +1111,59 @@ var entityMethods = {
 			{
 				a.attached_to.set(this.Λ, this);
 				this.attached_to.set(a.Λ, a);
-				this.sandbox.emit('attached', a);
-				a.sandbox.emit('attached', this);
+				this.sandbox.emit('attached', a.sandbox.entity);
+				a.sandbox.emit('attached', this.sandbox.entity);
 			}
 		}
 		, detach(a) {
 			if( a.attached_to.get( this.Λ) )
 				if( this.attached_to.get( a.Λ) ) {
-					if( a.within ) {
-						a.within.contains.delete( a.Λ );
-						a.within.contains.set( this.Λ, this );
-						this.within = a.within;
-						a.within = NULL;
-						this.within.sandbox.emit( "rebase", a.sandbox.Entity );
-						this.within.sandbox.emit( "debase", this.sandbox.Entity );
-					}
-
+					// one or the other of these is within.
+					// both have to be attached to the third.
 					a.attached_to.delete(this.Λ);
 					this.attached_to.delete(a.Λ);
-					this.sandbox.emit('detached', a);
-					a.sandbox.emit('detached', this);				
-					return;
+
+					this.sandbox.emit('detached', a.sandbox.entity);
+					a.sandbox.emit('detached', this.sandbox.entity);				
+
+					//if( isAttached( this, null, a, ) ) {
+					//	console.log( "Entity is Still attached?");
+					//	return false;
+					//}
+
+					return true;
 				}
 			throw "objects are not attached: " + this.name + " & " + a.name;
+			return false;
 		}
 		, insert(a) {
 			a.within = this;
+			this.sandbox.emit('stored', a.sandbox.entity );
+			this.contains.forEach( peer=>{
+				peer.sandbox.emit('joined', a.sandbox.entity );
+			});
 			this.contains.set( a.Λ, a );
-			this.sandbox.emit('stored', a.sandbox.Entity );
-			a.sandbox.emit('gained', this.sandbox.Entity );
+			a.sandbox.emit('placed', this.sandbox.entity );
 		}
-		, rebase(a) {
+		, rebase() {
 			// this removes an entity from space...
 			// it is no longer within
 			// it remains attached... so either
 			// the
-			if( a.within ){
-				a.within.contains.delete(a.Λ);
-				a.within = null;
+			const room = this.within;
+			if( room ){
+				room.contains.delete(this.Λ);
+				// tell room it lost something
+				room.sandbox.emit( "lost", this.sandbox.entity );
+				this.sandbox.emit('displaced', room.sandbox.entity );
+				// tell others in the room some parted the room.
+				// headed to?
+				room.contains.forEach( content=>{
+					content.sandbox.emit( "parted", this.sandbox.entity );
+				})
+				this.within = null;
 			}else {
+				throw new Error( "Entity is not the anchor in the chain, please drop a proper object" );
 				// doesn't matter, it's detached enough from contants.
 			}
 		}
@@ -1159,47 +1201,47 @@ var entityMethods = {
 				}
 			}
 		}
+		, leave() {
+			var outer = this.within || findContained(this);
+			var outerRoom = outer.within || findContained(outer);
+			this.rebase(); // free from container
+			outerRoom.insert( this ); // put in new container
+		}
+		, enter( newRoom ){
+			this.rebase(); // free from container
+			newRoom.insert( this );  // put in new container
+		}
 		, grab(a) {
-                	/*
-		        var done = [];
-			getObjects(this, null, true, (o) => {
-                        	//console.log( "Got a :", o.name );
-				done.push({ name: o.name, ref: o.Λ, o:o.sandbox.entity });
-			})
-			var thing = done.find( (o)=>o.name===a.name );
-			if( thing ) {
-				var grabobj = objects.get( thing.ref );
-				this.debase( grabobj );
-				grabobj.attached_to.set( this.Λ, this);
-				this.attached_to.set(grabobj.Λ, grabobj);
-			}
-                        */
-			console.log( "THing:", this, "A:", a );
+			//console.log( "THing:", this, "A:", a );
 			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ );
-			console.log( "is is still at thing?", grabobj );
 			if( grabobj ) {
-				this.rebase( grabobj );
+				if( !grabobj.within ) {
+					throw new Error( "Entity cannot be grabbed, it is not the anchor point.", grabobj.sandbox.entity );
+				}
+				grabobj.rebase();
 				this.attach( grabobj );
-				grabobj.attached_to.set( this.Λ, this);
-				this.attached_to.set(grabobj.Λ, grabobj);
-
-				grabobj.sandbox.emit( "attached", this.sandbox.entity );
-				this.sandbox.emit( "attached", grabobj.entity );
             }
-                        
 		}
 		, drop(a) {
 			var outer = this.within || (outer = findContained(this) );
 			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ );
 
-			this.detach( grabobj );
-			outer.insert( grabobj );
+			if( this.detach( grabobj ) ) {
+				console.log( "Detached, can insert")
+				if( !findContainer( grabobj, null )){
+					console.log( "Is not contained...");
+					outer.insert( grabobj );
+				}else {
+					console.log( "Found that there was a ccontainer" );
+				}
+			}else
+				throw new Error( "Object is still attached to you" );
 		}
 		, store(a) {
 			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ );
-
-			this.detach( grabobj );
-			this.insert( grabobj );
+			
+			if( this.detach( grabobj ) )
+				this.insert( grabobj );
 		}
 		, run(command) {
 			this.sandbox.scripts.push( { type:"run", code:command } );
@@ -1346,6 +1388,7 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 				console.log( "restore scripts to ....", o.sandbox.scripts );
 				o.sandbox.config = input[0].config;
 				o.sandbox.scripts.code = input[0].scripts;
+				console.log( "closure source?", o.sandbox.scripts.code);
 				for( var c in o.sandbox.scripts.code ) { c.closure = JSOX.parse( c.closure ) }
 			}
 			var executable = [];
@@ -1384,17 +1427,12 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 						}
 
 						if( o.sandbox ) {
-							//console.log( "restoring scripts")
+							console.log( "restoring scripts")
 							o.sandbox.config = ths.config;
 							if( ths.scripts.length )
 								executable.push( o );
 							o.sandbox.scripts.code = ths.scripts;
 							//console.log( "Storing scripts?", ths.scripts )
-							for( var c of o.sandbox.scripts.code ) {
-								//console.log( "Recover?", c );
-								if( c.type === "require" && (typeof( c.closure ) === "string" ) )
-									c.closure = JSOX.parse(c.closure)
-							}
 						}
 						//console.log( "Created :", ths );
 					})
@@ -1478,46 +1516,106 @@ exports.saveAll = function() {
 		//var all = false;
 		var run = true;
 		var tmp;
+		var in_state = false;
+		var on_state = false;
+
 		//console.trace( "args", me, "src",src, "all",all, "callback:",callback )
 		if (typeof all === 'function') {
 			callback = all;
 			all = false;
 		}
+
 		if (object && name == 'all' && object.next && object.next.text == '.') {
 			all = true;
 			object = object.next.next;
 		}
 		if (object && (tmp = Number(name)) && object.next && object.next.text == '.') {
 			object = object.next.next;
-                        name = object.text;
+            name = object.text;
 			count = tmp;
 		}
+
+		if( src&& src.length > 1  && src[1].text === "in" ) {
+			console.warn( "checking 'in'");
+			in_state = true;
+			src = src.slice(2);
+			getObjects( me, src, all, (o,location,moreargs)=>{
+				o = objects.get( o.me );
+				console.log( "in Found:", o.name, name );
+				o.contents.forEach( content=>{
+					//if (value === me) return;
+					if (!object || content.name === name ) {
+						console.log( "found object", content.name )
+						if (count) {
+							count--;
+							return;
+						}
+						if (run) {
+							console.log("and so key is ", location, content.name )
+							callback(content.sandbox, location+",contains", src.splice(1) );
+							run = all;
+						}
+					}
+				})
+			})
+			return;
+		}
+		if( src&&src.length > 1  && (src[1].text == "on" || src[1].text == "from" || src[1].text == "of" ) ) {
+			on_state = true;
+			console.log( "recursing to get on's...")
+			src = src.slice(2);
+			getObjects( me, object, all, (o,location,moreargs)=>{
+				o = objects.get( o.me );
+				console.log( "Found:", o.name, location );
+				o.attached_to.forEach( content=>{
+					//if (value === me) return;
+					if (!object || content.name === name ) {
+						console.log( "found object", content.name )
+						if (count) {
+							count--;
+							return;
+						}
+						if (run) {
+							console.log("and so key is ", key, content.name )
+							callback(content.sandbox, location+",holding", src.splice(1) );
+							run = all;
+						}
+					}
+				})
+			})
+			return;
+		}
+
 		//var command = src.break();
 		//console.log( "get objects for ", me.name, me.nearObjects )
-		var checkList;
-		if( !("forEach" in me) )
-			checkList = me.nearObjects;
-		else
-			checkList = me;
-		checkList.forEach(function (value, key) {
-			//console.log("checking key:", run, key, value)
-			if (run) value.forEach(function (value, member) {
-                //console.log( "value in value:", value.name, name );
-				if (value === me) return;
-				if (!object || value.name === name ) {
-					//console.log( "found object", value.name )
-					if (count) {
-						count--;
-						return;
+			var checkList;
+
+			if( !("forEach" in me) )
+				checkList = me.nearObjects;
+			else
+				checkList = me;
+
+			checkList.forEach(function (value, key) {
+				console.log("checking key:", run, key, value)
+				if( !value ) return;
+				if (run) value.forEach(function (value, member) {
+
+					//console.log( "value in value:", value.name, name );
+					if (value === me) return;
+					if (!object || value.name === name ) {
+						//console.log( "found object", value.name )
+						if (count) {
+							count--;
+							return;
+						}
+						if (run) {
+							//console.log("and so key is ", key, value.name )
+							callback(value.sandbox, key, src &&src.splice(1) );
+							run = all;
+						}
 					}
-					if (run) {
-						//console.log("and so key is ", key, value.name )
-						callback(value.sandbox, key);
-						run = all;
-					}
-				}
-			});
-		})
+				});
+			})
 	}
 
 
@@ -1531,7 +1629,7 @@ function findContained(obj, checked) {
 		checked[content.Λ] = true;
 		if (content.within) return { parent:result, at:content };
 		// look for attached things....
-		var result = findContainer(content, checked);
+		var result = findContained(content, checked);
 		if (result) return { parent:result, at:content };
 	}
 	throw "Detached Entity";
@@ -1582,7 +1680,7 @@ function isAttached(obj, checked, c) {
 	// returns true if this object is attached to some other object.
 	console.log( "CHecked:", checked );
 	if (!checked)
-		checked = new Map();
+		checked = {};
 	else
 		for (let att of checked) {
 			if( att === c )
@@ -1591,7 +1689,7 @@ function isAttached(obj, checked, c) {
 	return recurseAttachments(obj, checked, c);
 
 	function recurseAttachments(obj, checked, c) {
-		for (content in obj.attached_to) {
+		for (let content of obj.attached_to) {
 			if (checked[content.Λ]) continue;
 			checked[content.Λ] = true;
 			if (content.Λ === c.Λ) return true;

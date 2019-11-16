@@ -75,6 +75,7 @@ var Text = exports.Text = function Text(def) {
 		}
 		, Next() { if (!this) return null; return this.next }
 		, first() { var cur = this; while (cur.pred) cur = cur.pred; return cur; }
+		, get last() { var cur = this; while (cur.next) cur = cur.next; return cur; }
 	}
 	return text;
 }
@@ -89,7 +90,7 @@ function SegAppend(_this, that) { if (_this === null) return that; return _this.
 exports.Parse = function TextParse(input, punctuation, filter_space, bTabs, bSpaces)
 // returns a TEXT list of parsed data
 {
-	if (!filter_space) filter_space = " \t\r"
+	if (!filter_space) filter_space = "\r";// " \t\r"
 	if (!punctuation) punctuation = normal_punctuation;
 	if (!input)	// if nothing new to process- return nothing processed.
 		return null;
@@ -120,18 +121,18 @@ exports.Parse = function TextParse(input, punctuation, filter_space, bTabs, bSpa
 	//console.log( input );
 
 	function SET_SPACES(word) {
-		//if( word ) {
 		word.tabs = tabs;
 		word.spaces = spaces;
 		//console.log( `set spaces ${word.tabs} ${word.spaces}  '${word.text}'`)
 		tabs = 0;
 		spaces = 0;
-		//}
 		return word;
 	}
 
 	function collapse() {
+		//console.log( "Collapsing:", out.collect.text.length );
 		if (out.collect.text.length > 0) {
+			//console.log( "New word - set spaces..." );
 			outdata = SegAppend(outdata, SET_SPACES(out.getText()));
 		}
 	}
@@ -173,12 +174,7 @@ exports.Parse = function TextParse(input, punctuation, filter_space, bTabs, bSpa
 		//Log1( ("Assuming %d spaces... "), spaces );
 		//console.log( "input is : ",input, typeof input, Object.getPrototypeOf(input).constructor.name );
 		for( var character of  input.text )
-		//for (index = 0; (codePoint = (input.text).codePointAt(index)),
-		//	(index < input.text.length); index++) // while not at the
-		// end of the line.
 		{
-			//var character = String.fromCodePoint(codePoint);
-			//if (codePoint > 0xFFFF) index++;
 			if (elipses && character != '.') {
 				outdata = SegAppend(outdata, SET_SPACES(out.getText()));
 				elipses = false;
@@ -205,18 +201,14 @@ exports.Parse = function TextParse(input, punctuation, filter_space, bTabs, bSpa
 					outdata = SegAppend(outdata, Text()); // add a line-break packet
 					break;
 				case ' ':
+				case '\u00a0': // nbsp
+					//console.log( "Why wasn't this switch a ' ' ?", ' '.codePointAt(0) );
 					collapse();
 					spaces++;
 					break;
 				case '\t':
 					if (bTabs) {
-						if ((word = out.getText())) {
-							outdata = SegAppend(outdata, SET_SPACES(word));
-						}
-						if (spaces) {
-							//lprintf( ("Input stream has mangled spaces and tabs.") );
-							spaces = 0; // assume that the tab takes care of appropriate spacing
-						}
+						collapse();
 						tabs++;
 					}
 					else {
@@ -297,6 +289,7 @@ exports.Parse = function TextParse(input, punctuation, filter_space, bTabs, bSpa
 					}
 					break;
 				default:
+					//console.log( "add characater normal...", JSON.stringify( character ), character.codePointAt(0) );
 					defaultChar();
 					break;
 			}

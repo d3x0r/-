@@ -7,9 +7,10 @@ body {
 }
 
 .consoleOutputContent{
- 	background-color:black;
+ 	background-color:#000000a0;
 	height:80vh;
-
+	min-width:60em;
+	max-width:80vw;
 	position:relative;
 	left:0;
 	right:0;
@@ -69,7 +70,7 @@ body {
 	top:25%;
 	width:max-content;
 	height:max-content;
-	background-color:rgba(150, 150, 150, 0.95);
+	background-color:rgba(150, 150, 150, 0.75);
 	color:rgb(133, 240, 229);
 	border-radius:10px;
 	/*padding:25px;*/

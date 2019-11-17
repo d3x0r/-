@@ -142,7 +142,9 @@ function spawnEntity( ws, sandbox, resultTo ) {
 
 	localClientFilter.prototype._write = function( chunk, decoding, callback ) {
 		//console.warn( "write called:", chunk );
+		try {
 		ws.send( JSON.stringify( {op:'write', data:chunk.toString( 'utf8' )} ) );
+		} catch( err) { /* already closed... */ }
 		callback();
 	}
 

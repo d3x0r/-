@@ -3,6 +3,8 @@ import {popups} from "./popups.mjs";
 
 import {JSOX} from "./jsox.mjs";
 
+import {editor} from "./editor.mjs";
+
 const l = {
 	ws : null, 
 	commandHistory : null,
@@ -39,7 +41,6 @@ function openSocket() {
   };
 }
 
-
 openSocket();
 
 function processMessage( msg ) {
@@ -51,6 +52,8 @@ function processMessage( msg ) {
 
 function createConsole() {
 	
+	var popup = popups.create( "Entity Interface Terminal" );
+
 	var vcon = {
 		root:null,
 		output:null,
@@ -67,7 +70,7 @@ function createConsole() {
 			//this.output.insertBefore( newspanbr, this.input );
 		},
 	};
-	var root = document.body;
+	var root = popup.divContent;//document.body;
 	var firstKey = true;
 
 	vcon.output = document.createElement( "div" );
@@ -149,6 +152,7 @@ function setCaretToEnd(target/*: HTMLDivElement*/) {
 	vcon.output.appendChild( inputSend );
 
 	vcon.input.focus();
+	popup.show();
 	return vcon;
 
 
@@ -164,7 +168,6 @@ function setCaretToEnd(target/*: HTMLDivElement*/) {
 		vcon.input.textContent = '';
 		vcon.input.focus();
 	}
-
 }
 
 const remoteConsole = createConsole();

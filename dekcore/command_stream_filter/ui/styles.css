@@ -7,7 +7,7 @@ body {
 }
 
 .consoleOutputContent{
-
+ 	background-color:black;
 	height:80vh;
 
 	position:relative;
@@ -33,3 +33,194 @@ body {
 	word-wrap:break-word;
 	word-break: break-all;
 }
+
+
+
+.captionButton {
+	background-color: #122f31;
+        color : gold;
+        border-radius : 25%;
+       	width : 1.5em;
+	/*height:1.1em;*/
+	text-align:center;
+	display:inline-block;     
+	float:right;   
+
+}
+
+.frameClose {
+	background-color: #8e1717;
+    color : gold;
+    border-radius : 50%;
+    width : 1.5em;
+	/*height:1.1em;*/
+	text-align:center;
+	display:none;
+	float:right;   
+	
+}
+
+
+.frameContainer {
+	visibility:visible;
+	padding:0px;border-color:black;border-width:2px;
+	border-style:solid;z-index:100;position:absolute;
+	left:1024;
+	top:25%;
+	width:max-content;
+	height:max-content;
+	background-color:rgba(150, 150, 150, 0.95);
+	color:rgb(133, 240, 229);
+	border-radius:10px;
+	/*padding:25px;*/
+}
+.frameCaption {
+	padding:0px;
+	background-color:aquamarine;
+	border-width:0px;
+	border-style:solid;
+	/*osition:absolute; */
+	color :black;
+	left:0;top:0;
+	/*width:100%;*/
+	padding-left:0.5em;
+	height:1.5em;
+	font-size:150%;
+	line-height:1.5em;
+	/*display:inline-table;*/
+
+
+    border-style: ridge;
+    border-width: 5;
+    border-color: #9c9b9b;
+    border-radius: 10px;
+}
+
+.frameContent {
+	/*margin:5px;*/
+	padding:0.5em;
+}
+
+.frameForm {
+	margin-block-end:1.5em;
+}
+
+.fillContent{
+	width:100%;
+	height:100%;
+}
+
+.popupCancel {
+	float:right;
+	width:65px;
+	/*margin-top:1.5em;*/
+	margin-left:0.6em;
+}
+.popupOkay {
+	float:right;
+	width:65px;
+	/*margin-top:1.5em;*/
+	margin-left:1.5em;
+}
+
+
+.popupInputField {
+	/*margin-left:1.5em;
+	margin-top:1.5em;*/
+	font-size:200%:
+}
+
+.listItem {
+
+}
+.listItem.selected {
+	background-color:rgb(57, 47, 79);
+}
+.listItem.selected:hover {
+	background-color:darkolivegreen;
+}
+.listItem:hover {
+	background-color:blue;
+}
+
+.fieldUnit:nth-child(odd){
+    background:#777;
+}
+.fieldUnit {
+	line-height:2em;
+	border-bottom-width: 2px;
+	border-bottom-style:solid;
+	border-bottom-color:black;
+    display: flex;
+    align-items: center;
+    /*box-shadow: 0 0 10px rgba(64, 224, 208, 0.493);*/
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.893);
+	border-radius:50px;
+	padding-left:1em;
+	padding-right:1em;
+}
+.rightJustify {
+	margin-left: auto;
+	float:right;
+}
+
+.checkOption{
+	height:1em;
+}
+.textInputOption{
+	vertical-align: middle;
+}
+.buttonOption{
+	border-radius:10px;
+}
+
+.knobClosed{
+	background-color:green;
+	width:2em;
+	border-radius:50%;
+
+	color:white;
+	border-radius: 50%;
+    padding-left: 0.3em;
+    padding-right: 0.3em;
+}
+
+.knobOpen{
+	background-color:goldenrod;
+	width:2em;
+	border-radius:50%;
+
+	color:white;
+	border-radius: 50%;
+    padding-left: 0.3em;
+    padding-right: 0.3em;
+}
+
+.listItemLabel{
+	background-color:#aaa;
+
+}
+
+.listSubList{
+	list-style:none;
+}
+span {
+	user-select: none;
+}
+.listThings{
+	list-style:none;
+	display:inline-block;
+}
+
+.listFirstLevel{
+	list-style:none;
+}
+.groupEditButton{
+
+}
+.activityEditButton {
+
+}
+.inputEditButton {
+}
+

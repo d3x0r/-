@@ -173,6 +173,10 @@ function createPopup( caption ) {
 			this.divFrame.style.display = "unset";
 			popup.on( "show", true );
 		},
+		move(x,y) {
+			popup.divFrame.style.left = x+"%";
+			popup.divFrame.style.top = y+"%";
+		}
 	}
 	{
 		popup.divFrame.className = "frameContainer";

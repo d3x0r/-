@@ -2,25 +2,26 @@
 
 
 
-console.log( "userManagerStartup  (C&C protocol)websock server startup?" );
-
+console.log( "userManagerStartup  (C&C protocol)websock server startup?", io );
+try {
+/*
 io.addProtocol( "C&C", (conn)=>{
     conn.on( 'message', basicServices );
 } )
-
+*/
 function basicServices( msg ) {
     console.log( msg );
-try {
-    var m = JSON.parse( msg );
-console.log( "Got messsage:", m );
-    if( m.op === "login" ) {
-        console.log( "A remote user connected....",  m.key );
-        var loginState = io.gun.get( m.key );
-        loginState.map( userState );
+    try {
+        var m = JSON.parse( msg );
+    console.log( "Got messsage:", m );
+        if( m.op === "login" ) {
+            console.log( "A remote user connected....",  m.key );
+            var loginState = io.gun.get( m.key );
+            loginState.map( userState );
+        }
+    } catch(err) {
+    // json parsing probably failed.
     }
-} catch(err) {
-// json parsing probably failed.
-}
 }
 
 function userState( val, field ) {
@@ -46,3 +47,4 @@ function getLogin() {
       else ws.send( '{"op":"getClientKey"}' );
     else ws.send( `{"op":"getLogin","id":"${key}"}` );
 }
+} catch( err) {console.log( "What comma fails?",err)}

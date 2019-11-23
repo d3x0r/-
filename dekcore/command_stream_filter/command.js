@@ -375,6 +375,7 @@ util.inherits(read_command, stream.Transform)
 
 read_command.prototype._transform = function(chunk, encoding, callback) {
     try {
+        console.log( "Process:", chunk.toString());
         this.processCommand( chunk );
     } catch(err) {
         console.trace( "read command transform...", chunk )

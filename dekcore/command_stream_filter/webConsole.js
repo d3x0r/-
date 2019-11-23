@@ -7,16 +7,16 @@ const stream = require('stream')
 var sack = require( "sack.vfs" );
 const JSOX = sack.JSOX;
 const path = require( "path" );
-console.warn( "This is include sentience, in a sandbox." );
-const shell = require( "shell.js" );
+console.warn( "This is include sentience, in a sandbox.", require );
+const shell = require( "./sentience/shell.js" );
 
 
-const root = require.resolve("./ui");
+const root = require.resolve("./command_stream_filter/ui");
 
 var disk = sack.Volume();
 var myDisk = sack.Volume( "myDisk" );
 
-console.warn( "Disk is open in:", disk.dir() );
+console.warn( "Disk is open in:", shell, disk.dir() );
 
 
 function createSpawnServer( sandbox ) {
@@ -101,18 +101,28 @@ function createSpawnServer( sandbox ) {
 
 		var entity = null;	
 		var sendTo = null;
+		var pend = [];
 		spawnEntity( ws, sandbox, (e, input )=>{
-			entity = e;
+			try {
+				process.stdout.write( util.format("Completed creating entity for connection..., but then I have the WS and he needs it?", e, input ));
+					pend.forEach( p=>input(p));
+					pend.length = 0;
+					entity = e;
 					sendTo = input;
-				
+			}catch(err) {
+				process.stdout.write( util.format( "OnConnect ERROR:", err ));
+			}
 			} );
 
 		ws.onmessage( function( msg ) {
-				//console.warn( "Received data:", msg );
+				console.warn( "Received data:", msg );
 				var msg_ = JSOX.parse( msg );
-					if( msg_.op === "write" ) {
-					sendTo( msg_.data );
-					} else {
+				if( msg_.op === "write" ) {
+					if( sendTo )
+						sendTo( msg_.data );
+					else
+						pend.push(msg_.data );
+				} else {
 				
 			}
 			} );
@@ -124,7 +134,7 @@ function createSpawnServer( sandbox ) {
 
 var counter = 1;
 
-function spawnEntity( ws, sandbox, resultTo ) {
+async function spawnEntity( ws, sandbox, resultTo ) {
 
 	//console.trace( "create interface entity:", ws, sandbox )
 
@@ -171,18 +181,22 @@ function spawnEntity( ws, sandbox, resultTo ) {
 	        return tmp;
 
 	}
-	                
-	create( sandbox.name+":"+counter, sandbox.description, 
+	console.log( "So name:");
+
+	create( await name+":"+counter, await description, 
 		(e)=>{
 			// new entity exists now... (feedback created?)
 			
-			if( !("io" in e.sandbox) ) e.sandbox.io = {};
+			//if( !("io" in e.sandbox) ) e.sandbox.io = {};
+			//e.sandbox.io.command = 
+			try {
 
-			var shellFilter = e.sandbox.io.command = shell.Filter( e.sandbox );
+			var shellFilter =  shell.Filter( e );
+
 
 			var cons = clientFilter();
 			var send = cons.filter.push.bind(cons.filter);
-
+			process.stdout.write( "Should have send here...");
 			var nl = require(  './command_stream_filter/strip_newline.js' ).Filter();
 			    
 			nl.connectInput( cons.filter );
@@ -191,6 +205,10 @@ function spawnEntity( ws, sandbox, resultTo ) {
 			shellFilter.connectOutput( cons.filter );
     
 			resultTo( e, send );
+			}
+			catch(err) {
+				process.stdout.write( util.format( "Error in spawn callback", err ));
+			}
 		} );
 
 

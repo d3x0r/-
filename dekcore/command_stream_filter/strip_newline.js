@@ -14,13 +14,13 @@ util.inherits(trim_newline, stream.Transform)
 trim_newline.prototype._transform = function(chunk, encoding, callback) {
 	// chunk is given as 'buffer' and is a buffer
 	var string = chunk.toString();
-	//console.warn( "newline:", string );
+	console.warn( "newline:", string );
 
 	if( ( string.lastIndexOf( "\r\n" ) === string.length-2 )||( string.lastIndexOf( "\n" ) === string.length-1 ) ) {
         	var newstr = string.replace( /\n|\r\n/, "" )
 		//console.log( "stripped return" );
 	        this.push( new Buffer.from(newstr) );
-		//console.log( `transform called with ${newstr}...` );
+		console.log( `transform called with ${newstr}...` );
 	}
 	else {
 		this.push( chunk );

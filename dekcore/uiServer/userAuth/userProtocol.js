@@ -9,7 +9,7 @@ var peers = [];
 //console.log( "user protocol look:", entity.look() );
 //console.log( "user protocol inv:", entity.inventory );
 
-var serviceDirectory = entity.look().find( near=>near.name === "Services" );
+var serviceDirectory = (await near).find( near=>( await near.name ) === "Services" );
 if( serviceDirectory ){
 	serviceDirectory = serviceDirectory.o;
 
@@ -46,7 +46,7 @@ var checkCreation = (ad)=>! creationQueue.find( c=>c.address===a);
 const WebSocket = require('ws');
 
 function openHello() {
-	var firewall = io.openDriver( "firewall" );
+	var firewall = io.getInterface( "firewall" );
 	console.log( "firewall interface:" , firewall )
 
 	var confirmed = false;

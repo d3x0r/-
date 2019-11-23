@@ -9,7 +9,7 @@ var firewall = require( "./firewallDb.js" );
 var firewallInterface;
 
 
-if( io.addDriver( "firewall", "firewallInterface", firewallInterface = {
+if( io.addInterface( "firewall", "firewallInterface", firewallInterface = {
     block( target ) {
         // block the specified address.
 		console.log( "Received block command from remote")

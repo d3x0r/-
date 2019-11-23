@@ -9,7 +9,6 @@ function parse(pattern,options) {
 
   this.pattern = pattern
 }
-
 util.inherits(parse, stream.Transform)
 
 parse.prototype._transform = function(chunk, encoding, callback) {

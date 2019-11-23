@@ -1,22 +1,168 @@
 "use strict";
+const wt = require( 'worker_threads');
+    //Worker, isMainThread, parentPort, workerData
+const sack = require( 'sack.vfs');
 
 var util = require('util')
 var vm = require('vm');
 var Entity = require( '../Entity/entity.js');
-const JSOX = require( "sack.vfs").JSOX;
+const JSOX = sack.JSOX;
+const disk = sack.Volume();
 const text = require( "../../org.d3x0r.common/text.js");
-const stream = require('../command_stream_filter/command.js')
+const commandStream = require('../command_stream_filter/command.js')
 const labelStream = require( "../command_stream_filter/label_insert.js" );
 Entity.netRequire.provide( "shell.js", exports );
 Entity.Sentience = exports;
 //Entity.
 exports.Filter = Filter;
 exports.Script = Script;
+exports.WakeEntity = WakeEntity;
 //exports.
-function Filter( sandbox ) {
-    if( !sandbox ) throw new Error( "invalid sandbox passed to filter" );
+
+
+
+const startupCode = require('sack.vfs').Volume().read( __dirname + "/sandboxInit.js" ).toString();
+function WakeEntity( e ) {
+    var runId = 0;
+    const pendingRuns = [];
+    const thread = {
+        worker : null
+        ,runFile(code) {
+            if( exists )
+            code = disk.read( code );
+            if( code ) {
+                code = code.toString();
+                var msg = {op:'run',code:code, id:runId};
+                thread.worker.stdin.write(JSOX.stringify(msg));
+                return new Promise( (res,rej)=>{
+                    pendingRuns.push( { runResult : res, runReject: rej, id : runId++ } );
+                })
+            }
+        }
+        ,async run(code) {
+            if( thread.worker ) {
+                var msg = {op:'run',code:code, id:runId };
+                thread.worker.stdin.write(JSOX.stringify(msg));
+                return new Promise( (res,rej)=>{
+                    pendingRuns.push( { runResult : res, runReject: rej, id : runId++ } );
+                })
+            }else {
+                this.sandbox.scripts.push( { type:"run", code:command } );
+                vm.runInContext(code, this.sandbox, { filename: "Entity.run()", lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 10 })
+            }
+        }
+
+    }
+
+    e.thread = thread;
+    console.log( "Waking up entity:", e.name, e.Λ, e.thread )
+
+    thread.worker = new wt.Worker( 'const Λ=' + JSON.stringify(e.Λ) + ";" 
+        + 'Λ.maker=' + JSON.stringify(e.created_by.Λ) + ";" 
+        + startupCode
+        , {
+            //workerData: script,
+            eval : true,
+            stderr:true,
+            stdin:true,
+            stdout:true,
+        })
+//worker.stdout.connectOutput( sandbox.io.commmand );
+  thread.worker.stdout.on('data', (chunk)=> {
+        // chunk is given as 'buffer' and is a buffer
+        //console.log( `text parse : ${chunk}` );
+        //console.log( encoding );
+        const string = chunk.toString('utf8');
+    if( string[0]== '[' || string[0] == '{' )
+        try {
+            const msg = JSOX.parse( string );
+            //console.log( "thread stdout input: ",msg, string );
+
+            try {
+                if( msg.op == 'f' ) {
+                    if( msg.f === "create" ){
+                        // this one has a callback to get the result
+                        // the others are all synchrounous normally
+                        e.create( msg.args[0], msg.args[1], (o)=>{
+                            try {
+                                let msgout = `{op:f,id:${msg.id},ret:${JSOX.stringify(o.Λ)}}`;
+                                e.thread.worker.stdin.write(msgout);
+                            } catch(err) {console.log(err);}    
+                         } )
+                    }else {
+                        console.log( "Calling:", msg )
+                        var r = e[msg.f].apply(e,msg.args);
+                        let msgout = `{op:f,id:${msg.id},ret:${JSOX.stringify(r)}}`;
+                        e.thread.worker.stdin.write(msgout);
+                    }
+                } else if( msg.op[0] == 'e' ) {
+                    var o = Entity.makeEntity( msg.o );
+                    if( o ) {
+                        console.log( "Calling on e:", msg )
+                        var r = o[msg.e].apply(o, msg.args);
+                        let msgout = `{op:e,id:${msg.id},ret:${JSOX.stringify(r)}}`;
+                        e.thread.worker.stdin.write(msgout);
+                    }
+                } else if( msg.op[0] == 'g' ) {
+                    var r = e[msg.g];
+                    let msgout = `{op:g,id:${msg.id},ret:${JSOX.stringify(r)}}`;
+                    e.thread.worker.stdin.write(msgout);
+                    //e[msg.f].call(e,msg.args);
+                } else if( msg.op[0] == 'h' ) {
+                    var o = Entity.makeEntity(msg.o);
+                    var r = o[msg.h];
+                    let msgout = `{op:h,id:${msg.id},ret:${JSOX.stringify(r)}}`;
+                    e.thread.worker.stdin.write(msgout);
+                    //e[msg.f].call(e,msg.args);
+                } else if( msg.op[0] == 'run' ) {
+                    var id = pendingRuns.findIndex( pend=>pend.id===msg.id);
+                    if( id >= 0 ){
+                        pendingRuns.splice(id,1);
+                        id.runResult( msg.ret );
+                    }
+                } else if( msg.op[0] == '~' ) {
+                    console.log( "not an RPC...");
+                }else {
+                    //e.creator.push();
+                }
+            } catch(err) {
+                if( msg ) {
+                let msgout = `{op:'error',id:${msg.id},cmd:${JSOX.stringify(msg.op)},error:${JSOX.stringify(err.message)}, stack:${JSOX.stringify(err.stack)}}`;
+                console.log( "Throw error result to thread:", msgout );
+                e.thread.worker.stdin.write(msgout);
+                } else {
+                    e.thread.worker.stdin.write(util.format( "WHAT?", err ));
+
+                }
+            }
+        }catch(err){
+            console.log( e.name, ":Thread Output:", string, err );
+        }
+        else {
+            console.log( e.name, ":##:", string );
+
+        }
+    }    
+  );
+
+  //worker.stdout.connectOutput( sandbox.io.commmand );
+  //worker.on('message', resolve);
+  thread.worker.on('error', (error)=>{
+    console.log( "Error from thread:", error );
+  });
+  thread.worker.on('exit', (code) => {
+    if (code !== 0);
+      //reject(new Error(`Worker stopped with exit code ${code}`));
+  });
+  return thread;
+}
+
+function Filter( e ) {
+
+    if( !e ) throw new Error( "invalid sandbox passed to filter" );
+    const thread = WakeEntity( e );
     //console.log( "Path resolves...", require.resolve( "./startup.js" ) );
-    var filter = stream.Filter( sandbox );
+    var filter = commandStream.Filter();
     {
         filter.RegisterCommand( "help", 
             { description:"get a list of commands? "},
@@ -117,8 +263,7 @@ function Filter( sandbox ) {
 
                 }
                 `;
-        var res =  vm.runInContext(startupCode, sandbox /*, { filename:"", lineOffset:"", columnOffset:"", displayErrors:true, timeout:10} */);
-        console.log( "Result:", res );
+        thread.run( startupCode );
     }
     return filter;
 }

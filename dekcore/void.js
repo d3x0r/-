@@ -151,7 +151,7 @@ https.addProtocol( "dekware.core", (ws)=>{
 
 
 
-function BigBang() {
+async function BigBang() {
 	console.log( "Creating the void....");
 	/*
 	Entity.reloadAll( ()=>{
@@ -175,24 +175,28 @@ function BigBang() {
 			console.log( "Creating first entity" );
 			Entity.theVoid = o;
 
-			o.create( "MOOSE", "Master Operator of System Entites.", (o)=>{
+			o.create( "MOOSE", "Master Operator of System Entites.", async (o)=>{
 				config.run.MOOSE = o.Λ;
 				config.commit();
 
 					MOOSE = o;
-
-					if( !("io" in o.sandbox) ) o.sandbox.io = {};
-
-					MOOSE.sandbox.io.command = shell.Filter( o.sandbox );
-					o.sandbox.require( startScript );
-
+					var io = shell.Filter(o);
+					if( o.thread ){
+						await o.require( startScript );
+						process.stdin.pipe( o.thread.worker.stdin );
+					}
+					if( o.sandbox ) {
+						if( !("io" in o.sandbox) ) o.sandbox.io = {};
+						MOOSE.sandbox.io.command = shell.Filter( o );
+						o.sandbox.require( startScript );
+					}
 					//var path = require.resolve( "./startup.js" ).replace( /\\/g, "/" );
 					//shell.Script( o.sandbox, text.Text( path ) );
 					Entity.saveAll();
 					//run();
 			})
 			o.create( "MOOSE-HTTP", "(HTTP)Master Operator of System Entites.", (o)=>{
-					o.sandbox.require( "startupWeb.js" );
+					//o.sandbox.require( "startupWeb.js" );
 			})
 		} );
 	//});

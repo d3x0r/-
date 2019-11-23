@@ -1,9 +1,9 @@
 
 
-function buildPiping(){
+async function buildPiping(){
 	// the server part of this doesn't actually have IO
 	
-	require( './command_stream_filter/webConsole.js' ).Filter();
+	(await require( './command_stream_filter/webConsole.js' )) .Filter();
 }
 
 buildPiping();

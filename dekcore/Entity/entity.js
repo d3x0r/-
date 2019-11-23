@@ -1,5 +1,5 @@
 "use strict";
-const _debugPaths = false;
+const _debugPaths = true;
 
 const events = require('events');
 const os = require( 'os' );
@@ -39,7 +39,7 @@ function sandboxWS( url, protocols ) {
 	this.ws = new sack.WebSocket.Client( url, protocols );
 	this.keyt = entity.idMan.xkey(null);
 	this.keyr = entity.idMan.xkey(null);
-	console.log( "Key is:", this.keyt)
+	//console.log( "Key is:", this.keyt)
 	this.send = (buf)=>{
 		if( !this.keyt.key ) {
 			this.keyt.setKey( buf, 0 );
@@ -175,6 +175,7 @@ const config = require('../config.js');
 const vfs = require('sack.vfs');
 const vol = vfs.Volume();
 const vfsNaked = require('sack.vfs');
+//console.log( "vfsNaked is something?", vfsNaked );
 
 const volOverride = `(function(vfs, dataRoot) {
 	vfs.mkdir = vfs.Volume.mkdir;
@@ -246,9 +247,12 @@ var entity = module.exports = exports = {
 	netRequire: netRequire,
 	addProtocol: null, // filled in when this returns
 	config : config,
+	makeEntity: makeEntity,
 	idMan : null//idMan
 }
 //Λ
+
+const sentience = require( "../Sentience/shell.js");
 
 function EntityExists(key, within) {
 	if (objects.get(key))
@@ -301,7 +305,6 @@ function sealEntity(o) {
 	if(0)
 		[ "attach", "create"
 		, "has_value", "loaded"
-
 		, "assign", "detach", "rebase", "debase", "drop", "store", "fromString", "toString"
 		, "EventEmitter", "usingDomains", "defaultMaxListeners", "init", "listenerCount", "requested"
 		, "addListener", "removeListener", "removeAllListeners", "vol"
@@ -361,8 +364,8 @@ function makeEntity(obj, name, description, callback, opts) {
 		finishCreate();
 	}
 	else entity.idMan.ID(obj || createdVoid, config.run, (key) => {
-		//console.log( "object now has an ID", o, key );
 		o.Λ = key.Λ;
+		console.log( "object now has an ID", o.name, o.Λ, key.Λ );
 		finishCreate();
 	} );
 	function finishCreate( ) {
@@ -376,10 +379,13 @@ function makeEntity(obj, name, description, callback, opts) {
 				}
 			})
 		} else {
-			console.warn( "create sandbox here, after getting ID")
+			console.log( "Used tocreate sandbox here, after getting ID")
+			//o.sandbox
+			/*
 			o.sandbox = vm.createContext(makeSystemSandbox(o, true));
 			o.sandbox.entity = makeEntityInterface(o);
 			sealSandbox(o.sandbox);
+			*/
 		}
 
 		if (o.within) o.within.contains.set(o.Λ, o);
@@ -392,11 +398,15 @@ function makeEntity(obj, name, description, callback, opts) {
 		//o.attached_to.set(o.Λ, o);
 
 		sealEntity(o);
-
-		o.within.sandbox.emit("created", o);
-		o.within.sandbox.emit("stored", o);
-
-		o.within.contains.forEach(near => (near !== o) ? near.sandbox.emit("joined", o.sandbox.entity) : 0 );
+		if( o.within.sandbox ) {
+			o.within.sandbox.emit("created", o);
+			o.within.sandbox.emit("stored", o);
+		}
+		o.within.contains.forEach(near => (near !== o) ?
+			( near.sandbox )&&
+				near.sandbox.emit("joined", o.sandbox.entity) 
+			: 0 
+		);
 
 		if (!callback)
 			throw ("How are you going to get your object?");
@@ -433,6 +443,7 @@ var timerId;  // static varible to create timer identifiers.
 		console.log( "Sandbox is local?", local );
 		var sandbox = {
 			require: local ? sandboxRequire : netRequire.require
+			, resolve: local?sandboxRequireResolve: netRequire.require.resolve
 			, process: process
 			, Buffer: Buffer
 			, create: o.create.bind(o)
@@ -496,26 +507,6 @@ var timerId;  // static varible to create timer identifiers.
 				addProtocol(p, cb) { return o.addProtocol(p, cb); },
 				addDriver(name, iName, iface) {
 					addDriver( o, name, iName, iface );
-					/*
-					var driver = drivers.find(d => d.name === name);
-
-					var caller = (driver && driver.iface) || {};
-					var keys = Object.keys(iface);
-					keys.forEach(key => {
-						var constPart = `${iName}[${key}](`;
-						caller[key] = function (...argsIn) {
-							var args = "";
-							argsIn.forEach(arg => {
-								if (args.length) args += ",";
-								args += JSON.stringify(arg)
-							})
-							args += ")";
-							sandbox.scripts.push( { type:"driverMethod", code:constPart + args } );
-							vm.runInContext(constPart + args, sandbox)
-						}
-					})
-					drivers.push({ name: name, iName: iName, orig: iface, iface: caller });
-					*/
 				},
 				openDriver(object,name) {
 					var o = objects.get( object );
@@ -660,10 +651,8 @@ function runDriverMethod( o, driver, msg ) {
 			var cmd = constPart + args + `,(...args)=>{
 				process.send({ id: ${msg.id}, op:"driver return", retval:${JSOX.stringify( args )} });
 			} )`;
-
 			//scripts.push( { type:"driverMethod", code:cmd } );
 			vm.runInContext( cmd, o.sandbox);
-
 }
 
 function addDriver( o, name, iName, iface) {
@@ -730,10 +719,6 @@ function addDriver( o, name, iName, iface) {
 		return false;
 	}
 
-	function EntityInterface() {
-		
-	}
-
 	function makeEntityInterface(o) {
 		//console.log( "making intefce for ", o.toString() )
 		var i = {
@@ -774,9 +759,11 @@ function addDriver( o, name, iName, iface) {
 		return i;
 	}
 
-	function sandboxRequire(src) {
-		//console.trace( "this is", this, src );
-		var o = makeEntity( this.me );
+	async function sandboxRequire(o,src) {
+		if( !o || !src )
+			console.trace( "FIX THIS CALLER this is", o, src );
+
+		//var o = this ; //makeEntity( this.me );
 		//console.trace("sandboxRequire ",  src );
 		//console.log( "module", o.sandbox.module );
 		if (src === "entity.js") return exports;
@@ -807,14 +794,21 @@ function addDriver( o, name, iName, iface) {
 		if (src == 'events') return events;
 
 		if (src == 'sack.vfs') {
+			if( o.sandbox )
 			if( !("_vfs" in o.sandbox ) ) {
 				//console.log( "Overriding internal VFS", o.name )
+				try {
 				o.sandbox._vfs = Object.assign( {}, vfsNaked );
+				}catch(err ) {
+					console.log( "vfsNaked is:", vfsNaked );
+				}
 				o.sandbox._vfs.Volume = o.sandbox._vfs.Volume.bind( {} );
 				o.sandbox._vfs.Sqlite = o.sandbox._vfs.Sqlite.bind( {} );
 				try {
-					vm.runInContext( "(" + volOverride + ')(this._vfs,"' +  "." +'")' , o.sandbox
-						, { filename: "moduleSetup" , lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 1000 })
+					e.thread.run( "(" + volOverride + ')(this._vfs,"' +  "." +'")' );
+
+					//vm.runInContext( "(" + volOverride + ')(this._vfs,"' +  "." +'")' , o.sandbox
+					//	, { filename: "moduleSetup" , lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 1000 })
 				} catch( err) {
 					console.log( "VM Error:", err );
 				}
@@ -823,13 +817,13 @@ function addDriver( o, name, iName, iface) {
 		}
 
 		//console.log( "blah", o.sandbox.scripts)
-		if( o.sandbox.scripts.index < o.sandbox.scripts.code.length ) {
-			var cache = o.sandbox.scripts.code[o.sandbox.scripts.index];
+		if( o.scripts.index < o.scripts.code.length ) {
+			var cache = o.scripts.code[o.scripts.index];
 			//console.log( "cache is?", typeof cache, cache);
 			if( cache.source === src ) {
-				o.sandbox.scripts.index++;
+				o.scripts.index++;
 
-				var oldModule = o.sandbox._module;
+				var oldModule = o._module;
 				var root = cache.closure.root;
 				if( !cache.closure.paths ){
 					console.log( "About to log error?" );
@@ -841,7 +835,7 @@ function addDriver( o, name, iName, iface) {
 					, src : cache.closure.src
 					, source : cache.closure.source
 					, file: ""
-					, parent: o.sandbox._module
+					, parent: o._module
 					, paths: cache.closure.paths
 					, exports: {}
 					, includes : []
@@ -850,9 +844,9 @@ function addDriver( o, name, iName, iface) {
 				//console.log( "NEW MODULE HERE CHECK PATHS:", cache.closure.paths, cache.closure.filename )
 
 				oldModule.includes.push( thisModule );
-				//        { name : src.substr( pathSplit+1 ), parent : o.sandbox.module, paths:[], root : rootPath, exports:{} };
+				//        { name : src.substr( pathSplit+1 ), parent : o.module, paths:[], root : rootPath, exports:{} };
 				//oldModule.children.push( thisModule );
-				o.sandbox._module = thisModule;
+				o._module = thisModule;
 
 				var root = cache.closure.filename;
 				try {
@@ -875,12 +869,14 @@ function addDriver( o, name, iName, iface) {
 
 				//console.log( "Executing with resume TRUE")
 				try {
-					vm.runInContext( code, o.sandbox
-						, { filename: cache.source , lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 1000 })
+						console.log( "Run this script..." );
+					o.thread.run( code );
+					//vm.runInContext( code, o.sandbox
+					//	, { filename: cache.source , lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 1000 })
 				} catch( err ) {
 					console.log( "VM Error:", err );
 				}
-				o.sandbox._module = oldModule;
+				o._module = oldModule;
 				//console.log( "active base module is ... ")
 				return thisModule.exports;
 			}
@@ -888,7 +884,7 @@ function addDriver( o, name, iName, iface) {
 
 		var rootPath = "";
 		// resolves path according to relative path of parent modules and resolves ".." and "." parts
-		var root = netRequire.resolvePath(src, o.sandbox._module);
+		var root = netRequire.resolvePath(src, o._module);
 		_debugPaths && console.log("src could be", src);
 		_debugPaths && console.log("root could be", root);
 		_debugPaths && console.log("working root is ", rootPath);
@@ -898,7 +894,7 @@ function addDriver( o, name, iName, iface) {
 			console.log("File failed... is it a HTTP request?", err);
 			return undefined;
 		}
-		//console.log( o.sandbox.module.name, "at", rootPath,"is loading", src );
+		//console.log( o.module.name, "at", rootPath,"is loading", src );
 		//var names = fs.readdirSync( "." );
 		//console.log( names );
 		var pathSplita = src.lastIndexOf("/");
@@ -924,13 +920,13 @@ function addDriver( o, name, iName, iface) {
 				, root
 			].join("");
 
-		var oldModule = o.sandbox._module;
+		var oldModule = o._module;
 		var thisModule = {
 			filename: root
 			, src : src
 			, source : file
 			, file: netRequire.stripPath(root)
-			, parent: o.sandbox._module
+			, parent: o._module
 			, paths: [netRequire.stripFile(root)]
 			, exports: {}
 			, includes : []
@@ -945,14 +941,15 @@ function addDriver( o, name, iName, iface) {
 			}
 		}
 		oldModule.includes.push( thisModule );
-		//        { name : src.substr( pathSplit+1 ), parent : o.sandbox.module, paths:[], root : rootPath, exports:{} };
+		//        { name : src.substr( pathSplit+1 ), parent : o.module, paths:[], root : rootPath, exports:{} };
 		//oldModule.children.push( thisModule );
-		o.sandbox._module = thisModule;
+		o._module = thisModule;
 
-		o.sandbox.scripts.push( { type:"require", source:src, closure: thisModule } );
+		o.scripts.push( { type:"require", source:src, closure: thisModule } );
 		try {
-			vm.runInContext(code, o.sandbox
-				, { filename: src, lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 5000 })
+			await o.thread.run( code );
+			//vm.runInContext(code, o.sandbox
+			//	, { filename: src, lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 5000 })
 			//console.log( "Completed entity sandbox require without error?" );
 		} catch( err) {
 			console.log( "VM Error:", err );
@@ -961,7 +958,7 @@ function addDriver( o, name, iName, iface) {
 		//               , thisModule.name
 		// 		 , thisModule.exports
 		//           );
-		o.sandbox._module = oldModule;
+		o._module = oldModule;
 		//console.log( "active base module is ... ")
 		return thisModule.exports;
 	}
@@ -977,9 +974,9 @@ function sandboxRequireResolve(path){
 		//console.log( "final otuput:", tmp );
 		return tmp;
 	}
-	console.log( "RESOLVE IS TRYING:", path , o.sandbox._module.paths, o.sandbox.name );
+	console.log( "RESOLVE IS TRYING:", path , o._module.paths, o.name );
 
-	var usePath = o.sandbox._module.paths?o.sandbox._module.paths[0]+"/":"";
+	var usePath = o._module.paths?o._module.paths[0]+"/":"";
 	var tmp = usePath + path;
 	//console.log( "append:", tmp );
 	tmp = tmp.replace( /[/\\]\.[/\\]/ , '/' );
@@ -1008,7 +1005,28 @@ function Entity(obj,name,desc ) {
 		, sandbox: null // operating sandbox
 		, child : null // child process
 		, vol: null
-	}
+		, require (file) { return sandboxRequire(this,file) }
+		, thread : null
+		, scripts : { code: [], index : 0, push(c){ this.index++; this.code.push(c)} }
+		, _module: {
+			filename: "internal"
+			, file: "memory://"
+			, parent: null
+			, paths: [module.path + "/.."]
+			, exports: {}
+			, loaded: false
+			, rawData: ''
+			, includes: []
+		}
+		, async postRequire( src  ){
+			//var o = objects.get( Λ );
+			console.log( "Requiring for something:", src )
+			await sandboxRequire( this, src );
+		}
+		, wake() {
+			sentience.WakeEntity( this );
+		}
+}
 	o.created_by = obj || o;
 	o.created_by.created.push( o );
 
@@ -1036,6 +1054,7 @@ var entityMethods = {
 				//});
 				if (typeof cb === 'string') {
 					newo.sandbox.require(cb); // load and run script in entity sandbox
+
 					if (value) value(newo);
 				} else
 					if (cb) cb(newo) // this is a callback that is in a vm already; but executes on this vm instead of the entities?
@@ -1244,8 +1263,10 @@ var entityMethods = {
 				this.insert( grabobj );
 		}
 		, run(command) {
-			this.sandbox.scripts.push( { type:"run", code:command } );
-			vm.runInContext(command, this.sandbox, { filename: "Entity.run()", lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 10 })
+			if( this.thread )
+				this.thread.run(command)
+			else 
+				throw new Error( "Please wake() this object first.");
 		}
 		, addProtocol(p, cb) {
 			entity.addProtocol(this.Λ + p, cb);
@@ -1284,8 +1305,8 @@ var entityMethods = {
 				+ '","attached_to":' + attached
 				+ ',"contains":' + contained
 				+ ',"created_by":"' + this.created_by.Λ
-				+ ',"code":' + JSOX.stringify( this.sandbox.scripts.code )
-				+ ',"config":'+ JSOX.stringify( this.sandbox.config )
+				//+ ',"code":' + JSOX.stringify( this.sandbox.scripts.code )
+				//+ ',"config":'+ JSOX.stringify( this.sandbox.config )
 				+ '"}\n';
 		}
 		, toRep() {
@@ -1298,7 +1319,7 @@ var entityMethods = {
 				, attached_to: attached
 				, created_by: this.created_by.Λ
 				, scripts : ( this.sandbox && this.sandbox.scripts.code )
-				, config : this.sandbox.config
+				, config : (this.sandbox && this.sandbox.config)
 				, value : this.value
 			};
 			return rep;
@@ -1352,10 +1373,12 @@ Entity.fromString = function(s) {
 
 		if (!o.within) {
 			//o.attached_to.set(o.Λ, o);
+		}else {
+			if( o.within.sandbox ) {
+				o.within.sandbox.emit("created", o);
+				o.within.sandbox.emit("inserted", o);
+			}
 		}
-
-		o.within.sandbox.emit("created", o);
-		o.within.sandbox.emit("inserted", o);
 		//o.within.contains.forEach(near => (near !== o) ? near.sandbox.emit("joined", o) : 0);
 
 		if (!callback)
@@ -1459,9 +1482,9 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 			//console.log( "first run ran --------- start other things loaded...", executable )
 			for( var e of executable ) {
 				// it may have already started...
-				if( !e.sandbox.scripts.index ) {
+				if( !e.scripts.index ) {
 					console.log( "")
-					e.sandbox.require( e.sandbox.scripts.code[0].source )
+					e.require( e.scripts.code[0].source )
 					// after require, things might be run on it...
 				}
 				/*
@@ -1595,8 +1618,9 @@ exports.saveAll = function() {
 			else
 				checkList = me;
 
-			checkList.forEach(function (value, key) {
-				console.log("checking key:", run, key, value)
+			checkList.forEach(function (value, location) {
+				// holding, contains, near
+				//console.log("checking key:", run, location, value)
 				if( !value ) return;
 				if (run) value.forEach(function (value, member) {
 
@@ -1610,7 +1634,7 @@ exports.saveAll = function() {
 						}
 						if (run) {
 							//console.log("and so key is ", key, value.name )
-							callback(value.sandbox, key, src &&src.splice(1) );
+							callback(value.sandbox, location, src &&src.splice(1) );
 							run = all;
 						}
 					}
@@ -1750,13 +1774,15 @@ function saveConfig(o, callback) {
 	//if( !fs.exists( 'core') )
 	if (!("vol" in o))
 		o.vol = vfs.Volume(null, config.run.defaults.dataRoot + "/" + o.Λ);
-	o.vol.write(JSOX.stringify(o.sandbox.config));
+	if( o.sandbox )		
+		o.vol.write(JSOX.stringify(o.sandbox.config));
 }
 
 //res.sendfile(localPath);
 //res.redirect(externalURL);
 //
 function loadConfig(o) {
+	if( !o.sandbox ) return;
 	if (!("vol" in o))
 		o.vol = vfs.Volume(null, config.run.defaults.dataRoot + "/" + o.Λ);
 	{

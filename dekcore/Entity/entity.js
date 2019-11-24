@@ -1,6 +1,6 @@
 "use strict";
-const _debugPaths = true;
-
+const _debugPaths = false;
+const _debug_threads = false;
 const events = require('events');
 const os = require( 'os' );
 const url = require( 'url' );
@@ -365,7 +365,7 @@ function makeEntity(obj, name, description, callback, opts) {
 	}
 	else entity.idMan.ID(obj || createdVoid, config.run, (key) => {
 		o.Λ = key.Λ;
-		console.log( "object now has an ID", o.name, o.Λ, key.Λ );
+		//console.log( "object now has an ID", o.name, o.Λ, key.Λ );
 		finishCreate();
 	} );
 	function finishCreate( ) {
@@ -379,13 +379,7 @@ function makeEntity(obj, name, description, callback, opts) {
 				}
 			})
 		} else {
-			console.log( "Used tocreate sandbox here, after getting ID")
-			//o.sandbox
-			/*
-			o.sandbox = vm.createContext(makeSystemSandbox(o, true));
-			o.sandbox.entity = makeEntityInterface(o);
-			sealSandbox(o.sandbox);
-			*/
+			//console.log( "Used tocreate sandbox here, after getting ID")
 		}
 
 		if (o.within) o.within.contains.set(o.Λ, o);
@@ -749,7 +743,7 @@ function addDriver( o, name, iName, iface) {
 				o.detach(a);
 			},
 			run(statement) {
-				o.run(statement);
+				o.run( "Immediate command", statement);
 			},
 			get(o) { return objects.get(o)&&objects.get(o).sandbox.entity; },
 			get parent() { return o.parent&&o.parent.sandbox.entity; },
@@ -805,7 +799,10 @@ function addDriver( o, name, iName, iface) {
 				o.sandbox._vfs.Volume = o.sandbox._vfs.Volume.bind( {} );
 				o.sandbox._vfs.Sqlite = o.sandbox._vfs.Sqlite.bind( {} );
 				try {
-					e.thread.run( "(" + volOverride + ')(this._vfs,"' +  "." +'")' );
+					return new Promise( (resolve,reject)=>{
+						e.thread.run( src, "(" + volOverride + ')(this._vfs,"' +  "." +'")' ).then( resolve ).catch(reject);
+						e.thread.run( src, "(" + volOverride + ')(this._vfs,"' +  "." +'")' ).then( resolve ).catch(reject);
+					})
 
 					//vm.runInContext( "(" + volOverride + ')(this._vfs,"' +  "." +'")' , o.sandbox
 					//	, { filename: "moduleSetup" , lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 1000 })
@@ -813,6 +810,7 @@ function addDriver( o, name, iName, iface) {
 					console.log( "VM Error:", err );
 				}
 			}
+			return vfs;
 			return o.sandbox._vfs;
 		}
 
@@ -833,7 +831,7 @@ function addDriver( o, name, iName, iface) {
 				var thisModule = {
 					filename: cache.closure.filename
 					, src : cache.closure.src
-					, source : cache.closure.source
+					, source : "/*debughidden*/"//cache.closure.source
 					, file: ""
 					, parent: o._module
 					, paths: cache.closure.paths
@@ -846,6 +844,7 @@ function addDriver( o, name, iName, iface) {
 				oldModule.includes.push( thisModule );
 				//        { name : src.substr( pathSplit+1 ), parent : o.module, paths:[], root : rootPath, exports:{} };
 				//oldModule.children.push( thisModule );
+				console.log( "THIS IS ANOHER RUN THAT SETS o_MODULE");
 				o._module = thisModule;
 
 				var root = cache.closure.filename;
@@ -861,21 +860,22 @@ function addDriver( o, name, iName, iface) {
 					cache.closure.source = file;
 					exports.saveAll();
 				}
-				var code = ['(function(exports,config,module,resume){'
+				var code = ['(async function(exports,module,resume){'
 					, cache.closure.source
-					, '})(_module.exports,this.config, _module, true );\n//# sourceURL='
+					, '})(_module.exports, _module, true );\n//# sourceURL='
 					, root
 				].join("");
 
 				//console.log( "Executing with resume TRUE")
 				try {
 						console.log( "Run this script..." );
-					o.thread.run( code );
+					await o.thread.run( {src:src,path:thisModule.paths[0]}, code );
 					//vm.runInContext( code, o.sandbox
 					//	, { filename: cache.source , lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 1000 })
 				} catch( err ) {
 					console.log( "VM Error:", err );
 				}
+				console.log( "THIS IS THE OTHER POP FOR THAT ")
 				o._module = oldModule;
 				//console.log( "active base module is ... ")
 				return thisModule.exports;
@@ -884,6 +884,7 @@ function addDriver( o, name, iName, iface) {
 
 		var rootPath = "";
 		// resolves path according to relative path of parent modules and resolves ".." and "." parts
+		_debugPaths && console.log( o.name, JSOX.stringify( o._module,null, "\t"   ));
 		var root = netRequire.resolvePath(src, o._module);
 		_debugPaths && console.log("src could be", src);
 		_debugPaths && console.log("root could be", root);
@@ -913,10 +914,15 @@ function addDriver( o, name, iName, iface) {
 
 		//console.log( "set root", rootPath );
 
+		const filePath = netRequire.stripFile(root);
 		var code =
-			['(function(exports,config,module,resume){'
+			['(async function() { var module={ path:'+ JSON.stringify(filePath) +',src:'+ JSON.stringify(src) +',exports:{}}; '
+				, 'this.module.paths.push(' + JSON.stringify(filePath)  + ");"
+				, 'await (async function(global,exports,module,resume){'
 				, file
-				, '})(_module.exports,this.config, _module, false );\n//# sourceURL='
+				, '}).call(this,this,module.exports,module,false );'
+				, 'this.module.paths.pop();'
+				, 'return module.exports;})()\n//# sourceURL='
 				, root
 			].join("");
 
@@ -924,7 +930,7 @@ function addDriver( o, name, iName, iface) {
 		var thisModule = {
 			filename: root
 			, src : src
-			, source : file
+			, source : "/*DebugHIdeenSource"//file
 			, file: netRequire.stripPath(root)
 			, parent: o._module
 			, paths: [netRequire.stripFile(root)]
@@ -941,26 +947,18 @@ function addDriver( o, name, iName, iface) {
 			}
 		}
 		oldModule.includes.push( thisModule );
-		//        { name : src.substr( pathSplit+1 ), parent : o.module, paths:[], root : rootPath, exports:{} };
-		//oldModule.children.push( thisModule );
+
 		o._module = thisModule;
 
-		o.scripts.push( { type:"require", source:src, closure: thisModule } );
-		try {
-			await o.thread.run( code );
-			//vm.runInContext(code, o.sandbox
-			//	, { filename: src, lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 5000 })
-			//console.log( "Completed entity sandbox require without error?" );
-		} catch( err) {
-			console.log( "VM Error:", err );
-		}
-		//console.log( "result exports for ", src
-		//               , thisModule.name
-		// 		 , thisModule.exports
-		//           );
-		o._module = oldModule;
-		//console.log( "active base module is ... ")
-		return thisModule.exports;
+		_debug_threads && console.log( o.name, "POSTED CODE TO RUN TO THE OTHER THREAD... AND WE WAIT (upushed to stack", o._module.src );
+			return o.thread.run( {src:src,path:thisModule.paths[0]}, code ).then( (v)=>{
+				o._module = oldModule;
+				//console.log( o.name, "RUN RESULT:", v, thisModule.file );
+			}).catch( e=>{
+				o._module = oldModule;
+				//console.log( "Catch error of course?", e );
+			} );
+
 	}
 
 function sandboxRequireResolve(path){
@@ -969,8 +967,8 @@ function sandboxRequireResolve(path){
 		//console.log( "Not in a sandbox, relative to object, so ...", module.path  );
 		var tmp = module.path + "/" + path;
 		tmp = tmp.replace( /[/\\]\.[/\\]/g , '/' );
-		tmp = tmp.replace( /[^/\\]*[/\\]\.\.[/\\]/g , '' );
-		tmp = tmp.replace( /[^/\\]*[/\\]\.\.$/g , '' );
+		tmp = tmp.replace( /([^.]\.|\.[^.]|[^.][^.])[^/\\]*[/\\]\.\.[/\\]/g , '' );
+		tmp = tmp.replace( /([^.]\.|\.[^.]|[^.][^.])[^/\\]*[/\\]\.\.$/g , '' );
 		//console.log( "final otuput:", tmp );
 		return tmp;
 	}
@@ -979,7 +977,7 @@ function sandboxRequireResolve(path){
 	var usePath = o._module.paths?o._module.paths[0]+"/":"";
 	var tmp = usePath + path;
 	//console.log( "append:", tmp );
-	tmp = tmp.replace( /[/\\]\.[/\\]/ , '/' );
+	tmp = tmp.replace( /[/\\]\.[/\\]/g , '/' );
 	tmp = tmp.replace( /[^/\\]*[/\\]\.\.[/\\]/g , '' );
 	tmp = tmp.replace( /[^/\\]*[/\\]\.\.$/g , '' );
 	//console.log( "final otuput:", tmp );
@@ -1021,7 +1019,7 @@ function Entity(obj,name,desc ) {
 		, async postRequire( src  ){
 			//var o = objects.get( Λ );
 			console.log( "Requiring for something:", src )
-			await sandboxRequire( this, src );
+			return  sandboxRequire( this, src );
 		}
 		, wake() {
 			sentience.WakeEntity( this );
@@ -1046,7 +1044,7 @@ var entityMethods = {
 			}
 			var this_ = this;
 			makeEntity(this, name, desc, (newo) => {
-				console.warn( "Make Entity result with entity...", cb );
+				//console.warn( "Make Entity result with entity...", cb );
 				newo.value = value;
 				//this_.sandbox.emit('stored', newo.sandbox.entity );
 				//this_.contains.forEach( peer=>{

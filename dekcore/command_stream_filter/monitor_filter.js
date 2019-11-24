@@ -1,6 +1,8 @@
 
-var stream = require('stream')
-var util = require('util')
+exports.Filter = Filter;
+
+var stream = await require('stream')
+var util = await require('util')
 
 function parse(pattern,options) {
   options = options || {};
@@ -20,7 +22,6 @@ parse.prototype._transform = function(chunk, encoding, callback) {
 	callback()
 }
 
-exports.Filter = Filter;
 
 function Filter() {
 	var tmp = {

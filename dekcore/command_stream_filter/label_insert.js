@@ -1,7 +1,18 @@
 
-var stream = require('stream')
-var util = require('util')
 
+if( "undefined" !== typeof Λ ) {
+    async function setup() {
+        var stream = await require('stream')
+        var util = await require('util')
+    }
+    return setup();
+
+}else {
+    var stream =  require('stream')
+    var util =  require('util')
+    
+    
+}
 function parse(pattern,options) {
   options = options || {};
   options.decodeStrings = false;

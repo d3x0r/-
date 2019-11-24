@@ -1,12 +1,14 @@
 //"use strict";
-var stream = require('stream')
-var util = require('util')
-var filter_base = require( "./filter_base.js");
-var text = require( '../../org.d3x0r.common/text.js')
-var vm = require( 'vm' );
-var JSOX = require( "sack.vfs").JSOX;
+
+var stream
+var util
+var filter_base
+var text
+var vm
+var JSOX;
 
 exports.Filter = Filter;
+
 const debug_command_keys = false;
 
 var states = {
@@ -14,6 +16,26 @@ var states = {
     , getCommandWord : 2
     , getCommandArgs : 3
 };
+
+if( "undefined" !== typeof Λ ) {
+    async function doInit() {
+        stream = await require('stream')
+        util = await require('util')
+        filter_base = await require( "./filter_base.js");
+        text = await require( '../../org.d3x0r.common/text.js')
+        vm = await require( 'vm' );
+        JSOX = (await require( "sack.vfs")).JSOX;
+    }
+    return doInit();
+} else {
+
+var stream = require('stream')
+var util = require('util')
+var filter_base = require( "./filter_base.js");
+var text = require( '../../org.d3x0r.common/text.js')
+var vm = require( 'vm' );
+var JSOX = require( "sack.vfs").JSOX;
+}
 
 function read_command(sandbox, options_) {
     const options = options_ || {};
@@ -393,3 +415,6 @@ read_command.prototype.setLastTell = (lastTold) => { this.lastTold = lastTold }
 function Filter( ) {
 	return filter_base.Filter( new read_command( ) );
 }
+
+if( "undefined" !== typeof Λ ) 
+    return doInit();

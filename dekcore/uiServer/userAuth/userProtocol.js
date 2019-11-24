@@ -8,13 +8,24 @@ var peers = [];
 
 //console.log( "user protocol look:", entity.look() );
 //console.log( "user protocol inv:", entity.inventory );
+console.warn( "Diredt output? UserProtocol Register?");
 
-var serviceDirectory = (await near).find( near=>( await near.name ) === "Services" );
-if( serviceDirectory ){
-	serviceDirectory = serviceDirectory.o;
+async function initServices() {
+	var nearThings = await near;
+	var nearNames = nearThings.map( near=>near.name);
+	Promise.all( nearNames ).then( nearNames=>{
+		var serviceDirectory = nearNames.find( near=> near === "Services" );
 
-	console.log( "service directory inventory:", serviceDirectory.inventory );
+		if( serviceDirectory ){
+
+			serviceDirectory = serviceDirectory.o;
+		
+			console.log( "service directory inventory:", serviceDirectory.inventory );
+		}
+	} )
+	
 }
+initServices();
 
 on( "connect", (ws)=>{
 	return (()=>(msg)=>protocol( msg ) )()
@@ -42,8 +53,9 @@ function tickCreation() {
 
 var checkCreation = (ad)=>! creationQueue.find( c=>c.address===a);
 
-
-const WebSocket = require('ws');
+console.log( "Is:", require('sack.vfs' ));
+async function startup() {
+	const WebSocket = (await require('sack.vfs')).WebSocket.Client;
 
 function openHello() {
 	var firewall = io.getInterface( "firewall" );
@@ -149,3 +161,6 @@ io.addProtocol( "karaway.core", (conn)=>{
         if( i >= 0 ) peers.splice( i, 1 );
     })
 })
+
+}
+startup();

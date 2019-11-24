@@ -10,6 +10,8 @@ for( var arg = 2; arg < args.length; args++ ) {
 		}
 	}
 }
+const wt = require( 'worker_threads');
+global.isMainThread = wt.isMainThread;
 const sack = require( "sack.vfs" );
 const JSOX=sack.JSOX;
 var config = require ('./config.js');
@@ -180,10 +182,12 @@ async function BigBang() {
 				config.commit();
 
 					MOOSE = o;
+					console.log( "This is attaching shell to a thread for MOOST... ");
 					var io = shell.Filter(o);
 					if( o.thread ){
-						await o.require( startScript );
+						console.log( "requiring start script");
 						process.stdin.pipe( o.thread.worker.stdin );
+						await o.require( startScript );
 					}
 					if( o.sandbox ) {
 						if( !("io" in o.sandbox) ) o.sandbox.io = {};

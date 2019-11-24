@@ -1,22 +1,23 @@
 
+
 //const Entity = require( '../Entity/entity.js');
 
-const util = require('util')
-const stream = require('stream')
+const util = await require('util')
+const stream = await require('stream')
 
-var sack = require( "sack.vfs" );
+var sack = await require( "sack.vfs" );
 const JSOX = sack.JSOX;
-const path = require( "path" );
-console.warn( "This is include sentience, in a sandbox.", require );
-const shell = require( "./sentience/shell.js" );
+const path = await require( "path" );
+
+const shell = await require( "../Sentience/shell.js" );
 
 
-const root = require.resolve("./command_stream_filter/ui");
+const root = await require.resolve("./command_stream_filter/ui");
 
 var disk = sack.Volume();
 var myDisk = sack.Volume( "myDisk" );
 
-console.warn( "Disk is open in:", shell, disk.dir() );
+console.warn( "Disk is open in:", root, shell, disk.dir() );
 
 
 function createSpawnServer( sandbox ) {
@@ -98,12 +99,33 @@ function createSpawnServer( sandbox ) {
 	} );
 
 	server.onconnect( function (ws) {
-
 		var entity = null;	
 		var sendTo = null;
 		var pend = [];
 		spawnEntity( ws, sandbox, (e, input )=>{
 			try {
+				e.run( "webConsole Init", `wsThread.accept(Λ,(ws)=>{ 
+							
+							ws.onmessage( function( msg ) {             
+								console.warn( "Received data:", msg );   
+								var msg_ = JSOX.parse( msg );    \
+								if( msg_.op === "write" ) {   \
+									if( sendTo )   \
+										sendTo( msg_.data );  \
+									else   \
+										pend.push(msg_.data ); \
+								} else {   \
+									\
+							}  
+							} );  
+						ws.onclose( function() {  
+								//console.log( "Remote closed" );  
+							} );
+							
+							\
+						}) ` )
+
+				sack.WebSocket.Thread.post( e.Λ, ws )
 				process.stdout.write( util.format("Completed creating entity for connection..., but then I have the WS and he needs it?", e, input ));
 					pend.forEach( p=>input(p));
 					pend.length = 0;
@@ -112,8 +134,9 @@ function createSpawnServer( sandbox ) {
 			}catch(err) {
 				process.stdout.write( util.format( "OnConnect ERROR:", err ));
 			}
-			} );
+		} );
 
+			
 		ws.onmessage( function( msg ) {
 				console.warn( "Received data:", msg );
 				var msg_ = JSOX.parse( msg );
@@ -183,8 +206,8 @@ async function spawnEntity( ws, sandbox, resultTo ) {
 	}
 	console.log( "So name:");
 
-	create( await name+":"+counter, await description, 
-		(e)=>{
+	create( await name+":"+counter, await description)
+	.then( (e)=>{
 			// new entity exists now... (feedback created?)
 			
 			//if( !("io" in e.sandbox) ) e.sandbox.io = {};
@@ -209,7 +232,8 @@ async function spawnEntity( ws, sandbox, resultTo ) {
 			catch(err) {
 				process.stdout.write( util.format( "Error in spawn callback", err ));
 			}
-		} );
+		} )
+	;
 
 
 }
@@ -243,6 +267,6 @@ function Filter() {
 exports.Filter = Filter.bind(this);  // bind this to the filter.
 
 if( !module.parent ) {
-	openServer( null );//newConsole( {} );
+	//openServer( null );//newConsole( {} );
 }
 

@@ -6,21 +6,26 @@ async function buildPiping(){
 //	var webCons = require( './command_stream_filter/webConsole.js' ).Filter();
 
     //var cons = require( './command_stream_filter/psi_console.js' ).Filter();
-   
-    var newline = await require(  './command_stream_filter/strip_newline.js' );
-    var monitor = await require( './command_stream_filter/monitor_filter.js' );
-    //var commandFilter = require( './command_stream_filter/command.js');
+   const shell = (await require( "./Sentience/shell.js" )).Filter( this );
+    require(  './command_stream_filter/strip_newline.js' ).then( (newline)=>{
+      console.log( "So the thing ran, resulted, and we got back the result??")
+      require( './command_stream_filter/monitor_filter.js' ).then( monitor=>{
+      //var commandFilter = require( './command_stream_filter/command.js');
 
-    var shell = io.command;
-    var nl = newline.Filter();
-    //var cmd = commandFilter.Filter();
+      //var shell = io.command;
+      var nl = newline.Filter();
+      //var cmd = commandFilter.Filter();
 
-    nl.connectInput( process.stdin );
-    nl.connectOutput( shell.filter );
-    shell.connectOutput( process.stdout );
+      nl.connectInput( process.stdin );
+      nl.connectOutput( shell.filter );
+      shell.connectOutput( process.stdout );
+      });
+  })
+
+
 }
 
-buildPiping();
+await buildPiping();
 
 console.log( "Hello from startup.js" );//, Object.keys(this) );
 

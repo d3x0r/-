@@ -1,7 +1,7 @@
 "use strict";
 
 const _debug = false;
-//const https = require( 'https' );
+
 const sack = require( 'sack.vfs' );
 const https = sack.HTTPS;
 const config = require( "../config.js" );
@@ -319,50 +319,26 @@ doRequire.resolve = doResolve;
 function resolvePath( base, myModule ) {
 	var tmp = base;
 	var moduleParent = myModule;
-	while( moduleParent
-		  && tmp[0] == '.'
-		  && tmp[1] !== ':'
-		  && !( tmp.startsWith( "//" )
-			  || tmp.startsWith( "\\\\" ) )
-		) {
+	_debug && console.trace( "Resolving:", base, myModule, !!moduleParent, (tmp[0] == '.'
+	&& tmp[1] !== ':'
+	|| !( tmp.startsWith( "//" )
+		&& tmp.startsWith( "\\\\" )  ) ));
+	while( moduleParent ) {
+		// is a path; stop building it.
+		if( tmp[0] == '/' || tmp[0] == '\\' || tmp[1] == ':' )
+			break;
 		var p = moduleParent.paths[0];
 
 		_debug&&console.warn( "path is ", tmp, moduleParent.paths);
-		if( tmp[1] == '/' )
-			tmp = (p.length?p + "/":"") + tmp.substr( 2 );
-		else
-			tmp = (p.length?p + "/":"") + tmp;
-		 // console.warn( "new is ", tmp )
+		tmp = p + '/' + tmp;
 		moduleParent = moduleParent.parent;
 	}
-	do
-	{
-		_debug&&console.warn( "build", tmp )
-		let x = tmp.indexOf( "/../" );
-		if( x < 0 )x = tmp.indexOf( "/..\\" );
-		if( x < 0 )x = tmp.indexOf( "\\../" );
-		if( x < 0 )x = tmp.indexOf( "\\..\\" );
-		if( x > 0 ) {
-			var prior = tmp.substr( 0, x );
-			_debug&&console.warn( "prior part is", prior );
-			var last1 = prior.lastIndexOf( "/" );
-			var last2 = prior.lastIndexOf( "\\" )
-			var priorStripped = prior.substr( 0, (last1>last2?last1:last2)+1 );
-			tmp = priorStripped + tmp.substr( x + 4 );
-			//console.warn( "result:", base )
-		} else {
-			/*
-			if( tmp.startsWith( "..\\" )
-				 || tmp.startsWith( "../" ) )
-			{
-		
-			}
-			*/
-		       	base = tmp;
-		       	break;
-		}
+	tmp = tmp.replace( /[/\\]\.[/\\]/g , '/' );
+	var newTmp;
+	while( ( newTmp = tmp.replace( /[/\\][^/\\]*[/\\]\.\.[/\\]/, '/' ) ) !== tmp ) {
+		tmp = newTmp;
 	}
-	while( true )
+	tmp = tmp.replace( /([^.\\/]\.|[\.\\/][^.]|[^.\\/][^.])[^/\\]*[/\\]\.\.$/, '' );
 	//console.warn( "using path", base )
-	return base;
+	return tmp;
 }

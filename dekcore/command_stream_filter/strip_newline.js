@@ -1,7 +1,13 @@
 
-var stream = require('stream')
-var util = require('util')
-var filter_base = require( "./filter_base.js")
+async function startup() {
+
+	exports.Filter = Filter;
+
+	var stream = await require('stream')
+	var util = await require('util')
+	var filter_base = await require( "./filter_base.js")
+
+//console.log( "Strip newline: Util is:", )
 
 function trim_newline(options) {
     options = options || {};
@@ -28,8 +34,11 @@ trim_newline.prototype._transform = function(chunk, encoding, callback) {
        	callback()
 }
 
-exports.Filter = Filter;
 
 function Filter() {
 	return filter_base.Filter(  new trim_newline() );
 }
+
+}
+
+return startup();

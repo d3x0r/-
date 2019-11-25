@@ -1,4 +1,4 @@
-//"use strict";
+"use strict";
 
 var stream
 var util
@@ -7,8 +7,22 @@ var text
 var vm
 var JSOX;
 
+
+if( "undefined" !== typeof Λ ) {
+
+    stream = require('stream')
+    util = require('util')
+    filter_base = require( "./filter_base.js");
+    text = require( '../../org.d3x0r.common/text.js')
+    vm = require( 'vm' );
+    JSOX = require( "sack.vfs").JSOX;
+}
+
+
+
 exports.Filter = Filter;
 
+    const debug_finishPhrase = false;
 const debug_command_keys = false;
 
 var states = {
@@ -17,25 +31,7 @@ var states = {
     , getCommandArgs : 3
 };
 
-if( "undefined" !== typeof Λ ) {
-    async function doInit() {
-        stream = await require('stream')
-        util = await require('util')
-        filter_base = await require( "./filter_base.js");
-        text = await require( '../../org.d3x0r.common/text.js')
-        vm = await require( 'vm' );
-        JSOX = (await require( "sack.vfs")).JSOX;
-    }
-    return doInit();
-} else {
 
-var stream = require('stream')
-var util = require('util')
-var filter_base = require( "./filter_base.js");
-var text = require( '../../org.d3x0r.common/text.js')
-var vm = require( 'vm' );
-var JSOX = require( "sack.vfs").JSOX;
-}
 
 function read_command(sandbox, options_) {
     const options = options_ || {};
@@ -121,6 +117,7 @@ function updateCommands( stree, commands, newcmd ) {
                     oc.conflicts.push( cmd );
                 }
                 else {
+                    delete commands[s];
                     oc = commands[s] = Object.assign({},oc);
                     oc.conflicts.push( oc);
                     oc.conflicts.push( cmd );
@@ -145,7 +142,6 @@ function updateCommands( stree, commands, newcmd ) {
     }
 }
 
-    const debug_finishPhrase = false;
     function finishPhrase( firstWord, endToken )
     {
         const phraseStack = [{prior: null, token:null, inForce:false, force:false, here:firstWord, parent:null}];
@@ -393,28 +389,43 @@ function updateCommands( stree, commands, newcmd ) {
         
 }
 
-util.inherits(read_command, stream.Transform)
-
-read_command.prototype._transform = function(chunk, encoding, callback) {
-    try {
-        console.log( "Process:", chunk.toString());
-        this.processCommand( chunk );
-    } catch(err) {
-        console.trace( "read command transform...", chunk )
-        this.push( err.toString() + "\n"+err.stack );
-    }
-    callback()
-}
-
-
-read_command.prototype._flush = (callback) => { console.log( "stream flush?" ); callback(); }
-
-read_command.prototype.setLastTell = (lastTold) => { this.lastTold = lastTold }
-
 
 function Filter( ) {
 	return filter_base.Filter( new read_command( ) );
 }
 
-if( "undefined" !== typeof Λ ) 
+if( "undefined" !== typeof Λ ) {
+
+    async function doInit() {
+
+        stream = await require('stream')
+        util = await require('util')
+        filter_base = await require( "./filter_base.js");
+        text = await require( '../../org.d3x0r.common/text.js')
+        vm = await require( 'vm' );
+        JSOX = (await require( "sack.vfs")).JSOX;
+
+        util.inherits(read_command, stream.Transform)
+
+        read_command.prototype._transform = function(chunk, encoding, callback) {
+            try {
+                console.log( "command transform Process:", chunk.toString());
+                this.processCommand( chunk );
+            } catch(err) {
+                console.trace( "read command transform...", chunk )
+                this.push( err.toString() + "\n"+err.stack );
+            }
+            callback()
+        }
+        
+        
+        read_command.prototype._flush = (callback) => { console.log( "stream flush?" ); callback(); }
+        
+        read_command.prototype.setLastTell = (lastTold) => { this.lastTold = lastTold }
+        
+        return Promise.resolve(true);        
+    }
     return doInit();
+}
+
+

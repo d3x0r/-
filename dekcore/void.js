@@ -182,12 +182,13 @@ async function BigBang() {
 				config.commit();
 
 					MOOSE = o;
-					console.log( "This is attaching shell to a thread for MOOST... ");
-					var io = shell.Filter(o);
-					if( o.thread ){
+					console.log( "This is attaching shell to a thread for MOOSE... ", o.thread );
+					if( !o.thread ) o.wake().then( async ()=>{
 						console.log( "requiring start script");
 						process.stdin.pipe( o.thread.worker.stdin );
 						await o.require( startScript );
+					})
+					if( o.thread ){
 					}
 					if( o.sandbox ) {
 						if( !("io" in o.sandbox) ) o.sandbox.io = {};

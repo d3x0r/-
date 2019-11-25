@@ -9,15 +9,15 @@ var sack = await require( "sack.vfs" );
 const JSOX = sack.JSOX;
 const path = await require( "path" );
 
-const shell = await require( "../Sentience/shell.js" );
+//const shell = await require( "../Sentience/shell.js" );
 
 
-const root = await require.resolve("./command_stream_filter/ui");
+const root = await require.resolve("./ui");
 
 var disk = sack.Volume();
 var myDisk = sack.Volume( "myDisk" );
 
-console.warn( "Disk is open in:", root, shell, disk.dir() );
+console.warn( "Disk is open in:", root, disk.dir() );
 
 
 function createSpawnServer( sandbox ) {
@@ -99,33 +99,49 @@ function createSpawnServer( sandbox ) {
 	} );
 
 	server.onconnect( function (ws) {
-		var entity = null;	
-		var sendTo = null;
 		var pend = [];
-		spawnEntity( ws, sandbox, (e, input )=>{
-			try {
-				e.run( "webConsole Init", `wsThread.accept(Λ,(ws)=>{ 
-							
-							ws.onmessage( function( msg ) {             
-								console.warn( "Received data:", msg );   
-								var msg_ = JSOX.parse( msg );    \
-								if( msg_.op === "write" ) {   \
-									if( sendTo )   \
-										sendTo( msg_.data );  \
-									else   \
-										pend.push(msg_.data ); \
-								} else {   \
-									\
-							}  
-							} );  
-						ws.onclose( function() {  
-								//console.log( "Remote closed" );  
-							} );
-							
-							\
-						}) ` )
+		spawnEntity( ws, sandbox );
+			
+		ws.onmessage( function( msg ) {
+				console.warn( "original acceptor Received data:", msg );
 
-				sack.WebSocket.Thread.post( e.Λ, ws )
+		} );
+		ws.onclose( function() {
+				//console.log( "Remote closed" );
+			} );
+	} );
+}
+
+var counter = 1;
+
+async function spawnEntity( ws, sandbox ) {
+
+	//console.trace( "create interface entity:", ws, sandbox )
+
+	return create( await name+":"+counter, await description)
+		.then( async (e)=>{
+			// new entity exists now... (feedback created?)
+			
+			//if( !("io" in e.sandbox) ) e.sandbox.io = {};
+			//e.sandbox.io.command = 
+			try {
+				await e.wake();
+				console.log( "And then tell it to require startup..." );
+				await e.require( "../startupWebConnection.js" );
+				console.log( "And the socket")
+				ws.post( e.Λ );
+			}
+			catch(err) {
+				process.stdout.write( util.format( "Error in spawn callback", err ));
+			}
+			return e;
+		} ).then( async ( result )=>{
+			try {
+				console.log( "THis is going to run the setup..." );
+				await e.wake();
+				//await e.run( { src:"webConsole Init", path:"."}, `process.stdout.write( "Setting up acceptor:"+ Λ);
+					console.log( "Run has completed... so we should be able to post??");
+				ws.post( e.Λ );
 				process.stdout.write( util.format("Completed creating entity for connection..., but then I have the WS and he needs it?", e, input ));
 					pend.forEach( p=>input(p));
 					pend.length = 0;
@@ -136,103 +152,6 @@ function createSpawnServer( sandbox ) {
 			}
 		} );
 
-			
-		ws.onmessage( function( msg ) {
-				console.warn( "Received data:", msg );
-				var msg_ = JSOX.parse( msg );
-				if( msg_.op === "write" ) {
-					if( sendTo )
-						sendTo( msg_.data );
-					else
-						pend.push(msg_.data );
-				} else {
-				
-			}
-			} );
-		ws.onclose( function() {
-				//console.log( "Remote closed" );
-			} );
-	} );
-}
-
-var counter = 1;
-
-async function spawnEntity( ws, sandbox, resultTo ) {
-
-	//console.trace( "create interface entity:", ws, sandbox )
-
-	function localClientFilter(options) {
-		options = options || {};
-		options.decodeStrings = false;
-                stream.Duplex.call(this,options)
-	}
-
-	util.inherits(localClientFilter, stream.Duplex)
-
-	localClientFilter.prototype._read = function( size ) {
-		//console.warn( "Read called...", size );  // 16384 by default... 
-	}
-
-	localClientFilter.prototype._write = function( chunk, decoding, callback ) {
-		//console.warn( "write called:", chunk );
-		try {
-		ws.send( JSON.stringify( {op:'write', data:chunk.toString( 'utf8' )} ) );
-		} catch( err) { /* already closed... */ }
-		callback();
-	}
-
-
-	function clientFilter() {
-		var tmp = {
-        		filter : new localClientFilter( {} )
-	        	, connectInput : function(stream) { 
-        	        	stream.pipe( this.filter );
-	                }
-        	        ,connectOutput : function(stream) { 
-                		this.filter.pipe( stream );
-	                } 
-			};
-			tmp.filter.on("finish", ()=>{
-				console.trace( "WebConsole Finish Event");
-			});
-			tmp.filter.on("end", ()=>{
-				console.trace( "WebConsole End Event");
-			});
-			tmp.filter.on("close", ()=>{
-				console.trace( "WebConsole Close Event");
-			});
-	        return tmp;
-
-	}
-	console.log( "So name:");
-
-	create( await name+":"+counter, await description)
-	.then( (e)=>{
-			// new entity exists now... (feedback created?)
-			
-			//if( !("io" in e.sandbox) ) e.sandbox.io = {};
-			//e.sandbox.io.command = 
-			try {
-
-			var shellFilter =  shell.Filter( e );
-
-
-			var cons = clientFilter();
-			var send = cons.filter.push.bind(cons.filter);
-			process.stdout.write( "Should have send here...");
-			var nl = require(  './command_stream_filter/strip_newline.js' ).Filter();
-			    
-			nl.connectInput( cons.filter );
-
-			shellFilter.connectInput( nl.filter);			
-			shellFilter.connectOutput( cons.filter );
-    
-			resultTo( e, send );
-			}
-			catch(err) {
-				process.stdout.write( util.format( "Error in spawn callback", err ));
-			}
-		} )
 	;
 
 

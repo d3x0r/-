@@ -1,6 +1,6 @@
 "use strict";
 const _debugPaths = false;
-const _debug_threads = false;
+const _debug_threads = true;
 const events = require('events');
 const os = require( 'os' );
 const url = require( 'url' );
@@ -15,8 +15,30 @@ const util = require('util');
 const process = require('process');
 const crypto = require('crypto');
 const sack = require( "sack.vfs" );
+const vfs = require('sack.vfs');
+const vol = vfs.Volume();
+const vfsNaked = require('sack.vfs');
 const JSOX = sack.JSOX;
 
+const netRequire = require('../util/myRequire.js');
+var fc = require('../file_cluster.js');
+
+const config = require('../config.js');
+
+
+var entity = module.exports = exports = {
+	create: makeEntity,
+	theVoid: null,
+	getObjects: exported_getObjects,
+	getEntity: getEntity,
+	netRequire: netRequire,
+	addProtocol: null, // filled in when this returns
+	config : config,
+	makeEntity: makeEntity,
+	idMan : null//idMan
+}
+
+const wake = require('../Sentience/wake');
 //const idMan = require('../id_manager.js');
 
 const ee = events.EventEmitter;
@@ -168,13 +190,6 @@ function sandboxWSS( opts ) {
 
 
 //
-var fc = require('../file_cluster.js');
-
-const config = require('../config.js');
-
-const vfs = require('sack.vfs');
-const vol = vfs.Volume();
-const vfsNaked = require('sack.vfs');
 //console.log( "vfsNaked is something?", vfsNaked );
 
 const volOverride = `(function(vfs, dataRoot) {
@@ -230,7 +245,6 @@ const volOverride = `(function(vfs, dataRoot) {
 config.start( ()=>eval( volOverride )( vfs, config.run.defaults.dataRoot ) )
 
 
-const netRequire = require('../util/myRequire.js');
 
 //var all_entities = new WeakMap();
 var objects = new Map();
@@ -239,17 +253,6 @@ var drivers = [];
 
 var nextID = null;
 
-var entity = module.exports = exports = {
-	create: makeEntity,
-	theVoid: null,
-	getObjects: exported_getObjects,
-	getEntity: getEntity,
-	netRequire: netRequire,
-	addProtocol: null, // filled in when this returns
-	config : config,
-	makeEntity: makeEntity,
-	idMan : null//idMan
-}
 //Λ
 
 const sentience = require( "../Sentience/shell.js");
@@ -472,6 +475,7 @@ var timerId;  // static varible to create timer identifiers.
 			, get description() { return objects.get( o.Λ ).description; }
 			//, get room() { return o.within; }
 			, idGen(cb) {
+				console.log( "Somehow there's a sandbox?" );
 				return entity.idMan.ID(o.Λ, o.created_by.Λ, cb);
 			}
 			, console: {
@@ -742,8 +746,8 @@ function addDriver( o, name, iName, iface) {
 				a = objects.get(a.Λ)
 				o.detach(a);
 			},
-			run(statement) {
-				o.run( "Immediate command", statement);
+			async run(statement) {
+				return o.run( "Immediate command", statement);
 			},
 			get(o) { return objects.get(o)&&objects.get(o).sandbox.entity; },
 			get parent() { return o.parent&&o.parent.sandbox.entity; },
@@ -800,7 +804,6 @@ function addDriver( o, name, iName, iface) {
 				o.sandbox._vfs.Sqlite = o.sandbox._vfs.Sqlite.bind( {} );
 				try {
 					return new Promise( (resolve,reject)=>{
-						e.thread.run( src, "(" + volOverride + ')(this._vfs,"' +  "." +'")' ).then( resolve ).catch(reject);
 						e.thread.run( src, "(" + volOverride + ')(this._vfs,"' +  "." +'")' ).then( resolve ).catch(reject);
 					})
 
@@ -1003,7 +1006,7 @@ function Entity(obj,name,desc ) {
 		, sandbox: null // operating sandbox
 		, child : null // child process
 		, vol: null
-		, require (file) { return sandboxRequire(this,file) }
+		, async require (file) { console.log( "Entity require:", this.name, file );return sandboxRequire(this,file) }
 		, thread : null
 		, scripts : { code: [], index : 0, push(c){ this.index++; this.code.push(c)} }
 		, _module: {
@@ -1016,13 +1019,26 @@ function Entity(obj,name,desc ) {
 			, rawData: ''
 			, includes: []
 		}
-		, async postRequire( src  ){
+		, idGen() {
+			var this_ = this;
+			return new Promise( (res)=>{
+				console.log( "o:", o.name, o.Λ)
+				entity.idMan.ID(this.Λ, this.created_by.Λ, (id)=>{
+					res(id);
+				});
+			})
+		}
+		, postRequire( src  ){
 			//var o = objects.get( Λ );
 			console.log( "Requiring for something:", src )
 			return  sandboxRequire( this, src );
 		}
 		, wake() {
-			sentience.WakeEntity( this );
+			if( !this.thread ) {
+				console.log( "Waking this entity:", this.name );
+				return wake.WakeEntity( this );
+			}
+			return this.thread;
 		}
 }
 	o.created_by = obj || o;
@@ -1260,11 +1276,12 @@ var entityMethods = {
 			if( this.detach( grabobj ) )
 				this.insert( grabobj );
 		}
-		, run(command) {
-			if( this.thread )
-				this.thread.run(command)
-			else 
-				throw new Error( "Please wake() this object first.");
+		, async run(file,command) {
+			if( !command ) throw new Error( " PLEASE UPDATE USAGE");
+			if( this.thread ) {
+				return this.thread.run(file,command) ;
+			} else 
+				throw new Error( this.name+ ": Please wake() this object first.");
 		}
 		, addProtocol(p, cb) {
 			entity.addProtocol(this.Λ + p, cb);

@@ -1,6 +1,6 @@
 "use strict"
 
-
+const entity_ = entity;
 
 var gunWs = null;
 var gunWsConn = null;
@@ -18,19 +18,19 @@ function hash(v) {
 
 var DB = exports = module.exports = {};
 
-var vfs = require( 'sack.vfs');
+var vfs = await require( 'sack.vfs');
 
 async function startup() {
 
 if( !( "svcDb" in config ) ) {
-	config.svcDb = { vol : await idGen() };
+	config.svcDb = { vol : await entity_.idGen() };
 }
 
 var opdb = vfs.Sqlite( `option.db` );
 if( !opdb ) 
 	opdb = vfs.Sqlite( "svcdb.db" );
 console.log( "vfs?", opdb );
-var vol = opdb.op( "vol", await idGen() );
+var vol = opdb.op( "vol", await entity_.idGen() );
 vol = config.svcDb.vol;
 console.log( "do vol:", vol );
 DB.data = vfs.Volume( vol, vol/*, me*/ );
@@ -52,7 +52,7 @@ db.makeTable( "create table serviceLogin ( service_login_id char PRIMARY KEY"
 	+", INDEX servicekey(client_id)"  );
 
 function setupServiceAuth( ws ) {
-    ws.on( "message", (msg)=>{
+    ws.on( "message", async (msg)=>{
 		if( msg.op === "serviceLogin" ) {
 			//console.log( "from who? ", connection.remoteAddress );
 			var a;
@@ -93,7 +93,7 @@ function setupServiceAuth( ws ) {
 			}
 		}
 		else if( msg.op === "getClientKey" ) {
-			var client_id = idGen();
+			var client_id = await entity_.idGen();
 			if( "name" in msg ) {
 				connection.login = db.createServiceLogin( msg.name, connection.remoteAddress, client_id );
 			}
@@ -130,12 +130,12 @@ DB.connect = (gun)=>{
 //--------------- Service Login/Authorization -------------------------------------
 
 
-DB.loginService = (client_id,username,address,oldcid, confirm )=>{
+DB.loginService = async (client_id,username,address,oldcid, confirm )=>{
 	var result = null;
 	//console.log( "LOGIN USER", user );
 	var service = serviceLogins.get( client_id );
 	if( !service ) {
-		var newClientId = idGen();
+		var newClientId = await entity_.idGen();
 
 		// might not have reloaded it, because it wasn't authorized yet...
 		// but it could already exist.

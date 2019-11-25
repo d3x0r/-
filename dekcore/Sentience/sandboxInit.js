@@ -1,3 +1,5 @@
+
+const _debugPaths = false;
 const _debug_commands = false;
 const _debug_requires = false;
 Error.stackTraceLimit = 10;
@@ -11,12 +13,17 @@ const JSOX = sack.JSOX;
 
 
 const netRequire = require( "./util/myRequire");
-
-
 const Shell = require( "./Sentience/shell.js" );
 
+
+
+var id = 0;
+var eid = 0;
+const objects = new Map();
+
+const entity = makeEntity(Λ);
+
 //console.log( "This is logged in the raw startup of the sandbox:", Shell );
-const _debugPaths = false;
 
 const resolvers = {};
 const rejectors = {};
@@ -52,13 +59,13 @@ process.stdin.on('data',(chunk)=>{
 
                     if( pendingRequire )
                         requireRunReply.push(res);
-                    console.log( "And post sync result.", res );
+                    //console.log( "And post sync result.", res );
                     process.stdout.write( JSOX.stringify( {op:"run",ret:res,id:msg.id }));
                 }
                 //console.log( "Did it?", sandbox );
                 return;
             }catch(err) {
-                console.log( "Failed:", msg.code )
+                console.log( "Failed:", err, msg.code )
                 process.stdout.write( JSOX.stringify( {op:"error",error:JSOX.stringify(err.toString()),id:msg.id }));
                 return;
             }
@@ -71,7 +78,7 @@ process.stdin.on('data',(chunk)=>{
             //console.log( "Will splice...", responseId, msg)
             pendingOps.splice( responseId, 1 );
             if( msg.op === 'f' || msg.op === 'g' || msg.op === 'e' || msg.op === 'h' )  {
-                //process.stdout.write( util.format("Resolve.", msg, response ) );
+                _debug_commands && process.stdout.write( util.format("Resolve.", msg, response ) );
                 response.resolve( msg.ret );
             } else if( msg.op === 'error' ){
                 response.reject( msg.error );
@@ -102,10 +109,6 @@ function eval() {
     console.log( "Please use other code import methods.");
 }
 
-var id = 0;
-var eid = 0;
-const objects = new Map();
-
 function makeEntity( Λ){
     {
         let tmp = objects.get(Λ);
@@ -118,8 +121,9 @@ function makeEntity( Λ){
         Λ :  Λ
         , post(name,...args) {
             var stack;
+            _debug_commands && console.log( "entity posting:", id, name );
             process.stdout.write( `{op:'e',o:'${Λ}',id:${id++},e:'${name}',args:${JSOX.stringify(args)}}` );
-            return new Promise( (resolve,reject)=>pendingOps.push( { id:id-1, cmd: name, resolve:resolve,reject:reject} ) );
+            return new Promise( (resolve,reject)=>{ _debug_commands && console.log( "pushed pending for that command", id,name );pendingOps.push( { id:id-1, cmd: name, resolve:resolve,reject:reject} )} );
         }
         , async postGetter(name) {
             process.stdout.write( `{op:'h',o:'${Λ}',id:${id++},h:'${name}'}` );
@@ -138,10 +142,16 @@ function makeEntity( Λ){
             })();            
         },
         async idGen() {
-            return this.post("idGen");
+            return e.post("idGen");
         },
-        async run(code) {
-            return e.post( "run", null, code )
+        async run(file, code) {
+            return e.post( "run", file,code )
+        },
+        async wake() {
+            return e.post( "wake" );
+        },
+        async require( src ) {
+            return e.post( "wake", src );
         },
         idMan : {
             //sandbox.require( "id_manager_sandbox.js" )
@@ -157,6 +167,7 @@ var MakeEntity = makeEntity;
 var required = [];
 var sandbox = vm.createContext( {
     Λ : Λ
+    , entity: entity
     , util:util
     , wsThread : sack.WebSocket.Thread
     , waiting : []
@@ -171,7 +182,7 @@ var sandbox = vm.createContext( {
         /*block*/
     }
     , async postGetter(name,...args) {
-        process.stdout.write( util.format( "PostGetter", name ) );
+        _debug_commands && process.stdout.write( util.format( "Self PostGetter", name ) );
         process.stdout.write( `{op:'g',id:${id++},g:'${name}'}` );
         
             var p = new Promise( (resolv,reject)=>{
@@ -200,7 +211,7 @@ var sandbox = vm.createContext( {
     }
     , process: process
     , Buffer: Buffer
-    , create(a,b,c,d) { 
+    , async create(a,b,c,d) { 
         return sandbox.post("create",a, b).then(
             (val)=>{ 
                 val = makeEntity( val );
@@ -209,14 +220,16 @@ var sandbox = vm.createContext( {
                         //process.stdout.write( "Got Create result...");
                         //process.stdout.write(util.format("short create:", val) ); 
                         val.post( "postRequire", c ).then( (result)=>{
+                            //console.log( "Resolve promise here..");
                             Promise.resolve( val );
                             //if(d)
                              //   d(val );
                         } )
                     });
                 }
-                else
-                    c(val);
+                else {
+                    return Promise.resolve( val );
+                }
             }
             );  
     }
@@ -254,7 +267,8 @@ var sandbox = vm.createContext( {
     , get contains()  { { return (async () => { return await sandbox.postGetter("contains")})()}}
     //, get room() { return o.within; }
     , idGen(cb) {
-        return entity.idMan.ID(o.Λ, o.created_by.Λ, cb);
+        console.log( "This ISGEN THEN?")
+        return idMan.ID(Λ, Λ.maker, cb);
     }
     , console: {
         log(...args)  { 
@@ -774,4 +788,3 @@ const volOverride = `(function(vfs, dataRoot) {
 //    process.stdout.write( e.toString() );
 //})
 
-const entity = makeEntity(Λ);

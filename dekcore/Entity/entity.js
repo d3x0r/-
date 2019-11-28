@@ -770,7 +770,7 @@ function addDriver( o, name, iName, iface) {
 			console.trace( "FIX THIS CALLER this is", o, src );
 
 		//var o = this ; //makeEntity( this.me );
-		console.log("sandboxRequire ",  src );
+		//console.log("sandboxRequire ",  src );
 		//console.log( "module", o.sandbox.module );
 		if (src === "entity.js") return exports;
 		if (src === "shell.js") return exports.Sentience;

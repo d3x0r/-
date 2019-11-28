@@ -1,7 +1,7 @@
 
 const _debugPaths = false;
 const _debug_commands = false;
-const _debug_requires = false;
+const _debug_requires = true;
 const _debug_command_input = false;
 const _debug_command_post = _debug_commands || false;
 
@@ -68,7 +68,6 @@ function processMessage( msg, stream ) {
         try {
             const code = {file: msg.file, result:null}
             codeStack.push( code );
-            console.log( "going to run...");
             var res = vm.runInContext(msg.code, sandbox , { filename:msg.file.src, lineOffset:0, columnOffset:0, displayErrors:true } );
             if( res && ( res instanceof Promise || Promise.resolve(res) === res || ( "undefined" !== typeof res.then ) ) )
                 res.then(
@@ -332,7 +331,7 @@ function makeEntity( Λ){
             return e.post( "wake" );
         },
         async require( src ) {
-            console.log( " ---- thread side require:", nameCache, src, codeStack );
+            _debug_requires && console.log( " ---- thread side require:", nameCache, src, codeStack );
             
             return e.post( "require", src ).catch(err=>sandbox.io.output(util.format(err)));
         },
@@ -425,7 +424,7 @@ var sandbox = vm.createContext( {
             console.log( "Failed!", args );
         var prior_execution = codeStack.find( c=>c.file.src === args );
         if( prior_execution ){
-            console.log( "Require resoving prior object:", args)
+            _debug_requires && console.log( "Require resoving prior object:", args)
             return prior_execution.result;
         }
         {
@@ -435,8 +434,8 @@ var sandbox = vm.createContext( {
                 return prior.object;
             }
         }
-        //_debug_requires && 
-        console.log( "Global New Require:", args );
+        _debug_requires && console.log( "Global New Require:", args, codeStack //, new Error().stack 
+                );
         pendingRequire = true;
         return  sandbox.post("require",args).then(ex=>{
             _debug_requires && console.log( "Read and run finally resulted, awated on post require" );
@@ -804,7 +803,7 @@ sandbox.config.run = { Λ : null };
 //sandbox.require=  sandboxRequire.bind(sandbox);
 sandbox.require.resolve = function(path) {
     //_debug_requires && 
-    console.log( "SANDBOX:", sandbox.module.paths, codeStack )
+    //console.log( "SANDBOX:", sandbox.module.paths, codeStack )
     var tmp = sandbox.module.paths[sandbox.module.paths.length-1] + "/" + path;
     tmp = tmp.replace( /^\.[/\\]/ , '' );
     tmp = tmp.replace( /[/\\]\.[/\\]/ , '/' );
@@ -813,7 +812,7 @@ sandbox.require.resolve = function(path) {
 		tmp = newTmp;
 	}
     tmp = tmp.replace( /[^/\\]*[/\\]\.\.$/ , '' );
-    console.log( "Resolved path:", tmp );
+    //console.log( "Resolved path:", tmp );
     return tmp;
     //return (async () => { return await e.post("resolve",...args); })(); 
 };// sandboxRequireResolve.bind( sandbox );

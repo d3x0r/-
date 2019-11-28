@@ -8,8 +8,7 @@ var vm
 var JSOX;
 
 
-if( "undefined" !== typeof Λ ) {
-
+if( "undefined" === typeof Λ ) {
     stream = require('stream')
     util = require('util')
     filter_base = require( "./filter_base.js");
@@ -416,8 +415,6 @@ function Filter( ) {
 
 if( "undefined" !== typeof Λ ) {
 
-    async function doInit() {
-
         stream = await require('stream')
         util = await require('util')
         filter_base = await require( "./filter_base.js");
@@ -443,9 +440,6 @@ if( "undefined" !== typeof Λ ) {
         
         read_command.prototype.setLastTell = (lastTold) => { this.lastTold = lastTold }
         
-        return Promise.resolve(true);        
-    }
-    return doInit();
 }
 
 

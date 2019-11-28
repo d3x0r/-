@@ -74,9 +74,6 @@ return require("sack.vfs" ).then(sack=>{
                 //nl.connectInput( process.stdin );
                 nl.connectOutput( shell.filter );
                 shell.connectOutput( output.filter );
-                process.stdout.pipe( output.filter ); 
-                process.stderr.pipe( output.filter ); 
-
             }); 
         })
     

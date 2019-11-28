@@ -14,8 +14,10 @@ const vm = require('vm' );
 const sack = require('sack.vfs');
 const path = require('path');
 const wt = require( 'worker_threads');
-const module = require('module');
-const builtinModules = module.builtinModules;
+const njs_module = require('module');
+
+const builtinModules = njs_module.builtinModules.slice(0);
+builtinModules.require = require;
 const disk = sack.Volume();
 const JSOX = sack.JSOX;
 
@@ -66,7 +68,7 @@ function processMessage( msg, stream ) {
         try {
             const code = {file: msg.file, result:null}
             codeStack.push( code );
-            //console.log( "going to run...");
+            console.log( "going to run...");
             var res = vm.runInContext(msg.code, sandbox , { filename:msg.file.src, lineOffset:0, columnOffset:0, displayErrors:true } );
             if( res && ( res instanceof Promise || Promise.resolve(res) === res || ( "undefined" !== typeof res.then ) ) )
                 res.then(
@@ -330,9 +332,9 @@ function makeEntity( Λ){
             return e.post( "wake" );
         },
         async require( src ) {
-            console.log( " ---- thread side require:", src, codeStack );
+            console.log( " ---- thread side require:", nameCache, src, codeStack );
             
-            return e.post( "require", src );
+            return e.post( "require", src ).catch(err=>sandbox.io.output(util.format(err)));
         },
         idMan : {
             //sandbox.require( "id_manager_sandbox.js" )
@@ -370,7 +372,7 @@ var sandbox = vm.createContext( {
     , util:util
     , wsThread : sack.WebSocket.Thread
     , waiting : []
-    , module : {paths:[module.path]}
+    , module : {paths:[codeStack.length?codeStack[codeStack.length-1].file.path:module.path]}
     , Function : Function
     , eval: eval
     , post(name,...args) {
@@ -415,8 +417,12 @@ var sandbox = vm.createContext( {
             if( ['vm','child_process','worker_threads'].find(m=>m===args) ){
                 throw new Error( "Module not found:",+ a )
             }
+            console.log( "Including native node builtin module:", args );
+            return builtinModules.require( args );
         }
         args = sandbox.require.resolve( args );
+        if( args.includes( "undefined"))
+            console.log( "Failed!", args );
         var prior_execution = codeStack.find( c=>c.file.src === args );
         if( prior_execution ){
             console.log( "Require resoving prior object:", args)
@@ -429,14 +435,16 @@ var sandbox = vm.createContext( {
                 return prior.object;
             }
         }
-        _debug_requires && console.log( "Global New Require:", args );
+        //_debug_requires && 
+        console.log( "Global New Require:", args );
         pendingRequire = true;
-        var ex = await sandbox.post("require",args);
-        _debug_requires && console.log( "Read and run finally resulted, awated on post require" );
-        var ex2 = requireRunReply.pop()
-        //console.log( "Require finally resulted?",args, ex, ex2 ); 
-        required.push( {src:args, object:ex2 });
-        return ex2; 
+        return  sandbox.post("require",args).then(ex=>{
+            _debug_requires && console.log( "Read and run finally resulted, awated on post require" );
+            var ex2 = requireRunReply.pop()
+            //console.log( "Require finally resulted?",args, ex, ex2 ); 
+            required.push( {src:args, object:ex2 });
+            return ex2;    
+        }).catch( err=>sandbox.io.output("Require failed:", err));
     }
     , process: process
     , Buffer: Buffer
@@ -778,6 +786,9 @@ var sandbox = vm.createContext( {
     }
     , JSOX: JSOX
 });
+
+
+
 sandbox.clearImmediate = sandbox.clearTimeout;
 sandbox.clearInterval = sandbox.clearInterval;
 
@@ -792,7 +803,8 @@ sandbox.config.run = { Λ : null };
 //entity.idMan.ID( entity.idMan.localAuthKey, o.created_by.Λ, (id)=>{ sandbox.config.run.Λ = id.Λ } );
 //sandbox.require=  sandboxRequire.bind(sandbox);
 sandbox.require.resolve = function(path) {
-    _debug_requires && console.log( "SANDBOX:", sandbox.module.paths )
+    //_debug_requires && 
+    console.log( "SANDBOX:", sandbox.module.paths, codeStack )
     var tmp = sandbox.module.paths[sandbox.module.paths.length-1] + "/" + path;
     tmp = tmp.replace( /^\.[/\\]/ , '' );
     tmp = tmp.replace( /[/\\]\.[/\\]/ , '/' );
@@ -801,6 +813,7 @@ sandbox.require.resolve = function(path) {
 		tmp = newTmp;
 	}
     tmp = tmp.replace( /[^/\\]*[/\\]\.\.$/ , '' );
+    console.log( "Resolved path:", tmp );
     return tmp;
     //return (async () => { return await e.post("resolve",...args); })(); 
 };// sandboxRequireResolve.bind( sandbox );
@@ -811,253 +824,13 @@ sandbox.removeAllListeners = (name) => {
     Object.keys(sandbox.events).forEach(event => delete sandbox.events[event]);
 };
 
+/* Seal Sandbox */
         ["JSOX","events", "crypto", "_module", "console", "Buffer", "require", "process", "fs", "vm"].forEach(key => {
             if( key in sandbox )
                 Object.defineProperty(sandbox, key, { enumerable: false, writable: true, configurable: false });
         });
     
 
-       
-        /*
-        ((Function,eval,require)=>{
-
-            this.require = require;
-            this.eval = eval;
-            this.Function = Function;
-            Object.defineProperty( this, 'Function', {enumerable:false,configurable:false,value:Function} );
-            Object.defineProperty( this, 'eval', {enumerable:false,configurable:false,value:eval} );
-            Object.defineProperty( this, 'require', {enumerable:false,configurable:false,value:require} );
-            
-})(Function,eval,sandboxRequire);
-*/
-
-if( 0 ){
-function sandboxRequire(src) {
-    const o = sandbox;
-
-    //console.trace( "this is", this, src );
-    //var o = makeEntity( this.me );
-    console.trace("internal sandboxRequire ",  src );
-    //console.log( "module", sandbox.module );
-    if (src === "entity.js") { console.log( "No such thing - entity.js" ); return ThreadEntity; }
-    //if (src === "shell.js") return Shell;//exports.Sentience;
-    if (src === "text.js") return text;
-
-    if (src == 'ws') {
-        return sandboxWS;
-    }
-    if (src == 'wss') {
-        return sandboxWSS;
-    }
-    if (o.permissions.allow_file_system && src == 'fs') return fs;
-    if( src == "stream") return stream;
-    if (o.permissions.allow_file_system && src == 'stream') return stream;
-    if (src == 'crypto') return crypto;
-    if (src == 'util') return util;
-    if (src == 'vm') return vm;
-    if (src == 'os') return os;
-    if (src == 'url') return url;
-    if (src == 'tls') return tls;
-    if (src == 'https') return https;
-    if (src == 'path') return path;
-    if( src == 'child_process' ) return cp;
-    if( src == 'process' ) return process;
-            if( src.substr( src.length-8 ) == "sack-gui" ) return sack;
-    //if (src == 'path') return path;
-
-    if (src == 'events') return events;
-
-    if (src == 'sack.vfs') {
-        if( !("_vfs" in sandbox ) ) {
-            //console.log( "Overriding internal VFS", o.name )
-            sandbox._vfs = Object.assign( {}, sack );
-            sandbox._vfs.Volume = sandbox._vfs.Volume.bind( {} );
-            sandbox._vfs.Sqlite = sandbox._vfs.Sqlite.bind( {} );
-            try {
-                vm.runInContext( "(" + volOverride + ')(this._vfs,"' +  "." +'")' , sandbox
-                    , { filename: "moduleSetup" , lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 1000 })
-            } catch( err) {
-                console.log( "VM Error:", err );
-            }
-        }
-        return sandbox._vfs;
-    }
-
-
-
-    //console.log( "blah", sandbox.scripts)
-    if( sandbox.scripts.index < sandbox.scripts.code.length ) {
-        var cache = sandbox.scripts.code[sandbox.scripts.index];
-        //console.log( "cache is?", typeof cache, cache);
-        if( cache.source === src ) {
-            sandbox.scripts.index++;
-
-            var oldModule = sandbox._module;
-            var root = cache.closure.root;
-            if( !cache.closure.paths ){
-                console.log( "About to log error?" );
-                console.log( "Undefined paths:", cache.closure.paths, __dirname , ".");
-                cache.closure.paths = [process.cwd()];
-            }
-            var thisModule = {
-                filename: cache.closure.filename
-                , src : cache.closure.src
-                , source : cache.closure.source
-                , file: ""
-                , parent: sandbox._module
-                , paths: cache.closure.paths
-                , exports: {}
-                , includes : []
-                , loaded: false
-            }
-            //console.log( "NEW MODULE HERE CHECK PATHS:", cache.closure.paths, cache.closure.filename )
-
-            oldModule.includes.push( thisModule );
-            //        { name : src.substr( pathSplit+1 ), parent : sandbox.module, paths:[], root : rootPath, exports:{} };
-            //oldModule.children.push( thisModule );
-            sandbox._module = thisModule;
-
-            var root = cache.closure.filename;
-            try {
-                //console.log( "closure recover:", root, cache.closure )
-                var file = disk.read(root).toString();
-            } catch (err) {
-                console.log("File failed... is it a HTTP request?", src, root, err);
-                return undefined;
-            }
-            if( file !== cache.closure.source ) {
-                console.log( "updating cached file....", src )
-                cache.closure.source = file;
-                exports.saveAll();
-            }
-            var code = ['(function(exports,config,module,resume){'
-                , cache.closure.source
-                , '})(_module.exports,this.config, _module, true );\n//# sourceURL='
-                , root
-            ].join("");
-
-            //console.log( "Executing with resume TRUE")
-            try {
-                vm.runInContext( code, sandbox
-                    , { filename: cache.source , lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 1000 })
-            } catch( err ) {
-                console.log( "VM Error:", err );
-            }
-            sandbox._module = oldModule;
-            //console.log( "active base module is ... ")
-            return thisModule.exports;
-        }
-    }
-
-    var rootPath = "";
-
-    // resolves path according to relative path of parent modules and resolves ".." and "." parts
-    var root = netRequire.resolvePath(src, sandbox._module);
-    _debugPaths && console.log("src could be", src);
-    _debugPaths && console.log("root could be", root);
-    _debugPaths && console.log("working root is ", rootPath);
-    try {
-        var file = disk.read(root);
-    } catch (err) {
-        console.log("File failed... is it a HTTP request?", err);
-        return undefined;
-    }
-    //console.log( sandbox.module.name, "at", rootPath,"is loading", src );
-    //var names = fs.readdirSync( "." );
-    //console.log( names );
-    var pathSplita = src.lastIndexOf("/");
-    var pathSplitb = src.lastIndexOf("\\");
-    if (pathSplita > pathSplitb)
-        var pathSplit = pathSplita;
-    else
-        var pathSplit = pathSplitb;
-
-    if (src.startsWith("./"))
-        rootPath = rootPath + src.substr(2, pathSplit - 2);
-    else if (src.startsWith("../"))
-        rootPath = rootPath + src;//src.substr(2,pathSplit-2 );
-    else
-        rootPath = rootPath + src.substr(0, pathSplit);
-
-    //console.log( "set root", rootPath );
-console.log( "This builds code that's not an async function..." );
-    var code =
-        ['(async function(exports,config,module,resume){'
-            , file
-            , '})(_module.exports,this.config, _module, false );\n//# sourceURL='
-            , root
-        ].join("");
-
-    var oldModule = sandbox._module;
-    var thisModule = {
-        filename: root
-        , src : src
-        , source : file
-        , file: netRequire.stripPath(root)
-        , parent: sandbox._module
-        , paths: [netRequire.stripFile(root)]
-        , exports: {}
-        , includes : []
-        , loaded: false
-
-        , toJSON() {
-            //console.log( "Saving this...", this );
-            return JSOX.stringify( { filename:this.filename, file:this.file, paths:this.paths, src:this.src, source:this.source })
-        }
-        , toString() {
-            return JSOX.stringify( {filename:this.filename
-                , src:this.src })
-        }
-    }
-    oldModule.includes.push( thisModule );
-    //        { name : src.substr( pathSplit+1 ), parent : sandbox.module, paths:[], root : rootPath, exports:{} };
-    //oldModule.children.push( thisModule );
-    sandbox._module = thisModule;
-
-    sandbox.scripts.push( { type:"require", source:src, closure: thisModule } );
-    try {
-        //console.log( "(in thread)run in context");
-        vm.runInContext(code, sandbox
-            , { filename: src, lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 5000 })
-        //console.log( "Completed entity sandbox require without error?" );
-    } catch( err) {
-        console.log( "VM Error:", err );
-    }
-    //console.log( "result exports for ", src
-    //               , thisModule.name
-    // 		 , thisModule.exports
-    //           );
-    sandbox._module = oldModule;
-    //console.log( "active base module is ... ")
-    return thisModule.exports;
-}
-
-function sandboxRequireResolve(path){
-
-var o = null;//makeEntity( this.me );
-if( !o || !this ) {
-    //console.log( "Not in a sandbox, relative to object, so ...", module.path  );
-    var tmp = module.path + "/" + path;
-    tmp = tmp.replace( /[/\\]\.[/\\]/g , '/' );
-    tmp = tmp.replace( /[^/\\]*[/\\]\.\.[/\\]/g , '' );
-    tmp = tmp.replace( /[^/\\]*[/\\]\.\.$/g , '' );
-    //console.log( "final otuput:", tmp );
-    return tmp;
-}
-console.log( "RESOLVE IS TRYING:", path , sandbox._module.paths, sandbox.name );
-
-var usePath = sandbox._module.paths?sandbox._module.paths[0]+"/":"";
-var tmp = usePath + path;
-//console.log( "append:", tmp );
-tmp = tmp.replace( /[/\\]\.[/\\]/ , '/' );
-tmp = tmp.replace( /[^/\\]*[/\\]\.\.[/\\]/g , '' );
-tmp = tmp.replace( /[^/\\]*[/\\]\.\.$/g , '' );
-//console.log( "final otuput:", tmp );
-return tmp;
-}
-sandboxRequire.resolve = sandboxRequireResolve;
-
-}
 
 function addDriver( o, name, iName, iface) {
 	var driver = drivers.find(d => d.name === name);

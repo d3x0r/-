@@ -1,13 +1,9 @@
 
-async function startup() {
+exports.Filter = Filter;
 
-	exports.Filter = Filter;
-
-	var stream = await require('stream')
-	var util = await require('util')
-	var filter_base = await require( "./filter_base.js")
-
-//console.log( "Strip newline: Util is:", )
+var stream = await require('stream')
+var util = await require('util')
+var filter_base = await require( "./filter_base.js")
 
 function trim_newline(options) {
     options = options || {};
@@ -20,18 +16,18 @@ util.inherits(trim_newline, stream.Transform)
 trim_newline.prototype._transform = function(chunk, encoding, callback) {
 	// chunk is given as 'buffer' and is a buffer
 	var string = chunk.toString();
-	console.warn( "newline:", string );
+	//console.log( "newline:", string );
 
 	if( ( string.lastIndexOf( "\r\n" ) === string.length-2 )||( string.lastIndexOf( "\n" ) === string.length-1 ) ) {
         	var newstr = string.replace( /\n|\r\n/, "" )
 		//console.log( "stripped return" );
-	        this.push( new Buffer.from(newstr) );
-		console.log( `transform called with ${newstr}...` );
+		this.push( new Buffer.from(newstr) );
+		//console.log( `transform called with ${newstr}...` );
 	}
 	else {
 		this.push( chunk );
-        }
-       	callback()
+    }
+	callback()
 }
 
 
@@ -39,6 +35,3 @@ function Filter() {
 	return filter_base.Filter(  new trim_newline() );
 }
 
-}
-
-return startup();

@@ -1,12 +1,14 @@
 
-
 async function buildPiping(){
       // opens our internal weak parser on the current object.
       // only one of these can work though. 
 //	var webCons = require( './command_stream_filter/webConsole.js' ).Filter();
 
     //var cons = require( './command_stream_filter/psi_console.js' ).Filter();
-   const shell = (await require( "./Sentience/shell.js" )).Filter( this );
+    var shellFilter = await require( "./Sentience/shell.js" );
+    process.stdout.write( util.format("Piping got:", shellFilter ));
+
+   const shell = shellFilter.Filter( this );
     require(  './command_stream_filter/strip_newline.js' ).then( (newline)=>{
       console.log( "So the thing ran, resulted, and we got back the result??")
       require( './command_stream_filter/monitor_filter.js' ).then( monitor=>{

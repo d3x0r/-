@@ -28,8 +28,6 @@ Entity.gun = https.gun;
 Entity.addService = https.addService;
 Entity.addProtocol = https.addProtocol;
 
-var shell = require( "./Sentience/shell.js" );
-var text = require( "../org.d3x0r.common/text.js" )
 
 var MOOSE;
 
@@ -182,19 +180,26 @@ async function BigBang() {
 				config.commit();
 
 					MOOSE = o;
-					console.log( "This is attaching shell to a thread for MOOSE... ", o.thread );
 					if( !o.thread ) o.wake().then( async ()=>{
-						console.log( "requiring start script");
 						process.stdin.pipe( o.thread.worker.stdin );
+						console.log( "requiring start script", startScript );
 						await o.require( startScript );
+						console.log( "Does this never resolve?" );
+					}).catch( (err) =>{
+						console.log( "Void Startup Wake failed:", err );
 					})
+					console.log( "Thread woken... but async still?");
 					if( o.thread ){
 					}
+					/*
+					// still might support semi-animated objects....
 					if( o.sandbox ) {
 						if( !("io" in o.sandbox) ) o.sandbox.io = {};
 						MOOSE.sandbox.io.command = shell.Filter( o );
 						o.sandbox.require( startScript );
 					}
+					*/
+
 					//var path = require.resolve( "./startup.js" ).replace( /\\/g, "/" );
 					//shell.Script( o.sandbox, text.Text( path ) );
 					Entity.saveAll();

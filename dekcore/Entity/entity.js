@@ -1,6 +1,6 @@
 "use strict";
 const _debugPaths = false;
-const _debug_threads = true;
+const _debug_threads = false;
 const events = require('events');
 const os = require( 'os' );
 const url = require( 'url' );
@@ -255,7 +255,7 @@ var nextID = null;
 
 //Λ
 
-const sentience = require( "../Sentience/shell.js");
+//const sentience = require( "../Sentience/shell.js");
 
 function EntityExists(key, within) {
 	if (objects.get(key))
@@ -395,13 +395,15 @@ function makeEntity(obj, name, description, callback, opts) {
 		//o.attached_to.set(o.Λ, o);
 
 		sealEntity(o);
-		if( o.within.sandbox ) {
-			o.within.sandbox.emit("created", o);
-			o.within.sandbox.emit("stored", o);
+		if( o.within ) {
+			if( o.within.thread ) {
+				o.within.thread.emit("created", o.Λ);
+				o.within.thread.emit("stored", o.Λ);
+			}
 		}
 		o.within.contains.forEach(near => (near !== o) ?
-			( near.sandbox )&&
-				near.sandbox.emit("joined", o.sandbox.entity) 
+			( near.thread )&&
+				near.thread.emit("joined", o.Λ) 
 			: 0 
 		);
 
@@ -421,6 +423,7 @@ function makeEntity(obj, name, description, callback, opts) {
 
 }
 
+if(0) {
 var timerId;  // static varible to create timer identifiers.
 
 	function makeSystemSandbox(o,local) {
@@ -523,18 +526,22 @@ var timerId;  // static varible to create timer identifiers.
 					//o.Λ
 					//console.log( "entity in this context:", target, msg );
 					var o = objects.get(target.Λ || target);
-					if (o)
-						o.sandbox.emit("message", msg)
+					if (o && o.thread )
+						o.thread.emit("message", msg)
+					else
+						console.log( "Send to object that's not awake....");
 					//entity.gun.get(target.Λ || target).put({ from: o.Λ, msg: msg });
 				}
 			}
 			, events: {}
 			, on: (event, callback) => {
-				sandbox.emit("newListener", event, callback)
-				if (!(event in sandbox.events))
-					sandbox.events[event] = [callback];
-				else
-					sandbox.events[event].push(callback);
+				if( thread ){
+					thread.emit("newListener", event, this.Λ);
+					if (!(event in sandbox.events))
+						sandbox.events[event] = [callback];
+					else
+						sandbox.events[event].push(callback);
+				}
 			}
 			, off(event, callback) {
 				if (event in sandbox.events) {
@@ -546,7 +553,8 @@ var timerId;  // static varible to create timer identifiers.
 				}
 				else
 					throw new Error("Event does not exist", event, callback);
-				sandbox.emit("removeListener", event, callback)
+				if( thread )
+					thread.emit("removeListener", event, callback)
 			}
 			, addListener: null
 			, emit(event, ...args) {
@@ -642,7 +650,6 @@ var timerId;  // static varible to create timer identifiers.
 		};
 		return sandbox;
 	}
-
 
 function runDriverMethod( o, driver, msg ) {
 			var constPart = `${driver.iName}[${msg.data.method}](`;
@@ -749,20 +756,21 @@ function addDriver( o, name, iName, iface) {
 			async run(statement) {
 				return o.run( "Immediate command", statement);
 			},
-			get(o) { return objects.get(o)&&objects.get(o).sandbox.entity; },
-			get parent() { return o.parent&&o.parent.sandbox.entity; },
-			get container() { return o.container&&o.container.sandbox.entity; },
+			get(o) { return objects.get(o)&&objects.get(o).Λ; },
+			get parent() { return o.parent&&o.parent.Λ; },
+			get container() { return o.container&&o.container.Λ; },
 			//get value() { return o.value; }
 		}
 		return i;
 	}
+}
 
 	async function sandboxRequire(o,src) {
 		if( !o || !src )
 			console.trace( "FIX THIS CALLER this is", o, src );
 
 		//var o = this ; //makeEntity( this.me );
-		//console.trace("sandboxRequire ",  src );
+		console.log("sandboxRequire ",  src );
 		//console.log( "module", o.sandbox.module );
 		if (src === "entity.js") return exports;
 		if (src === "shell.js") return exports.Sentience;
@@ -792,11 +800,13 @@ function addDriver( o, name, iName, iface) {
 		if (src == 'events') return events;
 
 		if (src == 'sack.vfs') {
+			console.log( "Should change default volume interface?");
+			/*
 			if( o.sandbox )
 			if( !("_vfs" in o.sandbox ) ) {
 				//console.log( "Overriding internal VFS", o.name )
 				try {
-				o.sandbox._vfs = Object.assign( {}, vfsNaked );
+					o.sandbox._vfs = Object.assign( {}, vfsNaked );
 				}catch(err ) {
 					console.log( "vfsNaked is:", vfsNaked );
 				}
@@ -813,8 +823,9 @@ function addDriver( o, name, iName, iface) {
 					console.log( "VM Error:", err );
 				}
 			}
+			*/
 			return vfs;
-			return o.sandbox._vfs;
+			//return o.sandbox._vfs;
 		}
 
 		//console.log( "blah", o.sandbox.scripts)
@@ -918,6 +929,7 @@ function addDriver( o, name, iName, iface) {
 		//console.log( "set root", rootPath );
 
 		const filePath = netRequire.stripFile(root);
+		//console.log( "This will be an async function..." );
 		var code =
 			['(async function() { var module={ path:'+ JSON.stringify(filePath) +',src:'+ JSON.stringify(src) +',exports:{}}; '
 				, 'this.module.paths.push(' + JSON.stringify(filePath)  + ");"
@@ -925,7 +937,7 @@ function addDriver( o, name, iName, iface) {
 				, file
 				, '}).call(this,this,module.exports,module,false );'
 				, 'this.module.paths.pop();'
-				, 'return module.exports;})()\n//# sourceURL='
+				, 'return module.exports;})().catch(err=>{console.log( "caught require error:", err)})\n//# sourceURL='
 				, root
 			].join("");
 
@@ -945,23 +957,22 @@ function addDriver( o, name, iName, iface) {
 				return JSOX.stringify( { filename:this.filename, file:this.file, paths:this.paths, src:this.src, source:this.source })
 			}
 			, toString() {
-				return JSOX.stringify( {filename:this.filename
-					, src:this.src })
+				return JSOX.stringify( {filename:this.filename, src:this.src })
 			}
 		}
 		oldModule.includes.push( thisModule );
 
 		o._module = thisModule;
 
-		_debug_threads && console.log( o.name, "POSTED CODE TO RUN TO THE OTHER THREAD... AND WE WAIT (upushed to stack", o._module.src );
+		_debug_threads &&  console.log( o.name, "POSTED CODE TO RUN TO THE OTHER THREAD... AND WE WAIT (upushed to stack", o._module.src );
 			return o.thread.run( {src:src,path:thisModule.paths[0]}, code ).then( (v)=>{
+				
 				o._module = oldModule;
 				//console.log( o.name, "RUN RESULT:", v, thisModule.file );
 			}).catch( e=>{
 				o._module = oldModule;
 				//console.log( "Catch error of course?", e );
 			} );
-
 	}
 
 function sandboxRequireResolve(path){
@@ -1006,7 +1017,10 @@ function Entity(obj,name,desc ) {
 		, sandbox: null // operating sandbox
 		, child : null // child process
 		, vol: null
-		, async require (file) { console.log( "Entity require:", this.name, file );return sandboxRequire(this,file) }
+		, require (file) { 
+			//console.log( "calling sandbox require...");
+			return sandboxRequire(this,file)
+		 }
 		, thread : null
 		, scripts : { code: [], index : 0, push(c){ this.index++; this.code.push(c)} }
 		, _module: {
@@ -1038,7 +1052,7 @@ function Entity(obj,name,desc ) {
 				console.log( "Waking this entity:", this.name );
 				return wake.WakeEntity( this );
 			}
-			return this.thread;
+			return Promise.resolve(this.thread);
 		}
 }
 	o.created_by = obj || o;
@@ -1062,9 +1076,9 @@ var entityMethods = {
 			makeEntity(this, name, desc, (newo) => {
 				//console.warn( "Make Entity result with entity...", cb );
 				newo.value = value;
-				//this_.sandbox.emit('stored', newo.sandbox.entity );
+				//this_.thread.emit('stored', newo.Λ );
 				//this_.contains.forEach( peer=>{
-				//	peer.sandbox.emit('joined', newo.sandbox.entity );
+				//	peer.thread.emit('joined', newo.Λ );
 				//});
 				if (typeof cb === 'string') {
 					newo.sandbox.require(cb); // load and run script in entity sandbox
@@ -1098,22 +1112,63 @@ var entityMethods = {
 			return done;
 		}
 		, getObjects(...args){ return getObjects(this, ...args) }
-		, get contents() { return this.contains; }
+		, get contents() { var refs = new Map();  this.contains.forEach( c=>refs.set(c.Λ, c.Λ) );return refs; }
+		, get near() {
+			var result = [];
+			for( let near of this.within.contains){
+				if( near[1] !== this ){
+					result.push( near[0] );
+				}
+			} 
+			return result;
+		}
+		, get exits() {
+			var result = [];
+			var anchor = findContained( this );
+			for( let near of anchor.parent.attached_to){
+				result.push( near.Λ );
+			} 
+			return result;
+		}
+		, get room() {
+			console.log( "Getting room of :", this.name);
+			if( this.within )
+				return this.within.Λ;
+			return this.container;
+		}
+		, get container() {
+			var anchor = findContained( this );
+			var from = anchor;
+			while( from = from.from ) {
+				from.parent = from.parent.Λ;
+				from.at = from.at.Λ;
+			}
+			anchor.parent = anchor.parent.Λ;
+			anchor.at = anchor.at.Λ;
+			return anchor;
+		}
 		, get nearObjects() {
 			//console.log( "getting near objects", this.contains )
 			var near = new Map();
-			near.set("holding", this.attached_to);
-			near.set("contains", this.contains);
+			var c = new Map();
+			this.attached_to.forEach( e=>c.set(e.Λ,e.Λ) );
+			near.set("holding", c );
+			c = new Map();
+			this.contains.forEach( e=>c.set(e.Λ,e.Λ) );
+			near.set("contains", c );
 			near.set("near", (function (on) {
 				var result = new Map();
+
 				if (on.within) {
 					on.within.contains.forEach((nearby) => {
+						//console.log( "my room contains:", nearby );
 						if (nearby !== on) {
-							result.set(nearby.Λ, nearby);
+							result.set(nearby.Λ, nearby.Λ );
 						}
 					});
 					on.within.attached_to.forEach((nearby) => {
-						result.set(nearby.Λ, nearby);
+						//console.log( "my room attached to:", nearby );
+						result.set(nearby.Λ, nearby.Λ );
 					});
 					return result;
 				}
@@ -1127,9 +1182,7 @@ var entityMethods = {
 				sanityCheck(object);
 		}
 		, attach(a) {
-			var checked = {};
-			var attachments = new Map();
-			let validA = false;
+			if( "string" === typeof a ) a = objects.get(a);
 			if( a === this )
 				throw new Error( "Why would you attach a thing to itself?" );
 			
@@ -1144,8 +1197,10 @@ var entityMethods = {
 			{
 				a.attached_to.set(this.Λ, this);
 				this.attached_to.set(a.Λ, a);
-				this.sandbox.emit('attached', a.sandbox.entity);
-				a.sandbox.emit('attached', this.sandbox.entity);
+				if( this.thread )
+					this.thread.emit('attached', a.Λ);
+				if( a.thread )
+					a.thread.emit('attached', this.Λ);
 			}
 		}
 		, detach(a) {
@@ -1155,9 +1210,10 @@ var entityMethods = {
 					// both have to be attached to the third.
 					a.attached_to.delete(this.Λ);
 					this.attached_to.delete(a.Λ);
-
-					this.sandbox.emit('detached', a.sandbox.entity);
-					a.sandbox.emit('detached', this.sandbox.entity);				
+					if( this.thread )
+						this.thread.emit('detached', a.Λ);
+					if( a.thread )
+						a.thread.emit('detached', this.Λ);				
 
 					//if( isAttached( this, null, a, ) ) {
 					//	console.log( "Entity is Still attached?");
@@ -1171,12 +1227,15 @@ var entityMethods = {
 		}
 		, insert(a) {
 			a.within = this;
-			this.sandbox.emit('stored', a.sandbox.entity );
+			if( this.thread )
+			this.thread.emit('stored', a.Λ );
 			this.contains.forEach( peer=>{
-				peer.sandbox.emit('joined', a.sandbox.entity );
+				if( peer.thread )
+				peer.thread.emit('joined', a.Λ );
 			});
 			this.contains.set( a.Λ, a );
-			a.sandbox.emit('placed', this.sandbox.entity );
+			if( a.thread )
+				a.thread.emit('placed', this.Λ );
 		}
 		, rebase() {
 			// this removes an entity from space...
@@ -1187,12 +1246,15 @@ var entityMethods = {
 			if( room ){
 				room.contains.delete(this.Λ);
 				// tell room it lost something
-				room.sandbox.emit( "lost", this.sandbox.entity );
-				this.sandbox.emit('displaced', room.sandbox.entity );
+				if( room.thread )
+					room.thread.emit( "lost", this.Λ );
+				if( this.thread )
+					this.thread.emit('displaced', room.Λ );
 				// tell others in the room some parted the room.
 				// headed to?
 				room.contains.forEach( content=>{
-					content.sandbox.emit( "parted", this.sandbox.entity );
+					if( content.thread )
+						content.thread.emit( "parted", this.Λ );
 				})
 				this.within = null;
 			}else {
@@ -1235,8 +1297,8 @@ var entityMethods = {
 			}
 		}
 		, leave() {
-			var outer = this.within || findContained(this);
-			var outerRoom = outer.within || findContained(outer);
+			var outer = this.within || findContained(this).parent;
+			var outerRoom = outer.within || findContained(outer).parent;
 			this.rebase(); // free from container
 			outerRoom.insert( this ); // put in new container
 		}
@@ -1249,14 +1311,14 @@ var entityMethods = {
 			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ );
 			if( grabobj ) {
 				if( !grabobj.within ) {
-					throw new Error( "Entity cannot be grabbed, it is not the anchor point.", grabobj.sandbox.entity );
+					throw new Error( "Entity cannot be grabbed, it is not the anchor point.", grabobj.Λ );
 				}
 				grabobj.rebase();
 				this.attach( grabobj );
             }
 		}
 		, drop(a) {
-			var outer = this.within || (outer = findContained(this) );
+			var outer = this.within || (outer = findContained(this).parent );
 			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ );
 
 			if( this.detach( grabobj ) ) {
@@ -1373,9 +1435,9 @@ Entity.fromString = function(s) {
 
 	o.Λ = s.Λ;
 		console.warn( "create sandbox here, after getting ID")
-		o.sandbox = vm.createContext(makeSystemSandbox(o, true));
-		o.sandbox.entity = makeEntityInterface(o);
-		sealSandbox(o.sandbox);
+		//o.sandbox = vm.createContext(makeSystemSandbox(o, true));
+		//o.Λ = makeEntityInterface(o);
+		//sealSandbox(o.sandbox);
 
 		if (o.within)
 			o.within.contains.set(o.Λ, o);
@@ -1389,12 +1451,12 @@ Entity.fromString = function(s) {
 		if (!o.within) {
 			//o.attached_to.set(o.Λ, o);
 		}else {
-			if( o.within.sandbox ) {
-				o.within.sandbox.emit("created", o);
-				o.within.sandbox.emit("inserted", o);
+			if( o.within.thread ) {
+				o.within.thread.emit("created", o);
+				o.within.thread.emit("inserted", o);
 			}
 		}
-		//o.within.contains.forEach(near => (near !== o) ? near.sandbox.emit("joined", o) : 0);
+		//o.within.contains.forEach(near => (near !== o) ? near.thread.emit("joined", o) : 0);
 
 		if (!callback)
 			throw ("How are you going to get your object?");
@@ -1579,7 +1641,7 @@ exports.saveAll = function() {
 			src = src.slice(2);
 			getObjects( me, src, all, (o,location,moreargs)=>{
 				o = objects.get( o.me );
-				console.log( "in Found:", o.name, name );
+				console.log( "THIS FUNCTION IS MROEVED TO LOCAL THREADSin Found:", o.name, name );
 				o.contents.forEach( content=>{
 					//if (value === me) return;
 					if (!object || content.name === name ) {
@@ -1659,33 +1721,40 @@ exports.saveAll = function() {
 
 
 function findContained(obj, checked) {
-	if (obj.within) return { parent: obj.within, at: obj };
+	try {
+	if (obj.within) return { parent: obj.within, at: obj, from:null };
 	if (!checked)
-		checked = [];
-	for (content in obj.within) {
-		if (checked[content.Λ])
-			break;
-		checked[content.Λ] = true;
-		if (content.within) return { parent:result, at:content };
-		// look for attached things....
+		checked = {[obj.Λ]:true};
+	var result;
+	var attached = obj.attached_to[Symbol.iterator]()
+	for( let content of attached ) {
+		content = content[1];
+		if (checked[content.Λ]) continue;
+		console.log(  "check for within:", content.name);
+		if (content.within) return { parent:content.within, at:content, from:null };
 		var result = findContained(content, checked);
-		if (result) return { parent:result, at:content };
+		checked[content.Λ] = true;
+		if (result) return { parent:result.parent, at:content, from:result };
 	}
-	throw "Detached Entity";
+	
+} catch(err) {
+	console.log( "Failed:", err);
+}
+	throw new Error("Detached Entity");
 }
 
 function findContainer(obj, checked) {
 	if (obj.within) return obj.within;
 	if (!checked)
 		checked = [];
-	for (content in obj.attached_to) {
+	for (content of obj.attached_to) {
 		if (checked[content.Λ]) continue;
 		checked[content.Λ] = true;
 		if (content.within) return content.within;
 		var result = findContainer(content, checked);
 		if (result) return result;
 	}
-	throw "Detached Entity";
+	throw new Error("Detached Entity");
 }
 
 function isContainer(obj, checked, c) {

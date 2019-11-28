@@ -174,29 +174,30 @@ exports.authBy = (key, auth, cb) => {
 	return false;
 }
 
-exports.madeFrom = (key, maker, cb) => {
+exports.madeFrom = async (key, maker, cb) => {
+	if( cb )
+		console.trace( "Warning This is now Async.");
+	console.log( 'checking if key is made from...');
+	
 	let _maker = keyTracker.keys.get(maker);
+	console.log( 'checking if key is made from...');
 	if (!_maker) {
-		cb(false);
-		return;
+		return Promise.resolve(false);
 	}
 	if (keyTracker.keys.get(key)) {
 		do {
 			if (key.maker === maker){
-				cb(true);
-				return;
+				return Promise.resolve(true);
 			}
 			//if( key.maker.Λ === maker )
 			//    return true;
 			if (key.invalid){
-				cb(false);
-				return;
+				return Promise.resolve(false);
 			}
 			key = key.maker;
 		} while (key);
 	}
-	cb(false);
-	return;
+	return Promise.resolve(false);
 }
 
 Object.defineProperty(exports, "localAuthKey", {

@@ -22,7 +22,9 @@ if( "undefined" !== typeof Λ ) {
 
 exports.Filter = Filter;
 
-    const debug_finishPhrase = false;
+
+const debug_input = false;
+const debug_finishPhrase = false;
 const debug_command_keys = false;
 
 var states = {
@@ -46,10 +48,15 @@ function read_command(sandbox, options_) {
     Object.defineProperty( commands, "forEach", {enumerable:false})
     this.processCommand = processCommand;
     this.processCommandLine = processCommandLine;
+    this.handleUnhandled = null;
     //this._processCommand = _processCommand;
     const stree = {};
     //this.sandbox.GLOBAL=this.sandbox;
     this.RegisterCommand = ( name, opts, code ) => {
+        if( name === "unhandled" ) {
+            this_.handleUnhandled = code;
+            return;
+        }
         if( name in commands ) throw new Error( "Command already registered" );
             opts = opts || {description:"NO DESCRIPTION"};
             opts.min = 1;
@@ -114,7 +121,8 @@ function updateCommands( stree, commands, newcmd ) {
                 var s = newcmd.substr(0,n);
                 var oc = commands[s];
                 if( oc.conflicts.length ) {
-                    oc.conflicts.push( cmd );
+                    if( !oc.conflicts.find( c=>c===cmd))
+                        oc.conflicts.push( cmd );
                 }
                 else {
                     delete commands[s];
@@ -122,7 +130,7 @@ function updateCommands( stree, commands, newcmd ) {
                     oc.conflicts.push( oc);
                     oc.conflicts.push( cmd );
                     oc.code = function(args){
-                        this.console.log( "Entity command otput (command.js)THis should have worked.");
+                        console.log( "Entity command otput (command.js)THis should have worked.");
                         this_.push( util.format( "Unclear command, please be more specific: ", oc.conflicts.reduce( (acc,val)=>acc+=(acc?", ":"")+val.name, "" ) ) );
                     }
                 }
@@ -224,7 +232,6 @@ function updateCommands( stree, commands, newcmd ) {
                     //console.log( "word in is", word.text );
                     var next = word.break();
                     var phrase;
-                    var result;
                     if( !next ) {
                         throw new Error( "open token at end of line... fail.  " + cur.token + " expected");
                     }
@@ -260,7 +267,10 @@ function updateCommands( stree, commands, newcmd ) {
         }
         _processCommand( {text:null} );
         if( state.words ) {
-            this_.push( state.words.toString() );
+            if( this_.handleUnhandled )
+                this_.handleUnhandled( state.words.toString() );
+            else
+                this_.push( state.words.toString() );
             state.words = null;
         }
         this_.push( "\nEnter Command: " );
@@ -360,11 +370,21 @@ function updateCommands( stree, commands, newcmd ) {
                         state.args.push( state.words.first() );
                         state.words = null;
                     }
+                    var result;
                     result = state.command.code.call( sandbox, state.args );
-            } catch(err) { err_ = err }
+                    if( result instanceof Promise ){
+                        result.then( ()=>{
+
+                        }).catch( (err)=>{
+                            console.log( "Executing command threw an error:", err );
+                        })
+                    }
+                } catch(err) { err_ = err }
                 state.words = null;
                 state.slashes = 0;
                 state.args = [];
+                if( err_ )
+                    console.log( "COmmand Error:", err_ );
                 //console.log( "args is empty ", state.args );
                 state.state = states.getCommand;
                 if( err_ ) throw err_;
@@ -409,10 +429,10 @@ if( "undefined" !== typeof Λ ) {
 
         read_command.prototype._transform = function(chunk, encoding, callback) {
             try {
-                console.log( "command transform Process:", chunk.toString());
+                debug_input && console.log( "command transform Process:", chunk.toString());
                 this.processCommand( chunk );
             } catch(err) {
-                console.trace( "read command transform...", chunk )
+                console.trace( "read command transform caught error...", chunk, err )
                 this.push( err.toString() + "\n"+err.stack );
             }
             callback()

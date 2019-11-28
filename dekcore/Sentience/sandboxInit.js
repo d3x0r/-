@@ -2,19 +2,26 @@
 const _debugPaths = false;
 const _debug_commands = false;
 const _debug_requires = false;
+const _debug_command_input = false;
+const _debug_command_post = _debug_commands || false;
+
+const _debug_events = false;
+const _debug_event_input = _debug_events || false;
 Error.stackTraceLimit = 10;
 const util = require('util'); 
 const stream = require('stream');
 const vm = require('vm' );
 const sack = require('sack.vfs');
 const path = require('path');
+const wt = require( 'worker_threads');
+const module = require('module');
+const builtinModules = module.builtinModules;
 const disk = sack.Volume();
 const JSOX = sack.JSOX;
 
+const coreThreadEventer = wt.parentPort ;
 
 const netRequire = require( "./util/myRequire");
-const Shell = require( "./Sentience/shell.js" );
-
 
 
 var id = 0;
@@ -22,7 +29,6 @@ var eid = 0;
 const objects = new Map();
 
 const entity = makeEntity(Λ);
-
 //console.log( "This is logged in the raw startup of the sandbox:", Shell );
 
 const resolvers = {};
@@ -33,59 +39,174 @@ const drivers = [];
 var remotes = new WeakMap();
 var requireRunReply = [];
 var pendingRequire = false;
-process.stdin.on('data',(chunk)=>{
-    const string = chunk.toString()
-    //console.log( "Sandbox stdin input: ", chunk, string );
-    try {
-        const msg = JSOX.parse( string );
+var codeStack = [];
 
-        if( msg.op == "run"){
-            _debug_commands && console.log( "Run some code...", msg.file )
-            var res;
-            try {
-                var res = vm.runInContext(msg.code, sandbox , { filename:msg.file.src, lineOffset:0, columnOffset:0, displayErrors:true, timeout:100} );
-                if( res && ( res instanceof Promise || Promise.resolve(res) === res || ( "undefined" !== typeof res.then ) ) )
-                    res.then(
-                        (realResult)=>{
-                            _debug_commands && console.log( "And post result.", pendingRequire, realResult );
-                            if( pendingRequire )
-                                requireRunReply.push( realResult );
-                            process.stdout.write( JSOX.stringify( {op:"run",ret:realResult,id:msg.id }));
-                        }
-                    ).catch(err=>{
-                        process.stdout.write( JSOX.stringify( {op:"error",file:msg.file.src,error:JSOX.stringify(err.toString()+err.stack.toString()),id:msg.id }));
-                    });
-                else {
+function emitEvent( event, data ){
+    const runcode = `this.emit_( ${JSON.stringify(event)}, ${JSOX.stringify(data) })`
+    var res = vm.runInContext(runcode, sandbox , { filename:"Event Dispatch:"+event, lineOffset:0, columnOffset:0, displayErrors:true} );
+    return res;
+}
 
-                    if( pendingRequire )
-                        requireRunReply.push(res);
-                    //console.log( "And post sync result.", res );
-                    process.stdout.write( JSOX.stringify( {op:"run",ret:res,id:msg.id }));
-                }
-                //console.log( "Did it?", sandbox );
-                return;
-            }catch(err) {
-                console.log( "Failed:", err, msg.code )
-                process.stdout.write( JSOX.stringify( {op:"error",error:JSOX.stringify(err.toString()),id:msg.id }));
-                return;
+function processMessage( msg, stream ) {
+    if( "string" === typeof msg ) {
+        console.trace( "String input");
+    }
+    function reply(msg ) {
+        if( stream ) 
+            process.stdout.write( JSOX.stringify(msg));
+        else
+            coreThreadEventer.postMessage( msg );
+    }
+    if( msg.op === "run"){
+        var prior_execution = codeStack.find( c=>c.path === msg.file.path );
+        if( prior_execution )
+            console.log( "Duplicate run of the same code; shouldn't we just return the prior?  I mean sure, maybe the filter of this should be higher?", msg .file, codeStack );
+        _debug_commands && console.log( "Run some code...", codeStack, msg.file );
+        var res;
+        try {
+            const code = {file: msg.file, result:null}
+            codeStack.push( code );
+            //console.log( "going to run...");
+            var res = vm.runInContext(msg.code, sandbox , { filename:msg.file.src, lineOffset:0, columnOffset:0, displayErrors:true } );
+            if( res && ( res instanceof Promise || Promise.resolve(res) === res || ( "undefined" !== typeof res.then ) ) )
+                res.then(
+                    (realResult)=>{
+                        //_debug_commands && 
+                        //console.log( "And post result.", pendingRequire, realResult );
+                        if( pendingRequire ){
+                            code.result = realResult;
+                            requireRunReply.push( realResult );
+                            reply( {op:"run",ret:0,id:msg.id });
+                        }else
+                            reply( {op:"run",ret:realResult,id:msg.id });
+                    }
+                ).catch(err=>{
+                    if(err)
+                        reply( ( {op:"error"
+                                ,file:msg.file.src,error:err.toString()+(err.stack?err.stack.toString():"NoStack"),id:msg.id }));
+                    else
+                        reply( ( {op:"error",file:msg.file.src,error:"No Error!",id:msg.id }));
+                });
+            else {
+
+                if( pendingRequire )
+                    requireRunReply.push(res);
+                console.log( "And post sync result.", res );
+                reply( ( {op:"run",ret:res,id:msg.id }));
             }
+            //console.log( "Did it?", sandbox );
+            return;
+        }catch(err) {
+            console.log( "Failed:", err, msg.code )
+            reply( ( {op:"error",error:err.toString(), stack:err.stack, id:msg.id }));
+            return;
         }
+    } else if( msg.op === "ing" ) {
+        return sandbox.ing( msg.ing, msg.args );
+    } else if( msg.op === "On" ) {
+        var e = objects.get( msg.on );
+        switch( true ){
+            case "name" === msg.On:
+                e.cache.name = msg.args;
+                break;
+            case "description" === msg.On:
+                e.cache.desc = msg.args;
+                break;
+        }
+    } else if( msg.op === "out" ) {
+        if( sandbox.io.output )
+            sandbox.io.output( msg.out );
+        else
+            coreThreadEventer.postMessage( msg );
+        //reply(msg.out);
+        return;
+    } else if( msg.op === "on" ) {
+        _debug_event_input && console.log( "emit event:", msg );
+    try {
+
+        switch( true ){
+            case "name" === msg.on:
+                entity.cache.name = msg.args;
+                //msg.args = makeEntity( msg.args)
+                break;
+            case "rebase" === msg.on:
+                msg.args = makeEntity( msg.args)
+                break;
+            case "debase" === msg.on:
+                msg.args = makeEntity( msg.args );
+                break;
+            case "joined" === msg.on:
+                msg.args = makeEntity( msg.args );
+                break;
+            case "parted" === msg.on:
+                entity.cache.near.part( msg.args );
+                msg.args = makeEntity( msg.args );
+                break;
+            case "placed" === msg.on:
+                entity.cache.near.place( msg.args );
+                msg.args = makeEntity( msg.args );
+                break;
+            case "displaced" === msg.on:
+                //msg.args = makeEntity( msg.args );
+                break;
+            case "stored" === msg.on:
+                msg.args = makeEntity( msg.args );
+                entity.cache.near.store( msg.args );
+                break;
+            case "lost" === msg.on:
+                msg.args = makeEntity( msg.args );
+                entity.cache.near.lose( msg.args );
+                break;
+            case "attached" === msg.on:
+                msg.args = makeEntity( msg.args );
+                entity.cache.near.attached( msg.args );
+                break;
+            case "detached" === msg.on:
+                msg.args = makeEntity( msg.args );
+                entity.cache.near.detached( msg.args );
+                break;
+            case "newListener" === msg.on:
+                //msg.args = makeEntity( msg.args );
+                break;
+            }
+            return emitEvent( msg.on, msg.args.Λ );
+        
+        }catch(err) {
+            console.log( err );
+            return;
+        }
+    }
+    else 
         _debug_commands && console.log( "will it find", msg,"in", pendingOps );
 
-        var responseId = msg.id && pendingOps.findIndex( op=>op.id === msg.id );
-        if( responseId >= 0 ) {
-            var response = pendingOps[responseId];
-            //console.log( "Will splice...", responseId, msg)
-            pendingOps.splice( responseId, 1 );
-            if( msg.op === 'f' || msg.op === 'g' || msg.op === 'e' || msg.op === 'h' )  {
-                _debug_commands && process.stdout.write( util.format("Resolve.", msg, response ) );
-                response.resolve( msg.ret );
-            } else if( msg.op === 'error' ){
-                response.reject( msg.error );
-            }    
-        } else {
-            console.log( "didn't find matched response?")
-        }
+    var responseId = msg.id && pendingOps.findIndex( op=>op.id === msg.id );
+    if( responseId >= 0 ) {
+        var response = pendingOps[responseId];
+        //console.log( "Will splice...", responseId, msg, pendingOps)
+        pendingOps.splice( responseId, 1 );
+        if( msg.op === 'f' || msg.op === 'g' || msg.op === 'e' || msg.op === 'h' )  {
+            //_debug_commands && 
+            _debug_commands && reply( util.format("Resolve.", msg, response ) );
+            response.resolve( msg.ret );
+        } else if( msg.op === 'error' ){
+            _debug_commands && reply( util.format("Reject.", msg, response ) );
+            response.reject( msg.error );
+        }    
+    } else {
+        if( msg.op !== "run")
+            console.log( "didn't find matched response?", msg.op, msg )
+    }
+
+}
+
+/*
+process.stdin.on('data',(chunk)=>{
+    const string = chunk.toString()
+    //console.warn( "Sandbox stdin input: ", chunk, string );
+    try {
+        const msg = JSOX.parse( string );
+        _debug_command_input && console.log( "Input Message:", msg );
+        processMessage( msg, true );
 
     } catch( msgParseError ) {
         process.stdout.write( util.format( "Initiial error:", msgParseError ) );
@@ -101,6 +222,7 @@ process.stdin.on('data',(chunk)=>{
         }
     }
 })
+*/
 
 function Function() {
     console.log( "Please use other code import methods.");
@@ -110,6 +232,8 @@ function eval() {
 }
 
 function makeEntity( Λ){
+    if( Λ instanceof Promise ) return Λ.then( Λ=>makeEntity(Λ));
+    console.trace( "make entity for:", Λ);
     {
         let tmp = objects.get(Λ);
         if( tmp ) return tmp;
@@ -121,25 +245,80 @@ function makeEntity( Λ){
         Λ :  Λ
         , post(name,...args) {
             var stack;
-            _debug_commands && console.log( "entity posting:", id, name );
-            process.stdout.write( `{op:'e',o:'${Λ}',id:${id++},e:'${name}',args:${JSOX.stringify(args)}}` );
+            _debug_command_post && console.log( "entity posting:", id, name );
+            coreThreadEventer.postMessage( {op:'e',o:Λ,id:id++,e:name,args:args} );
+            //process.stdout.write( {op:'e',o:'${Λ}',id:id++,e:name,args:args} );
             return new Promise( (resolve,reject)=>{ _debug_commands && console.log( "pushed pending for that command", id,name );pendingOps.push( { id:id-1, cmd: name, resolve:resolve,reject:reject} )} );
         }
-        , async postGetter(name) {
-            process.stdout.write( `{op:'h',o:'${Λ}',id:${id++},h:'${name}'}` );
+        , postGetter(name) {
+            //_debug_command_post && 
+            console.trace( "entity get posting:", id, name, Λ );
+            coreThreadEventer.postMessage( {op:'h',o:Λ,id:id++,h:name} );
+            //process.stdout.write( `{op:'h',o:'${Λ}',id:${id++},h:'${name}'}` );
             return new Promise( (resolve,reject)=>pendingOps.push( { id:id-1,cmd:name, resolve:resolve,reject:reject} ) )
         },
+        grab(target) {
+            return e.post("grab",target.Λ );
+        },
+        cache : {
+            get name() { return !!nameCache },
+            get name() { return !!nameCache },
+            near : {  },
+        },
+        attach(toThing){
+            if( "string" !== typeof toThing ) toThing = toThing.Λ;
+            return e.post("attach", toThing );
+        },
+        detach(fromThing){
+            if( "string" !== typeof toThing ) toThing = toThing.Λ;
+            return e.post("dettach", fromThing );
+        },
         get name() {
-            return  e.postGetter( "name" );
+            if( nameCache ) return Promise.resolve(nameCache);
+            return e.postGetter( "name" ).then( name=>nameCache=name );
         },
         get description() {
-            return  e.postGetter( "description" );
+            if( descCache ) return Promise.resolve(descCache);
+            return e.postGetter( "description" ).then(desc=>descCache=desc);
         },
-        get contents() { return (async()=>{
-                var result = await this.postGetter("contents");
-                result.forEach( (name,i)=>result[i] = makeEntity( name ) );
+        get contents() { 
+            if( nearCache ){
+                return Promise.resolve(nearCache.contains);
+            }
+            return new Promise( res=>{
+                this.nearObjects.then(nearCache=>{
+                    res( nearCache.contains );
+                })
+            })
+        },
+        get container() { return e.postGetter("container").then( (c)=>{
+            c.at = makeEntity( c.at );
+            c.parent = makeEntity( c.parent );
+            for( let path=c.from; path; path=path.from ){
+                path.at = makeEntity( path.at );
+                path.parent = makeEntity( path.parent );    
+            }
+            return c;
+        }) },
+        get within() { return e.postGetter("room") },
+
+        get nearObjects() {
+            //try { throw new Error( "GetStack" )}catch(err){
+            //    sandbox.console.log( nameCache, "Getting near objects on  an entity", !!nearCache, "\n", err.stack )
+           // }
+            if( nearCache ) return Promise.resolve( nearCache );
+            return this.postGetter("nearObjects").then( result =>{
+                nearCache = result;
+                //console.log( nameCache, "Got back near objects?", result," and they got cache updated" );
+
+                result.forEach( (type,key)=>{
+                    type.forEach( (name,i)=>{
+                        //sandbox.console.log( "Re-set entity at:", name, i, type )
+                        type.set(i, makeEntity( name ) )
+                    } );
+                });
                 return result;
-            })();            
+            })
         },
         async idGen() {
             return e.post("idGen");
@@ -151,7 +330,9 @@ function makeEntity( Λ){
             return e.post( "wake" );
         },
         async require( src ) {
-            return e.post( "wake", src );
+            console.log( " ---- thread side require:", src, codeStack );
+            
+            return e.post( "require", src );
         },
         idMan : {
             //sandbox.require( "id_manager_sandbox.js" )
@@ -160,11 +341,29 @@ function makeEntity( Λ){
             }
         }
     };
+    e.cache.near.invalidate=( e )=>( nearCache = null);
+
+    // my room changes...  this shodl clear cache
+    e.cache.near.displaced=(( e )=> ( nearCache = null));
+    e.cache.near.placed=( (e )=> ( nearCache = null));
+
+    e.cache.near.store=(( e )=> ( !!nearCache )  && nearCache.get("contains").set( e.Λ, e ));
+    e.cache.near.lose=(( e )=>{ console.warn("near.lose:", nearCache); /*return;*/( !!nearCache )  && nearCache.get("contains").delete( e.Λ )});
+
+    e.cache.near.joined=(( e )=> ( !!nearCache )  && nearCache.get("near").set( e.Λ, e ));
+    e.cache.near.part=( (e )=> ( !!nearCache )  && nearCache.get("near").delete( e.Λ ));
+    e.cache.near.attached=(( e )=> ( !!nearCache )  && nearCache.get("holding").set( e.Λ, e ));
+    e.cache.near.detached=(( e )=> ( !!nearCache )  && nearCache.get("holding").delete( e.Λ ));
+        
+    
     objects.set( Λ, e );
     return e;
 }
-var MakeEntity = makeEntity;
+
 var required = [];
+var name = 'Not Initialized';
+var description = 'Not Initialized';
+
 var sandbox = vm.createContext( {
     Λ : Λ
     , entity: entity
@@ -172,38 +371,68 @@ var sandbox = vm.createContext( {
     , wsThread : sack.WebSocket.Thread
     , waiting : []
     , module : {paths:[module.path]}
+    , Function : Function
+    , eval: eval
     , post(name,...args) {
         var stack;
-        process.stdout.write( `{op:'f',id:${id++},f:'${name}',args:${JSOX.stringify(args)}}` );
+        _debug_command_post && console.log( "thread posting:", id, name );
+        coreThreadEventer.postMessage( {op:'f',id:id++,f:name,args:args} );
+        //process.stdout.write( `{op:'f',id:${id++},f:'${name}',args:${JSOX.stringify(args)}}` );
         return new Promise( (resolve,reject)=>{
-            pendingOps.push( { id:id-1, resolve:resolve,reject:reject} );
+            pendingOps.push( { id:id-1, cmd:name, resolve:resolve,reject:reject} );
         });
         return p;
         /*block*/
     }
+    , run( line ){
+        try {
+        var r = vm.runInContext( line, sandbox );
+        if( r ) sandbox.io.output( r.toString() );
+        }catch(err) {
+            console.log( err );
+        }
+    }
     , async postGetter(name,...args) {
-        _debug_commands && process.stdout.write( util.format( "Self PostGetter", name ) );
-        process.stdout.write( `{op:'g',id:${id++},g:'${name}'}` );
+        _debug_command_post && process.stdout.write( util.format( "Self PostGetter", name ) );
+        coreThreadEventer.postMessage( {op:'g',id:id++,g:name} );
+        //process.stdout.write( `{op:'g',id:${id++},g:'${name}'}` );
         
             var p = new Promise( (resolv,reject)=>{
-            pendingOps.push( { id:id-1, cb: null, resolve:resolv,reject:reject} );
+            pendingOps.push( { id:id-1, cmd:name, resolve:resolv,reject:reject} );
         })   
         return p;
         /*block*/
     }
     , async require(args) { 
+        _debug_requires && console.log( "This is a thread that is doing a require in itself main loop", args);
         if( args === "sack.vfs" ) return sack;
         if( args === "vm" ) return vm;
         if( args === "util" ) return util;
         if( args === "path" ) return path;
         if( args === "stream" ) return stream;
-        {
-            var prior = ( required.find( r=>r.src===args));
-            if( prior ) return prior.object;
+        var builtin = builtinModules.find( m=>args===m);
+        if( builtin ){
+            if( ['vm','child_process','worker_threads'].find(m=>m===args) ){
+                throw new Error( "Module not found:",+ a )
+            }
         }
         args = sandbox.require.resolve( args );
+        var prior_execution = codeStack.find( c=>c.file.src === args );
+        if( prior_execution ){
+            console.log( "Require resoving prior object:", args)
+            return prior_execution.result;
+        }
+        {
+            var prior = ( required.find( r=>r.src===args));
+            if( prior ) {
+                _debug_requires && console.log( "Global Old Require:", args );
+                return prior.object;
+            }
+        }
+        _debug_requires && console.log( "Global New Require:", args );
         pendingRequire = true;
         var ex = await sandbox.post("require",args);
+        _debug_requires && console.log( "Read and run finally resulted, awated on post require" );
         var ex2 = requireRunReply.pop()
         //console.log( "Require finally resulted?",args, ex, ex2 ); 
         required.push( {src:args, object:ex2 });
@@ -236,7 +465,7 @@ var sandbox = vm.createContext( {
     //, look(...args) { process.stdout.write( `{op:'create',args:${JSOX.stringify(args)}}` ) }
     , leave(...args) { return sandbox.post("leave",null,...args);  }
     , enter(...args) { return sandbox.post("enter",null,...args);  }
-    , grab(...args){ return sandbox.post("grab",null,...args);  }
+    , grab(thing){ console.log( "This grabbing something..." ); return sandbox.post("grab",thing.Λ);  }
     , drop(...args) { return sandbox.post("drop",null,...args); }
     , store(...args) { return sandbox.post("store",null,...args); }
     //, crypto: crypto
@@ -255,15 +484,27 @@ var sandbox = vm.createContext( {
         , includes: []
     }
     , get now() { return new Date().toString() }
-    , get me() { return Λ; }
-    , get name() { { return (async () => { return await sandbox.postGetter("name")})() }}
-    , get desc()  { { return (async () => { return await sandbox.postGetter("description")})()}}
-    , get description()  { { return (async () => { return await sandbox.postGetter("description")})()}}
-    , get holds()  { { return (async () => { return await sandbox.postGetter("holding")})()}}
+    , get name() { 
+        //console.log( "is entity null", entity );
+        return entity.name.then( name=>nameCache = name) }
+    , get desc()  { return entity.description }
+    , get description()  { return entity.description }
+    , get holds()  { return sandbox.postGetter("holding") }
+    , get container() { return sandbox.postGetter("container") }
     , get near()  { { return (async () => { 
         var nearList = await sandbox.postGetter("near")
-        nearList.forEach( near, )
-        })()}}
+        nearList.forEach( (near,i)=>{
+            nearList[i] = makeEntity( near );
+        } )
+        return nearList;
+      })()}}
+    , get exits()  { { return (async () => { 
+        var nearList = await sandbox.postGetter("exits")
+        nearList.forEach( (near,i)=>{
+            nearList[i] = makeEntity( near );
+        } )
+        return nearList;
+      })()}}
     , get contains()  { { return (async () => { return await sandbox.postGetter("contains")})()}}
     //, get room() { return o.within; }
     , idGen(cb) {
@@ -272,12 +513,16 @@ var sandbox = vm.createContext( {
     }
     , console: {
         log(...args)  { 
-             process.stdout.write(util.format( ...args ) ) 
-         },
+            if( sandbox.io.output )
+                sandbox.io.output( util.format(...args) + "\n" );
+            else 
+                process.stdout.write(util.format( "AAAA", ...args ) +"\n" ) 
+        },
         warn(...args) { return console.log( ...args)},
         trace: (...args) => console.trace(...args)
     }
     , io: {
+        output : null,
         addInterface(name, iName, iface) {
             addDriver( sandbox, name, iName, iface );
         },
@@ -304,7 +549,11 @@ var sandbox = vm.createContext( {
         }
     }
     , events: {}
-    , on: (event, callback) => {
+    ,  // events_ is the internal mapping of expected parameters from the core into the thread.
+    events_: {
+
+    }
+    , on(event, callback) {
         sandbox.emit("newListener", event, callback)
         if (!(event in sandbox.events))
             sandbox.events[event] = [callback];
@@ -324,9 +573,22 @@ var sandbox = vm.createContext( {
         sandbox.emit("removeListener", event, callback)
     }
     , addListener: null
+    , emit_( event, args ){
+        if( args instanceof Array )
+            args.forEach((arg,i)=>args[i] = makeEntity(arg) );
+        else
+            args = makeEntity(args);
+        return this.emit( event, args );
+    }
     , emit(event, ...args) {
+        _debug_events && console.log( "Emitting event(or would):", event, ...args)
         if (event in sandbox.events) {
-            sandbox.events[event].find((cb) => cb(...args));
+            sandbox.events[event].forEach((cb) =>cb(...args));
+        }
+    }
+    , ing( event, ...args ){
+        if( event in sandbox.events) {
+
         }
     }
     , setTimeout(cb,delay) {
@@ -389,6 +651,122 @@ var sandbox = vm.createContext( {
         } );
         return timerObj;
     }
+    , async getObjects(me, src, all, callback) {
+		// src is a text object
+		// this searches for objects around 'me' 
+		// given the search criteria.  'all' 
+		// includes everything regardless of text.
+		// callback is invoked with value,key for each
+		// near object.
+		var object = src && src[0];
+		if( !src ) all = true;
+        var name = object && object.text;
+		var count = 0;
+		//var all = false;
+		var run = true;
+		var tmp;
+		var in_state = false;
+		var on_state = false;
+
+		//console.trace( "args", me, "src",src, "all",all, "callback:",callback )
+		if (typeof all === 'function') {
+			callback = all;
+			all = false;
+		}
+
+		if (object && name == 'all' && object.next && object.next.text == '.') {
+			all = true;
+			object = object.next.next;
+		}
+		if (object && (tmp = Number(name)) && object.next && object.next.text == '.') {
+			object = object.next.next;
+            name = object.text;
+			count = tmp;
+		}
+
+
+		if( src&& src.length > 1  && src[1].text === "in" ) {
+			console.warn( "checking 'in'");
+			in_state = true;
+			src = src.slice(2);
+			return getObjects( me, src, all, (o,location,moreargs)=>{
+				o = objects.get( o.me );
+				console.log( "in Found:", o.name, name );
+				o.contents.forEach( async content=>{
+                    //if (value === me) return;
+                    var cn;
+					if (!object || (cn=await content.name) === name ) {
+						console.log( "found object", cn )
+						if (count) {
+							count--;
+							return;
+						}
+						if (run) {
+							console.log("and so key is ", location, cn )
+							callback(content, location+",contains", src.splice(1) );
+							run = all;
+						}
+					}
+				})
+			})
+		}
+		if( src&&src.length > 1  && (src[1].text == "on" || src[1].text == "from" || src[1].text == "of" ) ) {
+			on_state = true;
+			console.log( "recursing to get on's...")
+			src = src.slice(2);
+			return getObjects( me, object, all, (o,location,moreargs)=>{
+				o = objects.get( o.me );
+				console.log( "Found:", o.name, location );
+				o.attached_to.forEach( content=>{
+					//if (value === me) return;
+					if (!object || content.name === name ) {
+						console.log( "found object", content.name )
+						if (count) {
+							count--;
+							return;
+						}
+						if (run) {
+							console.log("and so key is ", key, content.name )
+							callback(content.sandbox, location+",holding", src.splice(1) );
+							run = all;
+						}
+					}
+				})
+			})
+		}
+
+		//var command = src.break();
+		//console.log( "get objects for ", me.name, me.nearObjects )
+			var checkList;
+            checkList = await me.nearObjects;
+            //console.log( "gotting near on :", checkList );
+            //checkList = await me.near;
+
+			checkList.forEach(function (value, location) {
+				// holding, contains, near
+				//console.log("checking key:", run, location, value)
+				if( !value ) return;
+				if (run) value.forEach(async function (value, member) {
+
+					//console.log( "value in value:", value.name, name );
+					if (value === me) return;
+					if (!object || (await value.name) === name ) {
+						//console.log( "found object", value.name )
+						if (count) {
+							count--;
+							return;
+						}
+						if (run) {
+							//console.log("and so key is ", key, value.name )
+							callback(value, location, src &&src.splice(1) );
+							run = all;
+						}
+					}
+				});
+			})
+            callback( null, null, [] );
+        }
+
     , clearTimeout( timerObj ) {
         if( !timerObj.dispatched ) return; // don't remove a timer that's already been dispatched
         if( timerObj.next ) timerObj.next.pred = timerObj.pred;
@@ -453,15 +831,16 @@ sandbox.removeAllListeners = (name) => {
 })(Function,eval,sandboxRequire);
 */
 
+if( 0 ){
 function sandboxRequire(src) {
     const o = sandbox;
 
     //console.trace( "this is", this, src );
     //var o = makeEntity( this.me );
-    //console.trace("sandboxRequire ",  src );
+    console.trace("internal sandboxRequire ",  src );
     //console.log( "module", sandbox.module );
     if (src === "entity.js") { console.log( "No such thing - entity.js" ); return ThreadEntity; }
-    if (src === "shell.js") return Shell;//exports.Sentience;
+    //if (src === "shell.js") return Shell;//exports.Sentience;
     if (src === "text.js") return text;
 
     if (src == 'ws') {
@@ -503,6 +882,8 @@ function sandboxRequire(src) {
         }
         return sandbox._vfs;
     }
+
+
 
     //console.log( "blah", sandbox.scripts)
     if( sandbox.scripts.index < sandbox.scripts.code.length ) {
@@ -599,9 +980,9 @@ function sandboxRequire(src) {
         rootPath = rootPath + src.substr(0, pathSplit);
 
     //console.log( "set root", rootPath );
-
+console.log( "This builds code that's not an async function..." );
     var code =
-        ['(function(exports,config,module,resume){'
+        ['(async function(exports,config,module,resume){'
             , file
             , '})(_module.exports,this.config, _module, false );\n//# sourceURL='
             , root
@@ -676,7 +1057,7 @@ return tmp;
 }
 sandboxRequire.resolve = sandboxRequireResolve;
 
-
+}
 
 function addDriver( o, name, iName, iface) {
 	var driver = drivers.find(d => d.name === name);
@@ -787,4 +1168,5 @@ const volOverride = `(function(vfs, dataRoot) {
 //process.on("uncaughtException",(e)=>{
 //    process.stdout.write( e.toString() );
 //})
-
+coreThreadEventer.postMessage({op:'initDone'});
+coreThreadEventer.on("message", processMessage );

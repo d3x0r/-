@@ -90,18 +90,22 @@ function createSpawnServer( sandbox ) {
 		}
 	} );
 
-	server.onaccept( function ( ws ) {
-	//	console.log( "Connection received with : ", ws.protocols, " path:", resource );
-			if( process.argv[2] == "1" )
-			this.reject();
-			else
-			this.accept();
+	server.onaccept( async function (ws) {
+		console.log( "Connection received with : ", ws.protocols, " path:", ws.url );
+		ws.block(); // need to do this before async returns.
+		create( await name+":"+counter++, await description).then( (e)=>{
+			e.wake().then( ()=>{
+				e.require(  "./startupWebConnection.js" ).then( ()=>{
+					ws.post( e.Λ );
+				})
+			})
+		} );
 	} );
 
 	server.onconnect( function (ws) {
 		var pend = [];
-		spawnEntity( ws, sandbox );
 			
+		console.log( "OnConnect event too??")
 		ws.onmessage( function( msg ) {
 				console.warn( "original acceptor Received data:", msg );
 
@@ -114,45 +118,7 @@ function createSpawnServer( sandbox ) {
 
 var counter = 1;
 
-async function spawnEntity( ws, sandbox ) {
-
-	//console.trace( "create interface entity:", ws, sandbox )
-
-	return create( await name+":"+counter, await description)
-		.then( async (e)=>{
-			// new entity exists now... (feedback created?)
-			
-			//if( !("io" in e.sandbox) ) e.sandbox.io = {};
-			//e.sandbox.io.command = 
-			try {
-				await e.wake();
-				console.log( "And then tell it to require startup..." );
-				await e.require( "../startupWebConnection.js" );
-				console.log( "And the socket")
-				ws.post( e.Λ );
-			}
-			catch(err) {
-				process.stdout.write( util.format( "Error in spawn callback", err ));
-			}
-			return e;
-		} ).then( async ( result )=>{
-			try {
-				console.log( "THis is going to run the setup..." );
-				await e.wake();
-				//await e.run( { src:"webConsole Init", path:"."}, `process.stdout.write( "Setting up acceptor:"+ Λ);
-					console.log( "Run has completed... so we should be able to post??");
-				ws.post( e.Λ );
-				process.stdout.write( util.format("Completed creating entity for connection..., but then I have the WS and he needs it?", e, input ));
-					pend.forEach( p=>input(p));
-					pend.length = 0;
-					entity = e;
-					sendTo = input;
-			}catch(err) {
-				process.stdout.write( util.format( "OnConnect ERROR:", err ));
-			}
-		} );
-
-	;
+async function spawnEntity( ws ) {
 
 
 }

@@ -1,7 +1,7 @@
 
 exports.Filter = Filter;
 
-var stream = await require('stream')
+var stream = await require('stream');
 var util = await require('util')
 
 function parse(pattern,options) {

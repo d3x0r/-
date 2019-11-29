@@ -7,12 +7,34 @@ const DB = exports = module.exports = {
 	init: init,
 	blockAddress : addBlock,
 };
+var db = null;
 
-const fc = require( "../../file_cluster.js" );
+var fc = require( "../../file_cluster.js" );
 
-const IdGen = require( "../id_generator.js" );
-const idGen = IdGen.generator;
+var IdGen = require( "../id_generator.js" );
+var idGen = IdGen.generator;
+var vfs = null;
 
+if( "string" === typeof Λ ) {
+
+	return require( "../../file_cluster.js" ).then(r=>{
+		fc = r;
+		return require( "../id_generator.js" ).then(r=>{
+		 	IdGen = r;
+			idGen = r.generator;
+			return require( "sack.vfs" ).then(r=>{
+				vfs = r;
+			})
+			return exports;
+ 		})
+	 } )
+	 
+} else {
+ fc = require( "../../file_cluster.js" );
+
+ IdGen = require( "../id_generator.js" );
+ idGen = IdGen.generator;
+}
 /*
 	// these IDs would get saved with the entity config setting.
 if( !config.firewall ) {
@@ -22,24 +44,32 @@ if( !config.firewall ) {
 }
 */
 
-var db = null;
 
 function init() {
-	db = DB.db = fc.cvol.Sqlite( `firewall.db` );
+	if( "undefined" !== typeof name )
+		return name.then(doOpen)
+	else
+			doOpen('')
+
+			function doOpen(name){
+				if( !name )
+					db = DB.db = fc.cvol.Sqlite( `firewall.db` );
+				else
+					db = DB.db = vfs.Sqlite( name+`firewall.db` );
 
 
 
-	db.do( 'PRAGMA foreign_keys=ON' );
+		db.do( 'PRAGMA foreign_keys=ON' );
 
-	db.makeTable( "create table firewall_rules ( rule_id char PRIMARY KEY"
-		+", name char"
-		+", source char "
-		+", source_port char "
-		+", dest_port char "
-		+", allow int "  // if not allow, is a blocking rule.
-		+" )"
-		 );
-
+		db.makeTable( "create table firewall_rules ( rule_id char PRIMARY KEY"
+			+", name char"
+			+", source char "
+			+", source_port char "
+			+", dest_port char "
+			+", allow int "  // if not allow, is a blocking rule.
+			+" )"
+			);
+	}
 
 }
 

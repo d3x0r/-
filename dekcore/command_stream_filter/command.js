@@ -289,7 +289,7 @@ function updateCommands( stree, commands, newcmd ) {
     
     function _processCommand ( word )
     {   
-        //console.log( "Process word:", word.text);
+        //console.log( "Process word:", word.text, slashes );
         const saveword = ()=>{
             if( !state.words ) state.words = word;
             else state.words = state.words.append( word );
@@ -371,12 +371,17 @@ function updateCommands( stree, commands, newcmd ) {
                     }
                     var result;
                     result = state.command.code.call( sandbox, state.args );
-                    if( result instanceof Promise ){
+                    if( result && ( ( result === Promise.resolve(result) )
+                            || ( result instanceof Promise ) 
+                            || ("then" in result ) ) 
+                        ){
                         result.then( ()=>{
-
+                            console.log( "Command finished:", state.command.name, state.args );
                         }).catch( (err)=>{
                             console.log( "Executing command threw an error:", err );
                         })
+                    }else {
+                        console.log( "Command finished, but is probably still processing...", state.command.name, result  );
                     }
                 } catch(err) { err_ = err }
                 state.words = null;

@@ -1,46 +1,31 @@
 "use strict";
 
-const _debug_thread_create = false;
-const _debug_commands = true;
-
 exports.Filter = Filter;
-//exports.Script = Script;
-//exports.WakeEntity = WakeEntity;
+
 var util = await require('util')
 const vm = await require('vm' );
-//var vm = require('vm');
-
 
 var text = null;
 var commandStream = null;
 var labelStream = null;
-var JSOX = null;
-var disk = null;
 
 if( "undefined" === typeof Λ ) {
-    var sack = require( 'sack.vfs');
     // this is a sandbox; and we don't have real entity support.
     var Entity = require( '../Entity/entity.js');
     console.log( "Did require Entity:", Entity );
     Entity.netRequire.provide( "shell.js", exports );
     Entity.Sentience = exports;
-     JSOX = sack.JSOX;
-     disk = sack.Volume();
      text = require( "../../org.d3x0r.common/text.js");
      commandStream = require('../command_stream_filter/command.js')
      labelStream = require( "../command_stream_filter/label_insert.js" );
 } else   {
     Entity = global;
-    var sack;
-
     async function asyncInit() {
        text = await require( "../../org.d3x0r.common/text.js");
        commandStream = await require('../command_stream_filter/command.js')
        labelStream = await require( "../command_stream_filter/label_insert.js" );
-        sack = await require( 'sack.vfs');
+        //sack = await require( 'sack.vfs');
         //console.log( "What did sack get:", sack );
-        JSOX = sack.JSOX;
-        disk = sack.Volume();
         //Promise.resolve( exports );
     }
     return asyncInit();
@@ -169,260 +154,265 @@ function Filter( e ) {
     }
     return filter;
 
-function Script( sandbox, src ) {
-    src.spaces = 0;
-    if( src ) {
-        {
-            var code = `(()=>{var core = {}; 
-            	var fs = this.require( 'sack' ).Volume();
+    function Script( sandbox, src ) {
+        src.spaces = 0;
+        if( src ) {
+            {
+                var code = `(()=>{var core = {}; 
+                    var fs = this.require( 'sack' ).Volume();
+                    try {
+                        var file = fs.readAsString( "${src}" );
+                    }catch(err) {
+                    console.log( "File failed... is it a HTTP request?", err );
+                    }
+                    ( core['${src}'] = eval( "(function(){"+file+"})()" ) );})()`;
+                
                 try {
-	                var file = fs.readAsString( "${src}" );
-                }catch(err) {
-                   console.log( "File failed... is it a HTTP request?", err );
+                    sandbox.scripts.push( { type:"ShellExecute", code:code } )
+                    vm.runInContext(code, sandbox 
+                        , { filename:src, lineOffset:0, columnOffset:0, displayErrors:true, timeout:500} )
+                } catch( err ) {
+                    console.log( "script faulted.... exception timeout", err );
                 }
-                ( core['${src}'] = eval( "(function(){"+file+"})()" ) );})()`;
-            
-            try {
-				sandbox.scripts.push( { type:"ShellExecute", code:code } )
-                vm.runInContext(code, sandbox 
-            		, { filename:src, lineOffset:0, columnOffset:0, displayErrors:true, timeout:500} )
-            } catch( err ) {
-            	console.log( "script faulted.... exception timeout", err );
-            }
-            console.log( "and then we continue?");
-        }
-    }
-}
-
-
-function Grab( sandbox, args ) {
-    getObjects( sandbox, args, ( foundSandbox, where, nextArgs )=>{
-        //console.log( "Grab location is:", where );
-        if( where == "contains") {
-            //console.log( "Success, there's a thing on that thing...", foundSandbox );
-	        return grab( foundSandbox );
-        }
-        if( where === "near" ) {
-	        return grab( foundSandbox );
-        }else {
-            console.log( "Error: object was found ", where, " instead of near or contained.")
-        }
-    });
-}
-
-function Drop( sandbox, args ) {
-    return getObjects( sandbox, args, ( foundSandbox, where )=>{
-        console.log( "got", foundSandbox.name, where )
-        if( where == "holding" )
-	        sandbox.drop( foundSandbox );
-    });
-}
-
-function Store( sandbox, args ) {
-    return getObjects( sandbox, args, ( foundSandbox, where )=>{
-        console.log( "got", foundSandbox.entity.name, where )
-        if( where == "holding" )
-	        sandbox.store( foundSandbox );
-    });
-}
-
-function Wake( wakingSandbox, args ) {
-    getObjects( wakingSandbox.me, args, ( sandbox )=>{
-        //console.log( "got", sandbox )        
-        if( !sandbox.io.command ){
-            sandbox.io.command = Filter( sandbox );
-            var labeler = labelStream.Filter();
-            labeler.label = sandbox.entity.name;
-            Object.defineProperty(sandbox.io, "command", { enumerable: false, writable: true, configurable: true });
-            labeler.connectOutput(  wakingSandbox.io.command );
-            sandbox.io.command.connectOutput( labeler.filter );
-        }
-        else console.log( "already awake.")
-    });
-}
-
-function Tell( sandbox, args ) {
-    //console.log( "args is ", args );
-    var findArgs = args.splice( 0, 1 );
-    var tail = null;
-    for( var n = 0; n < args.length; n++ ) {
-        if( !tail ) tail = args[n];
-        else {
-            tail.append( args[n] );
-            args[n].spaces = 1;
-        }
-    }
-    getObjects( sandbox, findArgs, ( sandbox )=>{
-        //console.log( `in ${sandbox.entity.name} ${sandbox.io.command}`)
-        if( sandbox.io.command ) {
-            console.log( "sending to sandbox io...", tail );
-            sandbox.io.command.processCommandLine( tail )
-        } else{
-            console.log( "can't tell a dead object.  Try exec instead.", tail.toString() );
-            //Tell( sandbox, args );
-            try {
-                sandbox.scripts.push( { type:"command", code:tail.toString() } );
-	            vm.runInContext( tail.toString(), sandbox /*, { filename:"", lineOffset:"", columnOffset:"", displayErrors:true, timeout:10} */)
-            } catch(err){
-                console.log( err );
+                console.log( "and then we continue?");
             }
         }
-    });
-}
-function Inventory( sandbox, src ) {
-    console.log( "Get inventory...");
-    var contents = [];
-    return sandbox.nearObjects.then ( (i)=>{
-        i.get("contains").forEach(val=>contents.push( val.name ) );
-        if( !contents.length )
-            contents.push( Promise.resolve( "Nothing" ))
-        return Promise.all( contents ).then( x=>{
-            output( "Contains: ", x.join(", ") + ".\n");
-            contents.length = 0;
-            i.get("holding").forEach( val=>contents.push( val.name ));
-            if( !contents.length )
-            contents.push( Promise.resolve( "Nothing" ))
-            return Promise.all( contents).then( x=>{
-                output( "Holding:", x.join(", " ) + ".\n");
-            })
-         } )
-    })
-}
-async function Look( sandbox, src ) {
-    var items = [];
-    var firstArg;
-        //console.log( entity.look( ) );
-        var lookIn = false;
-        if( src && src[0] && src[0].text == "in") {
-            lookIn = true;
-            src = src.slice(1);
-        }
-        console.log( "Look source:",src );
-        var formattedOutput=[];
-        var nearThings = near;
-        var nearExits = exits;
-        var room = sandbox.container;
-        nearThings = await nearThings;
-        //formattedOutput.push( "Near:" );
-        nearThings.forEach( found=>{
-            formattedOutput.push( found.name );
-        })
-        formattedOutput = await Promise.all( formattedOutput );
-        output( "Near:", formattedOutput.join('.'));
+    }
 
-        getObjects( sandbox, src, false, async( foundSandbox, location )=>{
-            console.log( "Item:", await foundSandbox.name, location );
-            //console.log( JSOX.stringify( sandbox.entity.near ))
-            //output( util.format( "something", location, foundSandbox.entity.name ) );
-            //output( util.format( location, foundSandbox.entity.name ) );
-            if( lookIn ) {
-                console.log ('is in...')
-                getObjects( foundSandbox.me, null, true, (inSandbox,location)=>{
-                    formattedOutput.push( location + " : " + inSandbox.name )
-                })
-            }else if( src.length ) {
-                formattedOutput.push( foundSandbox.entity.description );
-            } else {
-                formattedOutput.push( location + " : " + foundSandbox.entity.name );
+
+    function Grab( sandbox, args ) {
+        //console.log( "Grab() calling getObjects...");
+        return getObjects( sandbox, args, ( foundSandbox, where, nextArgs )=>{
+            console.log( "Grab location is:", where );
+            if( where == "contains") {
+                //console.log( "Success, there's a thing on that thing...", foundSandbox );
+                return grab( foundSandbox );
+            }
+            if( where === "near" ) {
+                //console.log( "Success, there's a thing on that thing...", foundSandbox );
+                return grab( foundSandbox );
+            }else if( foundSandbox ) {
+                console.log( "Error: object was found ", where, " instead of near or contained.")
+            }
+            return Promise.resolve( undefined );
+        });
+    }
+
+    function Drop( sandbox, args ) {
+        return getObjects( sandbox, args, ( foundSandbox, where )=>{
+            console.log( "got", foundSandbox.name, where )
+            if( where == "holding" )
+                sandbox.drop( foundSandbox );
+        });
+    }
+
+    function Store( sandbox, args ) {
+        return getObjects( sandbox, args, ( foundSandbox, where )=>{
+            console.log( "got", foundSandbox.entity.name, where )
+            if( where == "holding" )
+                sandbox.store( foundSandbox );
+        });
+    }
+
+    function Wake( wakingSandbox, args ) {
+        getObjects( wakingSandbox.me, args, ( sandbox )=>{
+            //console.log( "got", sandbox )        
+            if( !sandbox.io.command ){
+                sandbox.io.command = Filter( sandbox );
+                var labeler = labelStream.Filter();
+                labeler.label = sandbox.entity.name;
+                Object.defineProperty(sandbox.io, "command", { enumerable: false, writable: true, configurable: true });
+                labeler.connectOutput(  wakingSandbox.io.command );
+                sandbox.io.command.connectOutput( labeler.filter );
+            }
+            else console.log( "already awake.")
+        });
+    }
+
+    function Tell( sandbox, args ) {
+        //console.log( "args is ", args );
+        var findArgs = args.splice( 0, 1 );
+        var tail = null;
+        for( var n = 0; n < args.length; n++ ) {
+            if( !tail ) tail = args[n];
+            else {
+                tail.append( args[n] );
+                args[n].spaces = 1;
+            }
+        }
+        getObjects( sandbox, findArgs, ( sandbox )=>{
+            //console.log( `in ${sandbox.entity.name} ${sandbox.io.command}`)
+            if( sandbox.io.command ) {
+                console.log( "sending to sandbox io...", tail );
+                sandbox.io.command.processCommandLine( tail )
+            } else{
+                console.log( "can't tell a dead object.  Try exec instead.", tail.toString() );
+                //Tell( sandbox, args );
+                try {
+                    sandbox.scripts.push( { type:"command", code:tail.toString() } );
+                    vm.runInContext( tail.toString(), sandbox /*, { filename:"", lineOffset:"", columnOffset:"", displayErrors:true, timeout:10} */)
+                } catch(err){
+                    console.log( err );
+                }
             }
         });
-        room = await room;
-        if( !lookIn ){
-            var s = "Room: " + await room.parent.name;
-            for( let path = room.from; path; path = path.from ){
-                s += ' via ' + await path.at.name;
-            }
-            output( s + "\n" );        
-        }
-        if( !formattedOutput.length )
-            output( "Nothing." );
-        else            
-            output( formattedOutput.join(',') );
-}
-function Exec( sandbox, src ) {
-    if( !src ) return;
-    //console.trace( "Called with :", JSOX.stringify( src ) );
-    //console.log( "Exec called with", sandbox )
-    //console.log( "ExEC:", src );
-    //console.log( "EXEC TOSTR:", src.map(val=>val.toString()).join( "" ) );
-    src[0].spaces = 0;
-    try {
-        var code = src.reduce((acc,val)=>acc.append(val), new text.Text() ).toString();
-        //console.log( "runincontext? '"+ code+"'")
-        var res =  vm.runInContext(code, sandbox /*, { filename:"", lineOffset:"", columnOffset:"", displayErrors:true, timeout:10} */)
-	    sandbox.scripts.push( { type:"Exec command", code:code } );
-        return res;
-    }catch(err){
-        output( err.toString() );
-	throw err;
     }
-    return null;
-}
-
-function Leave(sandbox,args) {
-    sandbox.leave();
-}
-
-function Enter(sandbox,args) {
-    getObjects( sandbox, args, ( foundSandbox, where )=>{
-        if( where == "near") {
-            sandbox.enter( foundSandbox );
-            return;
-        }
-        if( where == "outside" ){
-            sandbox.enter( foundSandbox );
-            return;
-        }
-    } )
-}
-
-function Attach( sandbox,args) {
-    let legal = false;
-    getObjects( sandbox, args, (found, where, args)=>{
-        if( where === "holding"){
-            legal = true;
-            if( args.length && args[0].text === "to" )
-                args = args.slice( 1 );
-            getObjects( sandbox, args, (found2, where2, args ) =>{
-                if( where2 == "holding"){
-                    console.log( "found 2 held objects, telling them to attach");
-                    try {
-                        legal = true;
-                        found2.attach(found);
-                    }catch(err) {
-                        console.log( "not sure where the other error went...", err );
-                        throw err;
-                    }
-                }
-                if( !found2 ){
-                    if( !legal ) {
-                        output( "Second object was not held");
-                    }
-                }
-            })
-        }
-        if( !found )
-            if( !legal ) {
-                output( "First object was not held");
+    function Inventory( sandbox, src ) {
+        console.log( "Get inventory..." );
+        return sandbox.nearObjects.then ( (i)=>{
+            var contents = [];
+            console.log( "near Objects resulted...");
+            i.get("contains").forEach(val=>contents.push( val.name ) );
+            if( !contents.length )
+                contents.push( Promise.resolve( "Nothing" ))
+            return Promise.all( contents ).then( x=>{
+                output( "Contains: ", x.join(", ") + ".\n");
+                contents.length = 0;
+                i.get("holding").forEach( val=>contents.push( val.name ));
+                if( !contents.length )
+                contents.push( Promise.resolve( "Nothing" ))
+                return Promise.all( contents).then( x=>{
+                    output( "Holding:", x.join(", " ) + ".\n");
+                })
+            } ).catch(err=>console.log( "some resolution errror:", err ));
+        }).catch(err=>{
+            console.log( "Error gettingnear objects", err );
+        })
+    }
+    async function Look( sandbox, src ) {
+        var items = [];
+        var firstArg;
+            //console.log( entity.look( ) );
+            var lookIn = false;
+            if( src && src[0] && src[0].text == "in") {
+                lookIn = true;
+                src = src.slice(1);
             }
-    })
-}
-function Detach( sandbox,args ) {
-    var argc = 0;
-    
-    getObjects( sandbox, args, (found, where, args)=>{
-        if( where === "holding"){
-            if( args.length && args[0].text === "from" )
-                args = args.slice( 1 );
-            getObjects( sandbox, args, (found2, where2, args ) =>{
-                if( where2 == "holding"){
-                    sandbox.entity.detach( found2.entity);
-                }
+            console.log( "Look source:",src );
+            var formattedOutput=[];
+            var nearThings = near;
+            var nearExits = exits;
+            var room = sandbox.container;
+            nearThings = await nearThings;
+            //formattedOutput.push( "Near:" );
+            nearThings.forEach( found=>{
+                formattedOutput.push( found.name );
             })
+            formattedOutput = await Promise.all( formattedOutput );
+            output( "Near:", formattedOutput.join('.'));
+
+            getObjects( sandbox, src, false, async( foundSandbox, location )=>{
+                console.log( "Item:", await foundSandbox.name, location );
+                //console.log( JSOX.stringify( sandbox.entity.near ))
+                //output( util.format( "something", location, foundSandbox.entity.name ) );
+                //output( util.format( location, foundSandbox.entity.name ) );
+                if( lookIn ) {
+                    console.log ('is in...')
+                    getObjects( foundSandbox.me, null, true, (inSandbox,location)=>{
+                        formattedOutput.push( location + " : " + inSandbox.name )
+                    })
+                }else if( src.length ) {
+                    formattedOutput.push( foundSandbox.entity.description );
+                } else {
+                    formattedOutput.push( location + " : " + foundSandbox.entity.name );
+                }
+            });
+            room = await room;
+            if( !lookIn ){
+                var s = "Room: " + await room.parent.name;
+                for( let path = room.from; path; path = path.from ){
+                    s += ' via ' + await path.at.name;
+                }
+                output( s + "\n" );        
+            }
+            if( !formattedOutput.length )
+                output( "Nothing." );
+            else            
+                output( formattedOutput.join(',') );
+    }
+    function Exec( sandbox, src ) {
+        if( !src ) return;
+        //console.trace( "Called with :", JSOX.stringify( src ) );
+        //console.log( "Exec called with", sandbox )
+        //console.log( "ExEC:", src );
+        //console.log( "EXEC TOSTR:", src.map(val=>val.toString()).join( "" ) );
+        src[0].spaces = 0;
+        try {
+            var code = src.reduce((acc,val)=>acc.append(val), new text.Text() ).toString();
+            //console.log( "runincontext? '"+ code+"'")
+            var res =  vm.runInContext(code, sandbox /*, { filename:"", lineOffset:"", columnOffset:"", displayErrors:true, timeout:10} */)
+            sandbox.scripts.push( { type:"Exec command", code:code } );
+            return res;
+        }catch(err){
+            output( err.toString() );
+        throw err;
         }
-    })
-}
+        return null;
+    }
+
+    function Leave(sandbox,args) {
+        sandbox.leave();
+    }
+
+    function Enter(sandbox,args) {
+        getObjects( sandbox, args, ( foundSandbox, where )=>{
+            if( where == "near") {
+                sandbox.enter( foundSandbox );
+                return;
+            }
+            if( where == "outside" ){
+                sandbox.enter( foundSandbox );
+                return;
+            }
+        } )
+    }
+
+    function Attach( sandbox,args) {
+        let legal = false;
+        getObjects( sandbox, args, (found, where, args)=>{
+            if( where === "holding"){
+                legal = true;
+                if( args.length && args[0].text === "to" )
+                    args = args.slice( 1 );
+                getObjects( sandbox, args, (found2, where2, args ) =>{
+                    if( where2 == "holding"){
+                        console.log( "found 2 held objects, telling them to attach");
+                        try {
+                            legal = true;
+                            found2.attach(found);
+                        }catch(err) {
+                            console.log( "not sure where the other error went...", err );
+                            throw err;
+                        }
+                    }
+                    if( !found2 ){
+                        if( !legal ) {
+                            output( "Second object was not held");
+                        }
+                    }
+                })
+            }
+            if( !found )
+                if( !legal ) {
+                    output( "First object was not held");
+                }
+        })
+    }
+    function Detach( sandbox,args ) {
+        var argc = 0;
+        
+        getObjects( sandbox, args, (found, where, args)=>{
+            if( where === "holding"){
+                if( args.length && args[0].text === "from" )
+                    args = args.slice( 1 );
+                getObjects( sandbox, args, (found2, where2, args ) =>{
+                    if( where2 == "holding"){
+                        sandbox.entity.detach( found2.entity);
+                    }
+                })
+            }
+        })
+    }
 
 }
 
-console.log( "Shell.js completed..." );

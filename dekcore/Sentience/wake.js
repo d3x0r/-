@@ -2,7 +2,7 @@ const _debug_thread_create = false;
 const _debug_commands = false;
 const _debug_commands_input = _debug_commands || false;
 const _debug_commands_send = _debug_commands || false;
-
+const _debug_entity_command_handling = false;
 var sack = require( 'sack.vfs');
 const util = require('util' );
 var wt = global.isMainThread && require( 'worker_threads');
@@ -45,9 +45,12 @@ async function WakeEntity( e, noWorker ) {
                                 e.thread.post( { op:'error',id:msg.id,error:"Unknown Thing:"+msg.f,stack:"Stack.." } );
                                 return;
                         }
+                        _debug_entity_command_handling && console.log( "Calling method:", msg.f, msg.id  );
                         var r = e[msg.f].apply(e,msg.args);
+                        _debug_entity_command_handling && console.log( "Done with that method...", msg.f, msg.id );
                         if( r instanceof Promise ) {
                             r = await r;
+                            _debug_entity_command_handling && console.log( "Awaited the reply...", msg.f, msg.id );
                         }
                         let msgout = {op:msg.op,id:msg.id,ret:r};
                         e.thread.post(msgout);
@@ -59,10 +62,13 @@ async function WakeEntity( e, noWorker ) {
                         var f = o;
                         for( let i = 0; i < eParts.length; i++ ) f = f[eParts[i]];
                         if( !f )
-                            console.log( "f:", o, msg.e  )
+                            console.log( "Failed to find function for 'e':", o, msg.e  )
+                        _debug_entity_command_handling && console.log( "Calling method:", msg.e, msg.id  );
                         var r = f.apply(o, msg.args);
+                        _debug_entity_command_handling && console.log( "Done with that method...", msg.e, msg.id );
                         if( r instanceof Promise ) {
                             r = await r;
+                            _debug_entity_command_handling && console.log( "Awaited the reply...", msg.e, msg.id );
                         }
                         //console.log( "And then r = ",r);
                         let msgout = {op:msg.op,id:msg.id,ret:r};
@@ -152,6 +158,7 @@ async function WakeEntity( e, noWorker ) {
         ,something: null
         ,post(msg) {
             //thread.worker.stdin.write( JSOX.stringify(msg) );
+            _debug_commands_send && console.log( "Post run:", msg );
             thread.worker.postMessage( msg );
         }
         ,runFile(code) {
@@ -163,7 +170,6 @@ async function WakeEntity( e, noWorker ) {
                 code_ = code;
             if( code_ ) {
                 var msg = {op:'run', file:code, code:(code_), id:runId};
-                _debug_commands_send && console.log( "Post runFile:", msg );
                 thread.post(msg);
                 return new Promise( (res,rej)=>{
                     pendingRuns.push( { runResult : res, runReject: rej, id : runId++ } );
@@ -176,7 +182,6 @@ async function WakeEntity( e, noWorker ) {
                 //var allow = await ID.madeFrom( e.Λ, something );
                 //console.log( "is allow:", allow );
                 var msg = {op:'run', file:file, code:(code), id:runId };
-                _debug_commands_send && console.log( "Post run:", msg );
                 thread.post(msg);
                 return new Promise( (res,rej)=>{
                     //console.log( "Pending run has pushed this one... and we return a promise.");

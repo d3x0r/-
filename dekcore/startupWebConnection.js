@@ -59,7 +59,6 @@ return require("sack.vfs" ).then(sack=>{
         const shell = (shellCommands).Filter( this );
         var nl;
     
-        
         await require(  './command_stream_filter/strip_newline.js' ).then( (newline)=>{
             return require( './command_stream_filter/monitor_filter.js' ).then( monitor=>{
                 //var commandFilter = require( './command_stream_filter/command.js');
@@ -98,10 +97,9 @@ return require("sack.vfs" ).then(sack=>{
         } );  
         ws.onclose( function() {  
                 //console.log( "Remote closed" );  
-            } );
+        } );
         ws.resume();
         // after this point, can log... 
-        console.log( "Maye the async is bad?");
     });
     
 })

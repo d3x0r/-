@@ -23,8 +23,6 @@ async function buildPiping(){
       shell.connectOutput( process.stdout );
       });
   })
-
-
 }
 
 await buildPiping();
@@ -54,25 +52,21 @@ console.log( "------- create services ------------")
 create( "Services"
 		, "Service Directory Manager and authenticator"
 		, "services/services/serviceService.js"
-		, (o)=>{
+ ).then( (o)=>{
 console.log( "------- create firewall ------------")
   services = o;
   create( "Firewall"
 		, "Your basic iptable rule manager"
 		, "services/firewall/firewallService.js"
-		, (o)=>{
-		//config.run.firewall = o.Λ;
-		//config.commit();
+		).then( (o)=>{
     firewall = o;
-console.log( "------- run some code on firewall/serivces? ------------")
+    console.log( "------- run some code on firewall/serivces? ------------")
     
     services.run( 'io.firewall = io.getInterface( "firewall" );' );
 
-    create( "userAuth", "User authentication service", "uiServer/userAuth/userProtocol.js", (o)=>{
-		auth = o;
-		//config.commit();
-      auth = o;
-      auth.run( `io.firewall = io.getInterface( "${firewall.Λ}", "firewall" );` );
+    create( "userAuth", "User authentication service", "uiServer/userAuth/userProtocol.js").then( (o)=>{
+        auth = o;
+        auth.run( `io.firewall = io.getInterface( "${firewall.Λ}", "firewall" );` );
        })
    } )
 

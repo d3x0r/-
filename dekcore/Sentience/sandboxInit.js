@@ -1,7 +1,7 @@
 
 const _debugPaths = false;
 const _debug_commands = false;
-const _debug_requires = true;
+const _debug_requires = false;
 const _debug_command_input = false;
 const _debug_command_post = _debug_commands || false;
 
@@ -307,18 +307,16 @@ function makeEntity( Λ){
             //try { throw new Error( "GetStack" )}catch(err){
             //    sandbox.console.log( nameCache, "Getting near objects on  an entity", !!nearCache, "\n", err.stack )
            // }
-            if( nearCache ) return Promise.resolve( nearCache );
+            if( nearCache ){ console.log( "Returning promised cache" );return Promise.resolve( nearCache ) };
             return this.postGetter("nearObjects").then( result =>{
                 nearCache = result;
                 //console.log( nameCache, "Got back near objects?", result," and they got cache updated" );
-
                 result.forEach( (type,key)=>{
                     type.forEach( (name,i)=>{
-                        //sandbox.console.log( "Re-set entity at:", name, i, type )
                         type.set(i, makeEntity( name ) )
                     } );
                 });
-                return result;
+                return Promise.resolve( result );
             })
         },
         async idGen() {
@@ -371,7 +369,7 @@ var sandbox = vm.createContext( {
     , util:util
     , wsThread : sack.WebSocket.Thread
     , waiting : []
-    , module : {paths:[codeStack.length?codeStack[codeStack.length-1].file.path:module.path]}
+    , module : {paths:[codeStack.length?codeStack[codeStack.length-1].file.path:module.path],parent:true}
     , Function : Function
     , eval: eval
     , post(name,...args) {
@@ -413,7 +411,7 @@ var sandbox = vm.createContext( {
         if( args === "stream" ) return stream;
         var builtin = builtinModules.find( m=>args===m);
         if( builtin ){
-            if( ['vm','child_process','worker_threads'].find(m=>m===args) ){
+            if( ['vm','child_process','worker_threads','fs'].find(m=>m===args) ){
                 throw new Error( "Module not found:",+ a )
             }
             console.log( "Including native node builtin module:", args );
@@ -445,7 +443,12 @@ var sandbox = vm.createContext( {
             return ex2;    
         }).catch( err=>sandbox.io.output("Require failed:", err));
     }
-    , process: process
+    , process:process
+    , _process: {
+        stdout : process.stdout,
+        stdin : process.stdin,
+        x:"not process"
+    }
     , Buffer: Buffer
     , async create(a,b,c,d) { 
         return sandbox.post("create",a, b).then(
@@ -472,7 +475,7 @@ var sandbox = vm.createContext( {
     //, look(...args) { process.stdout.write( `{op:'create',args:${JSOX.stringify(args)}}` ) }
     , leave(...args) { return sandbox.post("leave",null,...args);  }
     , enter(...args) { return sandbox.post("enter",null,...args);  }
-    , grab(thing){ console.log( "This grabbing something..." ); return sandbox.post("grab",thing.Λ);  }
+    , grab(thing){ console.log( "This grabbing something..." ); return entity.post("grab",thing.Λ);  }
     , drop(...args) { return sandbox.post("drop",null,...args); }
     , store(...args) { return sandbox.post("store",null,...args); }
     //, crypto: crypto
@@ -666,7 +669,8 @@ var sandbox = vm.createContext( {
 		// callback is invoked with value,key for each
 		// near object.
 		var object = src && src[0];
-		if( !src ) all = true;
+        if( !src ) all = true;
+        var awaitList = [];
         var name = object && object.text;
 		var count = 0;
 		//var all = false;
@@ -722,57 +726,68 @@ var sandbox = vm.createContext( {
 			console.log( "recursing to get on's...")
 			src = src.slice(2);
 			return getObjects( me, object, all, (o,location,moreargs)=>{
-				o = objects.get( o.me );
-				console.log( "Found:", o.name, location );
-				o.attached_to.forEach( content=>{
-					//if (value === me) return;
-					if (!object || content.name === name ) {
-						console.log( "found object", content.name )
-						if (count) {
-							count--;
-							return;
-						}
-						if (run) {
-							console.log("and so key is ", key, content.name )
-							callback(content.sandbox, location+",holding", src.splice(1) );
-							run = all;
-						}
-					}
-				})
+				return o.nearList.then( nearList=>{
+                    nearList.holding.forEach( content=>{
+                        content.name.then(name=>{
+                            if (!object || content.name === name ) {
+                                console.log( "found object", content.name )
+                                if (count) {
+                                    count--;
+                                    return;
+                                }
+                                if (run) {
+                                    console.log("and so key is ", key, content.name )
+                                    var r = callback(content.sandbox, location+",holding", src.splice(1) );
+                                    if( r ) awaitList.push( r );
+                                    run = all;
+                                }
+                            }
+                        })
+                    })
+                })
 			})
-		}
-
-		//var command = src.break();
-		//console.log( "get objects for ", me.name, me.nearObjects )
-			var checkList;
-            checkList = await me.nearObjects;
-            //console.log( "gotting near on :", checkList );
-            //checkList = await me.near;
-
-			checkList.forEach(function (value, location) {
-				// holding, contains, near
-				//console.log("checking key:", run, location, value)
-				if( !value ) return;
-				if (run) value.forEach(async function (value, member) {
-
-					//console.log( "value in value:", value.name, name );
-					if (value === me) return;
-					if (!object || (await value.name) === name ) {
-						//console.log( "found object", value.name )
-						if (count) {
-							count--;
-							return;
-						}
-						if (run) {
-							//console.log("and so key is ", key, value.name )
-							callback(value, location, src &&src.splice(1) );
-							run = all;
-						}
-					}
-				});
-			})
-            callback( null, null, [] );
         }
+        //console.log( "Simple object lookup; return promise in getObjects()");
+        return new Promise( (res)=>{
+		    //var command = src.break();
+		    entity.nearObjects.then(checkList=>{
+                var names = [];
+                checkList.forEach(function (value, location) {
+                    // holding, contains, near
+                    //console.log("checking key:", run, location, value)
+                    if( !value ) return;
+                    value.forEach( function (value, member) {
+                        //console.log( "has value" );
+                        names.push( value.name.then(name=> ({e:value,l:location,name:name }) )) ;
+                        //console.log( "Pushed a name as a promise");
+                    } )
+                });
+                    Promise.all( names ).then( names=> {
+                        names.forEach( (check,i)=>{
+                            if( !run ) return;
+                            if( check.e === me )return;
+                            if( !object || check.name === name ){
+                                //console.log( "found object", value.name, count )
+                                if (count) {
+                                    count--;
+                                    return;
+                                }
+                                if (run) {
+                                    //console.log("and so key is ", key, value.name )
+                                    var r = callback(check.e, check.l, src &&src.splice(1) );
+                                    if( r ) awaitList.push(r);
+                                    run = all; // if not all, then no more.
+                                }
+                            }
+                        } )
+                        callback( null, null, [] );
+                        Promise.all( awaitList ).then(res)
+                    })
+            })
+        }).catch(err=> {
+            console.log( "ERROR:", err);
+        })
+    }
 
     , clearTimeout( timerObj ) {
         if( !timerObj.dispatched ) return; // don't remove a timer that's already been dispatched

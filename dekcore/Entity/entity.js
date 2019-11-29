@@ -1,5 +1,6 @@
 "use strict";
-const _debugPaths = true;
+const _debug_require = false;
+const _debugPaths = _debug_require || false;
 const _debug_threads = false;
 
 const events = require('events');
@@ -414,19 +415,17 @@ function makeEntity(obj, name, description, callback, opts) {
 			console.trace( "FIX THIS CALLER this is", o, src );
 
 		//var o = this ; //makeEntity( this.me );
-		console.trace("sandboxRequire ",  src );
+		_debug_require && console.trace("sandboxRequire ",  src );
 		//console.log( "module", o.sandbox.module );
 		if (src === "entity.js") return exports;
 		if (src === "shell.js") return exports.Sentience;
 		if (src === "text.js") return text;
-		console.log( "...1");
 		if (src == 'ws') {
 			return sandboxWS;
 		}
 		if (src == 'wss') {
 			return sandboxWSS;
 		}
-		console.log( "...2");
 		if (o.permissions.allow_file_system && src == 'fs') return fs;
 		if (o.permissions.allow_file_system && src == 'stream') return stream;
 		if (src == 'crypto') return crypto;
@@ -472,7 +471,6 @@ function makeEntity(obj, name, description, callback, opts) {
 			return vfs;
 			//return o.sandbox._vfs;
 		}
-		console.log( "...3");
 
 		//console.log( "blah", o.sandbox.scripts)
 		if( o.scripts.index < o.scripts.code.length ) {

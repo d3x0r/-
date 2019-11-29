@@ -307,7 +307,7 @@ function makeEntity( Λ){
             //try { throw new Error( "GetStack" )}catch(err){
             //    sandbox.console.log( nameCache, "Getting near objects on  an entity", !!nearCache, "\n", err.stack )
            // }
-            if( nearCache ){ console.log( "Returning promised cache" );return Promise.resolve( nearCache ) };
+            if( nearCache ){ return Promise.resolve( nearCache ) };
             return this.postGetter("nearObjects").then( result =>{
                 nearCache = result;
                 //console.log( nameCache, "Got back near objects?", result," and they got cache updated" );

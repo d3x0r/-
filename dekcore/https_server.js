@@ -49,8 +49,8 @@ function scriptServer( port, internal ) {
     if( !port ) port = 8550;
 
     console.log( "Starting Script Services on port", port );
-    var privateKey = vol.read('ca-key.pem').toString();
-    var certificate = vol.read('ca-cert.pem').toString();
+    var privateKey = null;//vol.read('ca-key.pem').toString();
+    var certificate = null;//vol.read('ca-cert.pem').toString();
     var option = {key: privateKey, cert: certificate};
     var credentials = tls.createSecureContext ();
     var server = https.createServer( option,

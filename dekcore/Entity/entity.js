@@ -1,5 +1,5 @@
 "use strict";
-const _debugPaths = false;
+const _debugPaths = true;
 const _debug_threads = false;
 
 const events = require('events');
@@ -274,22 +274,6 @@ function EntityExists(key, within) {
 var createdVoid = false;
 var base_require;
 
-function sealSandbox(sandbox) {
-	/*
-	vm.runInContext(`function require() {
-				return _require( global );
-			}`
-			, sandbox
-			, { filename: "setRequire", lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 1000 });
-
-*/
-	["JSOX","events", "crypto", "_module", "console", "Buffer", "require", "process", "fs", "vm"].forEach(key => {
-		if( key in sandbox )
-		Object.defineProperty(sandbox, key, { enumerable: false, writable: true, configurable: false });
-	})
-	//console.log( "AFter sealing:", JSOX.stringify(sandbox ) );
-
-}
 
 function sealEntity(o) {
 	//console.log( "before sealing:", JSOX.stringify(o ) );
@@ -424,365 +408,25 @@ function makeEntity(obj, name, description, callback, opts) {
 
 }
 
-if(0) {
-var timerId;  // static varible to create timer identifiers.
-
-	function makeSystemSandbox(o,local) {
-		if (config.run.Λ === o.Λ)
-			var theVoid = true;
-		else
-			var theVoid = false;
-
-		if (!local) {
-			console.log("hmm... I want this to be because my ID was from someone else...")
-		}
-
-		//if( config.run.Λ === o.Λ )
-		//    theVoid = true;
-		//if( config.run.Λ === o.created_by.Λ )
-		//    local = true;
-		console.log( "Sandbox is local?", local );
-		var sandbox = {
-			require: local ? sandboxRequire : netRequire.require
-			, resolve: local?sandboxRequireResolve: netRequire.require.resolve
-			, process: process
-			, Buffer: Buffer
-			, create: o.create.bind(o)
-			, look : o.look.bind(o)
-			, leave : o.leave.bind(o)
-			, enter : o.enter.bind(o)
-			, grab : o.grab.bind(o)
-			, drop : o.drop.bind(o)
-			, store: o.store.bind(o)
-			, crypto: crypto
-			, config: {
-				commit() {
-					exports.saveAll();
-				} }   // sram type config; reloaded at startup; saved on demand
-			, global: null
-			, scripts : { code: [], index : 0, push(c){ this.index++; this.code.push(c)} }
-			, _timers : null
-			, _module: {
-				filename: "internal"
-				, file: "memory://"
-				, parent: null
-				, paths: [local ? module.path + "/.." : "."]
-				, exports: {}
-				, loaded: false
-				, rawData: ''
-				, includes: []
-			}
-			, get now() { return new Date().toString() }
-			, get me() { return o.Λ; }
-			, get name() { return objects.get( o.Λ ).name; }
-			, get desc() { return objects.get( o.Λ ).description; }
-			, get description() { return objects.get( o.Λ ).description; }
-			//, get room() { return o.within; }
-			, idGen(cb) {
-				console.log( "Somehow there's a sandbox?" );
-				return entity.idMan.ID(o.Λ, o.created_by.Λ, cb);
-			}
-			, console: {
-				log(...args)  { 
-                                	if( sandbox.io.command )
-	                                	sandbox.io.command.push(util.format( ...args ) ) 
-                                        else {
-                                        	var relay = o.name + ":" + util.format( ...args );
-                                            var live = o.created_by;
-						live = objects.get( live.Λ );
-						//console.warn( "created by:", live );
-                                            while( live && !live.sandbox.io.command ) {
-                                            	relay = live.name + ":" + relay;
-                                                    live = live.created_by;
-						live = objects.get( live.Λ );
-                                            }	
-                                            if( live )
-						live.sandbox.io.command.push( relay );
-						else
-                                        		console.trace( "LOST OUTPUT:", relay );
-                                	}
-								},
-				warn(...args) { return console.log( ...args)},
-				trace: (...args) => console.trace(...args)
-			}
-			, io: {
-				addProtocol(p, cb) { return o.addProtocol(p, cb); },
-				addDriver(name, iName, iface) {
-					addDriver( o, name, iName, iface );
-				},
-				openDriver(object,name) {
-					var o = objects.get( object );
-					console.log( "OPEN DRIVER CALLED!")
-					var driver = drivers.find(d => (o === d.object) && (d.name === name) );
-					if (driver)
-						return driver.iface;
-
-					var iface;
-					// pre-allocate driver and interface; it's not usable yet, but will be?
-					drivers.push({ name: name, iName: null, orig: null, iface: iface={} });
-					return iface;
-				}
-				, send(target, msg) {
-					console.log( "Send does not really function yet.....")
-					//o.Λ
-					//console.log( "entity in this context:", target, msg );
-					var o = objects.get(target.Λ || target);
-					if (o && o.thread )
-						o.thread.emit("message", msg)
-					else
-						console.log( "Send to object that's not awake....");
-					//entity.gun.get(target.Λ || target).put({ from: o.Λ, msg: msg });
-				}
-			}
-			, events: {}
-			, on: (event, callback) => {
-				if( thread ){
-					thread.emit("newListener", event, this.Λ);
-					if (!(event in sandbox.events))
-						sandbox.events[event] = [callback];
-					else
-						sandbox.events[event].push(callback);
-				}
-			}
-			, off(event, callback) {
-				if (event in sandbox.events) {
-					var i = sandbox.events[event].findIndex((cb) => cb === callback);
-					if (i >= 0)
-						sandbox.events[event].splice(i, 1);
-					else
-						throw new Error("Event already removed? or not added?", event, callback);
-				}
-				else
-					throw new Error("Event does not exist", event, callback);
-				if( thread )
-					thread.emit("removeListener", event, callback)
-			}
-			, addListener: null
-			, emit(event, ...args) {
-				if (event in sandbox.events) {
-					sandbox.events[event].find((cb) => cb(...args));
-				}
-			}
-			, setTimeout(cb,delay) {
-				let timerObj = { id: timerId++, cb: cb, next:this._timers, pred:null, dispatched : false, to:null };
-				if( this._timers )
-					this._timers.pred = timerObj;
-				this._timers = timerObj;
-				const cmd = `let tmp=_timers;
-					while( tmp && tmp.id !== ${timerObj.id})
-						tmp = tmp.next;
-					if( tmp ) {
-						tmp.cb();
-						tmp.dispatched = true;
-						if( tmp.next ) tmp.next.pred = tmp.pred;
-						if( tmp.pred ) tmp.pred.next = tmp.next; else _timers = tmp.next;
-					}
-				`;
-				timerObj.to = setTimeout( ()=>{
-					vm.runInContext( cmd, sandbox);
-				}, delay );
-				//timerObj.to.unref();
-				return timerObj;
-			}
-			, setInterval(cb,delay) {
-				let timerObj = { id: timerId++, cb: cb, next:this._timers, pred:null, dispatched : false, to:null };
-				if( this._timers )
-					this._timers.pred = timerObj;
-				this._timers = timerObj;
-				const cmd = `let tmp=_timers;
-					while( tmp && tmp.id !== ${timerObj.id})
-						tmp = tmp.next;
-					if( tmp ) {
-						tmp.cb();
-					}
-				`;
-				timerObj.to = setInterval( ()=>{
-					vm.runInContext( cmd, sandbox);
-
-				}, delay );
-				return timerObj;
-			}
-			, setImmediate(cb) {
-				let timerObj = { id: timerId++, cb: cb, next:this._timers, pred:null, dispatched : false, to:null };
-				if( this._timers )
-					this._timers.pred = timerObj;
-				this._timers = timerObj;
-				const cmd = `let tmp=_timers;
-					while( tmp && tmp.id !== ${timerObj.id})
-						tmp = tmp.next;
-					if( tmp ) {
-						tmp.cb();
-						tmp.dispatched = true;
-						if( tmp.next ) tmp.next.pred = tmp.pred;
-						if( tmp.pred ) tmp.pred.next = tmp.next; else _timers = tmp.next;
-					}
-				`;
-				timerObj.to = setImmediate( ()=>{
-					vm.runInContext( cmd, sandbox);
-
-				} );
-				return timerObj;
-			}
-			, clearTimeout( timerObj ) {
-				if( !timerObj.dispatched ) return; // don't remove a timer that's already been dispatched
-				if( timerObj.next ) timerObj.next.pred = timerObj.pred;
-				if( timerObj.pred ) timerObj.pred.next = timerObj.next; else _timers = timerObj.next;
-			}
-			, clearImmediate : null
-			, clearInterval : null
-			, resume( ) {
-			}
-			, JSOX: JSOX
-		};
-		sandbox.clearImmediate = sandbox.clearTimeout;
-		sandbox.clearInterval = sandbox.clearInterval;
-
-		sandbox.idGen.u8xor = entity.idMan.u8xor;
-		sandbox.idGen.xor = entity.idMan.xor;
-		sandbox.config.run = { Λ : null };
-		entity.idMan.ID( entity.idMan.localAuthKey, o.created_by.Λ, (id)=>{ sandbox.config.run.Λ = id.Λ } );
-		sandbox.require= local ? sandboxRequire.bind(sandbox) : netRequire.require.bind(sandbox)			;
-		sandbox.require.resolve = sandboxRequireResolve.bind( sandbox );
-		sandbox.global = sandbox;
-		sandbox.addListener = sandbox.on;
-		sandbox.removeListener = sandbox.off;
-		sandbox.removeAllListeners = (name) => {
-			Object.keys(sandbox.events).forEach(event => delete sandbox.events[event]);
-		};
-		return sandbox;
-	}
-
-function runDriverMethod( o, driver, msg ) {
-			var constPart = `${driver.iName}[${msg.data.method}](`;
-			var cmd = constPart + args + `,(...args)=>{
-				process.send({ id: ${msg.id}, op:"driver return", retval:${JSOX.stringify( args )} });
-			} )`;
-			//scripts.push( { type:"driverMethod", code:cmd } );
-			vm.runInContext( cmd, o.sandbox);
-}
-
-function addDriver( o, name, iName, iface) {
-	var driver = drivers.find(d => d.name === name);
-	if( driver ) {
-		console.log( "have to emit completed...")
-	}
-	var caller = (driver && driver.iface) || {};
-	var keys = Object.keys(iface);
-	if( remotes.get(o) ) {
-		keys.forEach(key => {
-			caller[key] = function (...argsIn) {
-				var args = "";
-				var last = argsIn[argsIn.length-1];
-				argsIn.forEach(arg => {
-					if( arg === last ) return; // don't pass the last arg, that's for me.
-					if (args.length) args += ",";
-					args += JSOX.stringify(arg)
-				})
-				entity.idMan.ID( o.Λ, me, (id)=>{
-					var pending = { id: id, op:"driver", driver:name, data: { type:"driverMethod", method:key, args:args } }
-					o.child.send( pending );
-					childPendingMessages.set( id, pending )
-				} )
-			}
-		})
-	}
-	else
-		keys.forEach(key => {
-			var constPart = `{
-				${iName}[${key}](`;
-			caller[key] = function (...argsIn) {
-				var args = "";
-				var last = argsIn[argsIn.length-1];
-				argsIn.forEach(arg => {
-					if( arg == last ) return; // don't pass the last arg, that's for me.
-					if (args.length) args += ",";
-					args += JSOX.stringify(arg)
-				})
-				if( "function" == typeof last ) {
-					o.sandbox._driverDb = last;
-					args += ",_driverCb)";
-				}
-				else
-					args += JSOX.stringify( last ) + ")";
-				// this should not be replayed ever; it's a very dynamic process...
-				//scripts.push( { type:"driverMethod", code:constPart + args } );
-				vm.runInContext(constPart + args, sandbox)
-			}
-		})
-	console.log( "adding object driver", name)
-	drivers.push({ name: name, iName: iName, orig: iface, iface: caller, object:o });
-	return driver; // return old driver, not the new one...
-}
-
-	function firstEvents(sandbox) {
-		sandbox.on("newListener", (event, cb) => {
-			if (event === "message") {
-				console.log("listen for self", o.Λ)
-				sandbox.io.gun.map(cb);
-				return true;
-			}
-		});
-		return false;
-	}
-
-	function makeEntityInterface(o) {
-		//console.log( "making intefce for ", o.toString() )
-		var i = {
-			get Λ() { return o.Λ; },
-			get name() { return o.name; },
-			get description() { return o.description; },
-			get value() { return o.value; },
-			get inventory() {
-				var i = { in: [], on: [] };
-				//o.getObjects( o, filter, true, (near,where)=>{if( where === "contains" ) result.push( {name:near.name,Λ:near.Λ} ) } );
-				o.contains.forEach((near) => { i.in.push({ name: near.name, Λ: near.Λ }) });
-				o.attached_to.forEach((near) => { if (near !== o) i.on.push({ name: near.name, Λ: near.Λ }) });
-				return i;
-			},
-			look() { return o.look(); },
-			create(name, desc, callback, val) { o.create(name, desc, callback,val) },
-			bud() { o.birth() },
-			store(a) {
-				a = objects.get(a.Λ);
-				o.store(a);
-			},
-			attach(a){
-				a = objects.get(a.Λ)
-				o.attach(a);
-			},
-			detach(a){
-				a = objects.get(a.Λ)
-				o.detach(a);
-			},
-			async run(statement) {
-				return o.run( "Immediate command", statement);
-			},
-			get(o) { return objects.get(o)&&objects.get(o).Λ; },
-			get parent() { return o.parent&&o.parent.Λ; },
-			get container() { return o.container&&o.container.Λ; },
-			//get value() { return o.value; }
-		}
-		return i;
-	}
-}
 
 	async function sandboxRequire(o,src) {
 		if( !o || !src )
 			console.trace( "FIX THIS CALLER this is", o, src );
 
 		//var o = this ; //makeEntity( this.me );
-		//console.log("sandboxRequire ",  src );
+		console.trace("sandboxRequire ",  src );
 		//console.log( "module", o.sandbox.module );
 		if (src === "entity.js") return exports;
 		if (src === "shell.js") return exports.Sentience;
 		if (src === "text.js") return text;
-
+		console.log( "...1");
 		if (src == 'ws') {
 			return sandboxWS;
 		}
 		if (src == 'wss') {
 			return sandboxWSS;
 		}
+		console.log( "...2");
 		if (o.permissions.allow_file_system && src == 'fs') return fs;
 		if (o.permissions.allow_file_system && src == 'stream') return stream;
 		if (src == 'crypto') return crypto;
@@ -828,6 +472,7 @@ function addDriver( o, name, iName, iface) {
 			return vfs;
 			//return o.sandbox._vfs;
 		}
+		console.log( "...3");
 
 		//console.log( "blah", o.sandbox.scripts)
 		if( o.scripts.index < o.scripts.code.length ) {
@@ -930,7 +575,7 @@ function addDriver( o, name, iName, iface) {
 		//console.log( "set root", rootPath );
 
 		const filePath = netRequire.stripFile(root);
-		//console.log( "This will be an async function..." );
+		console.log( "This will be an async function...posted to run..." );
 		var code =
 			['(async function() { var module={ path:'+ JSON.stringify(filePath) +',src:'+ JSON.stringify(src) +',exports:{}}; '
 				, 'this.module.paths.push(' + JSON.stringify(filePath)  + ");"

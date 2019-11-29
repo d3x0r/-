@@ -120,7 +120,7 @@ async function WakeEntity( e, noWorker ) {
             if( msg ) {
                 let msgout = {op:'error',id:msg.id,cmd:msg.op,error:err.message, stack:err.stack};
                 console.log( "Throw error result (back)to thread:", msgout, msg, err );
-                e.thread.post(msgout);
+                //e.thread.post(msgout);
             } else {
                 e.thread.post(util.format( "WHAT?", err ));
 

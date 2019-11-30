@@ -114,7 +114,7 @@ async function WakeEntity( e, noWorker ) {
                     //e.creator.push();
                 }
             else {
-                //console.log( string ||  );
+                console.log( ":!!:", string );
             }
         } catch(err) {
             if( msg ) {

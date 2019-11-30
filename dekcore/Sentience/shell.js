@@ -4,6 +4,7 @@ exports.Filter = Filter;
 
 var util = await require('util')
 const vm = await require('vm' );
+const sack = await require('sack' );
 
 var text = null;
 var commandStream = null;
@@ -95,6 +96,9 @@ function Filter( e ) {
         filter.RegisterCommand( "tell"
             , {min:3,max:0,description:"tell <entity> <command>"}
             , (args)=> Tell( entity, args ) );
+        filter.RegisterCommand( "ainv"
+            , {min:0,max:0,description:"Without parameters, show objects that are internally visible, and attached"}
+            , (args)=> Inventory( entity, args ) );
         filter.RegisterCommand( "inv"
             , {min:0,max:0,description:"Without parameters, show objects that are internally visible, and attached"}
             , (args)=> Inventory( entity, args ) );
@@ -259,9 +263,10 @@ function Filter( e ) {
     }
     function Inventory( sandbox, src ) {
         console.log( "Get inventory..." );
-        return sandbox.nearObjects.then ( (i)=>{
+        sack.log( "Get inventory... using nearObjects directly."); 
+        const p = sandbox.nearObjects.then ( (i)=>{
             var contents = [];
-            console.log( "near Objects resulted...");
+            sack.log( "near Objects resulted...", i );
             i.get("contains").forEach(val=>contents.push( val.name ) );
             if( !contents.length )
                 contents.push( Promise.resolve( "Nothing" ))
@@ -276,8 +281,33 @@ function Filter( e ) {
                 })
             } ).catch(err=>console.log( "some resolution errror:", err ));
         }).catch(err=>{
-            console.log( "Error gettingnear objects", err );
+            doLog( "Error gettingnear objects", err );
         })
+        sack.log( "Returning p...",p );
+        return p;
+    }
+    async function asInventory( sandbox, src ) {
+        console.log( "Get inventory..." );
+        sack.log( "Get inventory... using nearObjects directly."); 
+        const near = await sandbox.nearObjects
+        var contents = [];
+        sack.log( "near Objects resulted...", i );
+
+        var containIter = near.get("contains")[Symbol.iterator]();
+        for( let val of containIter ) {
+            contents.push( await val[0].name );
+        }
+        if( !contents.length ) contents.push( "Nothing" )
+        output( "Contains: ", contents.join(", ") + ".\n");
+        // reset array for next line...
+        contents.length = 0;
+        containIter = near.get("holding")[Symbol.iterator]();
+        for( let val of containIter ) {
+            contents.push( await val[0].name );
+        }
+        if( !contents.length )
+            contents.push( Promise.resolve( "Nothing" ))
+        output( "Holding:", x.join(", " ) + ".\n");
     }
     async function Look( sandbox, src ) {
         var items = [];

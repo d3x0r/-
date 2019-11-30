@@ -23,8 +23,12 @@ const JSOX = sack.JSOX;
 
 const coreThreadEventer = wt.parentPort ;
 
-const netRequire = require( "./util/myRequire");
 
+function doLog( ...args ){
+    var s = util.format( ...args );
+    sack.log(s);
+    //console.log(s);
+}
 
 var id = 0;
 var eid = 0;
@@ -62,8 +66,8 @@ function processMessage( msg, stream ) {
     if( msg.op === "run"){
         var prior_execution = codeStack.find( c=>c.path === msg.file.path );
         if( prior_execution )
-            console.log( "Duplicate run of the same code; shouldn't we just return the prior?  I mean sure, maybe the filter of this should be higher?", msg .file, codeStack );
-        _debug_commands && console.log( "Run some code...", codeStack, msg.file );
+            doLog( "Duplicate run of the same code; shouldn't we just return the prior?  I mean sure, maybe the filter of this should be higher?", msg .file, codeStack );
+        _debug_commands && doLog( "Run some code...", codeStack, msg.file );
         var res;
         try {
             const code = {file: msg.file, result:null}
@@ -73,7 +77,7 @@ function processMessage( msg, stream ) {
                 res.then(
                     (realResult)=>{
                         //_debug_commands && 
-                        //console.log( "And post result.", pendingRequire, realResult );
+                        //doLog( "And post result.", pendingRequire, realResult );
                         if( pendingRequire ){
                             code.result = realResult;
                             requireRunReply.push( realResult );
@@ -92,13 +96,13 @@ function processMessage( msg, stream ) {
 
                 if( pendingRequire )
                     requireRunReply.push(res);
-                console.log( "And post sync result.", res );
+                doLog( "And post sync result.", res );
                 reply( ( {op:"run",ret:res,id:msg.id }));
             }
-            //console.log( "Did it?", sandbox );
+            //doLog( "Did it?", sandbox );
             return;
         }catch(err) {
-            console.log( "Failed:", err, msg.code )
+            doLog( "Failed:", err, msg.code )
             reply( ( {op:"error",error:err.toString(), stack:err.stack, id:msg.id }));
             return;
         }
@@ -122,7 +126,7 @@ function processMessage( msg, stream ) {
         //reply(msg.out);
         return;
     } else if( msg.op === "on" ) {
-        _debug_event_input && console.log( "emit event:", msg );
+        _debug_event_input && doLog( "emit event:", msg );
     try {
 
         switch( true ){
@@ -173,17 +177,17 @@ function processMessage( msg, stream ) {
             return emitEvent( msg.on, msg.args.Λ );
         
         }catch(err) {
-            console.log( err );
+            doLog( err );
             return;
         }
     }
     else 
-        _debug_commands && console.log( "will it find", msg,"in", pendingOps );
+        _debug_commands && doLog( "will it find", msg,"in", pendingOps );
 
     var responseId = msg.id && pendingOps.findIndex( op=>op.id === msg.id );
     if( responseId >= 0 ) {
         var response = pendingOps[responseId];
-        //console.log( "Will splice...", responseId, msg, pendingOps)
+        //doLog( "Will splice...", responseId, msg, pendingOps)
         pendingOps.splice( responseId, 1 );
         if( msg.op === 'f' || msg.op === 'g' || msg.op === 'e' || msg.op === 'h' )  {
             //_debug_commands && 
@@ -195,41 +199,41 @@ function processMessage( msg, stream ) {
         }    
     } else {
         if( msg.op !== "run")
-            console.log( "didn't find matched response?", msg.op, msg )
+            doLog( "didn't find matched response?", msg.op, msg )
     }
 
 }
 
-/*
+
 process.stdin.on('data',(chunk)=>{
     const string = chunk.toString()
-    //console.warn( "Sandbox stdin input: ", chunk, string );
+    console.warn( "Sandbox stdin input: ", chunk, string );
     try {
-        const msg = JSOX.parse( string );
-        _debug_command_input && console.log( "Input Message:", msg );
-        processMessage( msg, true );
+        //const msg = JSOX.parse( string );
+        //_debug_command_input && doLog( "Input Message:", msg );
+        //processMessage( msg, true );
 
     } catch( msgParseError ) {
         process.stdout.write( util.format( "Initiial error:", msgParseError ) );
         try {
-            var r = vm.runInContext( string, sandbox, {timeout:500, displayErrors:true} );
-            console.log( "Result?" );
-            if(r ) {
-                process.stdout.write( JSOX.stringify( {op:"run",ret:r} ) );
-            }
+            //var r = vm.runInContext( string, sandbox, {timeout:500, displayErrors:true} );
+            //doLog( "Result?" );
+            //if(r ) {
+            //    process.stdout.write( JSOX.stringify( {op:"run",ret:r} ) );
+           // }
         }catch( sbError ){
-            console.log( "VM ERror2:", sbError.toString() );
+            doLog( "VM ERror2:", sbError.toString() );
             process.stdout.write( JSOX.stringify( {op:"error", error:sbError.toString() } ) );
         }
     }
 })
-*/
+
 
 function Function() {
-    console.log( "Please use other code import methods.");
+    doLog( "Please use other code import methods.");
 }
 function eval() {
-    console.log( "Please use other code import methods.");
+    doLog( "Please use other code import methods.");
 }
 
 function makeEntity( Λ){
@@ -246,10 +250,10 @@ function makeEntity( Λ){
         Λ :  Λ
         , post(name,...args) {
             var stack;
-            _debug_command_post && console.log( "entity posting:", id, name );
+            _debug_command_post && doLog( "entity posting:", id, name );
             coreThreadEventer.postMessage( {op:'e',o:Λ,id:id++,e:name,args:args} );
             //process.stdout.write( {op:'e',o:'${Λ}',id:id++,e:name,args:args} );
-            return new Promise( (resolve,reject)=>{ _debug_commands && console.log( "pushed pending for that command", id,name );pendingOps.push( { id:id-1, cmd: name, resolve:resolve,reject:reject} )} );
+            return new Promise( (resolve,reject)=>{ _debug_commands && doLog( "pushed pending for that command", id,name );pendingOps.push( { id:id-1, cmd: name, resolve:resolve,reject:reject} )} );
         }
         , postGetter(name) {
             //_debug_command_post && 
@@ -284,11 +288,17 @@ function makeEntity( Λ){
         },
         get contents() { 
             if( nearCache ){
-                return Promise.resolve(nearCache.contains);
+                try {
+                    sack.log( util.format( "Returning resolved nearCached"));
+                    console.log( util.format( "Returning resolved nearCached"));
+                }catch(err) { 
+                    console.log("BLAH:", err)
+                }
+                return Promise.resolve(nearCache.get("contains" ));
             }
             return new Promise( res=>{
                 this.nearObjects.then(nearCache=>{
-                    res( nearCache.contains );
+                    res( nearCache.get("contains") );
                 })
             })
         },
@@ -305,17 +315,22 @@ function makeEntity( Λ){
 
         get nearObjects() {
             //try { throw new Error( "GetStack" )}catch(err){
-            //    sandbox.console.log( nameCache, "Getting near objects on  an entity", !!nearCache, "\n", err.stack )
+            //    sandbox.doLog( nameCache, "Getting near objects on  an entity", !!nearCache, "\n", err.stack )
            // }
-            if( nearCache ){ return Promise.resolve( nearCache ) };
+           doLog( "Getting...", !!nearCache )
+            if( nearCache ){ 
+                doLog( "returning resolved cache...");
+                return Promise.resolve( nearCache ) 
+            }
             return this.postGetter("nearObjects").then( result =>{
                 nearCache = result;
-                //console.log( nameCache, "Got back near objects?", result," and they got cache updated" );
+                //doLog( nameCache, "Got back near objects?", result," and they got cache updated" );
                 result.forEach( (type,key)=>{
                     type.forEach( (name,i)=>{
                         type.set(i, makeEntity( name ) )
                     } );
                 });
+                doLog( "Returning resolved reived result(newcache)");
                 return Promise.resolve( result );
             })
         },
@@ -329,7 +344,7 @@ function makeEntity( Λ){
             return e.post( "wake" );
         },
         async require( src ) {
-            _debug_requires && console.log( " ---- thread side require:", nameCache, src, codeStack );
+            _debug_requires && doLog( " ---- thread side require:", nameCache, src, codeStack );
             
             return e.post( "require", src ).catch(err=>sandbox.io.output(util.format(err)));
         },
@@ -374,7 +389,7 @@ var sandbox = vm.createContext( {
     , eval: eval
     , post(name,...args) {
         var stack;
-        _debug_command_post && console.log( "thread posting:", id, name );
+        _debug_command_post && doLog( "thread posting:", id, name );
         coreThreadEventer.postMessage( {op:'f',id:id++,f:name,args:args} );
         //process.stdout.write( `{op:'f',id:${id++},f:'${name}',args:${JSOX.stringify(args)}}` );
         return new Promise( (resolve,reject)=>{
@@ -388,7 +403,7 @@ var sandbox = vm.createContext( {
         var r = vm.runInContext( line, sandbox );
         if( r ) sandbox.io.output( r.toString() );
         }catch(err) {
-            console.log( err );
+            doLog( err );
         }
     }
     , async postGetter(name,...args) {
@@ -403,7 +418,8 @@ var sandbox = vm.createContext( {
         /*block*/
     }
     , async require(args) { 
-        _debug_requires && console.log( "This is a thread that is doing a require in itself main loop", args);
+        _debug_requires && doLog( "This is a thread that is doing a require in itself main loop", args, new Error().stack );
+        if( args === "sack" ) return sack;
         if( args === "sack.vfs" ) return sack;
         if( args === "vm" ) return vm;
         if( args === "util" ) return util;
@@ -414,31 +430,32 @@ var sandbox = vm.createContext( {
             if( ['vm','child_process','worker_threads','fs'].find(m=>m===args) ){
                 throw new Error( "Module not found:",+ a )
             }
-            console.log( "Including native node builtin module:", args );
+            doLog( "Including native node builtin module:", args );
             return builtinModules.require( args );
         }
         args = sandbox.require.resolve( args );
+        _debug_requires && doLog( "This is STILL a thread in itself main loop", args);
         if( args.includes( "undefined"))
-            console.log( "Failed!", args );
+            doLog( "Failed!", args );
         var prior_execution = codeStack.find( c=>c.file.src === args );
         if( prior_execution ){
-            _debug_requires && console.log( "Require resoving prior object:", args)
+            _debug_requires && doLog( "Require resoving prior object:", args)
             return prior_execution.result;
         }
         {
             var prior = ( required.find( r=>r.src===args));
             if( prior ) {
-                _debug_requires && console.log( "Global Old Require:", args );
+                _debug_requires && doLog( "Global Old Require:", args );
                 return prior.object;
             }
         }
-        _debug_requires && console.log( "Global New Require:", args, codeStack //, new Error().stack 
+        _debug_requires && doLog( "Global New Require:", args, codeStack //, new Error().stack 
                 );
         pendingRequire = true;
         return  sandbox.post("require",args).then(ex=>{
-            _debug_requires && console.log( "Read and run finally resulted, awated on post require" );
+            _debug_requires && doLog( "Read and run finally resulted, awated on post require" );
             var ex2 = requireRunReply.pop()
-            //console.log( "Require finally resulted?",args, ex, ex2 ); 
+            //doLog( "Require finally resulted?",args, ex, ex2 ); 
             required.push( {src:args, object:ex2 });
             return ex2;    
         }).catch( err=>sandbox.io.output("Require failed:", err));
@@ -459,7 +476,7 @@ var sandbox = vm.createContext( {
                         //process.stdout.write( "Got Create result...");
                         //process.stdout.write(util.format("short create:", val) ); 
                         val.post( "postRequire", c ).then( (result)=>{
-                            //console.log( "Resolve promise here..");
+                            //doLog( "Resolve promise here..");
                             Promise.resolve( val );
                             //if(d)
                              //   d(val );
@@ -475,7 +492,7 @@ var sandbox = vm.createContext( {
     //, look(...args) { process.stdout.write( `{op:'create',args:${JSOX.stringify(args)}}` ) }
     , leave(...args) { return sandbox.post("leave",null,...args);  }
     , enter(...args) { return sandbox.post("enter",null,...args);  }
-    , grab(thing){ console.log( "This grabbing something..." ); return entity.post("grab",thing.Λ);  }
+    , grab(thing){ doLog( "This grabbing something..." ); return entity.post("grab",thing.Λ);  }
     , drop(...args) { return sandbox.post("drop",null,...args); }
     , store(...args) { return sandbox.post("store",null,...args); }
     //, crypto: crypto
@@ -495,7 +512,7 @@ var sandbox = vm.createContext( {
     }
     , get now() { return new Date().toString() }
     , get name() { 
-        //console.log( "is entity null", entity );
+        //doLog( "is entity null", entity );
         return entity.name.then( name=>nameCache = name) }
     , get desc()  { return entity.description }
     , get description()  { return entity.description }
@@ -518,7 +535,7 @@ var sandbox = vm.createContext( {
     , get contains()  { { return (async () => { return await sandbox.postGetter("contains")})()}}
     //, get room() { return o.within; }
     , idGen(cb) {
-        console.log( "This ISGEN THEN?")
+        doLog( "This ISGEN THEN?")
         return idMan.ID(Λ, Λ.maker, cb);
     }
     , console: {
@@ -528,7 +545,7 @@ var sandbox = vm.createContext( {
             else 
                 process.stdout.write(util.format( "AAAA", ...args ) +"\n" ) 
         },
-        warn(...args) { return console.log( ...args)},
+        warn(...args) { return doLog( ...args)},
         trace: (...args) => console.trace(...args)
     }
     , io: {
@@ -538,7 +555,7 @@ var sandbox = vm.createContext( {
         },
         getInterface(object,name) {
             var o = object;
-            console.log( "OPEN DRIVER CALLED!")
+            doLog( "OPEN DRIVER CALLED!")
             var driver = drivers.find(d => (o === d.object) && (d.name === name) );
             if (driver)
                 return driver.iface;
@@ -549,9 +566,9 @@ var sandbox = vm.createContext( {
             return iface;
         }
         , send(target, msg) {
-            console.log( "Send does not really function yet.....")
+            doLog( "Send does not really function yet.....")
             //o.Λ
-            //console.log( "entity in this context:", target, msg );
+            //doLog( "entity in this context:", target, msg );
             var o = target;
             if (o)
                 sandbox.emit("message", msg)
@@ -591,7 +608,7 @@ var sandbox = vm.createContext( {
         return this.emit( event, args );
     }
     , emit(event, ...args) {
-        _debug_events && console.log( "Emitting event(or would):", event, ...args)
+        _debug_events && doLog( "Emitting event(or would):", event, ...args)
         if (event in sandbox.events) {
             sandbox.events[event].forEach((cb) =>cb(...args));
         }
@@ -667,7 +684,8 @@ var sandbox = vm.createContext( {
 		// given the search criteria.  'all' 
 		// includes everything regardless of text.
 		// callback is invoked with value,key for each
-		// near object.
+        // near object.
+        doLog( "Getting objects... around me..." );
 		var object = src && src[0];
         if( !src ) all = true;
         var awaitList = [];
@@ -702,18 +720,18 @@ var sandbox = vm.createContext( {
 			src = src.slice(2);
 			return getObjects( me, src, all, (o,location,moreargs)=>{
 				o = objects.get( o.me );
-				console.log( "in Found:", o.name, name );
+				doLog( "in Found:", o.name, name );
 				o.contents.forEach( async content=>{
                     //if (value === me) return;
                     var cn;
 					if (!object || (cn=await content.name) === name ) {
-						console.log( "found object", cn )
+						doLog( "found object", cn )
 						if (count) {
 							count--;
 							return;
 						}
 						if (run) {
-							console.log("and so key is ", location, cn )
+							doLog("and so key is ", location, cn )
 							callback(content, location+",contains", src.splice(1) );
 							run = all;
 						}
@@ -723,20 +741,20 @@ var sandbox = vm.createContext( {
 		}
 		if( src&&src.length > 1  && (src[1].text == "on" || src[1].text == "from" || src[1].text == "of" ) ) {
 			on_state = true;
-			console.log( "recursing to get on's...")
+			doLog( "recursing to get on's...")
 			src = src.slice(2);
 			return getObjects( me, object, all, (o,location,moreargs)=>{
 				return o.nearList.then( nearList=>{
                     nearList.holding.forEach( content=>{
                         content.name.then(name=>{
                             if (!object || content.name === name ) {
-                                console.log( "found object", content.name )
+                                doLog( "found object", content.name )
                                 if (count) {
                                     count--;
                                     return;
                                 }
                                 if (run) {
-                                    console.log("and so key is ", key, content.name )
+                                    doLog("and so key is ", key, content.name )
                                     var r = callback(content.sandbox, location+",holding", src.splice(1) );
                                     if( r ) awaitList.push( r );
                                     run = all;
@@ -747,19 +765,19 @@ var sandbox = vm.createContext( {
                 })
 			})
         }
-        //console.log( "Simple object lookup; return promise in getObjects()");
+        doLog( "Simple object lookup; return promise in getObjects()");
         return new Promise( (res)=>{
 		    //var command = src.break();
 		    entity.nearObjects.then(checkList=>{
                 var names = [];
                 checkList.forEach(function (value, location) {
                     // holding, contains, near
-                    //console.log("checking key:", run, location, value)
+                    //doLog("checking key:", run, location, value)
                     if( !value ) return;
                     value.forEach( function (value, member) {
-                        //console.log( "has value" );
+                        //doLog( "has value" );
                         names.push( value.name.then(name=> ({e:value,l:location,name:name }) )) ;
-                        //console.log( "Pushed a name as a promise");
+                        //doLog( "Pushed a name as a promise");
                     } )
                 });
                     Promise.all( names ).then( names=> {
@@ -767,13 +785,13 @@ var sandbox = vm.createContext( {
                             if( !run ) return;
                             if( check.e === me )return;
                             if( !object || check.name === name ){
-                                //console.log( "found object", value.name, count )
+                                //doLog( "found object", value.name, count )
                                 if (count) {
                                     count--;
                                     return;
                                 }
                                 if (run) {
-                                    //console.log("and so key is ", key, value.name )
+                                    //doLog("and so key is ", key, value.name )
                                     var r = callback(check.e, check.l, src &&src.splice(1) );
                                     if( r ) awaitList.push(r);
                                     run = all; // if not all, then no more.
@@ -785,7 +803,7 @@ var sandbox = vm.createContext( {
                     })
             })
         }).catch(err=> {
-            console.log( "ERROR:", err);
+            doLog( "ERROR:", err);
         })
     }
 
@@ -818,16 +836,23 @@ sandbox.config.run = { Λ : null };
 //sandbox.require=  sandboxRequire.bind(sandbox);
 sandbox.require.resolve = function(path) {
     //_debug_requires && 
-    //console.log( "SANDBOX:", sandbox.module.paths, codeStack )
-    var tmp = sandbox.module.paths[sandbox.module.paths.length-1] + "/" + path;
+    _debug_requires && doLog( "SANDBOX:", sandbox.module.paths, codeStack, path )
+    var tmp;
+    if( sandbox.module.paths[sandbox.module.paths.length-1] )
+        tmp = sandbox.module.paths[sandbox.module.paths.length-1] + "/" + path;
+    else        
+        tmp = path;
     tmp = tmp.replace( /^\.[/\\]/ , '' );
+    //doLog( "tmp:", tmp );
     tmp = tmp.replace( /[/\\]\.[/\\]/ , '/' );
     var newTmp;
-	while( ( newTmp = tmp.replace( /[/\\][^/\\]*[/\\]\.\.[/\\]/, '/' ) ) !== tmp ) {
+    //doLog( "tmp:", tmp );
+    while( ( newTmp = tmp.replace( /[/\\][^/\\\.]*[/\\]\.\.[/\\]/, '/' ) ) !== tmp ) {
 		tmp = newTmp;
 	}
+    //doLog( "tmp:", tmp );
     tmp = tmp.replace( /[^/\\]*[/\\]\.\.$/ , '' );
-    //console.log( "Resolved path:", tmp );
+    _debug_requires && doLog( "Resolved path:", tmp );
     return tmp;
     //return (async () => { return await e.post("resolve",...args); })(); 
 };// sandboxRequireResolve.bind( sandbox );
@@ -849,7 +874,7 @@ sandbox.removeAllListeners = (name) => {
 function addDriver( o, name, iName, iface) {
 	var driver = drivers.find(d => d.name === name);
 	if( driver ) {
-		console.log( "have to emit completed...")
+		doLog( "have to emit completed...")
 	}
 	var caller = (driver && driver.iface) || {};
 	var keys = Object.keys(iface);
@@ -894,7 +919,7 @@ function addDriver( o, name, iName, iface) {
 				vm.runInContext(constPart + args, sandbox)
 			}
 		})
-	console.log( "adding object driver", name)
+	doLog( "adding object driver", name)
 	drivers.push({ name: name, iName: iName, orig: iface, iface: caller, object:o });
 	return driver; // return old driver, not the new one...
 }

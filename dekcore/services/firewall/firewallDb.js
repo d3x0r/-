@@ -2,8 +2,8 @@
 
 var DB = exports = module.exports = {};
 
-var vfs = require( 'sack.vfs');
-const IdGen = require( "../../util/id_generator.js" );
+var vfs = await require( 'sack.vfs');
+const IdGen = await require( "../../util/id_generator.js" );
 const idGen = IdGen.generator;
 console.log( "isGen:", IdGen, idGen );
 /*

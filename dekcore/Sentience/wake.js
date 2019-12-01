@@ -13,7 +13,8 @@ JSOX = sack.JSOX;
 disk = sack.Volume();
 
 
-const startupCode = require('sack.vfs').Volume().read( __dirname + "/sandboxInit.js" ).toString();
+const startupInitCode = require('sack.vfs').Volume().read( __dirname + "/sandboxInit.js" ).toString();
+const startupPrerunCode = require('sack.vfs').Volume().read( __dirname + "/sandboxPrerun.js" ).toString();
 async function WakeEntity( e, noWorker ) {
     var runId = 0;
     const pendingRuns = [];
@@ -30,6 +31,9 @@ async function WakeEntity( e, noWorker ) {
                     }
                 } else if( msg.op == 'out' ) {
                     console.log( e.name, ":##:", msg.out );
+                } else if( msg.op == 'echo' ) {
+                    msg.op = msg.echo;
+                    e.thread.post( msg );
                 } else if( msg.op == 'f' ) {
                     if( msg.f === "create" ){
                         // this one has a callback to get the result
@@ -45,15 +49,8 @@ async function WakeEntity( e, noWorker ) {
                                 e.thread.post( { op:'error',id:msg.id,error:"Unknown Thing:"+msg.f,stack:"Stack.." } );
                                 return;
                         }
-                        _debug_entity_command_handling && console.log( "Calling method:", msg.f, msg.id  );
                         var r = e[msg.f].apply(e,msg.args);
-                        _debug_entity_command_handling && console.log( "Done with that method...", msg.f, msg.id );
-                        if( r instanceof Promise ) {
-                            r = await r;
-                            _debug_entity_command_handling && console.log( "Awaited the reply...", msg.f, msg.id );
-                        }
-                        let msgout = {op:msg.op,id:msg.id,ret:r};
-                        e.thread.post(msgout);
+                        e.thread.post( {op:msg.op,id:msg.id,ret:await r} );
                     }
                 } else if( msg.op == 'e' ) {
                     var o = Entity.makeEntity( msg.o );
@@ -155,13 +152,13 @@ async function WakeEntity( e, noWorker ) {
 
     const thread = {
         worker : null
-        ,something: null
-        ,post(msg) {
+        , watchers: []
+        , post(msg) {
             //thread.worker.stdin.write( JSOX.stringify(msg) );
             _debug_commands_send && console.log( "Post run:", msg );
             thread.worker.postMessage( msg );
         }
-        ,runFile(code) {
+        , runFile(code) {
             let code_;
             if( disk.exists( code ) ){
                 code_ = disk.read( code );
@@ -176,7 +173,7 @@ async function WakeEntity( e, noWorker ) {
                 })
             }
         }
-        ,async run(file,code) {
+        , async run(file,code) {
             if( thread.worker ) {
                 //console.log( "passing check for madefrom?")
                 //var allow = await ID.madeFrom( e.Λ, something );
@@ -213,7 +210,11 @@ async function WakeEntity( e, noWorker ) {
         }
         , emit( event, data ) {
             // drop the promise result, there is no then or catch.
-            thread.post( { op:"on", on:event, args:data });
+            if( thread.worker )
+                thread.post( { op:"on", on:event, args:data });
+            thread.watchers.forEach( watcher=>{
+                watcher.thread.post( {op:"on",Λ:entity.Λ,on:event,args:data} )
+            })
         }
     }
 
@@ -222,9 +223,12 @@ async function WakeEntity( e, noWorker ) {
         _debug_thread_create && console.trace( "Waking up entity:", e.name, e.Λ, e.thread )
         // this is the thread that should be this...
         // so don't create a worker thread again. (tahnkfully worker_thread fails import of second worker_threads.)
+        const invokePrerun = `{vm.runInContext( ${JSON.stringify(startupPrerunCode)}, sandbox, {filename:"sandboxPrerun.js"});}`
+
         thread.worker = new wt.Worker( 'const Λ=' + JSON.stringify(e.Λ) + ";" 
             + 'Λ.maker=' + JSON.stringify(e.created_by.Λ) + ";" 
-            + startupCode
+            + startupInitCode
+            + invokePrerun
             , {
                 //workerData: script,
                 eval : true,
@@ -234,12 +238,9 @@ async function WakeEntity( e, noWorker ) {
             })
         thread.worker.on("message",processMessage);
         var resolveThread;
-        //worker.stdout.connectOutput( sandbox.io.commmand );
 
         thread.worker.stdout.on('data', (chunk)=> {
             ( (string)=>{
-                //_debug_commands_input && process.stdout.write( util.format("Core Thread Received:", string ));
-                //console.log( e.name, ":##:", string );
                 thread.worker.postMessage( {op:"out",out:string});
             }  )( chunk.toString('utf8') );
             }
@@ -249,7 +250,7 @@ async function WakeEntity( e, noWorker ) {
         });
         thread.worker.on('exit', (code) => {
             if (code !== 0);
-            console.log(`Worker stopped with exit code ${code}`);
+                console.log(`Worker stopped with exit code ${code}`);
         });
         return new Promise( (res,rej)=>{
             resolveThread = res;
@@ -257,7 +258,7 @@ async function WakeEntity( e, noWorker ) {
     }else {
         console.trace( "This would have to call the main scheduler to create a thread... ");
     }
-    console.log( "Returning promise for thread");
+    console.log( "Returning promise for thread, without worker(?)");
     return Promise.resolve( thread );
 }
 

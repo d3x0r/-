@@ -21,12 +21,16 @@ const vfs = require('sack.vfs');
 const vol = vfs.Volume();
 const vfsNaked = require('sack.vfs');
 const JSOX = sack.JSOX;
-
 const netRequire = require('../util/myRequire.js');
 var fc = require('../file_cluster.js');
 
 const config = require('../config.js');
 
+function doLog(...args){
+	var s = util.format(...args);
+	vfs.log(s);
+	console.log(s);
+}
 
 var entity = module.exports = exports = {
 	create: makeEntity,
@@ -63,7 +67,7 @@ function sandboxWS( url, protocols ) {
 	this.ws = new sack.WebSocket.Client( url, protocols );
 	this.keyt = entity.idMan.xkey(null);
 	this.keyr = entity.idMan.xkey(null);
-	//console.log( "Key is:", this.keyt)
+	//doLog( "Key is:", this.keyt)
 	this.send = (buf)=>{
 		if( !this.keyt.key ) {
 			this.keyt.setKey( buf, 0 );
@@ -81,7 +85,7 @@ function sandboxWS( url, protocols ) {
 	this.on = function(event,cb) {
 		if( event === 'message' ) {
 			this.ws.on( 'message', function(buf){
-				//console.log( "sending...", self)
+				//doLog( "sending...", self)
 				cb( entity.idMan.u8xor( buf, self.keyr ) );
 			})
 		}else {
@@ -107,7 +111,7 @@ function sandboxWSS( opts ) {
 				
 				ws.keyt = entity.idMan.xkey(null);
 				ws.keyr = entity.idMan.xkey(null);
-				console.log( "Key is:", ws.keyt)
+				doLog( "Key is:", ws.keyt)
 		                				
 				ws.send = ((orig)=>{(buf)=>{
 					orig( entity.idMan.u8xor( buf, ws.keyt ) );
@@ -124,7 +128,7 @@ function sandboxWSS( opts ) {
 								ws.keyt.setKey( buf, 1 );
 								ws.keyr.setKey( buf, 0 );
 							}else {
-								//console.log( "sending...", self)
+								//doLog( "sending...", self)
 								cb( entity.idMan.u8xor( buf, self.keyr ) );
 							}
 						} );
@@ -140,14 +144,14 @@ function sandboxWSS( opts ) {
 				cb( ws );	
 			} );
 		}else {
-			console.log( "unknown event specified:", event );
+			doLog( "unknown event specified:", event );
 		}
 	}
 }
 
 
 
-//console.log( "dirname is", __dirname );
+//doLog( "dirname is", __dirname );
 // Entity events
 //  on( 'create', (self)=>{  } )
 //  on( 'restore', (self)=>{ } )
@@ -192,23 +196,23 @@ function sandboxWSS( opts ) {
 
 
 //
-//console.log( "vfsNaked is something?", vfsNaked );
+//doLog( "vfsNaked is something?", vfsNaked );
 
 const volOverride = `(function(vfs, dataRoot) {
 	vfs.mkdir = vfs.Volume.mkdir;
 	vfs.Volume = (function (orig) {
 		// entities that want to use the VFS will have to be relocated to their local path
 		return function (name, path, v, a, b) {
-			//console.log("what's config?", config);
+			//doLog("what's config?", config);
 			if( name === undefined ) 
 				return orig();
 			var privatePath = dataRoot + "/" + config.run.Λ + "/" + path;
-			//console.log("Volume overrride called with : ", name, dataRoot + "/" + config.run.Λ + "/" + path, orig);
-			//console.log("Volume overrride called with : ", a, b );
+			//doLog("Volume overrride called with : ", name, dataRoot + "/" + config.run.Λ + "/" + path, orig);
+			//doLog("Volume overrride called with : ", a, b );
 			try {
 				return orig(name, privatePath, v, a, b);
 			} catch(err) {
-				console.log( "limp along?" );
+				doLog( "limp along?" );
 			}
 		}
 	})(vfs.Volume);
@@ -216,7 +220,7 @@ const volOverride = `(function(vfs, dataRoot) {
 
 	vfs.Sqlite = (function(orig) {
 		return function (path) {
-			//console.log("what's config?", config);
+			//doLog("what's config?", config);
 			if( path[0] === "$" ) return orig( path );
 			if( path.includes( "." ) ) {
 				var privatePath = dataRoot + "/" + config.run.Λ + "/" + path;
@@ -228,14 +232,14 @@ const volOverride = `(function(vfs, dataRoot) {
 						pathPart = privatePath.substr( 0, zz1 )
 					else
 						pathPart = privatePath.substr( 0, zz2 )
-					console.log( "Make directory for sqlite?", pathPart, privatePath )
+					doLog( "Make directory for sqlite?", pathPart, privatePath )
 					vfs.mkdir( pathPart );
 				}
-				console.log("Sqlite overrride called with : ", dataRoot + "/" + config.run.Λ + "/" + path);
+				doLog("Sqlite overrride called with : ", dataRoot + "/" + config.run.Λ + "/" + path);
 				try {
 					return orig( privatePath );
 				} catch(err) {
-					console.log( "limp along?", err );
+					doLog( "limp along?", err );
 				}
 			}
 			else return orig( path );
@@ -277,7 +281,7 @@ var base_require;
 
 
 function sealEntity(o) {
-	//console.log( "before sealing:", JSOX.stringify(o ) );
+	//doLog( "before sealing:", JSOX.stringify(o ) );
 	[ //"container", 
 		//"contents", 
 		"attached_to", "created", "created_by"
@@ -312,17 +316,17 @@ function makeEntity(obj, name, description, callback, opts) {
 	if (!name && !description) {
 		//var all = all_entities.get(obj);
 		var named = objects.get(obj);
-		//console.log( "Got",  named, obj )
+		//doLog( "Got",  named, obj )
 		obj = named || obj;
 		return named;
 	}
-	//console.log("Called with obj:", name, description, JSOX.stringify(obj,null,"\t"), JSOX.stringify(createdVoid,null,"\t"));
+	//doLog("Called with obj:", name, description, JSOX.stringify(obj,null,"\t"), JSOX.stringify(createdVoid,null,"\t"));
 
 	if (typeof (obj) === "string") {
-		//console.log( "resolve obj as entity ID")
+		//doLog( "resolve obj as entity ID")
 		obj = objects.get(obj);
 		//if( obj ) return obj;
-		//console.log( "resolve obj as entity ID", obj)
+		//doLog( "resolve obj as entity ID", obj)
 	}
 
 	if (obj && !obj.Λ) {
@@ -330,13 +334,13 @@ function makeEntity(obj, name, description, callback, opts) {
 		obj = null;
 	}
 	if ((!obj || !(objects.get(obj.Λ))) && createdVoid) {
-		console.log("All Entities", all_entities);
-		console.log("Objects", objects);
-		console.log("invalid object is ", obj);
+		doLog("All Entities", all_entities);
+		doLog("Objects", objects);
+		doLog("invalid object is ", obj);
 		throw new Error(["Invalid creator object making this one", obj].join(" "));
 	}
 	if (!config.run.Λ) {
-		console.log( "had to wait for config.run", name, description )
+		doLog( "had to wait for config.run", name, description )
 		config.start(() => { makeEntity(obj, name, description, callback, opts) })
 		return;
 	}
@@ -344,7 +348,7 @@ function makeEntity(obj, name, description, callback, opts) {
 		if( !entity.idMan ) { config.start(() => { makeEntity(obj, name, description, callback, opts) })
 			return }
 		createdVoid = entity.idMan.localAuthKey;
-		console.log( "Setting void to localAuthkey..." );
+		//doLog( "Setting void to localAuthkey..." );
 	}
 	var o = new Entity( obj, name, description );
 	if( nextID ) {
@@ -354,11 +358,11 @@ function makeEntity(obj, name, description, callback, opts) {
 	}
 	else entity.idMan.ID(obj || createdVoid, config.run, (key) => {
 		o.Λ = key.Λ;
-		//console.log( "object now has an ID", o.name, o.Λ, key.Λ );
+		//doLog( "object now has an ID", o.name, o.Λ, key.Λ );
 		finishCreate();
 	} );
 	function finishCreate( ) {
-		//console.log( " ----- FINISH CREATE ---------" );
+		//doLog( " ----- FINISH CREATE ---------" );
 		if( opts && opts.fork ) {
 
 			o.child = cpts.fork( "childEntity.js", [o.Λ, ] )
@@ -368,7 +372,7 @@ function makeEntity(obj, name, description, callback, opts) {
 				}
 			})
 		} else {
-			//console.log( "Used tocreate sandbox here, after getting ID")
+			//doLog( "Used tocreate sandbox here, after getting ID")
 		}
 
 		if (o.within) o.within.contains.set(o.Λ, o);
@@ -396,7 +400,7 @@ function makeEntity(obj, name, description, callback, opts) {
 		if (!callback)
 			throw ("How are you going to get your object?");
 		else {
-			//console.log(" ---------- Result with completed, related object ------------------ ");
+			//doLog(" ---------- Result with completed, related object ------------------ ");
 			if( typeof( callback ) === "string" )  {
 				o.sandbox.require( callback );
 				opts(o);
@@ -416,7 +420,7 @@ function makeEntity(obj, name, description, callback, opts) {
 
 		//var o = this ; //makeEntity( this.me );
 		_debug_require && console.trace("sandboxRequire ",  src );
-		//console.log( "module", o.sandbox.module );
+		//doLog( "module", o.sandbox.module );
 		if (src === "entity.js") return exports;
 		if (src === "shell.js") return exports.Sentience;
 		if (src === "text.js") return text;
@@ -444,15 +448,15 @@ function makeEntity(obj, name, description, callback, opts) {
 		if (src == 'events') return events;
 
 		if (src == 'sack.vfs') {
-			console.log( "Should change default volume interface?");
+			doLog( "Should change default volume interface?");
 			/*
 			if( o.sandbox )
 			if( !("_vfs" in o.sandbox ) ) {
-				//console.log( "Overriding internal VFS", o.name )
+				//doLog( "Overriding internal VFS", o.name )
 				try {
 					o.sandbox._vfs = Object.assign( {}, vfsNaked );
 				}catch(err ) {
-					console.log( "vfsNaked is:", vfsNaked );
+					doLog( "vfsNaked is:", vfsNaked );
 				}
 				o.sandbox._vfs.Volume = o.sandbox._vfs.Volume.bind( {} );
 				o.sandbox._vfs.Sqlite = o.sandbox._vfs.Sqlite.bind( {} );
@@ -464,7 +468,7 @@ function makeEntity(obj, name, description, callback, opts) {
 					//vm.runInContext( "(" + volOverride + ')(this._vfs,"' +  "." +'")' , o.sandbox
 					//	, { filename: "moduleSetup" , lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 1000 })
 				} catch( err) {
-					console.log( "VM Error:", err );
+					doLog( "VM Error:", err );
 				}
 			}
 			*/
@@ -472,18 +476,18 @@ function makeEntity(obj, name, description, callback, opts) {
 			//return o.sandbox._vfs;
 		}
 
-		//console.log( "blah", o.sandbox.scripts)
+		//doLog( "blah", o.sandbox.scripts)
 		if( o.scripts.index < o.scripts.code.length ) {
 			var cache = o.scripts.code[o.scripts.index];
-			//console.log( "cache is?", typeof cache, cache);
+			//doLog( "cache is?", typeof cache, cache);
 			if( cache.source === src ) {
 				o.scripts.index++;
 
 				var oldModule = o._module;
 				var root = cache.closure.root;
 				if( !cache.closure.paths ){
-					console.log( "About to log error?" );
-					console.log( "Undefined paths:", cache.closure.paths, __dirname , ".");
+					doLog( "About to log error?" );
+					doLog( "Undefined paths:", cache.closure.paths, __dirname , ".");
 					cache.closure.paths = [process.cwd()];
 				}
 				var thisModule = {
@@ -497,24 +501,24 @@ function makeEntity(obj, name, description, callback, opts) {
 					, includes : []
 					, loaded: false
 				}
-				//console.log( "NEW MODULE HERE CHECK PATHS:", cache.closure.paths, cache.closure.filename )
+				//doLog( "NEW MODULE HERE CHECK PATHS:", cache.closure.paths, cache.closure.filename )
 
 				oldModule.includes.push( thisModule );
 				//        { name : src.substr( pathSplit+1 ), parent : o.module, paths:[], root : rootPath, exports:{} };
 				//oldModule.children.push( thisModule );
-				console.log( "THIS IS ANOHER RUN THAT SETS o_MODULE");
+				doLog( "THIS IS ANOHER RUN THAT SETS o_MODULE");
 				o._module = thisModule;
 
 				var root = cache.closure.filename;
 				try {
-					//console.log( "closure recover:", root, cache.closure )
+					//doLog( "closure recover:", root, cache.closure )
 					var file = fs.readFileSync(root, { encoding: 'utf8' });
 				} catch (err) {
-					console.log("File failed... is it a HTTP request?", src, root, err);
+					doLog("File failed... is it a HTTP request?", src, root, err);
 					return undefined;
 				}
 				if( file !== cache.closure.source ) {
-					console.log( "updating cached file....", src )
+					doLog( "updating cached file....", src )
 					cache.closure.source = file;
 					exports.saveAll();
 				}
@@ -524,38 +528,38 @@ function makeEntity(obj, name, description, callback, opts) {
 					, root
 				].join("");
 
-				//console.log( "Executing with resume TRUE")
+				//doLog( "Executing with resume TRUE")
 				try {
-						console.log( "Run this script..." );
+						doLog( "Run this script..." );
 					await o.thread.run( {src:src,path:thisModule.paths[0]}, code );
 					//vm.runInContext( code, o.sandbox
 					//	, { filename: cache.source , lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 1000 })
 				} catch( err ) {
-					console.log( "VM Error:", err );
+					doLog( "VM Error:", err );
 				}
-				console.log( "THIS IS THE OTHER POP FOR THAT ")
+				doLog( "THIS IS THE OTHER POP FOR THAT ")
 				o._module = oldModule;
-				//console.log( "active base module is ... ")
+				//doLog( "active base module is ... ")
 				return thisModule.exports;
 			}
 		}
 
 		var rootPath = "";
 		// resolves path according to relative path of parent modules and resolves ".." and "." parts
-		_debugPaths && console.log( o.name, JSOX.stringify( o._module,null, "\t"   ));
-		var root = netRequire.resolvePath(src, o._module);
-		_debugPaths && console.log("src could be", src);
-		_debugPaths && console.log("root could be", root);
-		_debugPaths && console.log("working root is ", rootPath);
+		_debugPaths && doLog( o.name, JSOX.stringify( o._module,null, "\t"   ));
+		var root = src;//netRequire.resolvePath(src, o._module);
+		_debugPaths && doLog("src could be", src);
+		_debugPaths && doLog("root could be", root);
+		_debugPaths && doLog("working root is ", rootPath);
 		try {
 			var file = fs.readFileSync(root, { encoding: 'utf8' });
 		} catch (err) {
-			console.log("File failed... is it a HTTP request?", err);
+			doLog("File failed... is it a HTTP request?", err);
 			return undefined;
 		}
-		//console.log( o.module.name, "at", rootPath,"is loading", src );
+		//doLog( o.module.name, "at", rootPath,"is loading", src );
 		//var names = fs.readdirSync( "." );
-		//console.log( names );
+		//doLog( names );
 		var pathSplita = src.lastIndexOf("/");
 		var pathSplitb = src.lastIndexOf("\\");
 		if (pathSplita > pathSplitb)
@@ -570,18 +574,18 @@ function makeEntity(obj, name, description, callback, opts) {
 		else
 			rootPath = rootPath + src.substr(0, pathSplit);
 
-		//console.log( "set root", rootPath );
+		//doLog( "set root", rootPath );
 
 		const filePath = netRequire.stripFile(root);
-		console.log( "This will be an async function...posted to run..." );
+		//doLog( "This will be an async function...posted to run..." );
 		var code =
-			['(async function() { var module={ path:'+ JSON.stringify(filePath) +',src:'+ JSON.stringify(src) +',exports:{}}; '
+			['(async function() { var module={ path:'+ JSON.stringify(filePath) +',src:'+ JSON.stringify(src) +',parent:{},exports:{}}; '
 				, 'this.module.paths.push(' + JSON.stringify(filePath)  + ");"
 				, 'await (async function(global,exports,module,resume){'
 				, file
 				, '}).call(this,this,module.exports,module,false );'
 				, 'this.module.paths.pop();'
-				, 'return module.exports;})().catch(err=>{console.log( "caught require error:", err)})\n//# sourceURL='
+				, 'return module.exports;})().catch(err=>{doLog( "caught require error:", err)})\n//# sourceURL='
 				, root
 			].join("");
 
@@ -597,7 +601,7 @@ function makeEntity(obj, name, description, callback, opts) {
 			, includes : []
 			, loaded: false
 			, toJSON() {
-				//console.log( "Saving this...", this );
+				//doLog( "Saving this...", this );
 				return JSOX.stringify( { filename:this.filename, file:this.file, paths:this.paths, src:this.src, source:this.source })
 			}
 			, toString() {
@@ -608,37 +612,42 @@ function makeEntity(obj, name, description, callback, opts) {
 
 		o._module = thisModule;
 
-		_debug_threads &&  console.log( o.name, "POSTED CODE TO RUN TO THE OTHER THREAD... AND WE WAIT (upushed to stack", o._module.src );
+		_debug_threads &&  doLog( o.name, "POSTED CODE TO RUN TO THE OTHER THREAD... AND WE WAIT (upushed to stack", o._module.src );
 			return o.thread.run( {src:src,path:thisModule.paths[0]}, code ).then( (v)=>{
 				
 				o._module = oldModule;
-				//console.log( o.name, "RUN RESULT:", v, thisModule.file );
+				//doLog( o.name, "RUN RESULT:", v, thisModule.file );
 			}).catch( e=>{
 				o._module = oldModule;
-				//console.log( "Catch error of course?", e );
+				//doLog( "Catch error of course?", e );
 			} );
 	}
 
 function sandboxRequireResolve(path){
 	var o = makeEntity( this.me );
 	if( !o || !this ) {
-		//console.log( "Not in a sandbox, relative to object, so ...", module.path  );
+		//doLog( "Not in a sandbox, relative to object, so ...", module.path  );
 		var tmp = module.path + "/" + path;
 		tmp = tmp.replace( /[/\\]\.[/\\]/g , '/' );
 		tmp = tmp.replace( /([^.]\.|\.[^.]|[^.][^.])[^/\\]*[/\\]\.\.[/\\]/g , '' );
 		tmp = tmp.replace( /([^.]\.|\.[^.]|[^.][^.])[^/\\]*[/\\]\.\.$/g , '' );
-		//console.log( "final otuput:", tmp );
+		doLog( "final otuput:", tmp );
 		return tmp;
 	}
-	console.log( "RESOLVE IS TRYING:", path , o._module.paths, o.name );
+	doLog( "RESOLVE IS TRYING:", path , o._module.paths, o.name );
 
 	var usePath = o._module.paths?o._module.paths[0]+"/":"";
 	var tmp = usePath + path;
-	//console.log( "append:", tmp );
+	//doLog( "append:", tmp );
 	tmp = tmp.replace( /[/\\]\.[/\\]/g , '/' );
+	tmp = tmp.replace( /([^.]\.|\.[^.]|[^.][^.])[^/\\]*[/\\]\.\.[/\\]/g , '' );
+	tmp = tmp.replace( /([^.]\.|\.[^.]|[^.][^.])[^/\\]*[/\\]\.\.$/g , '' );
+	while( ( newTmp = tmp.replace( /[/\\][^/\\\.]*[/\\]\.\.[/\\]/, '/' ) ) !== tmp ) {
+		tmp = newTmp;
+	}
 	tmp = tmp.replace( /[^/\\]*[/\\]\.\.[/\\]/g , '' );
 	tmp = tmp.replace( /[^/\\]*[/\\]\.\.$/g , '' );
-	//console.log( "final otuput:", tmp );
+	//doLog( "final otuput:", tmp );
 	return tmp;
 }
 sandboxRequire.resolve = sandboxRequireResolve;
@@ -662,10 +671,11 @@ function Entity(obj,name,desc ) {
 		, child : null // child process
 		, vol: null
 		, require (file) { 
-			//console.log( "calling sandbox require...");
+			//doLog( "calling sandbox require...", file);
 			return sandboxRequire(this,file)
 		 }
 		, thread : null
+		, watchers : []
 		, scripts : { code: [], index : 0, push(c){ this.index++; this.code.push(c)} }
 		, _module: {
 			filename: "internal"
@@ -680,7 +690,7 @@ function Entity(obj,name,desc ) {
 		, idGen() {
 			var this_ = this;
 			return new Promise( (res)=>{
-				console.log( "o:", o.name, o.Λ)
+				doLog( "o:", o.name, o.Λ)
 				entity.idMan.ID(this.Λ, this.created_by.Λ, (id)=>{
 					res(id);
 				});
@@ -688,17 +698,16 @@ function Entity(obj,name,desc ) {
 		}
 		, postRequire( src  ){
 			//var o = objects.get( Λ );
-			console.log( "Requiring for something:", src )
+			//doLog( "Requiring for something:", src )
 			return  sandboxRequire( this, src );
 		}
 		, wake() {
 			if( !this.thread ) {
-				console.log( "Waking this entity:", this.name );
 				return wake.WakeEntity( this );
 			}
 			return Promise.resolve(this.thread);
 		}
-}
+	}
 	o.created_by = obj || o;
 	o.created_by.created.push( o );
 
@@ -710,7 +719,7 @@ function Entity(obj,name,desc ) {
 
 
 var entityMethods = {
-		get container() { /*console.log( "Getting container:",this); */return this.within; }
+		get container() { /*doLog( "Getting container:",this); */return this.within; }
 		, create(name, desc, cb, value) {
 			//console.trace("Who calls create?  We need to return sandbox.entity?");
 			if (typeof desc === 'function') {
@@ -749,10 +758,10 @@ var entityMethods = {
 		, look() {
 			var done = [];
 			getObjects(this, null, true, (o,location) => {
-				//console.log( "Got a object to look at?", o, o.entity.name );
+				//doLog( "Got a object to look at?", o, o.entity.name );
 				done.push({ name: o.entity.name, ref: o.me, o:o, loc:location });
 			})
-			//console.log( "result:", done );
+			//doLog( "result:", done );
 			return done;
 		}
 		, getObjects(...args){ return getObjects(this, ...args) }
@@ -775,7 +784,7 @@ var entityMethods = {
 			return result;
 		}
 		, get room() {
-			console.log( "Getting room of :", this.name);
+			doLog( "Getting room of :", this.name);
 			if( this.within )
 				return this.within.Λ;
 			return this.container;
@@ -792,7 +801,7 @@ var entityMethods = {
 			return anchor;
 		}
 		, get nearObjects() {
-			//console.log( "getting near objects", this.contains )
+			//doLog( "getting near objects", this.contains )
 			var near = new Map();
 			var c = new Map();
 			this.attached_to.forEach( e=>c.set(e.Λ,e.Λ) );
@@ -805,19 +814,19 @@ var entityMethods = {
 
 				if (on.within) {
 					on.within.contains.forEach((nearby) => {
-						//console.log( "my room contains:", nearby );
+						//doLog( "my room contains:", nearby );
 						if (nearby !== on) {
 							result.set(nearby.Λ, nearby.Λ );
 						}
 					});
 					on.within.attached_to.forEach((nearby) => {
-						//console.log( "my room attached to:", nearby );
+						//doLog( "my room attached to:", nearby );
 						result.set(nearby.Λ, nearby.Λ );
 					});
 					return result;
 				}
 			})(this));
-			//console.log( "near" );
+			//doLog( "near" );
 			return near;
 		}
 		, assign: (object) => {
@@ -841,8 +850,10 @@ var entityMethods = {
 			{
 				a.attached_to.set(this.Λ, this);
 				this.attached_to.set(a.Λ, a);
+
 				if( this.thread )
 					this.thread.emit('attached', a.Λ);
+
 				if( a.thread )
 					a.thread.emit('attached', this.Λ);
 			}
@@ -860,7 +871,7 @@ var entityMethods = {
 						a.thread.emit('detached', this.Λ);				
 
 					//if( isAttached( this, null, a, ) ) {
-					//	console.log( "Entity is Still attached?");
+					//	doLog( "Entity is Still attached?");
 					//	return false;
 					//}
 
@@ -868,6 +879,10 @@ var entityMethods = {
 				}
 			throw "objects are not attached: " + this.name + " & " + a.name;
 			return false;
+		}
+		, watch(a) {
+			a = objects.get( a );
+			a.thread && a.watchers.push(this);
 		}
 		, insert(a) {
 			a.within = this;
@@ -951,7 +966,7 @@ var entityMethods = {
 			newRoom.insert( this );  // put in new container
 		}
 		, grab(a) {
-			//console.log( "THing:", this, "A:", a );
+			//doLog( "THing:", this, "A:", a );
 			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ );
 			if( grabobj ) {
 				if( !grabobj.within ) {
@@ -966,12 +981,12 @@ var entityMethods = {
 			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ );
 
 			if( this.detach( grabobj ) ) {
-				console.log( "Detached, can insert")
+				doLog( "Detached, can insert")
 				if( !findContainer( grabobj, null )){
-					console.log( "Is not contained...");
+					doLog( "Is not contained...");
 					outer.insert( grabobj );
 				}else {
-					console.log( "Found that there was a ccontainer" );
+					doLog( "Found that there was a ccontainer" );
 				}
 			}else
 				throw new Error( "Object is still attached to you" );
@@ -1105,7 +1120,7 @@ Entity.fromString = function(s) {
 		if (!callback)
 			throw ("How are you going to get your object?");
 		else {
-			console.log(" ---------- Result with completed, related object ------------------ ");
+			doLog(" ---------- Result with completed, related object ------------------ ");
 		}
 }
 
@@ -1117,22 +1132,22 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 		if( !file ) return initCb();
 		try {
 			file = fc.Utf8ArrayToStr(file);
-			//console.log( "got:", err, file );
+			//doLog( "got:", err, file );
 			var input = JSOX.parse( file );
 		}catch(err) {
-			console.log( "input json is corrupt; defaulting to first run.\n", err)
+			doLog( "input json is corrupt; defaulting to first run.\n", err)
 			return initCb();
 		}
 		nextID = input[0].Λ;
 		makeEntity( null, input[0].name, input[0].description, (o)=>{
 			var defer = [];
-			console.log( "recovered core entity...", input[0].name );
+			doLog( "recovered core entity...", input[0].name );
 			o.value = input[0][o.Λ];
 			if( o.sandbox ) {
-				console.log( "restore scripts to ....", o.sandbox.scripts );
+				doLog( "restore scripts to ....", o.sandbox.scripts );
 				o.sandbox.config = input[0].config;
 				o.sandbox.scripts.code = input[0].scripts;
-				console.log( "closure source?", o.sandbox.scripts.code);
+				doLog( "closure source?", o.sandbox.scripts.code);
 				for( var c in o.sandbox.scripts.code ) { c.closure = JSOX.parse( c.closure ) }
 			}
 			var executable = [];
@@ -1140,22 +1155,22 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 			doList( input, 1 );
 
 			function doList( list, start ) {
-				//console.log( "do list of things...", list, n, list.length );
+				//doLog( "do list of things...", list, n, list.length );
 				for( var n = start; n < list.length; n++ ) {
 					var ths = list[n];
 					var creator = makeEntity(ths.created_by);
 					if( !creator ) {
-						//console.log( "Defered this creaation..." );
+						//doLog( "Defered this creaation..." );
 						defer.push( ths );
 						continue;
 					}
 
 					var parent = ths.within && makeEntity(ths.within);
 
-					//console.log( "Creator:", creator );
+					//doLog( "Creator:", creator );
 					nextID = ths.Λ;
 					creator.create( ths.name, ths.description, (o)=>{
-						//console.log( "creator created..." );
+						//doLog( "creator created..." );
 						o.value = input[o.Λ];
 						ths.entity = o;
 
@@ -1171,14 +1186,14 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 						}
 
 						if( o.sandbox ) {
-							console.log( "restoring scripts")
+							doLog( "restoring scripts")
 							o.sandbox.config = ths.config;
 							if( ths.scripts.length )
 								executable.push( o );
 							o.sandbox.scripts.code = ths.scripts;
-							//console.log( "Storing scripts?", ths.scripts )
+							//doLog( "Storing scripts?", ths.scripts )
 						}
-						//console.log( "Created :", ths );
+						//doLog( "Created :", ths );
 					})
 				}
 				for( var n = start; n < list.length; n++ ) {
@@ -1192,7 +1207,7 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 				}
 			}
 
-			//console.log( "Is this really serial at this time?", defer );
+			//doLog( "Is this really serial at this time?", defer );
 			while( defer.length ) {
 				var doit = defer;
 				defer = [];
@@ -1200,22 +1215,22 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 			}
 
 			onLoadCb();
-			//console.log( "first run ran --------- start other things loaded...", executable )
+			//doLog( "first run ran --------- start other things loaded...", executable )
 			for( var e of executable ) {
 				// it may have already started...
 				if( !e.scripts.index ) {
-					console.log( "")
+					doLog( "")
 					e.require( e.scripts.code[0].source )
 					// after require, things might be run on it...
 				}
 				/*
 				if( e.sandbox.scripts.index < e.sandbox.scripts.code.length ) {
 					var cache = e.sandbox.scripts.code[e.sandbox.scripts.index];
-					console.log( "is this cache a run?", e.sandbox.scripts, cache );
+					doLog( "is this cache a run?", e.sandbox.scripts, cache );
 					if( cache )
 						if( cache.type==="run")
 							e.run( cache.code );
-					else console.log( "index less than end?", cache)
+					else doLog( "index less than end?", cache)
 				}
 				*/
 			}
@@ -1232,13 +1247,13 @@ exports.saveAll = function() {
 		recurseSave( o );
 		//for( var n = 0; n < output.length; n++ )
 		//		output[n] = output[n].toString();
-		//console.log( "output", output );
+		//doLog( "output", output );
 		fc.store( "core/entities.json", JSOX.stringify( output, null, 2 ) )
 		function recurseSave( o ) {
 			if( saved.get(o.Λ) ) return; // already saved.
 			output.push( o.toRep() );
 			o.attached_to.forEach( a=>recurseSave( a  ) );
-			//console.log( "Saving:", o.toString() )
+			//doLog( "Saving:", o.toString() )
 			o.contains.forEach( a=>recurseSave( a ) );
 			saved.set( o.Λ, o );
 		}
@@ -1285,17 +1300,17 @@ exports.saveAll = function() {
 			src = src.slice(2);
 			getObjects( me, src, all, (o,location,moreargs)=>{
 				o = objects.get( o.me );
-				console.log( "THIS FUNCTION IS MROEVED TO LOCAL THREADSin Found:", o.name, name );
+				doLog( "THIS FUNCTION IS MROEVED TO LOCAL THREADSin Found:", o.name, name );
 				o.contents.forEach( content=>{
 					//if (value === me) return;
 					if (!object || content.name === name ) {
-						console.log( "found object", content.name )
+						doLog( "found object", content.name )
 						if (count) {
 							count--;
 							return;
 						}
 						if (run) {
-							console.log("and so key is ", location, content.name )
+							doLog("and so key is ", location, content.name )
 							callback(content.sandbox, location+",contains", src.splice(1) );
 							run = all;
 						}
@@ -1306,21 +1321,21 @@ exports.saveAll = function() {
 		}
 		if( src&&src.length > 1  && (src[1].text == "on" || src[1].text == "from" || src[1].text == "of" ) ) {
 			on_state = true;
-			console.log( "recursing to get on's...")
+			doLog( "recursing to get on's...")
 			src = src.slice(2);
 			getObjects( me, object, all, (o,location,moreargs)=>{
 				o = objects.get( o.me );
-				console.log( "Found:", o.name, location );
+				doLog( "Found:", o.name, location );
 				o.attached_to.forEach( content=>{
 					//if (value === me) return;
 					if (!object || content.name === name ) {
-						console.log( "found object", content.name )
+						doLog( "found object", content.name )
 						if (count) {
 							count--;
 							return;
 						}
 						if (run) {
-							console.log("and so key is ", key, content.name )
+							doLog("and so key is ", key, content.name )
 							callback(content.sandbox, location+",holding", src.splice(1) );
 							run = all;
 						}
@@ -1331,7 +1346,7 @@ exports.saveAll = function() {
 		}
 
 		//var command = src.break();
-		//console.log( "get objects for ", me.name, me.nearObjects )
+		//doLog( "get objects for ", me.name, me.nearObjects )
 			var checkList;
 
 			if( !("forEach" in me) )
@@ -1341,20 +1356,20 @@ exports.saveAll = function() {
 
 			checkList.forEach(function (value, location) {
 				// holding, contains, near
-				//console.log("checking key:", run, location, value)
+				//doLog("checking key:", run, location, value)
 				if( !value ) return;
 				if (run) value.forEach(function (value, member) {
 
-					//console.log( "value in value:", value.name, name );
+					//doLog( "value in value:", value.name, name );
 					if (value === me) return;
 					if (!object || value.name === name ) {
-						//console.log( "found object", value.name )
+						//doLog( "found object", value.name )
 						if (count) {
 							count--;
 							return;
 						}
 						if (run) {
-							//console.log("and so key is ", key, value.name )
+							//doLog("and so key is ", key, value.name )
 							callback(value.sandbox, location, src &&src.splice(1) );
 							run = all;
 						}
@@ -1374,7 +1389,7 @@ function findContained(obj, checked) {
 	for( let content of attached ) {
 		content = content[1];
 		if (checked[content.Λ]) continue;
-		console.log(  "check for within:", content.name);
+		doLog(  "check for within:", content.name);
 		if (content.within) return { parent:content.within, at:content, from:null };
 		var result = findContained(content, checked);
 		checked[content.Λ] = true;
@@ -1382,7 +1397,7 @@ function findContained(obj, checked) {
 	}
 	
 } catch(err) {
-	console.log( "Failed:", err);
+	doLog( "Failed:", err);
 }
 	throw new Error("Detached Entity");
 }
@@ -1430,7 +1445,7 @@ function isContainer(obj, checked, c) {
 
 function isAttached(obj, checked, c) {
 	// returns true if this object is attached to some other object.
-	console.log( "CHecked:", checked );
+	doLog( "CHecked:", checked );
 	if (!checked)
 		checked = {};
 	else
@@ -1465,14 +1480,14 @@ function getAttachments(obj, checked) {
 }
 
 function exported_getObjects(o, filter, all, callback) {
-	//console.log( "getting objects from:", o.name );
+	//doLog( "getting objects from:", o.name );
 	if (typeof all === 'function') {
 		callback = all;
 		all = null;
 	}
 	if( "string" === typeof o )
 		o = objects.get(o);
-	//console.log( "uhmm did we erase o?", o )
+	//doLog( "uhmm did we erase o?", o )
 	if (o)
 		o.getObjects(filter, all, callback)
 }
@@ -1487,13 +1502,13 @@ function getEntity(ref) {
 function sanityCheck(object) {
 	var s = JSOX.stringify(object);
 	var t = object.toString();
-	console.log(`json is ${s}`);
-	console.log(`toString is ${t}`)
+	doLog(`json is ${s}`);
+	doLog(`toString is ${t}`)
 	var os = JSOX.parse(s);
 	if (os !== object) {
-		console.log(`did not compare for json conversion.  ${os}  ${object}`);
-		console.log(os);
-		console.log(object);
+		doLog(`did not compare for json conversion.  ${os}  ${object}`);
+		doLog(os);
+		doLog(object);
 	}
 }
 
@@ -1516,15 +1531,15 @@ function loadConfig(o) {
 	{
 		var data = o.vol.read("config.json");
 		if (data) {
-			//console.log( "attempt to re-set exports...", result);
+			//doLog( "attempt to re-set exports...", result);
 			var object = JSOX.parse(data.toString());
 			Object.assign(o.sandbox.config, object);
-			//console.log( "config reload is", config.run.Λ )
+			//doLog( "config reload is", config.run.Λ )
 			//config.run = object;
 			resume();
 		}
 		else {
-			console.log("initializing config.")
+			doLog("initializing config.")
 			o.sandbox.config.defaults = require("./config.json");
 			saveConfig(o, resume);
 		}

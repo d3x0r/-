@@ -1,9 +1,12 @@
 "use strict";
 
+const _debug_promise_resolution = false;
+
 var stream
 var util
 var filter_base
 var text
+var sack;
 var vm
 var JSOX;
 
@@ -17,10 +20,7 @@ if( "undefined" === typeof Λ ) {
     JSOX = require( "sack.vfs").JSOX;
 }
 
-
-
 exports.Filter = Filter;
-
 
 const debug_input = false;
 const debug_finishPhrase = false;
@@ -33,8 +33,7 @@ var states = {
 };
 
 
-
-function read_command(sandbox, options_) {
+function read_command(entity, options_) {
     const options = options_ || {};
     options.decodeStrings = false;
     stream.Transform.call(this,options);
@@ -369,24 +368,15 @@ function updateCommands( stree, commands, newcmd ) {
                         state.args.push( state.words.first() );
                         state.words = null;
                     }
-                    var result;
-                    result = state.command.code.call( sandbox, state.args );
-                    if( result && ( ( result === Promise.resolve(result) )
-                            || ( result instanceof Promise ) 
-                            || ("then" in result ) ) 
-                        ){
-                        result.then( ()=>{
-                            console.log( "Command finished:", state.command.name, state.args );
-                        }).catch( (err)=>{
-                            console.log( "Executing command threw an error:", err );
-                        })
-                    }else {
-                        console.log( "Command finished, but is probably still processing...", state.command.name, result  );
-                    }
+                    state.command.code.call( entity, state.args );
                 } catch(err) { err_ = err }
                 state.words = null;
                 state.slashes = 0;
                 state.args = [];
+                //this_.push( "Command Done." );
+                //entity.send( {op:"out", out:"(post via thread port)Command Done."});
+                //entity.send( {op:"echo", echo:"out", out1:"(post via thread port)Command Done."});
+
                 if( err_ )
                     console.log( "COmmand Error:", err_ );
                 //console.log( "args is empty ", state.args );
@@ -414,8 +404,8 @@ function updateCommands( stree, commands, newcmd ) {
 }
 
 
-function Filter( ) {
-	return filter_base.Filter( new read_command( ) );
+function Filter( entity ) {
+	return filter_base.Filter( new read_command( entity ) );
 }
 
 if( "undefined" !== typeof Λ ) {
@@ -425,14 +415,16 @@ if( "undefined" !== typeof Λ ) {
         filter_base = await require( "./filter_base.js");
         text = await require( '../../org.d3x0r.common/text.js')
         vm = await require( 'vm' );
+        sack = await require( 'sack' );
         JSOX = (await require( "sack.vfs")).JSOX;
 
         util.inherits(read_command, stream.Transform)
 
         read_command.prototype._transform = function(chunk, encoding, callback) {
             try {
-                debug_input && console.log( "command transform Process:", chunk.toString());
+                debug_input && console.log( new Error().stack, "command transform Process:", chunk.toString());
                 this.processCommand( chunk );
+                //console.log( "Stream processing done on that command...");
             } catch(err) {
                 console.trace( "read command transform caught error...", chunk, err )
                 this.push( err.toString() + "\n"+err.stack );

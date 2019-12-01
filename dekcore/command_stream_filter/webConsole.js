@@ -17,7 +17,7 @@ const root = await require.resolve("./ui");
 var disk = sack.Volume();
 var myDisk = sack.Volume( "myDisk" );
 
-console.warn( "Disk is open in:", root, disk.dir() );
+//console.warn( "Disk is open in:", root, disk.dir() );
 
 
 function createSpawnServer( sandbox ) {

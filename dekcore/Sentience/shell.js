@@ -1,5 +1,7 @@
 "use strict";
 
+const _debug_promise_resolution = false; //this should just be removed now.
+
 exports.Filter = Filter;
 
 var util = await require('util')
@@ -48,7 +50,7 @@ function Filter( e ) {
         return filter.push( util.format.apply(util,args));
     }
     //console.log( "Path resolves...", require.resolve( "./startup.js" ) );
-    var filter = commandStream.Filter();
+    var filter = commandStream.Filter(entity);
     {
         filter.RegisterCommand( "unhandled", {}, (line)=>{
             e.run(line)
@@ -79,7 +81,6 @@ function Filter( e ) {
                     args[0].spaces = 0;
                     //console.log( "create for ", entity, args[0].toString(), desc )
                     create(  args[0].toString(), desc ).then( (e)=>{
-                        // new entity exists now... (feedback created?)
                         e.name.then( name=>output( "Created:", name  ));
                     } );
                 } );
@@ -150,8 +151,8 @@ function Filter( e ) {
                    on("stored",async (a)=>{ console.log( await name, ":stored event:", (a &&await a.name))}) ;
                    on("lost",async (a)=>{ console.log( await name, ":lost event:", (a && await a.name))}) ;
 
-                   on("attached",async (a)=>{ console.log( await name, ":attach event:", (a &&await a.name))}) ;
-                   on("detached", (a)=>{return  name.then(name=>a.name.then(aname=>console.log( name, ":detach event:", a.name, "\\n"))) }) ;
+                   on("attached",async (a)=>{ console.log( await name, ":attach event:", (a &&await a.name))}) ;                   
+                   on("detached", (a)=> name.then(name=>a.name.then(aname=>console.log( name, ":detach event:", aname ))) ) ;
 
             }
         
@@ -262,11 +263,11 @@ function Filter( e ) {
         });
     }
     function Inventory( sandbox, src ) {
-        console.log( "Get inventory..." );
-        sack.log( "Get inventory... using nearObjects directly."); 
+        _debug_promise_resolution && console.log( "Get inventory..." );
+        _debug_promise_resolution && sack.log( "Get inventory... using nearObjects directly."); 
         const p = sandbox.nearObjects.then ( (i)=>{
             var contents = [];
-            sack.log( "near Objects resulted...", i );
+            _debug_promise_resolution && sack.log( util.format(new Error().stack, "Inventory - near Objects resulted...", i ));
             i.get("contains").forEach(val=>contents.push( val.name ) );
             if( !contents.length )
                 contents.push( Promise.resolve( "Nothing" ))
@@ -283,15 +284,15 @@ function Filter( e ) {
         }).catch(err=>{
             doLog( "Error gettingnear objects", err );
         })
-        sack.log( "Returning p...",p );
+        _debug_promise_resolution && sack.log( "Returning p...",p );
         return p;
     }
     async function asInventory( sandbox, src ) {
-        console.log( "Get inventory..." );
-        sack.log( "Get inventory... using nearObjects directly."); 
+        _debug_promise_resolution && console.log( "Get inventory..." );
+        _debug_promise_resolution && sack.log( "Get inventory... using nearObjects directly."); 
         const near = await sandbox.nearObjects
         var contents = [];
-        sack.log( "near Objects resulted...", i );
+        _debug_promise_resolution && sack.log( "near Objects resulted...", i );
 
         var containIter = near.get("contains")[Symbol.iterator]();
         for( let val of containIter ) {
@@ -318,26 +319,31 @@ function Filter( e ) {
                 lookIn = true;
                 src = src.slice(1);
             }
-            console.log( "Look source:",src );
-            var formattedOutput=[];
-            var nearThings = near;
-            var nearExits = exits;
-            var room = sandbox.container;
+            //console.log( "Look source:",src );
+            try {
+                _debug_promise_resolution && sack.log( "Look command start... get near things here... ");
+                var formattedOutput=[];
+                var nearThings = near;
+                var nearExits = exits;
+                var room = sandbox.container;
+            
+            _debug_promise_resolution && sack.log( "Wait for nearThings");
             nearThings = await nearThings;
+            _debug_promise_resolution && sack.log( "nearThings resolved now.");
             //formattedOutput.push( "Near:" );
             nearThings.forEach( found=>{
                 formattedOutput.push( found.name );
             })
             formattedOutput = await Promise.all( formattedOutput );
-            output( "Near:", formattedOutput.join('.'));
+            output( "Near: %s\n", formattedOutput.join('.'));
 
             getObjects( sandbox, src, false, async( foundSandbox, location )=>{
-                console.log( "Item:", await foundSandbox.name, location );
+                output( "Item:", await foundSandbox.name, location );
                 //console.log( JSOX.stringify( sandbox.entity.near ))
                 //output( util.format( "something", location, foundSandbox.entity.name ) );
                 //output( util.format( location, foundSandbox.entity.name ) );
                 if( lookIn ) {
-                    console.log ('is in...')
+                    output ('is in...\n')
                     getObjects( foundSandbox.me, null, true, (inSandbox,location)=>{
                         formattedOutput.push( location + " : " + inSandbox.name )
                     })
@@ -356,9 +362,12 @@ function Filter( e ) {
                 output( s + "\n" );        
             }
             if( !formattedOutput.length )
-                output( "Nothing." );
+                output( "Nothing.\n" );
             else            
-                output( formattedOutput.join(',') );
+                output( formattedOutput.join(',') + "\n");
+        }catch(err) {
+            sack.log( util.format(err) );
+        }
     }
     function Exec( sandbox, src ) {
         if( !src ) return;

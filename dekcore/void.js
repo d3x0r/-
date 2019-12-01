@@ -205,9 +205,9 @@ async function BigBang() {
 					Entity.saveAll();
 					//run();
 			})
-			o.create( "MOOSE-HTTP", "(HTTP)Master Operator of System Entites.", (o)=>{
+			//o.create( "MOOSE-HTTP", "(HTTP)Master Operator of System Entites.", (o)=>{
 					//o.sandbox.require( "startupWeb.js" );
-			})
+			//})
 		} );
 	//});
 }

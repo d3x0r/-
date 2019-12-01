@@ -319,7 +319,8 @@ doRequire.resolve = doResolve;
 function resolvePath( base, myModule ) {
 	var tmp = base;
 	var moduleParent = myModule;
-	_debug && console.trace( "Resolving:", base, myModule, !!moduleParent, (tmp[0] == '.'
+	//_debug && 
+	console.trace( "Resolving:", base, myModule, !!moduleParent, (tmp[0] == '.'
 	&& tmp[1] !== ':'
 	|| !( tmp.startsWith( "//" )
 		&& tmp.startsWith( "\\\\" )  ) ));
@@ -335,10 +336,11 @@ function resolvePath( base, myModule ) {
 	}
 	tmp = tmp.replace( /[/\\]\.[/\\]/g , '/' );
 	var newTmp;
-	while( ( newTmp = tmp.replace( /[/\\][^/\\]*[/\\]\.\.[/\\]/, '/' ) ) !== tmp ) {
+	console.log( "using path", tmp )
+	while( ( newTmp = tmp.replace( /[/\\][^/\\\.]*[/\\]\.\.[/\\]/, '/' ) ) !== tmp ) {
 		tmp = newTmp;
 	}
-	tmp = tmp.replace( /([^.\\/]\.|[\.\\/][^.]|[^.\\/][^.])[^/\\]*[/\\]\.\.$/, '' );
-	//console.warn( "using path", base )
+	//tmp = tmp.replace( /([^.\\/]\.|[\.\\/][^.]|[^.\\/][^.])[^/\\]*[/\\]\.\.$/, '' );
+	console.log( "using path", tmp )
 	return tmp;
 }

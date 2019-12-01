@@ -7,6 +7,6 @@
     "gun-db": "latest",
     "gun-file": "latest",
     "gun-ws": "latest",
-    "sack.vfs": "^0.9.146"
+    "sack.vfs": "latest"
   }
 }

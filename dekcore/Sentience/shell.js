@@ -115,6 +115,9 @@ function Filter( e ) {
         filter.RegisterCommand( "inv"
             , {min:0,max:0,description:"Without parameters, show objects that are internally visible, and attached"}
             , (args)=> Inventory( entity, args ) );
+        filter.RegisterCommand( "inv2"
+            , {min:0,max:0,description:"Without parameters, show objects that are internally visible, and attached"}
+            , (args)=> Inventory( entity, args ) );
         filter.RegisterCommand( "look"
             , {min:0,max:0,description:"Without parameters, show objects that are externally visible."}
             , (args)=> Look( entity, args ) 
@@ -291,6 +294,23 @@ function Filter( e ) {
         });
     }
 
+    function Lose( sandbox, args ) {
+        var found = false;
+        return getObjects( sandbox, args, false, ( foundSandbox, foundName, where, moreArgs )=>{
+            if( !where && !found ) {
+                output( args[0].toString() + " was not found." );
+            }
+            found = true;
+            if( where == "contains" ) {
+                output( "Dropped " + args[0].toString() );
+                sandbox.drop( foundSandbox );
+            }else
+                return false;
+        }).then (()=>{
+            if( moreArgs.length ) Drop( sandbox, moreArgs );
+        });
+    }
+
     function Store( sandbox, args ) {
         var found = false;
         return getObjects( sandbox, args, { all:false, disableParticiples:true}
@@ -321,7 +341,7 @@ function Filter( e ) {
     }
 
     function Wake( wakingSandbox, args ) {
-        getObjects( wakingSandbox.me, args, ( sandbox, sandboxName )=>{
+        getObjects( wakingSandbox.me, args, false, ( sandbox, sandboxName )=>{
             //console.log( "got", sandbox )        
             if( !sandbox.io.command ){
                 sandbox.io.command = Filter( sandbox );
@@ -340,22 +360,24 @@ function Filter( e ) {
         var findArgs = args.splice( 0, 1 );
         var tail = null;
         for( var n = 0; n < args.length; n++ ) {
-            if( !tail ) tail = args[n];
-            else {
+            if( !tail ) {
+                tail = args[n];
+                tail.spaces = 0;
+            }else {
                 tail.append( args[n] );
-                args[n].spaces = 1;
             }
         }
-        getObjects( sandbox, findArgs, ( sandbox, sandboxName )=>{
+        
+        getObjects( sandbox, findArgs, false, ( sandbox, sandboxName )=>{
             //console.log( `in ${sandbox.entity.name} ${sandbox.io.command}`)
-            if( sandbox.io.command ) {
+            if( sandbox ) {
                 console.log( "sending to sandbox io...", tail );
-                sandbox.io.command.processCommandLine( tail )
+                sandbox.exec( tail )
             } else{
                 console.log( "can't tell a dead object.  Try exec instead.", tail.toString() );
                 //Tell( sandbox, args );
                 try {
-                    sandbox.scripts.push( { type:"command", code:tail.toString() } );
+                    //sandbox.scripts.push( { type:"command", code:tail.toString() } );
                     vm.runInContext( tail.toString(), sandbox /*, { filename:"", lineOffset:"", columnOffset:"", displayErrors:true, timeout:10} */)
                 } catch(err){
                     console.log( err );
@@ -484,24 +506,30 @@ function Filter( e ) {
                 if( !lookIn && !lookAt ){
                     room = await room;
                     var exits = await room.holding ;
-                    var s = "Room: " + await room.parent.name;
+                    var s = "Room: " + await room.parent.name + "\n" + await room.parent.description;
                     for( let path = room.from; path; path = path.from ){
                         s += ' via ' + await path.at.name;
                     }
-                    output( s + "\n" );        
+                    output( s + "\n" );
                     let exitList = [];
                     exits.forEach( exit=>exitList.push( exit.name ));
+                    console.log( "Exits:", exits );
                     Promise.all( exitList ).then( exitList=>
                         output( "Exits: %s.\n", exitList.join(", ") )
                     );
-                }
-                if( !formattedOutput.length )
-                    ;//output( "Nothing.\n" );
-                else {
-                    var line = await Promise.all(formattedOutput).then( fo=>fo.join(', ') );
-                    formattedOutputDesc = await formattedOutputDesc;
-                    output( formattedOutputDesc + "\n" )
-                    output( "Holding: " + line + ".\n" );
+                    doOutput();
+
+                }else 
+                    doOutput();
+                async function doOutput() {
+                    if( !formattedOutput.length )
+                        ;//output( "Nothing.\n" );
+                    else {
+                        var line = await Promise.all(formattedOutput).then( fo=>fo.join(', ') );
+                        formattedOutputDesc = await formattedOutputDesc;
+                        output( formattedOutputDesc + "\n" )
+                        output( "Holding: " + line + ".\n" );
+                    }
                 }
             });
         }catch(err) {

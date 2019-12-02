@@ -272,11 +272,11 @@ function makeEntity(Λ) {
 		},
 		get name() {
 			if (nameCache) return Promise.resolve(nameCache);
-			return e.postGetter("name").then(name => {console.log( "Getter resulted name:", name );return Promise.resolve(nameCache = name)});
+			return e.postGetter("name").then(name => {return Promise.resolve(nameCache = name)});
 		},
 		get description() {
 			if (descCache) return Promise.resolve(descCache);
-			return e.postGetter("description").then(desc => {console.log( "Getter resulted desc:", desc );return Promise.resolve(descCache = desc)});
+			return e.postGetter("description").then(desc => {return Promise.resolve(descCache = desc)});
 		},
 		get contents() {
 			if (nearCache) {
@@ -796,20 +796,20 @@ var fillSandbox = {
 					names.forEach((check, i) => {
 						if (!run) return;
 						if (check.e === me) return;
-						console.log( "...", count, run, check.name, name, !object )
+						//console.log( "...", count, run, check.name, name, !object )
 						if (!object || check.name === name) {
 							//doLog( "found object", value.name, count )
 							if (count) {
 								if( --count ){ // 1. and 0. are the same object...{
-									console.log( "Failing on count" );
+									//console.log( "Failing on count" );
 									return;
 								}
 								run = true;
 							}
 							if (run) {
-								doLog("N and so key is ", check.l, check.name )
+								//doLog("N and so key is ", check.l, check.name )
 								var r = callback(check.e, check.name, check.l, src && src.splice(1));
-								console.log( "Back from callback..." );
+								//console.log( "Back from callback..." );
 								if( r === false )
 									count++;
 								if (r instanceof Promise ) awaitList.push(r);

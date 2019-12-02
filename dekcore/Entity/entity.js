@@ -675,7 +675,7 @@ function Entity(obj,name,desc ) {
 			return sandboxRequire(this,file)
 		 }
 		, thread : null
-		, watchers : []
+		, watchers : new Map()
 		, scripts : { code: [], index : 0, push(c){ this.index++; this.code.push(c)} }
 		, _module: {
 			filename: "internal"
@@ -713,7 +713,7 @@ function Entity(obj,name,desc ) {
 
 	Object.assign( this, o );
 
-	Object.assign(o, ee.prototype); ee.call(o);
+	//Object.assign(o, ee.prototype); ee.call(o);
 	//return o;
 }
 
@@ -727,12 +727,7 @@ var entityMethods = {
 			}
 			var this_ = this;
 			makeEntity(this, name, desc, (newo) => {
-				//console.warn( "Make Entity result with entity...", cb );
 				newo.value = value;
-				//this_.thread.emit('stored', newo.Λ );
-				//this_.contains.forEach( peer=>{
-				//	peer.thread.emit('joined', newo.Λ );
-				//});
 				if (typeof cb === 'string') {
 					newo.sandbox.require(cb); // load and run script in entity sandbox
 
@@ -826,7 +821,7 @@ var entityMethods = {
 					return result;
 				}
 			})(this));
-			//doLog( "near" );
+			//doLog( this.name, "near", near );
 			return near;
 		}
 		, assign: (object) => {
@@ -843,7 +838,7 @@ var entityMethods = {
 				throw new Error( "objects are already attached." );
 				return;
 			}
-
+			console.log( "Attaching %s to %s", this.name, a.name );
 			if( a.within )
 			   a.rebase();
 
@@ -859,6 +854,7 @@ var entityMethods = {
 			}
 		}
 		, detach(a) {
+			if( "string" === typeof a ) a = objects.get(a);
 			if( a.attached_to.get( this.Λ) )
 				if( this.attached_to.get( a.Λ) ) {
 					// one or the other of these is within.
@@ -870,11 +866,6 @@ var entityMethods = {
 					if( a.thread )
 						a.thread.emit('detached', this.Λ);				
 
-					//if( isAttached( this, null, a, ) ) {
-					//	doLog( "Entity is Still attached?");
-					//	return false;
-					//}
-
 					return true;
 				}
 			throw "objects are not attached: " + this.name + " & " + a.name;
@@ -882,7 +873,7 @@ var entityMethods = {
 		}
 		, watch(a) {
 			a = objects.get( a );
-			a.thread && a.watchers.push(this);
+			a.thread && a.watchers.set(this.Λ, this);
 		}
 		, insert(a) {
 			a.within = this;
@@ -955,13 +946,19 @@ var entityMethods = {
 				}
 			}
 		}
-		, leave() {
+		, leave(to) {
+			to = objects.get( to );
+			this.rebase(); // free from container
+			outerRoom.insert( to ); // put in new container
+		}
+		, escape() {
 			var outer = this.within || findContained(this).parent;
 			var outerRoom = outer.within || findContained(outer).parent;
 			this.rebase(); // free from container
 			outerRoom.insert( this ); // put in new container
 		}
 		, enter( newRoom ){
+			newRoom = objects.get( newRoom );
 			this.rebase(); // free from container
 			newRoom.insert( this );  // put in new container
 		}
@@ -976,20 +973,34 @@ var entityMethods = {
 				this.attach( grabobj );
             }
 		}
+		, hold(a) {
+			//doLog( "THing:", this, "A:", a );
+			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ );
+			if( grabobj ) {
+				this.attach( grabobj );
+            }
+		}
 		, drop(a) {
 			var outer = this.within || (outer = findContained(this).parent );
 			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ );
 
 			if( this.detach( grabobj ) ) {
-				doLog( "Detached, can insert")
+				doLog( "Detached, can insert", grabobj )
 				if( !findContainer( grabobj, null )){
-					doLog( "Is not contained...");
+					//doLog( "Is not contained...");
 					outer.insert( grabobj );
 				}else {
-					doLog( "Found that there was a ccontainer" );
+					// this is okay too... just letting go of a rope, but
+					// then it retracts to its source room immediately.
+					// there is no 'parted' event generated
+					// nor is it lost to the room... 
+					//doLog( "Found that there was a ccontainer" );
 				}
-			}else
-				throw new Error( "Object is still attached to you" );
+			}else {
+				// this is really OK tooo... 
+				// it is probably somehting resently assembled/attached in hand.
+				console.log( "Object is still attached to you, somehow." );
+			}
 		}
 		, store(a) {
 			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ );
@@ -1406,14 +1417,16 @@ function findContainer(obj, checked) {
 	if (obj.within) return obj.within;
 	if (!checked)
 		checked = [];
-	for (content of obj.attached_to) {
+	var attached = obj.attached_to[Symbol.iterator]()
+	for (let content of attached) {
+		content = content[1];
 		if (checked[content.Λ]) continue;
 		checked[content.Λ] = true;
 		if (content.within) return content.within;
 		var result = findContainer(content, checked);
 		if (result) return result;
 	}
-	throw new Error("Detached Entity");
+	return null;//throw new Error("Detached Entity");
 }
 
 function isContainer(obj, checked, c) {
@@ -1430,7 +1443,9 @@ function isContainer(obj, checked, c) {
 	return recurseAttachments(obj, checked, c);
 
 	function recurseAttachments(obj, checked, c) {
-		for (content in obj.attached_to) {
+		var attached = obj.attached_to[Symbol.iterator]()
+		for (let content in attached) {
+			content = content[1];
 			if (checked[content.Λ]) continue;
 			checked[content.Λ] = true;
 			if (content.within && content.within.Λ == c.Λ) {

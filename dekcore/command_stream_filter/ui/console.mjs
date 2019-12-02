@@ -14,31 +14,29 @@ const l = {
 var history = localStorage.getItem( "Command History" );
 l.commandHistory = history &&JSOX.parse( history ) || [];
 
-
 function openSocket() {
 
-
-  var ws = new WebSocket("ws://"+location.host+"/", "EntityControl");
-  
-  ws.onopen = function() {
-    // Web Socket is connected. You can send data by send() method.
-    //ws.send("message to send"); 
+	var ws = new WebSocket("ws://"+location.host+"/", "EntityControl");
+	
+	ws.onopen = function() {
+	// Web Socket is connected. You can send data by send() method.
+	//ws.send("message to send"); 
 	l.ws = ws;
 	ws.send( '{ op: "write", data:"/help" }' );
-  };
-  ws.onmessage = function (evt) { 
-  	const msg_ = JSON.parse( evt.data );
-        if( !ws.processMessage || !ws.processMessage( msg_ ) )
-	        processMessage( msg_ );
-  };
-  ws.onclose = function() { 
+	};
+	ws.onmessage = function (evt) { 
+		const msg_ = JSON.parse( evt.data );
+		if( !ws.processMessage || !ws.processMessage( msg_ ) )
+			processMessage( msg_ );
+	};
+	ws.onclose = function() { 
 	l.ws = null;
 	while( remoteConsole.output.childNodes[0] != remoteConsole.input )
 		remoteConsole.output.childNodes[0].remove();
 
 	setTimeout( openSocket, 5000 ); // 5 second delay.
-  	// websocket is closed. 
-  };
+		// websocket is closed. 
+	};
 }
 
 openSocket();
@@ -86,22 +84,22 @@ function createConsole() {
 	vcon.output.addEventListener( "click", ()=>setCaretToEnd( vcon.input));
 
 function setCaretToEnd(target/*: HTMLDivElement*/) {
-  const range = document.createRange();
-  const sel = window.getSelection();
-  range.selectNodeContents(target);
-  range.collapse(false);
-  sel.removeAllRanges();
-  sel.addRange(range);
-  target.focus();
-  range.detach(); // optimization
+	const range = document.createRange();
+	const sel = window.getSelection();
+	range.selectNodeContents(target);
+	range.collapse(false);
+	sel.removeAllRanges();
+	sel.addRange(range);
+	target.focus();
+	range.detach(); // optimization
 
-  // set scroll to the end if multiline
-  target.scrollTop = target.scrollHeight; 
+	// set scroll to the end if multiline
+	target.scrollTop = target.scrollHeight; 
 }
 
 	vcon.input.addEventListener( "keydown", (evt)=>{
 		//console.log( evt );
-		if( evt.key === 'Enter'  ) {
+		if( evt.key === 'Enter'	) {
 			if( evt.shiftKey ) {
 				//&& ( evt.ctrlKey || evt.altKey )
 
@@ -117,7 +115,7 @@ function setCaretToEnd(target/*: HTMLDivElement*/) {
 				vcon.input.textContent = l.commandHistory[l.commandHistory.length-l.commandIndex].command;
 
 				evt.preventDefault();			
-                                setCaretToEnd( vcon.input );
+								setCaretToEnd( vcon.input );
 				
 			}
 		} else if( evt.key === "ArrowDown" ) {
@@ -130,7 +128,7 @@ function setCaretToEnd(target/*: HTMLDivElement*/) {
 					vcon.input.textContent = "";
 				
 				evt.preventDefault();			
-                                setCaretToEnd( vcon.input );
+								setCaretToEnd( vcon.input );
 			}
 		}
 		firstKey = false;
@@ -162,8 +160,11 @@ function setCaretToEnd(target/*: HTMLDivElement*/) {
 			//vcon.output.insertBefore( newspanbr, vcon.input );
 		l.commandHistory.push( { command:cmd } );
 		firstKey = true;
-		
+		if( l.commandHistory.length > 128 ) // if there's a lot of commands
+			l.commandHistory.splice( 32, 0 );  // throw away a bunch of history..
+			
 		localStorage.setItem( "Command History", JSOX.stringify( l.commandHistory ) );
+		
 		l.ws.send( JSON.stringify( { op:"write", data:cmd } ) );
 		vcon.input.textContent = '';
 		vcon.input.focus();

@@ -33,7 +33,7 @@ if( resume ) {
 	console.log( "Okay this a resuming thing so..." );
 	firewall = entity.get( config.run.firewall );
 	auth = entity.get( config.run.auth );
-    	auth.run( `io.firewall = io.getInterface( "${firewall.Λ}", "firewall" );` );
+    	auth.run( {path:"memory://", file:"startup auth" }`io.firewall = io.getInterface( "${firewall.Λ}", "firewall" );` );
 
 }
 else {
@@ -62,11 +62,11 @@ console.log( "------- create firewall ------------")
     firewall = o;
     console.log( "------- run some code on firewall/serivces? ------------")
     
-    services.run( 'io.firewall = io.getInterface( "firewall" );' );
+    services.run( {path:"memory://", file:"startup services" }, 'io.firewall = io.getInterface( "firewall" );' );
 
     create( "userAuth", "User authentication service", "uiServer/userAuth/userProtocol.js").then( (o)=>{
         auth = o;
-        auth.run( `io.firewall = io.getInterface( "${firewall.Λ}", "firewall" );` );
+        auth.run( {path:"memory://", file:"startup services" }, `io.firewall = io.getInterface( "${firewall.Λ}", "firewall" );` );
        })
    } )
 

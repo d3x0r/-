@@ -258,13 +258,20 @@ function updateCommands( stree, commands, newcmd ) {
         //console.log( "processCommand : ", word )
         // commands, this.sandbox, this.filter?
         var next = word.break();
+        inError = false;
+        state.words = null;
+        state.slashes = 0;
+        state.args = [];
+
         while( word ) {
             _processCommand( word );
             if( word = next )
                 next = word.break();
         }
-        _processCommand( {text:null} );
-        if( state.words ) {
+        if( !inError )
+            _processCommand( {text:null} );
+            
+        if( state.words && !inError  ) {
             if( this_.handleUnhandled )
                 this_.handleUnhandled( state.words.toString() );
             else
@@ -277,23 +284,32 @@ function updateCommands( stree, commands, newcmd ) {
     function processCommandLine( line ){
         var word = line;
         //console.log( "processCommandLine : ", line.toString() )
+        inError = false;
+        state.words = null;
+        state.slashes = 0;
+        state.args = [];
+
         var next = word.break();
         while( word ) {
             _processCommand( word );
             if( word = next )
                 next = word.break();
         }
-        _processCommand( {text:null} );
+        if( !inError )
+            _processCommand( {text:null} );
+
     }
-    
+    var inError = false;
     function _processCommand ( word )
     {   
-        //console.log( "Process word:", word.text, slashes );
-        const saveword = ()=>{
+
+        function saveword(){
             if( !state.words ) state.words = word;
             else state.words = state.words.append( word );
             //console.log( "save segment : ", word.spaces, word.tabs, word.text )
         }
+            //console.log( "Process word:", word.text, slashes );
+        if( inError ) { if( word.text) return saveword(); else return; }
         if( word.text === '/' ) {
             //console.log( "found slash", state.state )
             if( state.state === states.getCommand ) {
@@ -322,6 +338,7 @@ function updateCommands( stree, commands, newcmd ) {
                 state.state = states.getCommandArgs;
                 //console.log( "found command?", state.command );
             } else {
+                inError = true;
                 this_.push( util.format( "Command not found", word.text ) );
 
                 state.state = states.getCommand;

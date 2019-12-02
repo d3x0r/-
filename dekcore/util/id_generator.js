@@ -1,8 +1,25 @@
 "use strict";
 
-const RNG = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( (saltbuf)=>saltbuf.push( new Date().toISOString() ), { mode:1 } );
-const RNG2 = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( getSalt2, { mode:1 } );
-const u8xor = require( "./u8xor.js" );
+var RNG, RNG2, u8xor;
+if( "undefined" === typeof Λ) {
+ RNG = (require( "../../org.d3x0r.common/salty_random_generator.js")).SaltyRNG( 
+	(saltbuf)=>saltbuf.push( new Date().toISOString() ), { mode:1 } );
+ RNG2 = (require( "../../org.d3x0r.common/salty_random_generator.js")).SaltyRNG( getSalt2, { mode:1 } );
+ u8xor = require( "./u8xor.js" );
+ exports.u8xor=u8xor;
+
+} else {
+	async function f() {
+	RNG = (await require( "../../org.d3x0r.common/salty_random_generator.js")).SaltyRNG( 
+		(saltbuf)=>saltbuf.push( new Date().toISOString() ), { mode:1 } );
+	 RNG2 = (await require( "../../org.d3x0r.common/salty_random_generator.js")).SaltyRNG( 
+		getSalt2, { mode:1 } );
+	 u8xor = await require( "./u8xor.js" );
+	 exports.u8xor=u8xor;
+	}
+	 f();
+}
+
 
 var salt = null;
 function getSalt2 (saltbuf) {
@@ -316,7 +333,6 @@ function dexor(a,b,d,e) {
   return r
 }
 exports.dexor=dexor;
-exports.u8xor=u8xor;
 
 function txor(a,b) {
 	const d = [...b].map( (c)=>c.codePointAt(0) );

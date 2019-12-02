@@ -7,7 +7,7 @@ var idGen = ()=>global.idGen( );
 
 var DB = exports = module.exports = {};
 
-var vfs = require( 'sack.vfs');
+var vfs = await require( 'sack.vfs');
 
 if( !("udb" in config) ) {
 	config.udb = { runkey: idGen() };

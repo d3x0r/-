@@ -12,6 +12,12 @@ var text = null;
 var commandStream = null;
 var labelStream = null;
 
+const strings = {
+    grabWhat : "Grab what?"
+}
+
+
+
 if( "undefined" === typeof Λ ) {
     // this is a sandbox; and we don't have real entity support.
     var Entity = require( '../Entity/entity.js');
@@ -59,6 +65,12 @@ function Filter( e ) {
             { description:"get a list of commands? "},
             (args)=>{
                 var out = "";
+                output( "Commands are prefixed with a '/'.  '/help' for example... ");
+                output( "Default output goes to your local sandbox as if a REPL. ");
+                output( "Through actions, the default stream output can be redirected to other things; for example if a TCP connection to a MUD was mad, then the command stream filters added for processing MUD I/O streams would get the output instead of the JS engine. ")
+                output( "The '/exec' command can be used in case it is still required to send. ")
+                output( "If the line is prefixed with a '.' the dot is stripped, and the remaining command is passed to the stream; for example you want to send '/help' you might use './help' to bypass this command filter.\n")
+                output( "-------------------\n");
                 //console.log( filter );
                 filter.forEach( (command,id)=>{
                     out += command.opts.helpText + " - " + command.opts.description + "\n";
@@ -70,7 +82,7 @@ function Filter( e ) {
             (args)=>{
             	//console.trace( args )
                 if( !args[0] ) return;
-                var desc = "nondescript."
+                var desc = "nondescript"
                 if( args.length > 1 )  
                     if( args[1].text==='"' || args[1].text==="'" ) {
                         if( args[1].indirect )
@@ -110,6 +122,9 @@ function Filter( e ) {
         filter.RegisterCommand( "grab"
             , {min:3,max:0,description:"grab <entity>"}
             , (args)=> Grab( entity, args ) );
+        filter.RegisterCommand( "hold"
+            , {min:3,max:0,description:"hold <entity>"}
+            , (args)=> Hold( entity, args ) );
         filter.RegisterCommand( "lose"
             , {min:3,max:0,description:"lose <contained entity> <into> <into-entity>; lose a contained item into another container(room)."}
             , (args)=> Lose( entity, args ) );
@@ -130,31 +145,34 @@ function Filter( e ) {
             (args)=> Wake( entity, args ) 
             );
         filter.RegisterCommand( "leave", 
-            { description:"leave the current room to the current room's container"},
+            { description:"leave the current room to one of the room's attached rooms."},
             (args)=> Leave( entity, args ) 
+            );
+        filter.RegisterCommand( "escape", 
+            { description:"leave the current room to the current room's container."},
+            (args)=> Escape( entity, args ) 
             );
         filter.RegisterCommand( "enter", 
             { description:"enter <near object> - enter into an object"},
             (args)=> Enter( entity, args ) 
             );
         
-            {
-                   on("rebase",async (a)=>{ console.log( await name, ":rebase event:",( a &&await a.name))}) ;
-                   on("debase",async (a)=>{ console.log( await name, ":debase event:",( a&&await a.name) )}) ;
+        {
+            on("rebase",async (a)=>{ console.log( await name, ":rebase event:",( a &&await a.name))}) ;
+            on("debase",async (a)=>{ console.log( await name, ":debase event:",( a&&await a.name) )}) ;
 
-                   on("joined",async (a)=>{ console.log( await name, ":join event:",( a &&await a.name))}) ;
-                   on("parted",async (a)=>{ console.log( await name, ":part event:",( a &&await a.name)    )}) ;
+            on("joined",async (a)=>{ console.log( await name, ":join event:",( a &&await a.name))}) ;
+            on("parted",async (a)=>{ console.log( await name, ":part event:",( a &&await a.name)    )}) ;
 
-                   on("placed",async (a)=>{ console.log( await name, ":place event:",( a &&await a.name))}) ;
-                   on("displaced",async (a)=>{ console.log( await name, ":displace event:",( a &&await a.name)    )}) ;
-                                     
-                   on("stored",async (a)=>{ console.log( await name, ":stored event:", (a &&await a.name))}) ;
-                   on("lost",async (a)=>{ console.log( await name, ":lost event:", (a && await a.name))}) ;
+            on("placed",async (a)=>{ console.log( await name, ":place event:",( a &&await a.name))}) ;
+            on("displaced",async (a)=>{ console.log( await name, ":displace event:",( a &&await a.name)    )}) ;
+                                
+            on("stored",async (a)=>{ console.log( await name, ":stored event:", (a &&await a.name))}) ;
+            on("lost",async (a)=>{ console.log( await name, ":lost event:", (a && await a.name))}) ;
 
-                   on("attached",async (a)=>{ console.log( await name, ":attach event:", (a &&await a.name))}) ;                   
-                   on("detached", (a)=> name.then(name=>a.name.then(aname=>console.log( name, ":detach event:", aname ))) ) ;
-
-            }
+            on("attached",async (a)=>{ console.log( await name, ":attach event:", (a &&await a.name))}) ;                   
+            on("detached", (a)=> name.then(name=>a.name.then(aname=>console.log( name, ":detach event:", aname ))) ) ;
+        }
         
     }
     return filter;
@@ -186,41 +204,124 @@ function Filter( e ) {
 
 
     function Grab( sandbox, args ) {
+        var a = false;
         //console.log( "Grab() calling getObjects...");
-        return getObjects( sandbox, args, ( foundSandbox, where, nextArgs )=>{
-            console.log( "Grab location is:", where );
+        return getObjects( sandbox, args, false, ( foundSandbox, foundName, where, nextArgs )=>{
+            if( !where ) return; // list done.
+            //console.log( "Grab location is:", where );
+            a = true;
+            if( nextArgs.length ) Grab( sandbox, nextArgs );
             if( where == "contains") {
                 //console.log( "Success, there's a thing on that thing...", foundSandbox );
-                return grab( foundSandbox );
+                return grab( foundSandbox ).catch( (err)=>{ output( err.toString()+"\n" )});
             }
-            if( where === "near" ) {
+            if( where === "near" || where == "holding,holding" ) {
                 //console.log( "Success, there's a thing on that thing...", foundSandbox );
-                return grab( foundSandbox );
+                return grab( foundSandbox ).catch( (err)=>{ output( err.toString()+"\n" )});
             }else if( foundSandbox ) {
                 console.log( "Error: object was found ", where, " instead of near or contained.")
             }
             return Promise.resolve( undefined );
+        }).then( ()=>{
+            if( !a ) {
+                nearObjects.then( no=>{
+                    no.get("holding").forEach( no=>getObjects( no, args, false, ( foundAttachment, attachName, where, nextArgs )=>{
+                        if( where === "holding" ){
+                            a = true;
+                            return grab( foundAttachment );
+                        }
+                    } ) )
+                }).then( ()=>{
+                    if( !a )
+                        console.log( strings.grabWhat );
+                })
+            }
+        });
+    }
+    function Hold( sandbox, args ) {
+        var a = false;
+        //console.log( "Grab() calling getObjects...");
+        return getObjects( sandbox, args, false, ( foundSandbox, foundName, where, nextArgs )=>{
+            if( !where ) return; // list done.
+            //console.log( "Grab location is:", where );
+            a = true;
+            if( nextArgs.length ) Hold( sandbox, nextArgs );
+            if( where == "contains") {
+                //console.log( "Success, there's a thing on that thing...", foundSandbox );
+                return hold( foundSandbox );
+            }
+            if( where === "near" || where == "holding,holding" ) {
+                console.log( "Success, there's a thing on that thing...", foundName );
+                return hold( foundSandbox ).catch( (err)=>{ output( err.toString()+"\n" )});
+            }else if( foundSandbox ) {
+                console.log( "Error: object was found ", where, " instead of near or contained.")
+            }
+            return Promise.resolve( undefined );
+        }).then( ()=>{
+            if( !a ) {
+                nearObjects.then( no=>{
+                    no.get("holding").forEach( no=>getObjects( no, args, false, ( foundAttachment, attachName, where, nextArgs )=>{
+                        if( where === "holding" ){
+                            a = true;
+                            return grab( foundAttachment );
+                        }
+                    } ) )
+                }).then( ()=>{
+                    if( !a )
+                        console.log( strings.grabWhat );
+                })
+            }
         });
     }
 
     function Drop( sandbox, args ) {
-        return getObjects( sandbox, args, ( foundSandbox, where )=>{
-            console.log( "got", foundSandbox.name, where )
-            if( where == "holding" )
+        var found = false;
+        return getObjects( sandbox, args, false, ( foundSandbox, foundName, where, moreArgs )=>{
+            if( !where && !found ) {
+                output( args[0].toString() + " was not found." );
+            }
+            found = true;
+            if( where == "holding" ) {
+                output( "Dropped " + args[0].toString() );
                 sandbox.drop( foundSandbox );
+            }else
+                return false;
+        }).then (()=>{
+            if( moreArgs.length ) Drop( sandbox, moreArgs );
         });
     }
 
     function Store( sandbox, args ) {
-        return getObjects( sandbox, args, ( foundSandbox, where )=>{
-            console.log( "got", foundSandbox.entity.name, where )
-            if( where == "holding" )
-                sandbox.store( foundSandbox );
+        var found = false;
+        return getObjects( sandbox, args, { all:false, disableParticiples:true}
+            , ( foundSandbox, foundName, where, moreargs )=>{
+                if( found ) return;
+                if( moreargs.length ) {
+                    if( moreargs[0].text === "in" || moreargs[0].text === "into" )
+                        moreargs = moreargs.slice( 1 );
+                    getObjects( sandbox, moreargs, false, (foundInto, intoName, whereInto, moreArgs )=>{
+                        if( !whereInto )return;
+                        found = true;
+                        return foundInto.store( foundSandbox );
+                    })
+                    return;
+                }
+                if( !where && !found ) {
+                    output( args[0].toString() + " was not found." );
+                    return;
+                }
+                if( where == "holding" ) {
+                    found = true;
+                    sandbox.store( foundSandbox );
+                }
+            }
+        ).then( ()=>{
+            if( !found ) output( "Store What?\n");
         });
     }
 
     function Wake( wakingSandbox, args ) {
-        getObjects( wakingSandbox.me, args, ( sandbox )=>{
+        getObjects( wakingSandbox.me, args, ( sandbox, sandboxName )=>{
             //console.log( "got", sandbox )        
             if( !sandbox.io.command ){
                 sandbox.io.command = Filter( sandbox );
@@ -245,7 +346,7 @@ function Filter( e ) {
                 args[n].spaces = 1;
             }
         }
-        getObjects( sandbox, findArgs, ( sandbox )=>{
+        getObjects( sandbox, findArgs, ( sandbox, sandboxName )=>{
             //console.log( `in ${sandbox.entity.name} ${sandbox.io.command}`)
             if( sandbox.io.command ) {
                 console.log( "sending to sandbox io...", tail );
@@ -315,6 +416,7 @@ function Filter( e ) {
         var firstArg;
             //console.log( entity.look( ) );
             var lookIn = false;
+            var lookAt = false;
             if( src && src[0] && src[0].text == "in") {
                 lookIn = true;
                 src = src.slice(1);
@@ -323,48 +425,85 @@ function Filter( e ) {
             try {
                 _debug_promise_resolution && sack.log( "Look command start... get near things here... ");
                 var formattedOutput=[];
+                var formattedOutputDesc=[];
                 var nearThings = near;
-                var nearExits = exits;
                 var room = sandbox.container;
             
             _debug_promise_resolution && sack.log( "Wait for nearThings");
-            nearThings = await nearThings;
             _debug_promise_resolution && sack.log( "nearThings resolved now.");
             //formattedOutput.push( "Near:" );
-            nearThings.forEach( found=>{
-                formattedOutput.push( found.name );
-            })
-            formattedOutput = await Promise.all( formattedOutput );
-            output( "Near: %s\n", formattedOutput.join('.'));
+            if( !src.length ) {
+                let formattedOutput = [];
+                ( await nearThings ) .forEach( found=>{
+                    formattedOutput.push( found.name );
+                })
+                formattedOutput = await Promise.all( formattedOutput );
+                if( !formattedOutput.length )
+                    formattedOutput.push( "Nothing");
+                output( "Near: %s.\n", formattedOutput.join(', '));
+                formattedOutput.length = 0;
+            }
+            else 
+                lookAt = true;
 
-            getObjects( sandbox, src, false, async( foundSandbox, location )=>{
-                output( "Item:", await foundSandbox.name, location );
+            getObjects( sandbox, src, false, async( foundSandbox, foundName, location )=>{
+                if( !location ) return;
+                //console.log( "(dbg)Item:", foundName, location, "\n" );
                 //console.log( JSOX.stringify( sandbox.entity.near ))
                 //output( util.format( "something", location, foundSandbox.entity.name ) );
                 //output( util.format( location, foundSandbox.entity.name ) );
                 if( lookIn ) {
                     output ('is in...\n')
-                    getObjects( foundSandbox.me, null, true, (inSandbox,location)=>{
-                        formattedOutput.push( location + " : " + inSandbox.name )
+                    getObjects( foundSandbox, null, true, (inSandbox,inName, location)=>{
+                        if( location === "contains" )
+                            formattedOutput.push( foundName + " " + location + " : " + inName )
+                    }).then( () => {
+                        var line = formattedOutput.join(', ');
+                        output( "Contains: " + line + ".\n" );
                     })
-                }else if( src.length ) {
-                    formattedOutput.push( foundSandbox.entity.description );
+                }else if( src.length ) {                    
+                    formattedOutputDesc = await foundSandbox.description;
+                    output( formattedOutputDesc + "\n" )
+                    //console.log( "this is getting holding... to build'formattedOutput", foundSandbox.holding );
+                    foundSandbox.holding.then( async (holds)=>{
+                        //console.log( "this is getting holding... to build'formattedOutput", holds );
+                        holds.forEach( attachment=>(attachment!=sandbox) && formattedOutput.push( attachment.name ));
+                        if( !formattedOutput.length )
+                            ;
+                        else {
+                            var line = await Promise.all(formattedOutput).then( fo=>fo.join(', ') );
+                            output( "Holding: " + line + ".\n" );
+                        }
+                            
+                    })
                 } else {
-                    formattedOutput.push( location + " : " + foundSandbox.entity.name );
+                    if( src.length )
+                        formattedOutput.push( Promise.resolve( location + " : " + await foundSandbox.name ) );
+                }
+            }).then( async ()=>{
+                if( !lookIn && !lookAt ){
+                    room = await room;
+                    var exits = await room.holding ;
+                    var s = "Room: " + await room.parent.name;
+                    for( let path = room.from; path; path = path.from ){
+                        s += ' via ' + await path.at.name;
+                    }
+                    output( s + "\n" );        
+                    let exitList = [];
+                    exits.forEach( exit=>exitList.push( exit.name ));
+                    Promise.all( exitList ).then( exitList=>
+                        output( "Exits: %s.\n", exitList.join(", ") )
+                    );
+                }
+                if( !formattedOutput.length )
+                    ;//output( "Nothing.\n" );
+                else {
+                    var line = await Promise.all(formattedOutput).then( fo=>fo.join(', ') );
+                    formattedOutputDesc = await formattedOutputDesc;
+                    output( formattedOutputDesc + "\n" )
+                    output( "Holding: " + line + ".\n" );
                 }
             });
-            room = await room;
-            if( !lookIn ){
-                var s = "Room: " + await room.parent.name;
-                for( let path = room.from; path; path = path.from ){
-                    s += ' via ' + await path.at.name;
-                }
-                output( s + "\n" );        
-            }
-            if( !formattedOutput.length )
-                output( "Nothing.\n" );
-            else            
-                output( formattedOutput.join(',') + "\n");
         }catch(err) {
             sack.log( util.format(err) );
         }
@@ -379,8 +518,8 @@ function Filter( e ) {
         try {
             var code = src.reduce((acc,val)=>acc.append(val), new text.Text() ).toString();
             //console.log( "runincontext? '"+ code+"'")
-            var res =  vm.runInContext(code, sandbox /*, { filename:"", lineOffset:"", columnOffset:"", displayErrors:true, timeout:10} */)
-            sandbox.scripts.push( { type:"Exec command", code:code } );
+            var res =  vmric(code, { filename:"Shell REPL", lineOffset:"", columnOffset:"", displayErrors:true, timeout:1000} );
+            //sandbox.scripts.push( { type:"Exec command", code:code } );
             return res;
         }catch(err){
             output( err.toString() );
@@ -390,12 +529,26 @@ function Filter( e ) {
     }
 
     function Leave(sandbox,args) {
-        sandbox.leave();
+        sandbox.within.then( within=>{
+            let done = false;
+            getObjects( within, args, false, (foundSandbox, foundName, where )=>{
+                if( where && where === "holding") {
+                    if( !done ) {
+                        done = true;
+                        return sandbox.leave(to);
+                    }
+                }
+            })
+        })
+    }
+
+    function Escape(sandbox,args) {
+        return sandbox.escape();
     }
 
     function Enter(sandbox,args) {
-        getObjects( sandbox, args, ( foundSandbox, where )=>{
-            if( where == "near") {
+        getObjects( sandbox, args, false, ( foundSandbox, foundName, where )=>{
+            if( where === "near") {
                 sandbox.enter( foundSandbox );
                 return;
             }
@@ -408,12 +561,12 @@ function Filter( e ) {
 
     function Attach( sandbox,args) {
         let legal = false;
-        getObjects( sandbox, args, (found, where, args)=>{
+        getObjects( sandbox, args, false, (found, foundName, where, args)=>{
             if( where === "holding"){
                 legal = true;
                 if( args.length && args[0].text === "to" )
                     args = args.slice( 1 );
-                getObjects( sandbox, args, (found2, where2, args ) =>{
+                getObjects( sandbox, args, false, (found2, found2Name, where2, args ) =>{
                     if( where2 == "holding"){
                         console.log( "found 2 held objects, telling them to attach");
                         try {
@@ -440,13 +593,13 @@ function Filter( e ) {
     function Detach( sandbox,args ) {
         var argc = 0;
         
-        getObjects( sandbox, args, (found, where, args)=>{
+        getObjects( sandbox, args, false, (found, foundName, where, args)=>{
             if( where === "holding"){
                 if( args.length && args[0].text === "from" )
                     args = args.slice( 1 );
-                getObjects( sandbox, args, (found2, where2, args ) =>{
+                getObjects( sandbox, args, false, (found2, foundName2, where2, args ) =>{
                     if( where2 == "holding"){
-                        sandbox.entity.detach( found2.entity);
+                        found.detach( found2);
                     }
                 })
             }

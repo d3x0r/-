@@ -84,7 +84,7 @@ async function WakeEntity( e, noWorker ) {
                     var o = Entity.makeEntity(msg.o);
                     if( !o ) { 
                         console.warn ( "failed to find entity", msg );
-                        e.thread.post( {op:'error',id:msg.id,error:"Failed to find entity",stack:"no stack"});
+                        return e.thread.post( {op:'error',id:msg.id,error:"Failed to find entity",stack:"no stack"});
                     }
                     console.log( "Getter called:", msg.h );
                     var r = o[msg.h];
@@ -94,7 +94,7 @@ async function WakeEntity( e, noWorker ) {
                     }
                     console.log( "Getter result:", r );
                     let msgout = {op:msg.op,id:msg.id,ret:r};
-                    e.thread.post(msgout);
+                    return e.thread.post(msgout);
                     //e[msg.f].call(e,msg.args);
                 } else if( msg.op == 'run' ) {
                     var id = pendingRuns.findIndex( pend=>pend.id===msg.id);
@@ -116,8 +116,8 @@ async function WakeEntity( e, noWorker ) {
         } catch(err) {
             if( msg ) {
                 let msgout = {op:'error',id:msg.id,cmd:msg.op,error:err.message, stack:err.stack};
-                console.log( "Throw error result (back)to thread:", msgout, msg, err );
-                //e.thread.post(msgout);
+                //console.log( "Throw error result (back)to thread:", msgout, msg, err );
+                e.thread.post(msgout);
             } else {
                 e.thread.post(util.format( "WHAT?", err ));
 

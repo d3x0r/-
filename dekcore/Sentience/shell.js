@@ -111,11 +111,11 @@ function Filter( e ) {
             , (args)=> Tell( entity, args ) );
         filter.RegisterCommand( "ainv"
             , {min:0,max:0,description:"Without parameters, show objects that are internally visible, and attached"}
-            , (args)=> Inventory( entity, args ) );
-        filter.RegisterCommand( "inv"
-            , {min:0,max:0,description:"Without parameters, show objects that are internally visible, and attached"}
-            , (args)=> Inventory( entity, args ) );
+            , (args)=> asInventory( entity, args ) );
         filter.RegisterCommand( "inv2"
+            , {min:0,max:0,description:"Without parameters, show objects that are internally visible, and attached"}
+            , (args)=> asInventory( entity, args ) );
+        filter.RegisterCommand( "inv"
             , {min:0,max:0,description:"Without parameters, show objects that are internally visible, and attached"}
             , (args)=> Inventory( entity, args ) );
         filter.RegisterCommand( "look"
@@ -125,6 +125,9 @@ function Filter( e ) {
         filter.RegisterCommand( "grab"
             , {min:3,max:0,description:"grab <entity>"}
             , (args)=> Grab( entity, args ) );
+        filter.RegisterCommand( "animate"
+            , {min:3,max:0,description:"animate <entity>;allow definition of methods (sandbox, no thread)"}
+            , (args)=> Animate( entity, args ) );
         filter.RegisterCommand( "hold"
             , {min:3,max:0,description:"hold <entity>"}
             , (args)=> Hold( entity, args ) );
@@ -341,17 +344,16 @@ function Filter( e ) {
     }
 
     function Wake( wakingSandbox, args ) {
+        getObjects( wakingSandbox, args, false, ( sandbox, sandboxName )=>{
+            //console.log( "got", sandbox )
+            sandbox && sandbox.wake();
+        });
+    }
+
+    function Animate( wakingSandbox, args ) {
         getObjects( wakingSandbox.me, args, false, ( sandbox, sandboxName )=>{
-            //console.log( "got", sandbox )        
-            if( !sandbox.io.command ){
-                sandbox.io.command = Filter( sandbox );
-                var labeler = labelStream.Filter();
-                labeler.label = sandbox.entity.name;
-                Object.defineProperty(sandbox.io, "command", { enumerable: false, writable: true, configurable: true });
-                labeler.connectOutput(  wakingSandbox.io.command );
-                sandbox.io.command.connectOutput( labeler.filter );
-            }
-            else console.log( "already awake.")
+            //console.log( "got", sandbox )   
+            sandbox && sandbox.animate();     
         });
     }
 
@@ -373,15 +375,6 @@ function Filter( e ) {
             if( sandbox ) {
                 console.log( "sending to sandbox io...", tail );
                 sandbox.exec( tail )
-            } else{
-                console.log( "can't tell a dead object.  Try exec instead.", tail.toString() );
-                //Tell( sandbox, args );
-                try {
-                    //sandbox.scripts.push( { type:"command", code:tail.toString() } );
-                    vm.runInContext( tail.toString(), sandbox /*, { filename:"", lineOffset:"", columnOffset:"", displayErrors:true, timeout:10} */)
-                } catch(err){
-                    console.log( err );
-                }
             }
         });
     }
@@ -411,7 +404,8 @@ function Filter( e ) {
         return p;
     }
     async function asInventory( sandbox, src ) {
-        _debug_promise_resolution && console.log( "Get inventory..." );
+        //_debug_promise_resolution &&
+         console.log( "Get inventory..." );
         _debug_promise_resolution && sack.log( "Get inventory... using nearObjects directly."); 
         const near = await sandbox.nearObjects
         var contents = [];

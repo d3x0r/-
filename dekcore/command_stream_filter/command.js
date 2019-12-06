@@ -55,26 +55,24 @@ function read_command(entity, options_) {
 			this_.handleUnhandled = code;
 			return;
 		}
-		if( name in commands ) throw new Error( "Command already registered" );
-			opts = opts || {description:"NO DESCRIPTION"};
-			opts.min = 1;
-			opts.helpText = "["+name.substr(0,opts.min) +"]"+name.substr(opts.min);
-			var newCode = { name:name, opts:opts, conflicts:[], code:code };
-			if( !commandRegistry.find( (c,i)=>{
-				if( c.name > newCode.name ){
-					commandRegistry.splice(  i,0, newCode );
-					return true;
-				}
-				return false;
-			}) )
-				commandRegistry.push(newCode);
-			Object.defineProperty( commands, name, {enumerable:debug_command_keys,configurable:true,value: newCode } );
-			try {
-				updateCommands( stree, commands, name );
-			}catch(err) {
-				console.log( err )
+		if( name in commands ) {
+				if (commands[name].name === name ) throw new Error( "Command already registered" );
+				else delete commands[name];
+		}
+		opts = opts || {description:"NO DESCRIPTION"};
+		opts.min = 1;
+		opts.helpText = "["+name.substr(0,opts.min) +"]"+name.substr(opts.min);
+		var newCode = { name:name, opts:opts, conflicts:[], code:code };
+		if( !commandRegistry.find( (c,i)=>{
+			if( c.name > newCode.name ){
+				commandRegistry.splice(  i,0, newCode );
+				return true;
 			}
-			console.log( "Something:", commands );
+			return false;
+		}) )
+			commandRegistry.push(newCode);
+		Object.defineProperty( commands, name, {enumerable:debug_command_keys,configurable:true,value: newCode } );
+		updateCommands( stree, commands, name );
 
 	};
 
@@ -118,7 +116,7 @@ function updateCommands( stree, commands, newcmd ) {
 						break;
 				}
 			}
-			sack.log( "Min:"+ n );
+			//sack.log( "Min:"+ n );
 			cmd.opts.min = other.cmd.opts.min = n+1;
 			if( other.cmd.opts.min > other.cmd.name.length )
 				other.cmd.opts.min = other.cmd.name.length;
@@ -128,7 +126,7 @@ function updateCommands( stree, commands, newcmd ) {
 			for( n = 1; n <= cmd.opts.min; n++ ) {
 				var s = newcmd.substr(0,n);
 				var oc = commands[s];
-				sack.log( util.format("Checking conflict:", cmd, oc) );
+				//sack.log( util.format("Checking conflict:", s, cmd, oc) );
 				if( oc && oc.conflicts.length ) { // was already a conflict, update it.
 					if( !oc.conflicts.find( c=>c===cmd))
 						oc.conflicts.push( cmd );
@@ -136,30 +134,28 @@ function updateCommands( stree, commands, newcmd ) {
 				else if(oc) {
 					if( n === newcmd.length )
 					{
-						sack.log( "Deleeting to replace " + s );
-						//delete commands[s];
+						break;
 						//adsf
 					}
 					// if the command is the same as n, or isn't longer, don't delete it.
 					// 'inv' 'inv2' 
-					if( oc.name.length > n ) {
+					else if( oc.name.length > n ) {
 						// replace with a new one.
-						sack.log( "Deleting and replacing with conflict handler");
+						//sack.log( "Deleting and replacing with conflict handler");
 						delete commands[s];
 						oc = commands[s] = Object.assign({},oc);
-						oc.conflicts.push( oc);
-						oc.conflicts.push( cmd );
+						oc.conflicts = [oc,cmd];
 						oc.code = function(args){
 							//console.log( "Entity command output (command.js)THis should have worked.");
-							this_.push( util.format( "Unclear command, please be more specific: ", oc.conflicts.join( ", ") ) );
+							return this_.push( util.format( "Unclear command, please be more specific: ", this.conflicts.reduce((acc,val)=>acc += (acc.length?", ":"" )+ val.name, "" )+"." ) );
 						}
 					}else {
-						sack.log( "Original has to remain undeleted..." );
+						//sack.log( "Original has to remain undeleted..." );
 					}
-				}
+				}else break;
 			}
 			for( n = cmd.opts.min; n < newcmd.length; n++ )  {
-				sack.log( "Setting:" +  newcmd.substr(0,n));
+				//sack.log( "Setting:" +  newcmd.substr(0,n));
 				Object.defineProperty( commands, newcmd.substr(0,n), {enumerable:debug_command_keys,configurable:true,value:cmd} );
 			}
 			//commands[newcmd.substr(0,n)] = cmd;
@@ -411,7 +407,10 @@ function updateCommands( stree, commands, newcmd ) {
 						state.args.push( state.words.first() );
 						state.words = null;
 					}
-					state.command.code.call( entity, state.args );
+					if( state.command.conflicts.length )
+						state.command.code.call( state.command );
+					else
+						state.command.code.call( entity, state.args );
 				} catch(err) { err_ = err }
 				state.words = null;
 				state.slashes = 0;

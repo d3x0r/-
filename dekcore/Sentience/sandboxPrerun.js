@@ -400,12 +400,7 @@ var fillSandbox = {
 		/*block*/
 	}
 	, run(line) {
-		try {
-			var r = vmric(line, sandbox);
-			if (r) self.io.output(r.toString());
-		} catch (err) {
-			doLog(err);
-		}
+		return vmric(line, sandbox);
 	}
 	, async postGetter(name, ...args) {
 		//process.stdout.write( `{op:'g',id:${id++},g:'${name}'}` );
@@ -1003,6 +998,9 @@ Object.getOwnPropertyNames(fillSandbox).forEach(function (prop) {
 	Object.defineProperty(this, prop, descriptor);
 });
 
+//Object.getOwnPropertyNames( { get n() { console.log( "North.");}} ).forEach(function (prop) {
+	//Object.defineProperty(this, prop,  Object.getOwnPropertyDescriptor(global, prop));
+//});
 
 //process.on("uncaughtException",(e)=>{
 //    process.stdout.write( e.toString() );

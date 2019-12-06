@@ -1,3 +1,9 @@
+
+// Wake is the interface from the main threaded side
+// It creates a remote thread, setup using sandboxInit.js and sandboxPrerun.js
+// 
+//
+
 const _debug_thread_create = false;
 const _debug_commands = false;
 const _debug_commands_input = _debug_commands || false;
@@ -13,8 +19,11 @@ JSOX = sack.JSOX;
 disk = sack.Volume();
 
 
-const startupInitCode = require('sack.vfs').Volume().read( __dirname + "/sandboxInit.js" ).toString();
-const startupPrerunCode = require('sack.vfs').Volume().read( __dirname + "/sandboxPrerun.js" ).toString();
+const startupInitCode = disk.read( __dirname + "/sandboxInit.js" ).toString();
+const startupPrerunCode = disk.read( __dirname + "/sandboxPrerun.js" ).toString();
+
+
+
 async function WakeEntity( e, noWorker ) {
     var runId = 0;
     const pendingRuns = [];
@@ -76,7 +85,7 @@ async function WakeEntity( e, noWorker ) {
                     if( r instanceof Promise ) {
                         r = await r;
                     }
-                    console.log( "my Getter called:", msg.g );
+                    _debug_getters && console.log( "my Getter called:", msg.g, "=", r );
                     let msgout = {op:msg.op,id:msg.id,ret:r};
                     e.thread.post(msgout);
                     //e[msg.f].call(e,msg.args);
@@ -86,13 +95,13 @@ async function WakeEntity( e, noWorker ) {
                         console.warn ( "failed to find entity", msg );
                         return e.thread.post( {op:'error',id:msg.id,error:"Failed to find entity",stack:"no stack"});
                     }
-                    console.log( "Getter called:", msg.h );
+                    _debug_getters && console.log( "Getter called:", msg.h );
                     var r = o[msg.h];
                     if( r instanceof Promise ) {
                         r = await r;
                         console.log( "Getter resolved r:", r );
                     }
-                    console.log( "Getter result:", r );
+                    _debug_getters && console.log( "Getter result:", r );
                     let msgout = {op:msg.op,id:msg.id,ret:r};
                     return e.thread.post(msgout);
                     //e[msg.f].call(e,msg.args);
@@ -224,6 +233,9 @@ async function WakeEntity( e, noWorker ) {
         // this is the thread that should be this...
         // so don't create a worker thread again. (tahnkfully worker_thread fails import of second worker_threads.)
         const invokePrerun = `{vm.runInContext( ${JSON.stringify(startupPrerunCode)}, sandbox, {filename:"sandboxPrerun.js"});}`
+
+        const sack.Volume(e.Λ, );
+
 
         thread.worker = new wt.Worker( 'const Λ=' + JSON.stringify(e.Λ) + ";" 
             + 'Λ.maker=' + JSON.stringify(e.created_by.Λ) + ";" 

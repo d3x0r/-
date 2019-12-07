@@ -24,7 +24,7 @@ exports.Filter = Filter;
 
 const debug_input = false;
 const debug_finishPhrase = false;
-const debug_command_keys = true;
+const debug_command_keys = false;
 
 var states = {
 	getCommand : 1
@@ -73,6 +73,7 @@ function read_command(entity, options_) {
 			commandRegistry.push(newCode);
 		Object.defineProperty( commands, name, {enumerable:debug_command_keys,configurable:true,value: newCode } );
 		updateCommands( stree, commands, name );
+		debug_command_keys && console.log( "Current full command object:", commands );
 
 	};
 
@@ -116,7 +117,7 @@ function updateCommands( stree, commands, newcmd ) {
 						break;
 				}
 			}
-			//sack.log( "Min:"+ n );
+			debug_command_keys &&sack.log( "Min:"+ n );
 			cmd.opts.min = other.cmd.opts.min = n+1;
 			if( other.cmd.opts.min > other.cmd.name.length )
 				other.cmd.opts.min = other.cmd.name.length;
@@ -134,8 +135,8 @@ function updateCommands( stree, commands, newcmd ) {
 				else if(oc) {
 					if( n === newcmd.length )
 					{
+						debug_command_keys &&sack.log( "Full command- guaranteed " + s );
 						break;
-						//adsf
 					}
 					// if the command is the same as n, or isn't longer, don't delete it.
 					// 'inv' 'inv2' 

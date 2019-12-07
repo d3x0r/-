@@ -16,13 +16,13 @@ const sack = require( "sack.vfs" );
 const JSOX=sack.JSOX;
 var config = require ('./config.js');
 const fc = require( "./file_cluster.js" );
-var https = require( "./https_server.js" );
+const certGen = require( "./util/keyMaster/keyService.js" );
+var https = require( "./https_server_v2.js" );
+var server = require( "./serve.js" );
 var idMan = require( "./id_manager.js");
 var Entity = require( "./Entity/entity.js" );
 Entity.idMan = idMan;
 var idGen = require( "./util/id_generator.js");
-
-const firewall = require( "./util/firewall/firewallService.js" );
 
 Entity.gun = https.gun;
 Entity.addService = https.addService;
@@ -30,8 +30,6 @@ Entity.addProtocol = https.addProtocol;
 
 
 var MOOSE;
-
-var connections = [];
 
 
 https.addProtocol( "entity-ethernet", (ws)=>{
@@ -153,32 +151,14 @@ https.addProtocol( "dekware.core", (ws)=>{
 
 async function BigBang() {
 	console.log( "Creating the void....");
-	/*
-	Entity.reloadAll( ()=>{
-			// onLoadComplete
-			//console.log( "Okay now ... how to start this?")
-
-			// reconnect on reload; should probably be done now (other than the get phase)
-			MOOSE = Entity.getEntity( config.run.MOOSE );
-			MOOSE.sandbox.io.command = shell.Filter( MOOSE.sandbox );
-			//MOOSE.sandbox.require( "./startup.js" ); // still do first run on first object?
-			//run(); // enable discovery; services are stil loading...
-			//console.log( "What is a MOOSE then?", MOOSE );
-			//MOOSE.container.create( "(recover)MOOSE-HTTP", "(HTTP)Master Operator of System Entites.", (o)=>{
-			//	o.sandbox.require( "startupWeb.js" );
-			//})
-
-		},
-		()=>{
-			*/
 		Entity.create( null, "The Void", "Glistening transparent black clouds swirl in the dark.", (o)=>{
 			console.log( "Creating first entity" );
 			Entity.theVoid = o;
 
-			o.create( "MOOSE", "Master Operator of System Entites.", async (o)=>{
+			o.create( "MOOSE", "Master Operator of System Entites.", (o)=>{
 				config.run.MOOSE = o.Λ;
 				config.commit();
-
+				console.log( "Got mose created..." );
 					MOOSE = o;
 					if( !o.thread ) o.wake().then( async ()=>{
 						process.stdin.pipe( o.thread.worker.stdin );
@@ -200,10 +180,6 @@ async function BigBang() {
 					}
 					*/
 
-					//var path = require.resolve( "./startup.js" ).replace( /\\/g, "/" );
-					//shell.Script( o.sandbox, text.Text( path ) );
-					Entity.saveAll();
-					//run();
 			})
 			//o.create( "MOOSE-HTTP", "(HTTP)Master Operator of System Entites.", (o)=>{
 					//o.sandbox.require( "startupWeb.js" );
@@ -216,21 +192,17 @@ async function BigBang() {
 var discoverId = idGen.generator();
 
 config.start( run );
-//setTimeout( ()=>{
-console.log( "START" );
 config.resume();
-//}, 10000 );
 
 
-var reassignments = [];
 var d;
 
 function run() {
 	//console.log( "RUN" );
 	var vfs = require( "./file_cluster.js" );
 	var discoverer = require( "./util/discovery.js" );
-	firewall.init();
-    d = discoverer.discover( { timeout: 1000
+
+	d = discoverer.discover( { timeout: 1000
         , master : true
         , filter : false // expects to hear on localhost and/or same interfaces
         , onsend : (addr)=>{ return discoverId + " identify " +  idMan.xor( discoverId, config.Λ ) + " The Void" }
@@ -252,9 +224,14 @@ function run() {
         , ontimeout : ()=>{
             console.log( "i'm all alone.", config.run.Λ, JSOX.stringify(idMan.localAuthKey,null,3) )
             // really all of my keys are on my config.run key anyway
-            //   so this shouldn't be done here?
-            idMan.setKeys( idMan.ID( idMan.localAuthKey ) );
-            var publicServer = https.Server( config.run.defaults.defaultPort, true );
+			//   so this shouldn't be done here?
+			//idMan.ID( idMan.localAuthKey, (id)=>{ idMan.setKeys( id ); } ) 
+			certGen.init();
+			https.certGen = certGen;
+
+            var publicServer = https.Server( ["localhost", "d3x0r.org"], config.run.defaults.defaultPort, true, server, (serverArray)=>{
+				serverArray.forEach( certGen.registerProtocol.bind(certGen) );
+			} );
             //var localServer = https.Server( config.run.defaults.defaultPort+1, true );
 
             BigBang();
@@ -270,6 +247,7 @@ function run() {
     //console.log( "Run is completed... setup discover" );
 }
 
+var reassignments = [];
 function reassign( parts, rid, raddr, addr ) {
 	console.log( "check...", reassignments )
 	var r = null;

@@ -2,6 +2,7 @@
 const _debug_require = false;
 const _debugPaths = _debug_require || false;
 const _debug_threads = false;
+const _debug_run = false;
 
 const events = require('events');
 const os = require( 'os' );
@@ -248,7 +249,7 @@ const volOverride = `(function(vfs, dataRoot) {
 	vfs.Sqlite.op = tmp;
 })`
 
-config.start( ()=>eval( volOverride )( vfs, config.run.defaults.dataRoot ) )
+//config.start( ()=>eval( volOverride )( vfs, config.run.defaults.dataRoot ) )
 
 
 
@@ -414,7 +415,7 @@ function makeEntity(obj, name, description, callback, opts) {
 }
 
 
-	async function sandboxRequire(o,src) {
+	function sandboxRequire(o,src) {
 		if( !o || !src )
 			console.trace( "FIX THIS CALLER this is", o, src );
 
@@ -478,6 +479,7 @@ function makeEntity(obj, name, description, callback, opts) {
 
 		//doLog( "blah", o.sandbox.scripts)
 		if( o.scripts.index < o.scripts.code.length ) {
+			// using an existing script?
 			var cache = o.scripts.code[o.scripts.index];
 			//doLog( "cache is?", typeof cache, cache);
 			if( cache.source === src ) {
@@ -530,8 +532,10 @@ function makeEntity(obj, name, description, callback, opts) {
 
 				//doLog( "Executing with resume TRUE")
 				try {
-						doLog( "Run this script..." );
-					await o.thread.run( {src:src,path:thisModule.paths[0]}, code );
+					doLog( "Run this script..." );
+					o.thread.run( {src:src,path:thisModule.paths[0]}, code ).then( (result)=>{
+
+					} );
 					//vm.runInContext( code, o.sandbox
 					//	, { filename: cache.source , lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 1000 })
 				} catch( err ) {
@@ -585,6 +589,7 @@ function makeEntity(obj, name, description, callback, opts) {
 				, file
 				, '}).call(this,this,module.exports,module,false );'
 				, 'this.module.paths.pop();'
+				//, 'console.log( "Returning exports(not undefined:)", module.exports );'
 				, 'return module.exports;})().catch(err=>{doLog( "caught require error:", err)})\n//# sourceURL='
 				, root
 			].join("");
@@ -612,10 +617,11 @@ function makeEntity(obj, name, description, callback, opts) {
 
 		o._module = thisModule;
 
-		_debug_threads &&  doLog( o.name, "POSTED CODE TO RUN TO THE OTHER THREAD... AND WE WAIT (upushed to stack", o._module.src );
+		( _debug_threads || _debug_run ) &&  doLog( o.name, "POSTED CODE TO RUN TO THE OTHER THREAD... AND WE WAIT (upushed to stack", o._module.src );
 			return o.thread.run( {src:src,path:thisModule.paths[0]}, code ).then( (v)=>{
-				
+				_debug_run && console.log( "Run resulted... this is in the core; this should translate the result RuNID... (and pop stack)", v);
 				o._module = oldModule;
+				return v;
 				//doLog( o.name, "RUN RESULT:", v, thisModule.file );
 			}).catch( e=>{
 				o._module = oldModule;
@@ -670,10 +676,6 @@ function Entity(obj,name,desc ) {
 		, sandbox: null // operating sandbox
 		, child : null // child process
 		, vol: null
-		, require (file) { 
-			//doLog( "calling sandbox require...", file);
-			return sandboxRequire(this,file)
-		 }
 		, thread : null
 		, watchers : new Map()
 		, scripts : { code: [], index : 0, push(c){ this.index++; this.code.push(c)} }
@@ -686,26 +688,6 @@ function Entity(obj,name,desc ) {
 			, loaded: false
 			, rawData: ''
 			, includes: []
-		}
-		, idGen() {
-			var this_ = this;
-			return new Promise( (res)=>{
-				doLog( "o:", o.name, o.Λ)
-				entity.idMan.ID(this.Λ, this.created_by.Λ, (id)=>{
-					res(id);
-				});
-			})
-		}
-		, postRequire( src  ){
-			//var o = objects.get( Λ );
-			//doLog( "Requiring for something:", src )
-			return  sandboxRequire( this, src );
-		}
-		, wake() {
-			if( !this.thread ) {
-				return wake.WakeEntity( this );
-			}
-			return Promise.resolve(this.thread);
 		}
 	}
 	o.created_by = obj || o;
@@ -779,9 +761,7 @@ var entityMethods = {
 			return result;
 		}
 		, get room() {
-			doLog( "Getting room of :", this.name);
-			if( this.within )
-				return this.within.Λ;
+			if( this.within ) return {parent:this.within.Λ,at:this.Λ,from:null};
 			return this.container;
 		}
 		, get container() {
@@ -1008,7 +988,7 @@ var entityMethods = {
 			if( this.detach( grabobj ) )
 				this.insert( grabobj );
 		}
-		, async run(file,command) {
+		, run(file,command) {
 			if( !command ) throw new Error( " PLEASE UPDATE USAGE");
 			if( this.thread ) {
 				return this.thread.run(file,command) ;
@@ -1033,6 +1013,30 @@ var entityMethods = {
 			this.within = null;
 			objects.delete( this.Λ );
 			entity.idMan.delete( this.Λ, config.run.Λ );
+		}
+		, require (file) { 
+			//doLog( "calling sandbox require...", file);
+			return sandboxRequire(this,file)
+		 }
+		, postRequire( src  ){
+			//var o = objects.get( Λ );
+			//doLog( "Requiring for something:", src )
+			return  sandboxRequire( this, src );
+		}
+		, wake() {
+			if( !this.thread ) {
+				return wake.WakeEntity( this );
+			}
+			return Promise.resolve(this.thread);
+		}
+		, idGen() {
+			var this_ = this;
+			return new Promise( (res)=>{
+				doLog( "o:", o.name, o.Λ)
+				entity.idMan.ID(this_.Λ, this_.created_by.Λ, (id)=>{
+					res(id);
+				});
+			})
 		}
 		, toString() {
 			var attached = null;
@@ -1530,6 +1534,7 @@ function sanityCheck(object) {
 
 function saveConfig(o, callback) {
 	//if( !fs.exists( 'core') )
+console.trace( "********SaveConfig Volume" );
 	if (!("vol" in o))
 		o.vol = vfs.Volume(null, config.run.defaults.dataRoot + "/" + o.Λ);
 	if( o.sandbox )		
@@ -1541,6 +1546,7 @@ function saveConfig(o, callback) {
 //
 function loadConfig(o) {
 	if( !o.sandbox ) return;
+console.trace( "********LoadConfig Volume" );
 	if (!("vol" in o))
 		o.vol = vfs.Volume(null, config.run.defaults.dataRoot + "/" + o.Λ);
 	{

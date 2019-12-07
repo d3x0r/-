@@ -17,7 +17,7 @@ if( !config.firewall ) {
 
 var opdb = vfs.Sqlite( `option.db` );
 var vol = opdb.op( "vol", idGen() );
-
+console.log( "Firewall Database...", vol );
 DB.data = vfs.Volume( vol, vol/*, me*/ );
 var db = DB.db = DB.data.Sqlite( `firewall.db` );
 

@@ -8,9 +8,13 @@ const _debug_thread_create = false;
 const _debug_commands = false;
 const _debug_commands_input = _debug_commands || false;
 const _debug_commands_send = _debug_commands || false;
-const _debug_entity_command_handling = false;
+const _debug_entity_command_handling = _debug_commands || false;
+const _debug_getters = _debug_commands || false;
+const _debug_run = false;
+
 var sack = require( 'sack.vfs');
 const util = require('util' );
+const fc = require( "../file_cluster.js");
 var wt = global.isMainThread && require( 'worker_threads');
 // this is a sandbox; and we don't have real entity support.
 var Entity = require( '../Entity/entity.js');
@@ -24,11 +28,11 @@ const startupPrerunCode = disk.read( __dirname + "/sandboxPrerun.js" ).toString(
 
 
 
-async function WakeEntity( e, noWorker ) {
+function WakeEntity( e, noWorker ) {
     var runId = 0;
     const pendingRuns = [];
 
-    async function processMessage( msg, string ) {
+    function processMessage( msg, string ) {
         _debug_commands_input && console.trace( "core thread input: ",msg, string );
         try {
             if( msg.op )
@@ -38,16 +42,21 @@ async function WakeEntity( e, noWorker ) {
                         pendingRuns[id].runReject( msg.error );
                         pendingRuns.splice(id,1);
                     }
+                    else {
+                        console.log( "Error wasn't about a pending run...");
+                    }
                 } else if( msg.op == 'out' ) {
                     console.log( e.name, ":##:", msg.out );
                 } else if( msg.op == 'echo' ) {
                     msg.op = msg.echo;
                     e.thread.post( msg );
                 } else if( msg.op == 'f' ) {
+                    _debug_entity_command_handling && console.log( "Received general 'f'... ", msg );
                     if( msg.f === "create" ){
                         // this one has a callback to get the result
                         // the others are all synchrounous normally
                         e.create( msg.args[0], msg.args[1], (o)=>{
+                            //console.log( "Callback from calling entity core side...")
                             try {
                                 let msgout = {op:msg.op,id:msg.id,ret:o.Λ};
                                 e.thread.post(msgout);
@@ -58,8 +67,12 @@ async function WakeEntity( e, noWorker ) {
                                 e.thread.post( { op:'error',id:msg.id,error:"Unknown Thing:"+msg.f,stack:"Stack.." } );
                                 return;
                         }
-                        var r = e[msg.f].apply(e,msg.args);
-                        e.thread.post( {op:msg.op,id:msg.id,ret:await r} );
+                        var r = e[msg.f].apply(e,msg.args)
+                        if( r instanceof Promise )
+                            r.then((r)=> e.thread.post( {op:msg.op,id:msg.id,ret:r} ) )
+                                .catch((err)=>e.thread.post( { op:'error',id:msg.id,error:err,stack:err.stack } ) );
+                        else
+                            e.thread.post( {op:msg.op,id:msg.id,ret:r} );
                     }
                 } else if( msg.op == 'e' ) {
                     var o = Entity.makeEntity( msg.o );
@@ -73,22 +86,29 @@ async function WakeEntity( e, noWorker ) {
                         var r = f.apply(o, msg.args);
                         _debug_entity_command_handling && console.log( "Done with that method...", msg.e, msg.id );
                         if( r instanceof Promise ) {
-                            r = await r;
-                            _debug_entity_command_handling && console.log( "Awaited the reply...", msg.e, msg.id );
+                            r.then( (r)=>e.thread.post({op:msg.op,id:msg.id,ret:r}) )
+                                .catch((err)=>e.thread.post( {op:'error',id:msg.id,error:err,stack:err.stack}));
+                        } else {
+                            //console.log( "And then r = ",r);
+                            let msgout = {op:msg.op,id:msg.id,ret:r};
+                            e.thread.post(msgout);
                         }
-                        //console.log( "And then r = ",r);
-                        let msgout = {op:msg.op,id:msg.id,ret:r};
-                        e.thread.post(msgout);
                     }
                 } else if( msg.op == 'g' ) {
                     var r = e[msg.g];
                     if( r instanceof Promise ) {
-                        r = await r;
+                        r.then((r)=>{
+                            _debug_getters && console.log( "my Getter called:", msg.g, "=", r );
+                            let msgout = {op:msg.op,id:msg.id,ret:r};
+                            e.thread.post(msgout);
+                        }).catch((err)=>{
+                            return e.thread.post( {op:'error',id:msg.id,error:err,stack:err.stack});
+                        });
+                    } else {
+                        _debug_getters && console.log( "my Getter called:", msg.g, "=", r );
+                        let msgout = {op:msg.op,id:msg.id,ret:r};
+                        e.thread.post(msgout);
                     }
-                    _debug_getters && console.log( "my Getter called:", msg.g, "=", r );
-                    let msgout = {op:msg.op,id:msg.id,ret:r};
-                    e.thread.post(msgout);
-                    //e[msg.f].call(e,msg.args);
                 } else if( msg.op == 'h' ) {
                     var o = Entity.makeEntity(msg.o);
                     if( !o ) { 
@@ -98,16 +118,17 @@ async function WakeEntity( e, noWorker ) {
                     _debug_getters && console.log( "Getter called:", msg.h );
                     var r = o[msg.h];
                     if( r instanceof Promise ) {
-                        r = await r;
-                        console.log( "Getter resolved r:", r );
+                        r.then((r)=>{
+                            _debug_getters && console.log( "Getter result:", r );
+                            return e.thread.post({op:msg.op,id:msg.id,ret:r});
+                        }).catch((err)=>e.thread.post( {op:'error',id:msg.id,error:err,stack:err.stack}) );
+                    } else {
+                        _debug_getters && console.log( "Getter result:", r );
+                        return e.thread.post({op:msg.op,id:msg.id,ret:r});
                     }
-                    _debug_getters && console.log( "Getter result:", r );
-                    let msgout = {op:msg.op,id:msg.id,ret:r};
-                    return e.thread.post(msgout);
-                    //e[msg.f].call(e,msg.args);
                 } else if( msg.op == 'run' ) {
                     var id = pendingRuns.findIndex( pend=>pend.id===msg.id);
-                    _debug_commands && console.log( "Replying with run result:", id, msg );
+                    _debug_run && sack.log( util.format("got Reply for run result:", id, msg ));
                     if( id >= 0 ){
                         pendingRuns[id].runResult( msg.ret );
                         pendingRuns.splice(id,1);
@@ -120,7 +141,7 @@ async function WakeEntity( e, noWorker ) {
                     //e.creator.push();
                 }
             else {
-                console.log( ":!!:", string );
+                console.log( ":!!:", msg );
             }
         } catch(err) {
             if( msg ) {
@@ -182,19 +203,21 @@ async function WakeEntity( e, noWorker ) {
                 })
             }
         }
-        , async run(file,code) {
+        , run(file,code) {
             if( thread.worker ) {
                 //console.log( "passing check for madefrom?")
                 //var allow = await ID.madeFrom( e.Λ, something );
                 //console.log( "is allow:", allow );
-                var msg = {op:'run', file:file, code:(code), id:runId };
-                thread.post(msg);
                 return new Promise( (res,rej)=>{
+                    _debug_run && sack.log( util.format("Posting run:", file.src, "to", e.name ));
+                    var msg = {op:'run', file:file, code:(code), id:runId };
+                    thread.post(msg); 
                     //console.log( "Pending run has pushed this one... and we return a promise.");
                     pendingRuns.push( { runResult : res, runReject: rej, id : runId++ } );
                 })
             }else {
-                console.log( "This shouldn't be running any VM code Yet.")
+                console.trace( "thread does not have a worker, Run fail. This shouldn't be running any VM code Yet.");
+                /*
                 if( !e.sandbox ) {
                     e.sandbox = {
                          scripts : { code: [], index : 0, push(c){ this.index++; this.code.push(c)} }
@@ -202,6 +225,7 @@ async function WakeEntity( e, noWorker ) {
                 }
                 e.sandbox.scripts.push( { type:"run", file:file, code:code } );
                 vm.runInContext(code, this.sandbox, { filename: file, lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 10 })
+                */
             }
         }
         
@@ -233,8 +257,9 @@ async function WakeEntity( e, noWorker ) {
         // this is the thread that should be this...
         // so don't create a worker thread again. (tahnkfully worker_thread fails import of second worker_threads.)
         const invokePrerun = `{vm.runInContext( ${JSON.stringify(startupPrerunCode)}, sandbox, {filename:"sandboxPrerun.js"});}`
+        console.log( "Wanting to remount ...", fc.cvol  )
 
-        const sack.Volume(e.Λ, );
+        fc.cvol.mount(e.Λ); 
 
 
         thread.worker = new wt.Worker( 'const Λ=' + JSON.stringify(e.Λ) + ";" 

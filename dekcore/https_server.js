@@ -17,31 +17,8 @@ const ws = vfs.WebSocket;
 const WebSocket = ws.Client;
 const WebSocketServer = ws.Server;
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";  // enable wss for gun without mods....
-//const Gun = require('gun');
-
-//require('gun/lib/file.js');
-//require('gun/lib/wsp/server.js');
-//require('gun/lib/wsp/server-push.js');
-//require('gun/lib/S3.js');
-
-//exports.Gun = Gun;
-//exports.gun = Gun(  { uuid : ID.generator, file : null } );;
-
-
-//const WebSocketServer   = ws.Server
-
 exports.Server = scriptServer;
 exports.addProtocol = addProtocol;
-
-var ID = require( './util/id_generator.js' );
-
-
-//exports.gun.on( "get", (a,b,c)=>console.log("gun get:", a,b,c) )
-//exports.gun.on( "put", (a,b,c)=>console.log("gun put:", a,b,c) )
-
-//Gun.on( "get", (a)=>console.log("GUN get:", a['#'], a.get ) )
-//Gun.on( "put", (a,b,c)=>console.log("GUN put:", a,b,c) )
 
 var wsServer = null;
 
@@ -63,7 +40,7 @@ function scriptServer( port, internal ) {
       console.log( "got request" + req.url );
 
       if( !internal ) {
-	      var filePath = config.run.defaults.webRot + unescape(req.url);
+	      var filePath = config.run.defaults.webRoot + unescape(req.url);
 	      if (filePath == './uiRoot/') filePath = './uiRoot/index.html';
 	}
 	else
@@ -73,6 +50,7 @@ function scriptServer( port, internal ) {
       var contentType = 'text/html';
       switch (extname) {
           case '.js':
+          case '.mjs':
               contentType = 'text/javascript';
               break;
           case '.css':
@@ -150,15 +128,11 @@ function validateWebSock( ws, req ) {
     console.log( "validate websock got:", ws.protocol );//, JSOX.stringify(ws,null,3), JSOX.stringify(req,null,3) );
     var proto = decodeURIComponent( req.headers['sec-websocket-protocol'] );
 
-	//console.log( "ws:", ws );
-	//console.log( "protocols:", protocols, "\n", proto );
-
 	var ip = req.headers['x-forwarded-for'] ||
 	     req.connection.remoteAddress ||
 	     req.socket.remoteAddress ||
 	     req.connection.socket.remoteAddress;
 	ws.remoteAddress = ip;
-	//console.log( "ws Connected from:", ip );
 
 	// this is the way 'websocket' library gives protocols....
 	//console.log( "other", ws.protocolFullCaseMap[ws.requestedProtocols[0]])
@@ -226,26 +200,3 @@ function validateWebSock( ws, req ) {
       //ws.reject( "Unknown Protocol" );
 }
 
-/*
-addProtocol( "gunDb", (conn)=>{
-    //console.log( "connected gundb, add peer")
-    peers.push( conn );
-
-    exports.gun.on('out', (msg)=>{
-        msg = JSON.stringify({headers:{},body:msg});
-        peers.forEach( (p)=>{ try { p.send( msg ) }catch  (err) {console.log( "Peer is bad... maybe closing?", err );} })
-    })
-
-    conn.on( 'message',(msg)=>{
-            console.log( "gundb is getting", msg );
-            exports.gun.on('in',msg.body)
-        })
-    conn.on( 'close', (reason,desc)=>{
-        // gunpeers gone.
-        var i = peers.findIndex( p=>p===conn );
-        if( i >= 0 )
-            peers.splice( i, 1 );
-    })
-})
-
-*/

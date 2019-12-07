@@ -3,11 +3,40 @@ Error.stackTraceLimit = Infinity;
 
 const vm = require('vm' );
 const sack = require( 'sack.vfs' );
+const idGen = sack.SaltyRNG.id;
 sack.system.disallowSpawn();
 const hostedVolume = sack.Volume( Λ, null );
 sack.system.enableThreadFileSystem();
-const privateStorage = hostedVolume.ObjectStorage( sack.SaltyRNG.id( a.Λ + ":storage" ) );
+var config;
+const hostedSqlite = hostedVolume.Sqlite.bind(hostedVolume);
+hostedVolume.Sqlite = (name)=>{
+    return hostedSqlite( name + ":sqlite:" + Λ );
+}
+hostedVolume.readJSOX( Λ + "config.jsox", (cfg)=>{
+    config = cfg;
+} );
+if( !config ) {
+    config = {
+        keys : [idGen(), idGen()],
+        directory : null
+    }
+}
+const privateStorage = hostedVolume.ObjectStorage( idGen(), idGen( Λ + ":storage" ), config.keys[0], config.keys[1] );
 
+privateStorage.Sqlite = hostedVolume.Sqlite;
+
+if( !config.directory )
+{
+    privateStorage.put( {}, {
+        then(id){
+            config.directory = id;
+            hostedVolume.write( Λ + "config.jsox", JSOX.stringify( config ) );
+        },
+        catch(err){
+            console.log( "Error putting object?", err );
+        }
+    } )
+}
 function Function() {
     throw new Error( "Please use other code import methods.");
 }
@@ -22,7 +51,7 @@ const sandbox = vm.createContext( {
     , eval: eval
     , require: require
     , module:module
-    , disk: privatestorage
+    , disk: privateStorage
     , console:console
     , process: process
     //, Buffer: Buffer
@@ -33,7 +62,7 @@ const sandbox = vm.createContext( {
 sandbox.sandbox = sandbox;
 
 /* Seal Sandbox */
-["require","eval", "Function", "module", "console", "process", "require", "sandbox", "fs", "vm"].forEach(key => {
+["require","eval", "Function", /*"module",*/ "console", "process", "require", "sandbox", "fs", "vm"].forEach(key => {
     if( key in sandbox )
         Object.defineProperty(sandbox, key, { enumerable: false, writable: true, configurable: false });
 });

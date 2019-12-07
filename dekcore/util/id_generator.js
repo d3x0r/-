@@ -1,18 +1,21 @@
 "use strict";
 
-var RNG, RNG2, u8xor;
+var RNG, RNG2, u8xor, SRG;
 if( "undefined" === typeof Λ) {
- RNG = (require( "../../org.d3x0r.common/salty_random_generator.js")).SaltyRNG( 
+  SRG = require( "../../org.d3x0r.common/salty_random_generator.js");
+ RNG = (SRG).SaltyRNG( 
 	(saltbuf)=>saltbuf.push( new Date().toISOString() ), { mode:1 } );
- RNG2 = (require( "../../org.d3x0r.common/salty_random_generator.js")).SaltyRNG( getSalt2, { mode:1 } );
+ RNG2 = (SRG).SaltyRNG( getSalt2, { mode:1 } );
  u8xor = require( "./u8xor.js" );
  exports.u8xor=u8xor;
 
 } else {
 	async function f() {
-	RNG = (await require( "../../org.d3x0r.common/salty_random_generator.js")).SaltyRNG( 
+	  const arequire = await require( "../../org.d3x0r.common/salty_random_generator.js");
+	  SRG=arequire;
+	 RNG = (arequire).SaltyRNG( 
 		(saltbuf)=>saltbuf.push( new Date().toISOString() ), { mode:1 } );
-	 RNG2 = (await require( "../../org.d3x0r.common/salty_random_generator.js")).SaltyRNG( 
+	 RNG2 = (arequire).SaltyRNG( 
 		getSalt2, { mode:1 } );
 	 u8xor = await require( "./u8xor.js" );
 	 exports.u8xor=u8xor;
@@ -121,7 +124,7 @@ exports.sign = function( msg ) {
 		var tmp = new Uint8Array(32);
 		//memcpy( nextSalt, *buf, buf.length() );
 		if( !signEntropy ) {
-			signEntropy = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( null );
+			signEntropy = SRG.SaltyRNG( null );
 			signEntropy.initialEntropy = null;
 		}
 
@@ -152,7 +155,7 @@ exports.sign = function( msg ) {
 
 exports.verify = function( msg, id  ) {
 		if( !signEntropy ) {
-			signEntropy = require( "../../org.d3x0r.common/salty_random_generator.js").SaltyRNG( null );
+			signEntropy = SRG.SaltyRNG( null );
 			signEntropy.initialEntropy = null;
 		}
 		signEntropy.reset();
@@ -173,11 +176,11 @@ exports.verify = function( msg, id  ) {
 const encodings = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789$_'
 
 	// My JS Encoding $_ and = at the end.  allows most to be identifiers too.
-	// 'standard' encoding +/
-	// variants -/
-	//          +,
-	//          ._
-	// variants -_
+	// 'standard' encoding + /
+	// variants            - /
+	//                     + ,
+	//                     . _
+	// variants            - _
 
 const decodings = { '~':0
 		,'=':0

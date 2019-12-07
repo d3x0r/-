@@ -4,6 +4,7 @@ const _debug_commands = false;
 const _debug_requires = false;
 const _debug_command_input = false;
 const _debug_command_post = _debug_commands || false;
+const _debug_command_run = _debug_commands || false;
 
 const _debug_events = false;
 const _debug_event_input = _debug_events || false;
@@ -13,6 +14,7 @@ const util = require('util');
 const stream = require('stream');
 const vm = require('vm');
 const sack = require('sack.vfs');
+const id = sack.SaltyRNG.id;
 const path = require('path');
 const wt = require('worker_threads');
 const njs_module = require('module');
@@ -20,7 +22,7 @@ const idGen = require("./util/id_generator.js")
 
 const builtinModules = njs_module.builtinModules.slice(0);
 builtinModules.require = require;
-const disk = sack.Volume();
+//const disk = sack.Volume();
 const JSOX = sack.JSOX;
 
 const coreThreadEventer = wt.parentPort;
@@ -31,7 +33,7 @@ function doLog(...args) {
 	//console.log(s);
 }
 
-var id = 0;
+var mid = 0;
 var eid = 0;
 const objects = new Map();
 const self = this;
@@ -44,7 +46,6 @@ const pendingOps = [];
 
 const drivers = [];
 var remotes = new WeakMap();
-var requireRunReply = [];
 var pendingRequire = false;
 var codeStack = [];
 
@@ -70,27 +71,29 @@ function processMessage(msg, stream) {
 		var prior_execution = codeStack.find(c => c.path === msg.file.path);
 		if (prior_execution)
 			doLog("Duplicate run of the same code; shouldn't we just return the prior?  I mean sure, maybe the filter of this should be higher?", msg.file, codeStack);
-		_debug_commands && doLog("Run some code...", codeStack, msg.file);
+		_debug_command_run && doLog("Run some code...", codeStack, msg.file);
 		var res;
 		try {
-			const code = { file: msg.file, result: null }
-			codeStack.push(code);
+			const code = { file: msg.file, id:msg.id, result: null }
+			var codeIndex = codeStack.push(code)-1;
 			//console.log( "Sandbox:", sandbox );
 			//var res = vmric(msg.code, sandbox.sandbox , { filename:msg.file.src, lineOffset:0, columnOffset:0, displayErrors:true } );
 			var res = vmric(msg.code, sandbox.sandbox, { filename: msg.file.src, lineOffset: 0, columnOffset: 0, displayErrors: true });
 			if (res && (res instanceof Promise || Promise.resolve(res) === res || ("undefined" !== typeof res.then)))
 				res.then(
 					(realResult) => {
+						_debug_command_run && doLog( "Promised result from code:", realResult );
 						//_debug_commands && 
 						//doLog( "And post result.", pendingRequire, realResult );
 						if (pendingRequire) {
+							_debug_requires && sack.log( util.format("This is in a pending require for:?", code.file.src) )
 							code.result = realResult;
-							requireRunReply.push(realResult);
-							reply({ op: "run", ret: 0, id: msg.id });
+							reply({ op: "run", ret: codeIndex, id: msg.id });
 						} else
 							reply({ op: "run", ret: realResult, id: msg.id });
 					}
 				).catch(err => {
+					_debug_command_run && doLog( "Error caught from async code:", err );
 					if (err)
 						reply(({
 							op: "error"
@@ -100,15 +103,17 @@ function processMessage(msg, stream) {
 						reply(({ op: "error", file: msg.file.src, error: "No Error!", id: msg.id }));
 				});
 			else {
-				if (pendingRequire)
-					requireRunReply.push(res);
+				if (pendingRequire) {
+					console.log( "Direct response:", res );
+					code.result = res;
+				}
 				doLog("And post sync result.", res);
 				reply(({ op: "run", ret: res, id: msg.id }));
 			}
 			//doLog( "Did it?", sandbox );
 			return;
 		} catch (err) {
-			doLog("Failed:", err, msg.code)
+			doLog("Run Failed:", err, msg.code)
 			reply(({ op: "error", error: err.toString(), stack: err.stack, id: msg.id }));
 			return;
 		}
@@ -195,6 +200,7 @@ function processMessage(msg, stream) {
 		pendingOps.splice(responseId, 1);
 		if (msg.op === 'f' || msg.op === 'g' || msg.op === 'e' || msg.op === 'h') {
 			_debug_commands && reply(util.format("Resolve.", msg, response));
+			
 			response.resolve(msg.ret);
 		} else if (msg.op === 'error') {
 			_debug_commands && doLog(util.format("Reject.", msg, response));
@@ -231,17 +237,17 @@ function makeEntity(Λ) {
 		Λ: Λ
 		//, send( msg ){ coreThreadEventer.postMessage( msg ); }
 		, post(name, ...args) {
-			_debug_command_post && doLog("entity posting:", id, name);
+			_debug_command_post && doLog("entity posting:", mid, name);
 			return new Promise((resolve, reject) => {
-				const thisId = id++;
+				const thisId = mid++;
 				coreThreadEventer.postMessage({ op: 'e', o: Λ, id: thisId, e: name, args: args });
 				pendingOps.push({ id: thisId, cmd: name, resolve: resolve, reject: reject })
 			});
 		}
 		, postGetter(name) {
-			_debug_command_post && console.trace("entity get posting:", id, name, Λ);
+			_debug_command_post && console.trace("entity get posting:", mid, name, Λ);
 			return new Promise((resolve, reject) => {
-				const thisId = id++;
+				const thisId = mid++;
 				coreThreadEventer.postMessage({ op: 'h', o: Λ, id: thisId, h: name });
 				pendingOps.push({ id: thisId, cmd: name, resolve: resolve, reject: reject })
 			})
@@ -328,24 +334,31 @@ function makeEntity(Λ) {
 		idGen() {
 			return idGen.generator();
 		},
-		async run(file, code) {
+		run(file, code) {
 			if (!code) {
 				console.trace("Please pass file and code");
 				code = file;
-				file = { path: "?", file: "Eval" }
+				file = { path: "?", src: "Eval" }
 			}
 			return e.post("run", file, code)
 		},
-		async wake() {
+		wake() {
 			return e.post("wake");
 		},
-		async require(src) {
+		require(src) {
 			_debug_requires && doLog(" ---- thread side require:", nameCache, src, codeStack);
-			return e.post("require", src).catch(err => sandbox.io.output(util.format(err)));
+			return e.post("require", src)
+				.then( result=>{
+					console.log( "Finally result should come from codestack:", codeStack, result);
+					if( "number" === typeof result )
+						return codeStack[result].result
+					return result;
+				})
+				.catch(err => sandbox.io.output(util.format(err)));
 		},
 		idMan: {
 			//sandbox.require( "id_manager_sandbox.js" )
-			async ID(a) {
+			ID(a) {
 				return e.post("idMan.ID", a);
 			}
 		}
@@ -389,8 +402,8 @@ var fillSandbox = {
 	//, eval: eval
 	, post(name, ...args) {
 		var stack;
-		const thisId = id++;
-		//process.stdout.write( `{op:'f',id:${id++},f:'${name}',args:${JSOX.stringify(args)}}` );
+		const thisId = mid++;
+		//process.stdout.write( `{op:'f',id:${mid++},f:'${name}',args:${JSOX.stringify(args)}}` );
 		return new Promise((resolve, reject) => {
 			pendingOps.push({ id: thisId, cmd: name, resolve: resolve, reject: reject });
 			_debug_command_post && doLog("thread posting:", thisId, name);
@@ -403,10 +416,10 @@ var fillSandbox = {
 		return vmric(line, sandbox);
 	}
 	, async postGetter(name, ...args) {
-		//process.stdout.write( `{op:'g',id:${id++},g:'${name}'}` );
+		//process.stdout.write( `{op:'g',id:${mid++},g:'${name}'}` );
 		var p = new Promise((resolv, reject) => {
 			_debug_command_post && process.stdout.write(util.format("Self PostGetter", name));
-			const thisId = id++;
+			const thisId = mid++;
 			coreThreadEventer.postMessage({ op: 'g', id: thisId, g: name });
 			pendingOps.push({ id: thisId, cmd: name, resolve: resolv, reject: reject });
 		})
@@ -449,12 +462,16 @@ var fillSandbox = {
 		);
 		pendingRequire = true;
 		return self.post("require", args).then(ex => {
-			_debug_requires && doLog("Read and run finally resulted, awated on post require");
-			var ex2 = requireRunReply.pop()
-			//doLog( "Require finally resulted?",args, ex, ex2 ); 
-			required.push({ src: args, object: ex2 });
-			return ex2;
-		}).catch(err => self.io.output("Require failed:", err));
+			( _debug_requires || _debug_command_run ) && doLog("Read and run finally resulted, awated on post require", ex, codeStack, new Error().stack );
+			if( "number" === typeof ex ){
+				var ex3 = codeStack[ex].result;
+				//doLog( "Require finally resulted?",args, ex, ex3 ); 
+				required.push({ src: args, object: ex3 });
+				return ex3;
+			} else {
+				console.log("Unhandled Require result:", ex, args );
+			}
+		}).catch(err => doLog("Require failed:", err));
 	}
 	, process: process
 	, _process: {
@@ -462,7 +479,7 @@ var fillSandbox = {
 		stdin: process.stdin,
 		x: "not process"
 	}
-	, Buffer: Buffer
+	//, Buffer: Buffer
 	, async create(a, b, c) {
 		return self.post("create", a, b).then(
 			(val) => {
@@ -544,7 +561,7 @@ var fillSandbox = {
 		},
 		getInterface(object, name) {
 			var o = object;
-			doLog("OPEN DRIVER CALLED!")
+			doLog(util.format("OPEN DRIVER CALLED!", new Error().stack ))
 			var driver = drivers.find(d => (o === d.object) && (d.name === name));
 			if (driver)
 				return driver.iface;
@@ -1007,3 +1024,47 @@ Object.getOwnPropertyNames(fillSandbox).forEach(function (prop) {
 //})
 coreThreadEventer.postMessage({ op: 'initDone' });
 coreThreadEventer.on("message", processMessage);
+
+function initStorage() {
+const storedObjects = new WeakMap();
+//const directory = id( Λ + ":root" );
+var dirCache;
+
+/*
+{
+	externals : [
+		{ name: "external requirement", ref:refkey},
+	]
+
+	}
+	files : [ 
+		{ name : "blah", versions: [], size:0, date:new Date()}
+	]
+}
+*/
+
+	const storage = {
+
+		get files() {
+			if( dirCache ) return Promise.resolve( dirCache );
+			return disk.get( directory ).then(dirs=>{
+				dirCache = dirs;
+				return Promise.resolve(dirCache );
+			}).catch( ()=>{
+				dirCache = [];
+				//disk.write( directory, disk.stringifier.stringify( dirCache ) );
+			})
+		},
+		store( object, asFile )	{
+			if( !dirCache ) {
+				this.files
+			}
+			var stored = storedObjects.get( object );
+			if( !stored ){
+				disk.put( )
+			}
+		}
+	}
+	storage.files;  //load root directory (init )
+	return storage;
+}

@@ -53,7 +53,7 @@ function tickCreation() {
 
 var checkCreation = (ad)=>! creationQueue.find( c=>c.address===a);
 
-console.log( "Is:", require('sack.vfs' ));
+//console.log( "Is:", require('sack.vfs' ));
 async function startup() {
 	const WebSocket = (await require('sack.vfs')).WebSocket.Client;
 
@@ -62,6 +62,9 @@ function openHello() {
 	console.log( "firewall interface:" , firewall )
 
 	var confirmed = false;
+	console.log( "... connection to dekcore; we're still a thread.. so... it's connected...");
+
+	return;
 	var ws = new WebSocket('wss://localhost:8000', ["dekware.core"], {
 		perMessageDeflate: false
 	});
@@ -91,9 +94,9 @@ function openHello() {
 
 	ws.on( "close", ()=>{
 		if( !confirmed  ) {
-			console.log( "remote closed..." );
+			console.log( "remote closed, wait 5 seconds, and re-open" );
 			// without set timeout; I have no throttle control ....
-			openHello();
+			setTimeout( openHello, 5000 );
 		}
 		else {
 			console.log( "initial negotiation success" );

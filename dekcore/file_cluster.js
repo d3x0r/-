@@ -3,6 +3,7 @@ const fs = require( 'fs');
 const config = require( "./config.js" );
 const vfs = require( 'sack.vfs' );
 const idGen = require( './util/id_generator.js' );
+console.log( "File_Cluster volume Creation (was this ovreridden?");
 const vol = vfs.Volume();
 var keys;
 var cvol;

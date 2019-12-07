@@ -62,11 +62,11 @@ console.log( "------- create firewall ------------")
     firewall = o;
     console.log( "------- run some code on firewall/serivces? ------------")
     
-    services.run( {path:"memory://", file:"startup services" }, 'io.firewall = io.getInterface( "firewall" );' );
+    services.run( {path:"memory://", src:"startup services" }, 'io.firewall = io.getInterface( "firewall" );' );
 
     create( "userAuth", "User authentication service", "uiServer/userAuth/userProtocol.js").then( (o)=>{
         auth = o;
-        auth.run( {path:"memory://", file:"startup services" }, `io.firewall = io.getInterface( "${firewall.Λ}", "firewall" );` );
+        auth.run( {path:"memory://", src:"startup UserAuth services" }, `io.firewall = io.getInterface( "${firewall.Λ}", "firewall" );` );
        })
    } )
 

@@ -14,12 +14,11 @@ function BigBang() {
 	
         // remote 
         
-	console.log( "Creating the void....");
+	console.log( "Creating Ether....");
 	var Void;
-	Entity( null, "The Void", "Glistening transparent black clouds swirl in the dark.", (o)=>{
-		Void = o;
+	Entity( null, "Aether", "Glistening transparent black clouds swirl in the dark.", (Ether)=>{
                 
-		Entity( Void, "MOOSE", "Master Operator of System Entites.", (o)=>{
+		Entity( Void, "GOOSE", " Operator of System Entites.", (o)=>{
                 	o.sandbox.command = shell.Filter( o.sandbox );
 	       	  	var path = require.resolve( "./startup.js" ).replace( /\\/g, "/" );
         	        shell.Script( o.sandbox, text.Text( path ) );

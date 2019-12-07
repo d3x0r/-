@@ -14,6 +14,7 @@ if( !("udb" in config) ) {
 	config.commit();
 }
 
+console.log( "UserDatabase... should be ./data.fs" );
 DB.data = vfs.Volume( null, "./data.fs", config.udb.runkey, me );
 //console.log( "vol is:", DB.data, Object.keys( Object.getPrototypeOf( DB.data ) ) );
 var db = DB.db = DB.data.Sqlite( "core.db" );

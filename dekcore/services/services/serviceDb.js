@@ -26,14 +26,14 @@ if( !( "svcDb" in config ) ) {
 	config.svcDb = { vol : await entity_.idGen() };
 }
 
-var opdb = vfs.Sqlite( `option.db` );
+var opdb = disk.Sqlite( `option.db` );
 if( !opdb ) 
-	opdb = vfs.Sqlite( "svcdb.db" );
+	opdb = disk.Sqlite( "svcdb.db" );
 console.log( "vfs?", opdb );
 var vol = opdb.op( "vol", await entity_.idGen() );
 vol = config.svcDb.vol;
-console.log( "do vol:", vol );
-DB.data = vfs.Volume( vol, vol/*, me*/ );
+console.log( "service servicedb do vol:", vol );
+//DB.data = disk.Volume( vol, vol/*, me*/ );
 if( DB.data ) {
 
 io.addProtocol( "serviceAuth", setupServiceAuth );

@@ -22,10 +22,10 @@ var config = module.exports = exports = {
 		, friends: []  // discover should use this setting for off-network contact
 		, timeOffset: new Date().getTimezoneOffset() * 60000
 		, toString() {
-			return JSON.stringify(this);
+			return JSOX.stringify(this);
 		}
 	},
-	commit: (cb) => {
+	commit(cb) {
 		saveConfig(cb);
 	},
 	toString() {
@@ -135,7 +135,7 @@ getLocation();
 
 
 function saveConfig(callback) {
-	fc.store(  "config.run.json", config.run, callback);
+	fc.store(  "config.run.jsox", config.run, callback);
 }
 
 //res.sendfile(localPath);
@@ -147,47 +147,31 @@ function loadConfig(path) {
 	loadDefaults();
 
 
-	fc.reload( "config.run.json",
+	fc.reload( "config.run.jsox",
 		function (error, result) {
 			if( error ) 
-				fc.reload( "config.json",
-					function (error, result) {
-						//console.log("loadConfig: Error? ", error);
-						if (!error) {
-							loadRun( result );
-						}
-						else {
-							saveConfig(resume);
-						}
-					})
+				loadRun( null );
 			else {
-				loadRun( result );
+				loadRun( result.toString() );
 			}
 		}
 	);
 
-	function loadRun(result) {
-				var file_defaults = require( process.cwd() + "/config.json");
+	function loadRun(str) {
+				var file_defaults = require(  "./config.jsox");
+				var object = str && JSOX.parse(str);
 
-				//console.log( "Reloaded config res....", result)
-				var str = result.toString();//fc.Utf8ArrayToStr(result);
-				//console.log( "Reloaded config str....", str)
-				var object = JSON.parse(str);
 				//console.log( "Reloaded config obj....", object)
 				var intern = config.run.internal_addresses;
 				var extern = config.run.addresses;
-				var defaults = Object.assign( file_defaults, config.run.defaults );
+
+				file_defaults = Object.assign( config.run.defaults, file_defaults ); // override with file (or we couldn't change settings.)
 
 				Object.assign(config.run, object);
 				config.run.internal_addresses = intern;
-				config.run.addresses = config.run.addresses;
-				config.run.defaults = defaults;
-				//console.log( "config reload is", config.run.Λ )
-				//config.run = object;
-                                //console.log( "setting allow root certificate generation: ", defaults.allowRootCertGen, config.run.defaults.allowRootCertGen );
-
-                                //config.run.defaults.allowRootCertGen = defaults.allowRootCertGen;
-
+				config.run.addresses          = extern;
+				config.run.defaults           = file_defaults;
+				saveConfig();
 				resume();
 	}
 
@@ -198,7 +182,7 @@ function loadConfig(path) {
 			config.run.Λ = idGen.generator();
 		else
 			console.log("partial recovery??!");
-		config.run.defaults = require( process.cwd() + "/config.json");
+		config.run.defaults = require( "./config.jsox" );
 	}
 	return true;
 }

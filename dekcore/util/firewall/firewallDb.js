@@ -9,9 +9,9 @@ const DB = exports = module.exports = {
 };
 var db = null;
 
-var fc = require( "../../file_cluster.js" );
+var fc = await require( "../../file_cluster.js" );
 
-var IdGen = require( "../id_generator.js" );
+var IdGen = await require( "../id_generator.js" );
 var idGen = IdGen.generator;
 var vfs = null;
 

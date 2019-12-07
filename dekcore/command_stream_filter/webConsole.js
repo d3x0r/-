@@ -15,7 +15,7 @@ const path = await require( "path" );
 const root = await require.resolve("./ui");
 
 var disk = sack.Volume();
-var myDisk = sack.Volume( "myDisk" );
+//var myDisk = sack.Volume( "myDisk" );
 
 //console.warn( "Disk is open in:", root, disk.dir() );
 
@@ -91,10 +91,12 @@ function createSpawnServer( sandbox ) {
 	} );
 
 	server.onaccept( async function (ws) {
-		console.log( "Connection received with : ", ws.protocols, " path:", ws.url );
+		sack.log( "Connection received with : ", ws.protocols, " path:", ws.url );
 		ws.block(); // need to do this before async returns.
 		create( await name+":"+counter++, await description).then( (e)=>{
+			sack.log( "created new entity... waking it up...")
 			e.wake().then( ()=>{
+				sack.log( "Tell it to require web connection startup")
 				e.require(  "./startupWebConnection.js" ).then( ()=>{
 					ws.post( e.Λ );
 				})

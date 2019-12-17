@@ -15,7 +15,9 @@ const _debug_run = false;
 var sack = require( 'sack.vfs');
 const util = require('util' );
 const fc = require( "../file_cluster.js");
-var wt = global.isMainThread && require( 'worker_threads');
+var wt = require( 'worker_threads');
+wt = ( wt.isMainThread && wt );
+
 // this is a sandbox; and we don't have real entity support.
 var Entity = require( '../Entity/entity.js');
 //console.log( "Did require Entity:", Entity );

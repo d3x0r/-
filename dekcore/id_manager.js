@@ -47,8 +47,8 @@ const tempKeyTracker = new KeyTracker();
 myStringifier.registerToJSOX( "idkt", KeyTracker.prototype );
 // default parser behavior; but revives using KeyTracker prototype
 const myParser = JSOX.begin( receiveJSOXObject );
-myParser.registerFromJSOX( "idkt", KeyTracker.prototype );
-myParser.registerFromJSOX( "id", keyProto.prototype );
+myParser.fromJSOX( "idkt", KeyTracker.prototype, null );
+myParser.fromJSOX( "id", keyProto.prototype, null );
 var parserResult = null;
 function receiveJSOXObject( value ) {
 	if( parserResult )

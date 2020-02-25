@@ -45,10 +45,10 @@ const tempKeyTracker = new KeyTracker();
 
 // default strinigfy behavior; but wraps result prefixed by classname
 myStringifier.registerToJSOX( "idkt", KeyTracker.prototype );
-// default parser behavior; but revives using KeyTracker prototype
+// default parser behavior; but revives using KeyTracker as a type
 const myParser = JSOX.begin( receiveJSOXObject );
-myParser.fromJSOX( "idkt", KeyTracker.prototype, null );
-myParser.fromJSOX( "id", keyProto.prototype, null );
+myParser.fromJSOX( "idkt", KeyTracker, null );
+myParser.fromJSOX( "id", keyProto, null );
 var parserResult = null;
 function receiveJSOXObject( value ) {
 	if( parserResult )
@@ -546,10 +546,10 @@ function loadKeys() {
 				//_debug && console.log( "jsox parse?", data )
 				var loaded_keys;
 				parserResult = (value)=>{
-					//console.log( "Recovered:", value )
+					_debug && console.log( "Recovered:", value )
 					loaded_keys = value;
 				}
-				//console.log( "recover:", data );
+				_debug && console.log( "recover:", data );
 				myParser.write( data );
 				_debug && console.log( "data parsed ", loaded_keys);
 				keyTracker = loaded_keys;

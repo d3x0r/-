@@ -142,9 +142,9 @@ function saveConfig(callback) {
 //res.sendfile(localPath);
 //res.redirect(externalURL);
 //
-function loadConfig(path) {
+async function loadConfig(path) {
 	//console.log("loadconfig");
-	fc.init();
+	await fc.init();
 	loadDefaults();
 
 
@@ -230,8 +230,14 @@ function resume() {
 		if (config.start_deferred) break;
 		//console.log( "run thing ", config.starts[0].toString())
 		var startProc = config.starts.shift();
-		if( startProc() )  // return true to get the next ome... will get a resume later
+		var p;
+		if( p = startProc() )  { // return true to get the next ome... will get a resume later{
+			if( p instanceof Promise ) {
+				console.log( "Promises to resume..." );
+				p.then( resume );
+			}
 			break;
+		}
 		if (config.start_deferred) {
 			//console.log( "got deferred...", config.starts)
 			config.starts_deferred = config.starts;

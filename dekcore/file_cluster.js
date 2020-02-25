@@ -5,26 +5,37 @@ const vfs = require( 'sack.vfs' );
 const idGen = require( './util/id_generator.js' );
 console.log( "File_Cluster volume Creation (was this ovreridden?");
 const vol = vfs.Volume();
-var keys;
+
 var cvol;
 var disk = vol;
 
 var fc_local = {
-	authorities : []
+	authorities : [],
+	store : null,
+	root : null,
+	
 }
 
 var inited = false;
 
 module.exports = exports = {
-	init() {
-		if( inited ) return;
-		var cvolName;
-		keys = [idGen.regenerator( "0" + config.Λ ), idGen.regenerator( "1" + config.Λ )];
-		cvol = vfs.Volume( null, cvolName = './core/' + config.Λ, keys[0], keys[1] );
-		if( debug_ ) console.log( cvol.dir() );
-		console.log( "cvol", cvolName );
-		exports.cvol = cvol;
-		inited = true;
+	async init() {
+		return new Promise( (resume, stop)=>{
+			if( inited ) return;
+			var cvolName;
+			let keys = [idGen.regenerator( "0" + config.Λ ), idGen.regenerator( "1" + config.Λ )];
+			cvol = vfs.Volume( null, cvolName = './core/' + config.Λ, keys[0], keys[1] );
+			(fc_local.store = vfs.ObjectStorage( cvol, "storage.os" ))
+				.getRoot()
+				.then( (dir)=>{
+				fc_local.root = dir
+				resume();
+			} );
+			if( debug_ ) console.log( cvol.dir() );
+			console.log( "cvol", cvolName );
+			exports.cvol = cvol;
+			inited = true;		
+		});
 	},
 	addAuthority( addr ) {
 		athorities += addr;
@@ -70,6 +81,8 @@ module.exports = exports = {
 				}
 				 //fileName = getpath( filename, object );
 		}
+		return fc_local.root.open( fileName ).then( file=>file.write( object ).then( callback ) );
+
 		cvol.write( fileName, object.toString() );
 		if( callback ) callback();
 	},
@@ -90,6 +103,12 @@ module.exports = exports = {
 
 		var result;
 		var fileName = filename
+		return fc_local.root.open( fileName )
+			.then( file=>file.read( )
+				.then( (data)=>{callback(false, data)} )
+				.catch( ()=>{callback( true, "No Data" ); }  )
+			);
+
 		if( cvol.exists( fileName ) ) {
 			callback( false, cvol.read( fileName ) );
 		} else {
@@ -192,6 +211,8 @@ function mkdir(path, callback) {
 		if( callback ) callback();
 		return;
 	}
+
+	return fs_local.root.Folder( path ).then( callback );
 	//console.log( "mkdir path: ", path )
 
 	fs.mkdir( path, (err)=>{

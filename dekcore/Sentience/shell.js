@@ -59,7 +59,8 @@ function Filter( e ) {
     var filter = commandStream.Filter(entity);
     {
         filter.RegisterCommand( "unhandled", {}, (line)=>{
-            e.run(line)
+            var r = e.run(line);
+            if( r ) output( r );
         })
         filter.RegisterCommand( "help", 
             { description:"get a list of commands? "},
@@ -541,6 +542,9 @@ function Filter( e ) {
             var code = src.reduce((acc,val)=>acc.append(val), new text.Text() ).toString();
             //console.log( "runincontext? '"+ code+"'")
             var res =  vmric(code, { filename:"Shell REPL", lineOffset:"", columnOffset:"", displayErrors:true, timeout:1000} );
+            if( res ) {
+                console.log( res );
+            }
             //sandbox.scripts.push( { type:"Exec command", code:code } );
             return res;
         }catch(err){

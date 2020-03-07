@@ -79,7 +79,7 @@ function createSpawnServer( sandbox ) {
 						contentType = 'application/wasm';
 							break;
 		}
-		if( disk.exists( filePath ) ) {
+		if( nativeDisk.exists( filePath ) ) {
 			res.writeHead(200, { 'Content-Type': contentType });
 			console.warn( "Read:", "." + req.url );
 			res.end( disk.read( filePath ) );

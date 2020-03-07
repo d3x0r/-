@@ -33,6 +33,7 @@ function openSocket() {
 	l.ws = null;
 	while( remoteConsole.output.childNodes[0] != remoteConsole.input )
 		remoteConsole.output.childNodes[0].remove();
+	remoteConsole.inputPrompt = remoteConsole.input;
 
 	setTimeout( openSocket, 5000 ); // 5 second delay.
 		// websocket is closed. 
@@ -43,7 +44,7 @@ openSocket();
 
 function processMessage( msg ) {
 	if( msg.op === "write" ) {
-		remoteConsole.write( msg.data );
+		remoteConsole.write( msg.data, msg.prompt );
 	}
 	
 }
@@ -56,11 +57,14 @@ function createConsole() {
 		root:null,
 		output:null,
 		input:null,
-		write(buf){
+		write(buf, prompt){
 			var newspan = document.createElement( "span" );
 			newspan.className = "outputSpan";
 			newspan.textContent = buf;
-			this.output.insertBefore( newspan, this.input );
+				
+			this.output.insertBefore( newspan, this.inputPrompt );
+			if( prompt ) 
+				this.inputPrompt = newspan;
 
 			this.output.scrollTop = this.output.scrollHeight;
 
@@ -78,6 +82,8 @@ function createConsole() {
 	vcon.input = document.createElement( "SPAN" );
 	vcon.input.setAttribute( "contentEditable", true );
 	vcon.input.className = "consoleinputContent";
+	vcon.output.appendChild( vcon.input );
+	vcon.inputPrompt = vcon.input;
 	
 	vcon.input.placeHolder = "<input text here>";
 
@@ -136,7 +142,6 @@ function setCaretToEnd(target/*: HTMLDivElement*/) {
 
 	} );
 
-	vcon.output.appendChild( vcon.input );
 
 	var inputSend = document.createElement( "INPUT" );
 	inputSend.setAttribute( "type", "button" );
@@ -164,7 +169,8 @@ function setCaretToEnd(target/*: HTMLDivElement*/) {
 			l.commandHistory.splice( 32, 0 );  // throw away a bunch of history..
 			
 		localStorage.setItem( "Command History", JSOX.stringify( l.commandHistory ) );
-		
+		vcon.inputPrompt = vcon.input; // update until a new prompt
+		remoteConsole.write( "\n", false );
 		l.ws.send( JSON.stringify( { op:"write", data:cmd } ) );
 		vcon.input.textContent = '';
 		vcon.input.focus();

@@ -199,6 +199,7 @@ var d;
 
 function run() {
 	//console.log( "RUN" );
+	var vfs = require( "./file_cluster.js" );
 	var discoverer = require( "./util/discovery.js" );
 
 	d = discoverer.discover( { timeout: 1000

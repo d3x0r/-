@@ -22,7 +22,11 @@ const vfs = require('sack.vfs');
 const vol = vfs.Volume();
 const vfsNaked = require('sack.vfs');
 const JSOX = sack.JSOX;
+
+// this is used to generate an http request to the real core(if there is one?)
 const netRequire = require('../util/myRequire.js');
+
+
 var fc = require('../file_cluster.js');
 
 const config = require('../config.js');
@@ -264,20 +268,8 @@ var nextID = null;
 
 //const sentience = require( "../Sentience/shell.js");
 
-function EntityExists(key, within) {
-	if (objects.get(key))
-		return true;
-	if (entity.idMan.Auth(key)) {
-		fc.restore(within, key, (error, buffer) => {
-			if (error)
-				throw error;
-			var e = makeEntity(config.run);
-			e.fromString(buffer);
-		})
-	}
-}
-
 var createdVoid = false;
+var theVoid = null; // private tracker, to validate someone didn't cheat the export
 var base_require;
 
 
@@ -348,10 +340,21 @@ function makeEntity(obj, name, description, callback, opts) {
 	if (!obj) {
 		if( !entity.idMan ) { config.start(() => { makeEntity(obj, name, description, callback, opts) })
 			return }
+		if( exports.theVoid ) {
+			if( theVoid ) 
+				throw new Error( "User corrupted entity interface" );
+			throw new Error( "The Void already exists; intitialzation sequence error" );
+		}
 		createdVoid = entity.idMan.localAuthKey;
 		//doLog( "Setting void to localAuthkey..." );
 	}
-	var o = new Entity( obj, name, description );
+
+	const o = new Entity( obj, name, description );
+	if( !exports.theVoid ) {
+		if( theVoid )
+			throw new Error( "User corrupted entity interface" );		
+		theVoid = exports.theVoid = o;
+	}
 	if( nextID ) {
 		o.Λ = nextID;
 		nextID = null;
@@ -365,8 +368,7 @@ function makeEntity(obj, name, description, callback, opts) {
 	function finishCreate( ) {
 		//doLog( " ----- FINISH CREATE ---------" );
 		if( opts && opts.fork ) {
-
-			o.child = cpts.fork( "childEntity.js", [o.Λ, ] )
+			o.child = cpts.fork( "childEntity.js", [o.Λ] )
 			o.child.on( "message", (msg)=>{
 				if( msg.op === "present" ) {
 					o.child.send( { op:"first message test"});
@@ -403,7 +405,10 @@ function makeEntity(obj, name, description, callback, opts) {
 		else {
 			//doLog(" ---------- Result with completed, related object ------------------ ");
 			if( typeof( callback ) === "string" )  {
-				o.sandbox.require( callback );
+				o.wake().then( (thread)=>{
+					
+					thread.runFile( callback );
+				} );
 				opts(o);
 			}
 			else
@@ -413,6 +418,19 @@ function makeEntity(obj, name, description, callback, opts) {
 	}
 
 }
+
+	function runModule( thisModule ) {
+		( _debug_threads || _debug_run ) &&  doLog( o.name, "POSTED CODE TO RUN TO THE OTHER THREAD... AND WE WAIT (upushed to stack", o._module.src );
+		return o.thread.run( {src:src,path:thisModule.paths[0]}, thisModule.code ).then( (v)=>{
+			_debug_run && console.log( "Run resulted... this is in the core; this should translate the result RuNID... (and pop stack)", v);
+			o._module = oldModule;
+			return v;
+			//doLog( o.name, "RUN RESULT:", v, thisModule.file );
+		}).catch( e=>{
+			o._module = oldModule;
+			//doLog( "Catch error of course?", e );
+		} );
+	}
 
 
 	function sandboxRequire(o,src) {
@@ -477,7 +495,50 @@ function makeEntity(obj, name, description, callback, opts) {
 			//return o.sandbox._vfs;
 		}
 
+		var rootPath = "";
+		// resolves path according to relative path of parent modules and resolves ".." and "." parts
+		_debugPaths && doLog( o.name, JSOX.stringify( o._module,null, "\t"   ));
+		var root = src;//netRequire.resolvePath(src, o._module);
+		_debugPaths && doLog("src could be", src);
+		_debugPaths && doLog("root could be", root);
+		_debugPaths && doLog("working root is ", rootPath);
+		try {
+			var file = fs.readFileSync(root, { encoding: 'utf8' });
+		} catch (err) {
+			doLog("File failed... is it a HTTP request?", err);
+			return undefined;
+		}
+		//doLog( o.module.name, "at", rootPath,"is loading", src );
+		//var names = fs.readdirSync( "." );
+		//doLog( names );
+		var pathSplita = src.lastIndexOf("/");
+		var pathSplitb = src.lastIndexOf("\\");
+		if (pathSplita > pathSplitb)
+			var pathSplit = pathSplita;
+		else
+			var pathSplit = pathSplitb;
+
+		if (src.startsWith("./"))
+			rootPath = rootPath + src.substr(2, pathSplit - 2);
+		else if (src.startsWith("../"))
+			rootPath = rootPath + src;//src.substr(2,pathSplit-2 );
+		else
+			rootPath = rootPath + src.substr(0, pathSplit);
+		const strippedFile = netRequire.stripPath(root);
+		const strippedRoot = netRequire.stripFile(root);
+
+		var reloaded = o._module.includes.find( (module)=>{
+			if( module.src === src || module.file === strippedFile )
+				return true;
+			return false;
+				
+		} );
+		if( reloaded ) {
+			console.log( "Entity already had the code for this module... running immediate" );
+			return runModule( reloaded );
+		}
 		//doLog( "blah", o.sandbox.scripts)
+
 		if( o.scripts.index < o.scripts.code.length ) {
 			// using an existing script?
 			var cache = o.scripts.code[o.scripts.index];
@@ -548,35 +609,6 @@ function makeEntity(obj, name, description, callback, opts) {
 			}
 		}
 
-		var rootPath = "";
-		// resolves path according to relative path of parent modules and resolves ".." and "." parts
-		_debugPaths && doLog( o.name, JSOX.stringify( o._module,null, "\t"   ));
-		var root = src;//netRequire.resolvePath(src, o._module);
-		_debugPaths && doLog("src could be", src);
-		_debugPaths && doLog("root could be", root);
-		_debugPaths && doLog("working root is ", rootPath);
-		try {
-			var file = fs.readFileSync(root, { encoding: 'utf8' });
-		} catch (err) {
-			doLog("File failed... is it a HTTP request?", err);
-			return undefined;
-		}
-		//doLog( o.module.name, "at", rootPath,"is loading", src );
-		//var names = fs.readdirSync( "." );
-		//doLog( names );
-		var pathSplita = src.lastIndexOf("/");
-		var pathSplitb = src.lastIndexOf("\\");
-		if (pathSplita > pathSplitb)
-			var pathSplit = pathSplita;
-		else
-			var pathSplit = pathSplitb;
-
-		if (src.startsWith("./"))
-			rootPath = rootPath + src.substr(2, pathSplit - 2);
-		else if (src.startsWith("../"))
-			rootPath = rootPath + src;//src.substr(2,pathSplit-2 );
-		else
-			rootPath = rootPath + src.substr(0, pathSplit);
 
 		//doLog( "set root", rootPath );
 
@@ -598,10 +630,11 @@ function makeEntity(obj, name, description, callback, opts) {
 		var thisModule = {
 			filename: root
 			, src : src
+			, code : code
 			, source : "/*DebugHIdeenSource"//file
-			, file: netRequire.stripPath(root)
+			, file: strippedFile
 			, parent: o._module
-			, paths: [netRequire.stripFile(root)]
+			, paths: [strippedRoot]
 			, exports: {}
 			, includes : []
 			, loaded: false
@@ -617,16 +650,10 @@ function makeEntity(obj, name, description, callback, opts) {
 
 		o._module = thisModule;
 
-		( _debug_threads || _debug_run ) &&  doLog( o.name, "POSTED CODE TO RUN TO THE OTHER THREAD... AND WE WAIT (upushed to stack", o._module.src );
-			return o.thread.run( {src:src,path:thisModule.paths[0]}, code ).then( (v)=>{
-				_debug_run && console.log( "Run resulted... this is in the core; this should translate the result RuNID... (and pop stack)", v);
-				o._module = oldModule;
-				return v;
-				//doLog( o.name, "RUN RESULT:", v, thisModule.file );
-			}).catch( e=>{
-				o._module = oldModule;
-				//doLog( "Catch error of course?", e );
-			} );
+		runModule( thisModule ).then( ()=>{
+			o._module = oldModule
+		} );
+
 	}
 
 function sandboxRequireResolve(path){
@@ -679,13 +706,16 @@ function Entity(obj,name,desc ) {
 		, thread : null
 		, watchers : new Map()
 		, scripts : { code: [], index : 0, push(c){ this.index++; this.code.push(c)} }
+		, sandbox : {} // enabled methods.
 		, _module: {
 			filename: "internal"
+			, src: null
+			, source : "this"
 			, file: "memory://"
 			, parent: null
 			, paths: [module.path + "/.."]
 			, exports: {}
-			, loaded: false
+			, loaded: true
 			, rawData: ''
 			, includes: []
 		}
@@ -853,15 +883,24 @@ var entityMethods = {
 		}
 		, watch(a) {
 			a = objects.get( a );
-			a.thread && a.watchers.set(this.Λ, this);
+			if( a ) {
+				for( let method of a.sandbox ) {
+					this.emit( "enable", [a.Λ, method] );
+				}
+				a.thread && a.watchers.set(this.Λ, this);
+			}
+		}
+		, ignore(a) {
+			a = objects.get( a );
+			a && a.watchers && a.watchers.delete(this.Λ);
 		}
 		, insert(a) {
 			a.within = this;
 			if( this.thread )
-			this.thread.emit('stored', a.Λ );
+				this.thread.emit('stored', a.Λ );
 			this.contains.forEach( peer=>{
 				if( peer.thread )
-				peer.thread.emit('joined', a.Λ );
+					peer.thread.emit('joined', a.Λ );
 			});
 			this.contains.set( a.Λ, a );
 			if( a.thread )
@@ -926,6 +965,20 @@ var entityMethods = {
 				}
 			}
 		}
+		, enable( method, args, code ) {
+			var ability = { method:method, args:args, code:code };
+			const this_ = this;
+			this.sandbox[method] = ability;
+			this.watchers.forEach( watcher=>{
+				// tell everyone watching this that there's a method...
+				watcher.emit( "enable", [this_.Λ, ability] );
+			} );
+			// tell this thread about its own method...
+			if( this.thread ) this.thread.emit( "enable", [this.Λ, ability] );
+		}
+		, disable( method ) {
+			
+		}
 		, leave(to) {
 			to = objects.get( to );
 			this.rebase(); // free from container
@@ -951,14 +1004,14 @@ var entityMethods = {
 				}
 				grabobj.rebase();
 				this.attach( grabobj );
-            }
+			}
 		}
 		, hold(a) {
 			//doLog( "THing:", this, "A:", a );
 			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ );
 			if( grabobj ) {
 				this.attach( grabobj );
-            }
+			}
 		}
 		, drop(a) {
 			var outer = this.within || (outer = findContained(this).parent );
@@ -982,11 +1035,15 @@ var entityMethods = {
 				console.log( "Object is still attached to you, somehow." );
 			}
 		}
+		, owns(a) {
+			return isOwned( this, a );
+		}
 		, store(a) {
 			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ );
-			
-			if( this.detach( grabobj ) )
-				this.insert( grabobj );
+			if( this.owns( a ) ) {
+				if( this.detach( grabobj ) )
+					this.insert( grabobj );
+			}
 		}
 		, run(file,command) {
 			if( !command ) throw new Error( " PLEASE UPDATE USAGE");
@@ -1008,6 +1065,7 @@ var entityMethods = {
 			this.contains.forEach( c=>{
 				this.within.store( c );
 			} )
+			a.watchers.forEach( e=>e.emit( "delete", a.Λ ) );
 			this.contains = null;
 			this.attached_to = null;
 			this.within = null;
@@ -1057,7 +1115,7 @@ var entityMethods = {
 				+ ',"contains":' + contained
 				+ ',"created_by":"' + this.created_by.Λ
 				//+ ',"code":' + JSOX.stringify( this.sandbox.scripts.code )
-				//+ ',"config":'+ JSOX.stringify( this.sandbox.config )
+				+ ',"_module":'+ JSOX.stringify( this._module )
 				+ '"}\n';
 		}
 		, toRep() {
@@ -1069,8 +1127,8 @@ var entityMethods = {
 				, within: (this.within && this.within.Λ)
 				, attached_to: attached
 				, created_by: this.created_by.Λ
-				, scripts : ( this.sandbox && this.sandbox.scripts.code )
-				, config : (this.sandbox && this.sandbox.config)
+				, sandbox : this.sandbox
+				, _module : this._module
 				, value : this.value
 			};
 			return rep;
@@ -1143,14 +1201,14 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 	// if reload failed, run initCb; else run code already in the thing...
 	//return initCb();
 
-	var file = fc.reload( "core/entities.json", (err, file)=>{
+	var file = fc.reload( "core/entities.jsox", (err, file)=>{
 		if( !file ) return initCb();
 		try {
 			file = fc.Utf8ArrayToStr(file);
 			//doLog( "got:", err, file );
 			var input = JSOX.parse( file );
 		}catch(err) {
-			doLog( "input json is corrupt; defaulting to first run.\n", err)
+			doLog( "input jsox is corrupt; defaulting to first run.\n", err)
 			return initCb();
 		}
 		nextID = input[0].Λ;
@@ -1158,6 +1216,7 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 			var defer = [];
 			doLog( "recovered core entity...", input[0].name );
 			o.value = input[0][o.Λ];
+			
 			if( o.sandbox ) {
 				doLog( "restore scripts to ....", o.sandbox.scripts );
 				o.sandbox.config = input[0].config;
@@ -1165,6 +1224,7 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 				doLog( "closure source?", o.sandbox.scripts.code);
 				for( var c in o.sandbox.scripts.code ) { c.closure = JSOX.parse( c.closure ) }
 			}
+			
 			var executable = [];
 
 			doList( input, 1 );
@@ -1205,7 +1265,7 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 							o.sandbox.config = ths.config;
 							if( ths.scripts.length )
 								executable.push( o );
-							o.sandbox.scripts.code = ths.scripts;
+							o.sandbox.scripts.code = this.scripts;
 							//doLog( "Storing scripts?", ths.scripts )
 						}
 						//doLog( "Created :", ths );
@@ -1260,22 +1320,24 @@ exports.saveAll = function() {
 		var output = [];
 		var o = makeEntity( createdVoid.Λ );
 		recurseSave( o );
+
 		//for( var n = 0; n < output.length; n++ )
 		//		output[n] = output[n].toString();
 		//doLog( "output", output );
-		fc.store( "core/entities.json", JSOX.stringify( output, null, 2 ) )
+		fc.store( "core/entities.jsox", JSOX.stringify( output, null, 2 ) )
 		function recurseSave( o ) {
 			if( saved.get(o.Λ) ) return; // already saved.
 			output.push( o.toRep() );
-			o.attached_to.forEach( a=>recurseSave( a  ) );
+			o.attached_to.forEach( recurseSave );
 			//doLog( "Saving:", o.toString() )
-			o.contains.forEach( a=>recurseSave( a ) );
+			o.contains.forEach( recurseSave );
 			saved.set( o.Λ, o );
 		}
 	}
 
 }
 
+// this 
 	function getObjects(me, src, all, callback) {
 		// src is a text object
 		// this searches for objects around 'me' 
@@ -1285,7 +1347,7 @@ exports.saveAll = function() {
 		// near object.
 		var object = src && src[0];
 		if( !src ) all = true;
-        var name = object && object.text;
+		var name = object && object.text;
 		var count = 0;
 		//var all = false;
 		var run = true;
@@ -1305,7 +1367,7 @@ exports.saveAll = function() {
 		}
 		if (object && (tmp = Number(name)) && object.next && object.next.text == '.') {
 			object = object.next.next;
-            name = object.text;
+            		name = object.text;
 			count = tmp;
 		}
 
@@ -1362,35 +1424,35 @@ exports.saveAll = function() {
 
 		//var command = src.break();
 		//doLog( "get objects for ", me.name, me.nearObjects )
-			var checkList;
+		var checkList;
 
-			if( !("forEach" in me) )
-				checkList = me.nearObjects;
-			else
-				checkList = me;
+		if( !("forEach" in me) )
+			checkList = me.nearObjects;
+		else
+			checkList = me;
 
-			checkList.forEach(function (value, location) {
-				// holding, contains, near
-				//doLog("checking key:", run, location, value)
-				if( !value ) return;
-				if (run) value.forEach(function (value, member) {
+		checkList.forEach(function (value, location) {
+			// holding, contains, near
+			//doLog("checking key:", run, location, value)
+			if( !value ) return;
+			if (run) value.forEach(function (value, member) {
 
-					//doLog( "value in value:", value.name, name );
-					if (value === me) return;
-					if (!object || value.name === name ) {
-						//doLog( "found object", value.name )
-						if (count) {
-							count--;
-							return;
-						}
-						if (run) {
-							//doLog("and so key is ", key, value.name )
-							callback(value.sandbox, location, src &&src.splice(1) );
-							run = all;
-						}
+				//doLog( "value in value:", value.name, name );
+				if (value === me) return;
+				if (!object || value.name === name ) {
+					//doLog( "found object", value.name )
+					if (count) {
+						count--;
+						return;
 					}
-				});
-			})
+					if (run) {
+						//doLog("and so key is ", key, value.name )
+						callback(value.sandbox, location, src &&src.splice(1) );
+						run = all;
+					}
+				}
+			});
+		})
 	}
 
 
@@ -1431,6 +1493,25 @@ function findContainer(obj, checked) {
 		if (result) return result;
 	}
 	return null;//throw new Error("Detached Entity");
+}
+
+function isOwned( owner, obj, checked) {
+	if (obj.within) return false;
+	
+	if (!checked)
+		checked = {};
+	var attached = obj.attached_to[Symbol.iterator]()
+	for (let content of attached) {
+		content = content[1];
+		if( content === owner ) continue; // this object's container doesn't matter.
+		if (checked[content.Λ]) continue; // already checked.
+		checked[content.Λ] = true;
+		if (content.within) return false;
+		var result = isOwned( obj, content, checked);
+		if (result) return result;
+	}
+	// nothing else attached to the object has a container point.
+	return true;
 }
 
 function isContainer(obj, checked, c) {
@@ -1534,7 +1615,7 @@ function sanityCheck(object) {
 
 function saveConfig(o, callback) {
 	//if( !fs.exists( 'core') )
-console.trace( "********SaveConfig Volume" );
+	console.trace( "********SaveConfig Volume" );
 	if (!("vol" in o))
 		o.vol = vfs.Volume(null, config.run.defaults.dataRoot + "/" + o.Λ);
 	if( o.sandbox )		
@@ -1546,7 +1627,7 @@ console.trace( "********SaveConfig Volume" );
 //
 function loadConfig(o) {
 	if( !o.sandbox ) return;
-console.trace( "********LoadConfig Volume" );
+	console.trace( "********LoadConfig Volume" );
 	if (!("vol" in o))
 		o.vol = vfs.Volume(null, config.run.defaults.dataRoot + "/" + o.Λ);
 	{

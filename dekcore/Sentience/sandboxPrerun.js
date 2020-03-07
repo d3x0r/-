@@ -6,6 +6,8 @@ const _debug_command_input = false;
 const _debug_command_post = _debug_commands || false;
 const _debug_command_run = _debug_commands || false;
 
+const f= Object.getPrototypeOf({}).constructor.constructor;
+
 const _debug_events = false;
 const _debug_event_input = _debug_events || false;
 
@@ -140,7 +142,16 @@ function processMessage(msg, stream) {
 	} else if (msg.op === "on") {
 		_debug_event_input && doLog("emit event:", msg);
 		var onEnt = (msg.Λ && makeEntity(msg.Λ)) || entity;
+
+		// this handles argument conversion for known types
+		// it also calls updates of internal cache
 		switch (true) {
+			// this is an internal function, and object does not get
+			// notified for events.
+			case "enable" === msg.on:
+				var onEnt = msg.args[0] && makeEntity(msg.args[0]);
+				onEnt.enable( msg.args[1] );
+				return;
 			case "name" === msg.on:
 				onEnt.cache.name = msg.args;
 				//msg.args = makeEntity( msg.args)
@@ -274,6 +285,17 @@ function makeEntity(Λ) {
 		detach(fromThing) {
 			if ("string" !== typeof fromThing) fromThing = fromThing.Λ;
 			return e.post("detach", fromThing);
+		},
+		enable( ability ) {
+			if( ability.args ) {
+				self[ability.method] = new f( ability.args, ability.code );				
+			} else {
+				const getter = new f( 'val', ability.code );
+				Object.defineProperty(self, ability.method, { configurable:true, enumerable:true, get: getter, set: getter });
+			}
+		},
+		disable( ability ) {
+			delete self[ability.method];
 		},
 		get name() {
 			if (nameCache) return Promise.resolve(nameCache);
@@ -434,7 +456,7 @@ var fillSandbox = {
 		var builtin = builtinModules.find(m => args === m);
 		if (builtin) {
 			if (['vm', 'child_process', 'worker_threads', 'fs'].find(m => m === args)) {
-				throw new Error("Module not found:", + a)
+				throw new Error("Module not found:" + args);
 			}
 			doLog("Including native node builtin module:", args);
 			return builtinModules.require(args);

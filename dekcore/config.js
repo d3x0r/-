@@ -135,6 +135,7 @@ getLocation();
 
 
 function saveConfig(callback) {
+	console.log( "Saving config.run.jsox" );
 	fc.store(  "config.run.jsox", config.run, callback);
 }
 
@@ -164,13 +165,13 @@ function loadConfig(path) {
 				//console.log( "Reloaded config obj....", object)
 				var intern = config.run.internal_addresses;
 				var extern = config.run.addresses;
+				
+				Object.assign(config.run, object);
 
 				file_defaults = Object.assign( config.run.defaults, file_defaults ); // override with file (or we couldn't change settings.)
 
-				Object.assign(config.run, object);
 				config.run.internal_addresses = intern;
 				config.run.addresses          = extern;
-				config.run.defaults           = file_defaults;
 				saveConfig();
 				resume();
 	}

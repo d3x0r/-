@@ -3,14 +3,18 @@ Error.stackTraceLimit = Infinity;
 
 const vm = require('vm' );
 const sack = require( 'sack.vfs' );
+const u8xor = require("./util/u8xor.js")
+const idGenModule = require("./util/id_generator.js")
 const idGen = sack.SaltyRNG.id;
 sack.system.disallowSpawn();
 const hostedVolume = sack.Volume( Λ, null );
+const physicalDisk = sack.Volume();
+
 sack.system.enableThreadFileSystem();
 var config;
 const hostedSqlite = hostedVolume.Sqlite.bind(hostedVolume);
 hostedVolume.Sqlite = (name)=>{
-    return hostedSqlite( name + ":sqlite:" + Λ );
+    return hostedSqlite(  Λ + ":sqlite:" + name);
 }
 hostedVolume.readJSOX( Λ + "config.jsox", (cfg)=>{
     config = cfg;
@@ -52,13 +56,16 @@ const sandbox = vm.createContext( {
     , require: require
     , module:module
     , disk: privateStorage
+	, nativeDisk : physicalDisk
     , console:console
     , process: process
+	, idGen : idGenModule
     //, Buffer: Buffer
     , vmric:(a,b)=>vm.runInContext(a,sandbox,b)
     //, crypto: crypto
     //, config(...args) { returnpost("config",...args); })(); }  // sram type config; reloaded at startup; saved on demand
 });
+sandbox.idGen.u8xor = u8xor;
 sandbox.sandbox = sandbox;
 
 /* Seal Sandbox */

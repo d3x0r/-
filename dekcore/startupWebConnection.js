@@ -7,13 +7,19 @@ function localClientFilter(options) {
         options.decodeStrings = false;
                 stream.Duplex.call(this,options)
     }
-
+    var isPrompt = false;
     util.inherits(localClientFilter, stream.Duplex)
 
     localClientFilter.prototype._read = function( size ) {}
+    localClientFilter.prototype.prompt = function( s ) {
+        isPrompt = true;
+        this.write( s );
+    }
 
     localClientFilter.prototype._write = function( chunk, decoding, callback ) {
-        this.ws.send( JSON.stringify( {op:'write', data:chunk.toString( 'utf8' )} ) );
+
+        this.ws.send( JSON.stringify( {op:'write', prompt:isPrompt, data:chunk.toString( 'utf8' )} ) );
+        isPrompt= false;
         callback();
     }
 
@@ -35,6 +41,9 @@ return require("sack.vfs" ).then(sack=>{
                 //var cmd = commandFilter.Filter();
                 g.io.output = (out)=>{
                     output.write( out );
+                }
+                g.io.prompt = (prompt)=>{
+                    output.prompt(prompt);
                 }
                 //nl.connectInput( process.stdin );
                 nl.connectOutput( shell.filter );

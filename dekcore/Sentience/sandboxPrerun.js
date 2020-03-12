@@ -20,7 +20,6 @@ const id = sack.SaltyRNG.id;
 const path = require('path');
 const wt = require('worker_threads');
 const njs_module = require('module');
-const idGen = require("./util/id_generator.js")
 
 const builtinModules = njs_module.builtinModules.slice(0);
 builtinModules.require = require;
@@ -85,7 +84,7 @@ function processMessage(msg, stream) {
 				res.then(
 					(realResult) => {
 						_debug_command_run && doLog( "Promised result from code:", realResult );
-						//_debug_commands && 
+						//_debug_commands &&
 						//doLog( "And post result.", pendingRequire, realResult );
 						if (pendingRequire) {
 							_debug_requires && sack.log( util.format("This is in a pending require for:?", code.file.src) )
@@ -211,7 +210,7 @@ function processMessage(msg, stream) {
 		pendingOps.splice(responseId, 1);
 		if (msg.op === 'f' || msg.op === 'g' || msg.op === 'e' || msg.op === 'h') {
 			_debug_commands && reply(util.format("Resolve.", msg, response));
-			
+
 			response.resolve(msg.ret);
 		} else if (msg.op === 'error') {
 			_debug_commands && doLog(util.format("Reject.", msg, response));
@@ -337,7 +336,7 @@ function makeEntity(Λ) {
 		get holding() {
 			return e.nearObjects.then(near =>  Promise.resolve(near.get("holding"))  );
 		},
-	
+
 		get nearObjects() {
 			//console.log( "Get near objects" );
 			if (nearCache) return Promise.resolve(nearCache);
@@ -407,8 +406,6 @@ function makeEntity(Λ) {
 function killEntity(e) {
 	objects.delete(e.Λ);
 	return e.post("unwatch", e.Λ);
-
-
 }
 
 var required = [];
@@ -480,14 +477,14 @@ var fillSandbox = {
 				return prior.object;
 			}
 		}
-		_debug_requires && doLog("Global New Require:", args, codeStack //, new Error().stack 
+		_debug_requires && doLog("Global New Require:", args, codeStack //, new Error().stack
 		);
 		pendingRequire = true;
 		return self.post("require", args).then(ex => {
 			( _debug_requires || _debug_command_run ) && doLog("Read and run finally resulted, awated on post require", ex, codeStack, new Error().stack );
 			if( "number" === typeof ex ){
 				var ex3 = codeStack[ex].result;
-				//doLog( "Require finally resulted?",args, ex, ex3 ); 
+				//doLog( "Require finally resulted?",args, ex, ex3 );
 				required.push({ src: args, object: ex3 });
 				return ex3;
 			} else {
@@ -708,8 +705,8 @@ var fillSandbox = {
 	}
 	, async getObjects(me, src, all, callback) {
 		// src is a text object
-		// this searches for objects around 'me' 
-		// given the search criteria.  'all' 
+		// this searches for objects around 'me'
+		// given the search criteria.  'all'
 		// includes everything regardless of text.
 		// callback is invoked with value,key for each
 		// near object.
@@ -874,11 +871,8 @@ function finishFill(sandbox) {
 	sandbox.clearImmediate = sandbox.clearTimeout;
 	sandbox.clearInterval = sandbox.clearInterval;
 
-	var u8xor = require("./util/u8xor.js")
 
 	sandbox.permissions = {};
-	sandbox.idGen.u8xor = u8xor;
-	sandbox.idGen.xor = null;//entity.idMan.xor;
 	sandbox.config = {};
 	sandbox.config.run = { Λ: null };
 
@@ -886,7 +880,7 @@ function finishFill(sandbox) {
 	//entity.idMan.ID( entity.idMan.localAuthKey, o.created_by.Λ, (id)=>{ sandbox.config.run.Λ = id.Λ } );
 	//sandbox.require=  sandboxRequire.bind(sandbox);
 	sandbox.require.resolve = function (path) {
-		//_debug_requires && 
+		//_debug_requires &&
 		_debug_requires && doLog("SANDBOX:", sandbox.module.paths, codeStack, path)
 		var tmp;
 		if (sandbox.module.paths[sandbox.module.paths.length - 1])
@@ -905,7 +899,7 @@ function finishFill(sandbox) {
 		tmp = tmp.replace(/[^/\\]*[/\\]\.\.$/, '');
 		_debug_requires && doLog("Resolved path:", tmp);
 		return tmp;
-		//return (async () => { return await e.post("resolve",...args); })(); 
+		//return (async () => { return await e.post("resolve",...args); })();
 	};// sandboxRequireResolve.bind( sandbox );
 	sandbox.global = sandbox;
 	sandbox.addListener = sandbox.on;
@@ -984,7 +978,7 @@ function finishFill(sandbox) {
 		// entities that want to use the VFS will have to be relocated to their local path
 		return function (name, path, v, a, b) {
 			//console.log("what's config?", config);
-			if( name === undefined ) 
+			if( name === undefined )
 				return orig();
 			var privatePath = dataRoot + "/" + config.run.Λ + "/" + path;
 			//console.log("Volume overrride called with : ", name, dataRoot + "/" + config.run.Λ + "/" + path, orig);
@@ -1059,7 +1053,7 @@ var dirCache;
 	]
 
 	}
-	files : [ 
+	files : [
 		{ name : "blah", versions: [], size:0, date:new Date()}
 	]
 }

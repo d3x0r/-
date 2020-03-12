@@ -77,7 +77,7 @@ function read_command(entity, options_) {
 
 	};
 
-// only one instance of this so.... 
+// only one instance of this so....
 function updateCommands( stree, commands, newcmd ) {
 	var cmd = commands[newcmd];
 	var id = newcmd;
@@ -139,7 +139,7 @@ function updateCommands( stree, commands, newcmd ) {
 						break;
 					}
 					// if the command is the same as n, or isn't longer, don't delete it.
-					// 'inv' 'inv2' 
+					// 'inv' 'inv2'
 					else if( oc.name.length > n ) {
 						// replace with a new one.
 						//sack.log( "Deleting and replacing with conflict handler");
@@ -187,7 +187,7 @@ function updateCommands( stree, commands, newcmd ) {
 				var nextEndTokenForce = false;
 				debug_finishPhrase && console.log( `word ${JSON.stringify(word.text)}`)
 				var check;
-				// contained closures should close outers... 
+				// contained closures should close outers...
 
 				if( cur.force ){
 					if( escape ){
@@ -227,7 +227,7 @@ function updateCommands( stree, commands, newcmd ) {
 					break;
 				}
 
-					// don't start inner states... 
+					// don't start inner states...
 				if( !cur.force ) {
 					if( word.text === '(')
 						nextEndTokenForce = !(nextEndToken = ')');
@@ -301,9 +301,8 @@ function updateCommands( stree, commands, newcmd ) {
 				this_.push( state.words.toString() );
 			state.words = null;
 		}
-		this_.push( "\nEnter Command: " );
 	}
-	
+
 	function processCommandLine( line ){
 		var word = line;
 		//console.log( "processCommandLine : ", line.toString() )
@@ -324,7 +323,7 @@ function updateCommands( stree, commands, newcmd ) {
 	}
 	var inError = false;
 	function _processCommand ( word )
-	{   
+	{
 
 		function saveword(){
 			if( !state.words ) state.words = word;
@@ -378,13 +377,13 @@ function updateCommands( stree, commands, newcmd ) {
 			//    console.log( "getting args - word ", state.words.toString() )
 			if( word.text  ) {
 				if( !word.spaces && state.words ) {
-					// if there's already words, and there's no space, then 
+					// if there's already words, and there's no space, then
 					// just add this (and return)
 					saveword();
 					//console.log( "already had a word, and this just needs to be appended...");
 					return;
 				}
-				
+
 				if( state.words && state.words.last.indirect ) {
 					// console.log( "terminator of prior indirect...")
 					// spaces at end of indirect are internal to the indirect; and should be ignored.
@@ -392,7 +391,7 @@ function updateCommands( stree, commands, newcmd ) {
 					saveword(); // last word is indirect, keep this with it as closing token.
 					return;
 				}
-	
+
 				// word breaks create arguments.
 				if( word.spaces && state.words ) {
 					state.args.push( state.words );
@@ -420,30 +419,30 @@ function updateCommands( stree, commands, newcmd ) {
 				//entity.send( {op:"out", out:"(post via thread port)Command Done."});
 				//entity.send( {op:"echo", echo:"out", out1:"(post via thread port)Command Done."});
 
-				if( err_ )
-					console.log( "COmmand Error:", err_ );
+				if( err_ ) console.log( err_.message );
 				//console.log( "args is empty ", state.args );
 				state.state = states.getCommand;
-				if( err_ ) throw err_;
+				// above this point, is just input and stream handling, noone would care to catch this.
+				//if( err_ ) throw err_;
 			}
 			break;
 		default:
 			// send null for EOF
-			if( word.text ){ 
+			if( word.text ){
 				saveword()
 			}
 			break;
 		}
-		return 
+		return
 	}
-	
+
 
 	function buildPhrases( words ) {
 		//var cur = { here : words, parent : null };
 		finishPhrase( words, null );
 		return words;
 	}
-		
+
 }
 
 
@@ -467,19 +466,22 @@ if( "undefined" !== typeof Λ ) {
 			try {
 				debug_input && console.log( new Error().stack, "command transform Process:", chunk.toString());
 				this.processCommand( chunk );
-				//console.log( "Stream processing done on that command...");
+
 			} catch(err) {
-				console.trace( "read command transform caught error...", chunk, err )
-				this.push( err.toString() + "\n"+err.stack );
+				//sack.log( util.format( "read command transform caught error...", chunk, err ) );
+				this.push( err.message );
 			}
+			if( io.prompt )
+				io.prompt( "\nEnter Command: ");
+			else
+				this.push( "\nEnter Command: " );
+
 			callback()
 		}
-		
-		
+
+
 		read_command.prototype._flush = (callback) => { console.log( "stream flush?" ); callback(); }
-		
+
 		read_command.prototype.setLastTell = (lastTold) => { this.lastTold = lastTold }
-		
+
 }
-
-

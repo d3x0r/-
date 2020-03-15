@@ -1,0 +1,38 @@
+<HTML>
+<HEAD>
+<title>
+Color Picker Simple
+</title>
+</HEAD>
+
+<BODY>
+
+<DIV style="display:inline-block">
+<CANVAS ID="colorMatrix" WIDTH=256; HEIGHT=276 style="width:25vw;height:25vw" ></CANVAS> 
+<BR>
+(RGB - Slider is green level)
+</DIV>
+<DIV style="display:inline-block">
+  <input type="range" min="0" max="255" value="128" class="slider" id="topLevel" style="-webkit-appearance:slider-vertical"> 
+  <BR>(Green Level)
+</DIV>
+<DIV style="display:inline-block">
+<CANVAS ID="colorMatrixH" WIDTH=256; HEIGHT=276 style="width:25vw;height:25vw" ></CANVAS> 
+<BR>
+(HSL, slider is Hue)
+</DIV>
+<DIV style="display:inline-block">
+<CANVAS ID="colorMatrixL" WIDTH=256; HEIGHT=276 style="width:25vw;height:25vw" ></CANVAS> 
+<BR>
+ (HSL, slider is Lightness)
+</DIV>
+<BR><DIV ID="colorRect" WIDTH=10 HEIGHT=10 style="display:inline-block;width:25vw;height:5vw"></DIV><DIV ID="colorRectLock" WIDTH=10 HEIGHT=10 style="display:inline-block;width:25vw;height:5vw"></DIV><BR><BR>
+<A HREF="index2.html">HSL Cube (L Slider)</A>
+<BR>
+<A HREF="index3.html">HSL Cube (H Slider)</A>
+
+</BODY>
+<SCRIPT src="colorPicker4.js"></SCRIPT>
+</HTML>
+
+

@@ -10,6 +10,7 @@ if( "undefined" === typeof Λ) {
  exports.u8xor=u8xor;
 
 } else {
+	console.log( "Asyn id_generator.js...");
 	async function f() {
 	  const arequire = await require( "../../org.d3x0r.common/salty_random_generator.js");
 	  SRG=arequire;
@@ -345,8 +346,8 @@ function txor(a,b) {
 exports.u16xor=txor;
 
 function makeXKey( key, step ) {
-    return { key : key, keybuf: key?Buffer.from(key,'utf8'):null, step: step?step:0
-	, setKey(key,step) { this.key = key; this.keybuf = Buffer.from(key,'utf8'); this.step = step?step:0; } };
+    return { key : key, keybuf: key?base64ArrayBuffer(key):null, step: step?step:0
+	, setKey(key,step) { this.key = key; this.keybuf = DecodeBase64( new Uint8Array(Math.ceil(key.length*3/4)), key); this.step = step?step:0; } };
 }
 
 function makeU16Key( ) {

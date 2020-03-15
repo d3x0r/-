@@ -416,7 +416,7 @@ var fillSandbox = {
 	//, util:util
 	, wsThread: sack.WebSocket.Thread
 	, waiting: []
-	, module: { paths: [codeStack.length ? codeStack[codeStack.length - 1].file.path : module.path], parent: true }
+	//, module: { paths: [codeStack.length ? codeStack[codeStack.length - 1].file.path : module.path], parent: true }
 	//, Function : Function
 	//, eval: eval
 	, post(name, ...args) {
@@ -445,8 +445,8 @@ var fillSandbox = {
 		return p;
 		/*block*/
 	}
-	, async require(args) {
-		_debug_requires && doLog("This is a thread that is doing a require in itself main loop", args, new Error().stack);
+	, async require(args, path) {
+		_debug_requires && doLog("This is a thread that is doing a require in itself main loop", args, path, new Error().stack);
 		if (args === "sack") return sack;
 		if (args === "sack.vfs") return sack;
 		if (args === "vm") return vm;
@@ -461,7 +461,7 @@ var fillSandbox = {
 			doLog("Including native node builtin module:", args);
 			return builtinModules.require(args);
 		}
-		args = self.require.resolve(args);
+		//args = self.require.resolve(args);
 		_debug_requires && doLog("This is STILL a thread in itself main loop", args);
 		if (args.includes("undefined"))
 			doLog("Failed!", args);
@@ -480,7 +480,8 @@ var fillSandbox = {
 		_debug_requires && doLog("Global New Require:", args, codeStack //, new Error().stack
 		);
 		pendingRequire = true;
-		return self.post("require", args).then(ex => {
+		console.log( "posting require...", args );
+		return self.post("require", {src:args,from:path} ).then(ex => {
 			( _debug_requires || _debug_command_run ) && doLog("Read and run finally resulted, awated on post require", ex, codeStack, new Error().stack );
 			if( "number" === typeof ex ){
 				var ex3 = codeStack[ex].result;
@@ -926,7 +927,7 @@ function finishFill(sandbox) {
 						if (args.length) args += ",";
 						args += JSOX.stringify(arg)
 					})
-					entity.idMan.ID(o.Λ, me, (id) => {
+					self.idMan.ID(o.Λ, me, (id) => {
 						var pending = { id: id, op: "driver", driver: name, data: { type: "driverMethod", method: key, args: args } }
 						o.child.send(pending);
 						childPendingMessages.set(id, pending)

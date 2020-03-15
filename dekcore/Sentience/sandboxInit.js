@@ -47,7 +47,6 @@ function Function() {
 function eval() {
     throw new Error( "Please use other code import methods.");
 }
-
 const sandbox = vm.createContext( {
     Λ : Λ
     , sandbox : null

@@ -23,6 +23,50 @@ const vol = vfs.Volume();
 const vfsNaked = require('sack.vfs');
 const JSOX = sack.JSOX;
 
+JSOX.registerToJSOX( "entity", Entity.prototype, function(){
+	console.log( "ToJSOX?", this );
+	return this.toString();
+
+
+})
+JSOX.fromJSOX( "entity", Entity.prototype, function(field,val){
+	if( !field ) {
+		objects.set( this.Λ, this );
+			console.log( "Get:", this.within );
+			val = objects.get( this.within );
+			console.log( "Got:", !!val );
+			if( val )
+				val.contains.set( this.Λ, this );
+		return this;
+	}
+	if( field === "attached_to" ) {
+		
+		this.attached_to.forEach( e=>{
+			e = objects.get(e);
+			this.attached_to.set( e.Λ, e );
+		})
+		return;
+	}
+	if( field === "created_by") {
+		//console.log( "This is just bad... no cread?", this, field, val );
+		if( !val )  console.log ( "LOST VAL", val, field );
+		val = objects.get( val );
+		if( val && val.created )
+			val.created.push(this);
+	}
+	//console.log( "Assinging to this:", this, field, val );
+	this[field] = val;
+} );
+JSOX.defineClass( "entity", { Λ:null
+	, name: null
+	, description: null
+	, within: null
+	, attached_to: null
+	, created_by: null
+	, sandbox : null
+	, _module : null
+	, value : null
+} )
 // this is used to generate an http request to the real core(if there is one?)
 const netRequire = require('../util/myRequire.js');
 
@@ -53,9 +97,10 @@ const wake = require('../Sentience/wake');
 //const idMan = require('../id_manager.js');
 
 const ee = events.EventEmitter;
-var objects = [];
+var objects = new Map();
 var remotes = new WeakMap();
 var childPendingMessages = new Map();
+const requireCache = new Map();
 
 /*
 JSOX.defineClass( "Entity", { name:null } );
@@ -258,7 +303,6 @@ const volOverride = `(function(vfs, dataRoot) {
 
 
 //var all_entities = new WeakMap();
-var objects = new Map();
 
 var drivers = [];
 
@@ -277,7 +321,7 @@ function sealEntity(o) {
 	//doLog( "before sealing:", JSOX.stringify(o ) );
 	[ //"container", 
 		//"contents", 
-		"attached_to", "created", "created_by"
+		"attached_to", "created", "created_by", "owner", "save"
 	].forEach(key => {
 		Object.defineProperty(o, key, { enumerable: true, writable: true, configurable: false });
 	})
@@ -314,6 +358,7 @@ function makeEntity(obj, name, description, callback, opts) {
 		return named;
 	}
 	//doLog("Called with obj:", name, description, JSOX.stringify(obj,null,"\t"), JSOX.stringify(createdVoid,null,"\t"));
+	console.trace( "Clearing obj...", !!obj);
 
 	if (typeof (obj) === "string") {
 		//doLog( "resolve obj as entity ID")
@@ -321,8 +366,10 @@ function makeEntity(obj, name, description, callback, opts) {
 		//if( obj ) return obj;
 		//doLog( "resolve obj as entity ID", obj)
 	}
+	console.log( "Clearing obj...", !!obj);
 
 	if (obj && !obj.Λ) {
+		console.log( "Clearing obj...");
 		base_require = require;
 		obj = null;
 	}
@@ -338,8 +385,11 @@ function makeEntity(obj, name, description, callback, opts) {
 		return;
 	}
 	if (!obj) {
-		if( !entity.idMan ) { config.start(() => { makeEntity(obj, name, description, callback, opts) })
-			return }
+		if( !entity.idMan ) { 
+			console.log( "Entity required an id manager (idMan=", entity.idMan );
+			config.start(() => { makeEntity(obj, name, description, callback, opts) })
+			return 
+		}
 		if( exports.theVoid ) {
 			if( theVoid ) 
 				throw new Error( "User corrupted entity interface" );
@@ -419,27 +469,28 @@ function makeEntity(obj, name, description, callback, opts) {
 
 }
 
-	function runModule( thisModule ) {
+	function runModule( o, thisModule ) {
 		( _debug_threads || _debug_run ) &&  doLog( o.name, "POSTED CODE TO RUN TO THE OTHER THREAD... AND WE WAIT (upushed to stack", o._module.src );
-		return o.thread.run( {src:src,path:thisModule.paths[0]}, thisModule.code ).then( (v)=>{
+		return o.thread.run( {src:thisModule.src,path:thisModule.paths[0]}, thisModule.code ).then( (v)=>{
 			_debug_run && console.log( "Run resulted... this is in the core; this should translate the result RuNID... (and pop stack)", v);
-			o._module = oldModule;
+			o._module = o._module.parent;
 			return v;
-			//doLog( o.name, "RUN RESULT:", v, thisModule.file );
 		}).catch( e=>{
-			o._module = oldModule;
+			o._module = o._module.parent;
 			//doLog( "Catch error of course?", e );
 		} );
 	}
 
 
-	function sandboxRequire(o,src) {
+	function sandboxRequire(o,src,parentPath) {
 		if( !o || !src )
 			console.trace( "FIX THIS CALLER this is", o, src );
 
 		//var o = this ; //makeEntity( this.me );
-		_debug_require && console.trace("sandboxRequire ",  src );
+		_debug_require && console.log("sandboxRequire ",  src, parentPath );
 		//doLog( "module", o.sandbox.module );
+
+/*		
 		if (src === "entity.js") return exports;
 		if (src === "shell.js") return exports.Sentience;
 		if (src === "text.js") return text;
@@ -490,42 +541,30 @@ function makeEntity(obj, name, description, callback, opts) {
 					doLog( "VM Error:", err );
 				}
 			}
-			*/
+			* /
 			return vfs;
 			//return o.sandbox._vfs;
 		}
+		*/
 
-		var rootPath = "";
 		// resolves path according to relative path of parent modules and resolves ".." and "." parts
-		_debugPaths && doLog( o.name, JSOX.stringify( o._module,null, "\t"   ));
-		var root = src;//netRequire.resolvePath(src, o._module);
-		_debugPaths && doLog("src could be", src);
-		_debugPaths && doLog("root could be", root);
-		_debugPaths && doLog("working root is ", rootPath);
+		//_debugPaths && doLog( o.name, JSOX.stringify( o._module,null, "\t"   ));
+		parentPath = parentPath && requireCache.get( parentPath ).paths[0];
+		_debugPaths && console.log( "ParentPath:", parentPath )
+
+		var root = (parentPath?parentPath+'/':'')+src;//netRequire.resolvePath(src, o._module);
+		_debugPaths && console.log( "ParentPath root...:", root )
 		try {
 			var file = fs.readFileSync(root, { encoding: 'utf8' });
 		} catch (err) {
 			doLog("File failed... is it a HTTP request?", err);
 			return undefined;
 		}
-		//doLog( o.module.name, "at", rootPath,"is loading", src );
-		//var names = fs.readdirSync( "." );
-		//doLog( names );
-		var pathSplita = src.lastIndexOf("/");
-		var pathSplitb = src.lastIndexOf("\\");
-		if (pathSplita > pathSplitb)
-			var pathSplit = pathSplita;
-		else
-			var pathSplit = pathSplitb;
-
-		if (src.startsWith("./"))
-			rootPath = rootPath + src.substr(2, pathSplit - 2);
-		else if (src.startsWith("../"))
-			rootPath = rootPath + src;//src.substr(2,pathSplit-2 );
-		else
-			rootPath = rootPath + src.substr(0, pathSplit);
+			
 		const strippedFile = netRequire.stripPath(root);
+		
 		const strippedRoot = netRequire.stripFile(root);
+		_debugPaths && doLog("root could be", root, strippedFile, strippedRoot );
 
 		var reloaded = o._module.includes.find( (module)=>{
 			if( module.src === src || module.file === strippedFile )
@@ -535,7 +574,7 @@ function makeEntity(obj, name, description, callback, opts) {
 		} );
 		if( reloaded ) {
 			console.log( "Entity already had the code for this module... running immediate" );
-			return runModule( reloaded );
+			return runModule( o, reloaded );
 		}
 		//doLog( "blah", o.sandbox.scripts)
 
@@ -567,7 +606,7 @@ function makeEntity(obj, name, description, callback, opts) {
 				//doLog( "NEW MODULE HERE CHECK PATHS:", cache.closure.paths, cache.closure.filename )
 
 				oldModule.includes.push( thisModule );
-				//        { name : src.substr( pathSplit+1 ), parent : o.module, paths:[], root : rootPath, exports:{} };
+				//        { name : src.substr( pathSplit+1 ), parent : o.module, paths:[], exports:{} };
 				//oldModule.children.push( thisModule );
 				doLog( "THIS IS ANOHER RUN THAT SETS o_MODULE");
 				o._module = thisModule;
@@ -610,17 +649,14 @@ function makeEntity(obj, name, description, callback, opts) {
 		}
 
 
-		//doLog( "set root", rootPath );
-
 		const filePath = netRequire.stripFile(root);
 		//doLog( "This will be an async function...posted to run..." );
 		var code =
-			['(async function() { var module={ path:'+ JSON.stringify(filePath) +',src:'+ JSON.stringify(src) +',parent:{},exports:{}}; '
-				, 'this.module.paths.push(' + JSON.stringify(filePath)  + ");"
-				, 'await (async function(global,exports,module,resume){'
+			['(async function() { var module={ path:'+ JSON.stringify(filePath) +',src:'+ JSON.stringify(src) 
+				+',parent:'+ JSON.stringify(root)  +',exports:{}, require(what){return global.require(what,module.parent); }}; '
+				, 'await (async function(global,exports,module,resume,require){'
 				, file
-				, '}).call(this,this,module.exports,module,false );'
-				, 'this.module.paths.pop();'
+				, '}).call(this,this,module.exports,module,false,module.require );'
 				//, 'console.log( "Returning exports(not undefined:)", module.exports );'
 				, 'return module.exports;})().catch(err=>{doLog( "caught require error:", err)})\n//# sourceURL='
 				, root
@@ -649,9 +685,11 @@ function makeEntity(obj, name, description, callback, opts) {
 		oldModule.includes.push( thisModule );
 
 		o._module = thisModule;
-
-		runModule( thisModule ).then( ()=>{
+		requireCache.set( thisModule.filename, thisModule );
+		return runModule( o, thisModule ).then( (a)=>{
+			console.log( "Run of src:", src, "finished... (pop current stack?)", a );
 			o._module = oldModule
+			return a;
 		} );
 
 	}
@@ -693,6 +731,7 @@ function Entity(obj,name,desc ) {
 		, contains: new Map()//[]
 		, created_by: null
 		, created: []
+		, owner : null 
 		, loaded: false
 		, has_value: false
 		, value: null
@@ -704,6 +743,7 @@ function Entity(obj,name,desc ) {
 		, child : null // child process
 		, vol: null
 		, thread : null
+		, save : false
 		, watchers : new Map()
 		, scripts : { code: [], index : 0, push(c){ this.index++; this.code.push(c)} }
 		, sandbox : {} // enabled methods.
@@ -720,11 +760,13 @@ function Entity(obj,name,desc ) {
 			, includes: []
 		}
 	}
-	o.created_by = obj || o;
-	o.created_by.created.push( o );
+	o.created_by = obj || this;
+	//console.log( "o.created_by:", o.created_by, obj, this )
 
 	Object.assign( this, o );
+	this.created_by.created.push( o );
 
+	if( !exports.theVoid ) theVoid = exports.theVoid = this;
 	//Object.assign(o, ee.prototype); ee.call(o);
 	//return o;
 }
@@ -1073,8 +1115,11 @@ var entityMethods = {
 			entity.idMan.delete( this.Λ, config.run.Λ );
 		}
 		, require (file) { 
-			//doLog( "calling sandbox require...", file);
-			return sandboxRequire(this,file)
+			if( "object" === typeof file ){
+				_debug_require && doLog( "calling sandbox require...", file);
+				return sandboxRequire(this,file.src, file.from);
+			} else
+				return sandboxRequire(this,file );
 		 }
 		, postRequire( src  ){
 			//var o = objects.get( Λ );
@@ -1098,11 +1143,14 @@ var entityMethods = {
 		}
 		, toString() {
 			var attached = null;
-			this.attached_to.forEach((member) => { if (attached) attached += '","'; else attached = ' ["'; attached += member.Λ })
-			if (attached) attached += '"]';
-			else attached = '[]';
+			if( this.attached_to ) {
+				this.attached_to.forEach((member) => { if (attached) attached += '","'; else attached = ' ["'; attached += member.Λ })
+				if (attached) attached += '"]';
+				else attached = '[]';
+			} else attached = "don't stringify me";
 
 			var contained = null;
+			if( this.contains ){
 			this.contains.forEach((member) => { if (contained) contained += '","'; else contained = ' ["'; contained += member.Λ })
 			if (contained) contained += '"]';
 			else contained = '[]';
@@ -1117,6 +1165,7 @@ var entityMethods = {
 				//+ ',"code":' + JSOX.stringify( this.sandbox.scripts.code )
 				+ ',"_module":'+ JSOX.stringify( this._module )
 				+ '"}\n';
+			}
 		}
 		, toRep() {
 			var attached = [];
@@ -1157,7 +1206,18 @@ var entityMethods = {
 		var descriptor = Object.getOwnPropertyDescriptor(entityMethods, prop);
 		Object.defineProperty(Entity.prototype, prop, descriptor);
 	});
+	Object.defineProperty(Entity.prototype, "saved", { enumerable: false, configurable: false
+		, get(){ return this.save; }
+		, set(val){ 
+			//console.log( "Key Saved?", this, val)
+			if( val ) {
+				this.save = val;
+				/* do we require any other things to be saved because this is saved? */
+			}
+		} }
+	);
 	
+		
 
 Entity.fromString = function(s) {
 	s = JSOX.parse(s);
@@ -1203,6 +1263,7 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 
 	var file = fc.reload( "core/entities.jsox", (err, file)=>{
 		if( !file ) return initCb();
+		console.log( "INPUT:", file.toString() );
 		try {
 			file = fc.Utf8ArrayToStr(file);
 			//doLog( "got:", err, file );
@@ -1212,17 +1273,18 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 			return initCb();
 		}
 		nextID = input[0].Λ;
+		doLog( "recovered core entity...", !!entity.theVoid, !!theVoid, entity.theVoid === theVoid );
+		console.log( "References:", input );
 		makeEntity( null, input[0].name, input[0].description, (o)=>{
 			var defer = [];
-			doLog( "recovered core entity...", input[0].name );
 			o.value = input[0][o.Λ];
 			
 			if( o.sandbox ) {
 				doLog( "restore scripts to ....", o.sandbox.scripts );
-				o.sandbox.config = input[0].config;
-				o.sandbox.scripts.code = input[0].scripts;
-				doLog( "closure source?", o.sandbox.scripts.code);
-				for( var c in o.sandbox.scripts.code ) { c.closure = JSOX.parse( c.closure ) }
+				//o.sandbox.config = input[0].config;
+				//o.sandbox.scripts.code = input[0].scripts;
+				//doLog( "closure source?", o.sandbox.scripts.code);
+				//for( var c in o.sandbox.scripts.code ) { c.closure = JSOX.parse( c.closure ) }
 			}
 			
 			var executable = [];
@@ -1261,24 +1323,15 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 						}
 
 						if( o.sandbox ) {
-							doLog( "restoring scripts")
+							doLog( "restoring scripts?", ths)
 							o.sandbox.config = ths.config;
-							if( ths.scripts.length )
+							if( ths.scripts && ths.scripts.length )
 								executable.push( o );
-							o.sandbox.scripts.code = this.scripts;
+							//o.sandbox.scripts.code = ths.scripts;
 							//doLog( "Storing scripts?", ths.scripts )
 						}
 						//doLog( "Created :", ths );
 					})
-				}
-				for( var n = start; n < list.length; n++ ) {
-					ths.attached_to.find( (a)=>{
-						var ae = makeEntity(a);
-						if( !ae ) return true;
-						// attach method will fail, because one and or the other has no parent.
-						ae.attached_to.set( ths.entity.Λ, ths.entity );
-						ths.entity.attached_to.set( ae.Λ, ae );
-					} );
 				}
 			}
 
@@ -1315,6 +1368,7 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 }
 
 exports.saveAll = function() {
+
 	if( createdVoid ) {
 		var saved = new Map();
 		var output = [];
@@ -1323,15 +1377,18 @@ exports.saveAll = function() {
 
 		//for( var n = 0; n < output.length; n++ )
 		//		output[n] = output[n].toString();
-		//doLog( "output", output );
+		doLog( 'output  "core/entities.jsox"', output );
 		fc.store( "core/entities.jsox", JSOX.stringify( output, null, 2 ) )
 		function recurseSave( o ) {
 			if( saved.get(o.Λ) ) return; // already saved.
-			output.push( o.toRep() );
+			if( o.save ) {
+				output.push( o.toRep() );
+			}
+			saved.set( o.Λ, o );
 			o.attached_to.forEach( recurseSave );
 			//doLog( "Saving:", o.toString() )
 			o.contains.forEach( recurseSave );
-			saved.set( o.Λ, o );
+			o.created.forEach( recurseSave );
 		}
 	}
 

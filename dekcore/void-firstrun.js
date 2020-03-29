@@ -33,18 +33,23 @@ function BigBang() {
 	}
 	//console.log( "Creating the void....");
 	Entity.create( null, "The Void", "Glistening transparent black clouds swirl in the dark.", (o)=>{
+		o.saved = true;
 		console.log( "Creating first entity" );
 		config.run['The Void'] = o.Λ;
 
 		o.create( "MOOSE", "Master Operator of System Entites.", (o)=>{
 			config.run.MOOSE = o.Λ;
+			o.saved = true;
 			config.commit();
 			console.log( "Got moose created..." );
 				o.wake().then( (thread)=>{
-				console.log( "Got thread?", thread );
+					console.log( "Got thread?", thread );
 					process.stdin.pipe( thread.worker.stdin );
 					console.log( "requiring start script", startScript );
-					o.require( startScript );
+					o.require( startScript ).then( (r)=>{
+						console.log( "Hmm, what doe shtis result?", r );
+						Entity.saveAll();
+					});
 				}).catch( (err) =>{
 					console.log( "MOOSE Startup Wake failed:", err );
 				})

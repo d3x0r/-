@@ -69,12 +69,15 @@ function WakeEntity( e, noWorker ) {
                                 e.thread.post( { op:'error',id:msg.id,error:"Unknown Thing:"+msg.f,stack:"Stack.." } );
                                 return;
                         }
+                        //console.log( "Doing:", msg.f );
                         var r = e[msg.f].apply(e,msg.args)
                         if( r instanceof Promise )
                             r.then((r)=> e.thread.post( {op:msg.op,id:msg.id,ret:r} ) )
                                 .catch((err)=>e.thread.post( { op:'error',id:msg.id,error:err,stack:err.stack } ) );
-                        else
+                        else {
+                            sack.log( util.format( "it's a promise but not?", r ));
                             e.thread.post( {op:msg.op,id:msg.id,ret:r} );
+                        }
                     }
                 } else if( msg.op == 'e' ) {
                     var o = Entity.makeEntity( msg.o );
@@ -88,7 +91,14 @@ function WakeEntity( e, noWorker ) {
                         var r = f.apply(o, msg.args);
                         _debug_entity_command_handling && console.log( "Done with that method...", msg.e, msg.id );
                         if( r instanceof Promise ) {
-                            r.then( (r)=>e.thread.post({op:msg.op,id:msg.id,ret:r}) )
+                            r.then( (r)=>{
+                                    //sack.log( util.format( "Promise result should be an integer here:", new Error().stack,msg, r ));
+                                    
+                                    if( msg.e === "wake" )// native wake now results with the thread instead of true/undefined
+                                        e.thread.post({op:msg.op,id:msg.id,ret:!!r}) 
+                                    else
+                                        e.thread.post({op:msg.op,id:msg.id,ret:r}) 
+                                })
                                 .catch((err)=>e.thread.post( {op:'error',id:msg.id,error:err,stack:err.stack}));
                         } else {
                             //console.log( "And then r = ",r);
@@ -136,7 +146,7 @@ function WakeEntity( e, noWorker ) {
                         pendingRuns.splice(id,1);
                     }
                 } else if( msg.op === "initDone"){
-                    resolveThread( true );
+                    resolveThread( thread );
                 } else if( msg.op[0] == '~' ) {
                     console.log( "not an RPC...");
                 }else {

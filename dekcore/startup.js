@@ -5,7 +5,9 @@ async function buildPiping(){
 //	var webCons = require( './command_stream_filter/webConsole.js' ).Filter();
 
     //var cons = require( './command_stream_filter/psi_console.js' ).Filter();
-    var shellFilter = await require( "./Sentience/shell.js" );
+    require( "./Sentience/shell.js" ).then( shellFilter=>{
+
+    console.log( "Pipiing filter is:", shellFilter );
     process.stdout.write( util.format("Piping got:", shellFilter ));
 
    const shell = shellFilter.Filter( this );
@@ -22,7 +24,8 @@ async function buildPiping(){
       nl.connectOutput( shell.filter );
       shell.connectOutput( process.stdout );
       });
-  })
+    })
+  }).catch(err=>console.log("Require Failed:", err));
 }
 
 await buildPiping();
@@ -49,7 +52,7 @@ var services = null;
 var firewall = null;
 var auth = null;
 console.log( "------- create services ------------")
-create( "Services"
+return create( "Services"
 		, "Service Directory Manager and authenticator"
 		, "services/services/serviceService.js"
  ).then( (o)=>{

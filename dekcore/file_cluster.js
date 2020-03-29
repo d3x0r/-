@@ -23,7 +23,7 @@ module.exports = exports = {
 		return new Promise( (resume, stop)=>{
 			if( inited ) return;
 			var cvolName;
-			let keys = [idGen.regenerator( "0" + config.Λ ), idGen.regenerator( "1" + config.Λ )];
+			let keys = [undefined,undefined];//[idGen.regenerator( "0" + config.Λ ), idGen.regenerator( "1" + config.Λ )];
 			cvol = vfs.Volume( null, cvolName = './core/' + config.Λ, keys[0], keys[1] );
 			(fc_local.store = vfs.ObjectStorage( cvol, "storage.os" ))
 				.getRoot()
@@ -40,6 +40,9 @@ module.exports = exports = {
 	addAuthority( addr ) {
 		athorities += addr;
 	},
+        put( o, opts ) {
+        	return fc_local.store.put( o, opts );
+        },
 	store( filename, object, callback ) {
 		var fileName;
 		if( !object ){

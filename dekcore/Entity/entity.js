@@ -374,7 +374,7 @@ function makeEntity(obj, name, description, callback, opts) {
 		obj = null;
 	}
 	if ((!obj || !(objects.get(obj.Λ))) && createdVoid) {
-		doLog("All Entities", all_entities);
+		//doLog("All Entities", all_entities);
 		doLog("Objects", objects);
 		doLog("invalid object is ", obj);
 		throw new Error(["Invalid creator object making this one", obj].join(" "));
@@ -396,7 +396,7 @@ function makeEntity(obj, name, description, callback, opts) {
 			throw new Error( "The Void already exists; intitialzation sequence error" );
 		}
 		createdVoid = entity.idMan.localAuthKey;
-		//doLog( "Setting void to localAuthkey..." );
+		doLog( "Setting void to localAuthkey..." );
 	}
 
 	const o = new Entity( obj, name, description );
@@ -405,16 +405,25 @@ function makeEntity(obj, name, description, callback, opts) {
 			throw new Error( "User corrupted entity interface" );		
 		theVoid = exports.theVoid = o;
 	}
-	if( nextID ) {
-		o.Λ = nextID;
-		nextID = null;
-		finishCreate();
-	}
-	else entity.idMan.ID(obj || createdVoid, config.run, (key) => {
-		o.Λ = key.Λ;
-		//doLog( "object now has an ID", o.name, o.Λ, key.Λ );
-		finishCreate();
-	} );
+	if( !o.Λ )
+		fc.put( o, { extraEncoders:[] } ).then( (id )=>{
+			o.Λ = id;
+				
+			if( nextID ) {
+				o.Λ = nextID;
+				nextID = null;
+				finishCreate();
+			}
+			else entity.idMan.ID(obj || createdVoid, config.run, (key) => {
+				console.log( "id needs to be forged into a key" );
+				//o.Λ = key.Λ;
+				//doLog( "object now has an ID", o.name, o.Λ, key.Λ );
+				finishCreate();
+			} );
+
+		} );
+	finishCreate();
+
 	function finishCreate( ) {
 		//doLog( " ----- FINISH CREATE ---------" );
 		if( opts && opts.fork ) {
@@ -431,8 +440,8 @@ function makeEntity(obj, name, description, callback, opts) {
 		if (o.within) o.within.contains.set(o.Λ, o);
 		else {
 			o.within = o;
-			objects.set(o.Λ, o);
-			objects.set(createdVoid.Λ, o);
+                        console.log( "Set object:", o.Λ, o);
+			//objects.set(createdVoid.Λ, o);
 		}
 		objects.set(o.Λ, o);
 		//o.attached_to.set(o.Λ, o);
@@ -483,6 +492,7 @@ function makeEntity(obj, name, description, callback, opts) {
 
 
 	function sandboxRequire(o,src,parentPath) {
+
 		if( !o || !src )
 			console.trace( "FIX THIS CALLER this is", o, src );
 
@@ -1305,7 +1315,8 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 					var parent = ths.within && makeEntity(ths.within);
 
 					//doLog( "Creator:", creator );
-					nextID = ths.Λ;
+					//nextID = ths.Λ;
+
 					creator.create( ths.name, ths.description, (o)=>{
 						//doLog( "creator created..." );
 						o.value = input[o.Λ];

@@ -3,7 +3,6 @@
 const _debug = false;
 
 //console.log( "using require: ", require, module )
-const fs = require('fs');
 const server = require( './https_server.js');
 const sack = require( "sack.vfs" );
 const JSOX=sack.JSOX;
@@ -128,21 +127,25 @@ function Key(maker_key, askey) {
 	}
 	if (real_key) maker_key = real_key.Λ;
 	//console.log( "maker", maker_key );
-
-	key = keyProto(idGen());
-	key.maker = real_key; // always by name here (real key is maker)
-
-	//console.log( "raw key is:", key.Λ, key.maker, maker_key );
-	if (real_key) {
-		real_key.made.push(key);
-	}
-	else {
-		pendingOps.push({ maker: maker_key, key: key });
-	}
-	//console.log("SET KEY ", key.Λ, key);
-	tempKeyTracker.keys.set(key.Λ, key);
-	//console.log( "generated key ", key.Λ )
-	return key;
+	return fc.put( key = keyProto() )
+		.then( (id)=>{
+			key.Λ = id
+			key.maker = real_key; // always by name here (real key is maker)
+	
+			//console.log( "raw key is:", key.Λ, key.maker, maker_key );
+			if (real_key) {
+				real_key.made.push(key);
+			}
+			else {
+				pendingOps.push({ maker: maker_key, key: key });
+			}
+			fc.put( key );
+			console.log( "Storing object:", key );
+		//console.log("SET KEY ", key.Λ, key);
+		tempKeyTracker.keys.set(key.Λ, key);
+		//console.log( "generated key ", key.Λ )
+		return key;
+	} );
 }
 
 function KeyFrag(fragof) {
@@ -216,28 +219,32 @@ exports.madeFrom = async (key, maker, cb) => {
 }
 
 Object.defineProperty(exports, "localAuthKey", {
-	get: function () {
+	get: async function () {
 		if (keyTracker.lkey)
-			return keyTracker.lkey;
+			return Promise.resolve(keyTracker.lkey);
 		//console.log( "create a new local authority", config.run.Λ );
-		keyTracker.lkey = Key(config.run.Λ)
-		// this is one of those illegal operations.
-		keyTracker.lkey.authby = keyTracker.keys.get(config.run.Λ);
-		keyTracker.lkey.saved = true;
-		return keyTracker.lkey;
+		return Key(config.run.Λ).then( (key)=>{
+	                keyTracker.lkey = key;
+			// this is one of those illegal operations.
+			keyTracker.lkey.authby = keyTracker.keys.get(config.run.Λ);
+			keyTracker.lkey.saved = true;
+			return keyTracker.lkey;
+                });
 	}
 });
 
 Object.defineProperty(exports, "publicAuthKey", {
-	get: function () {
+	get: async function () {
 		if (keyTracker.pkey)
-			return keyTracker.pkey;
+			return Promise.resolve(keyTracker.pkey);
 		//console.log( "create a new local authority", config.run.Λ );
-		keyTracker.pkey = Key(config.run.Λ)
+		return Key(config.run.Λ).then( (key)=>{
+                keyTracker.pkey = key;
 		keyTracker.pkey.saved = true;
 		// this is one of those illegal operations.
 		keyTracker.pkey.authby = keyTracker.keys.get(config.run.Λ);
 		return keyTracker.pkey;
+                });
 	}
 });
 
@@ -301,18 +308,21 @@ exports.ID = ID; function ID(making_key, authority_key, callback) {
 		throw new Error( JSON.stringify( { msg: "Invalid source key", maker: making_key, auth: authority_key } ) );
 	}
 
-	var newkey = Key(making_key);
-	newkey.authby = authority_key;
-	_debug && console.log( "authkey", newkey.Λ, authority_key )
+	return Key(making_key).then( (key)=>{
+                var newkey = key;
+		newkey.authby = authority_key;
+		_debug && console.log( "authkey", newkey.Λ, authority_key )
 
-	authority_key.authed.push(newkey);
-	
-	if (authority_key)
-		newkey.authby = authority_key
-	//console.log( "made a new key", newkey.Λ );
-	if (callback)
-		callback(newkey);
-	else console.trace( "without callback, you can't get result...");
+		authority_key.authed.push(newkey);
+
+		if (authority_key)
+			newkey.authby = authority_key
+		//console.log( "made a new key", newkey.Λ );
+                fc.put( key ); // re-write with content
+		if (callback)
+			callback(newkey);
+		else console.trace( "without callback, you can't get result...");
+        })
 	return undefined;// newkey.Λ;
 }
 
@@ -509,35 +519,41 @@ function loadKeys() {
 			//if( keys.size === 1 ) {
 			//let newkey =  idGen.generator();
 			//console.log(  newkey.toString() );
-			var runKey = Key(config.run.Λ);
-			Object.defineProperty(config.run, "authed", { enumerable: false, writable: true, configurable: false, value: [] });
-			runKey.trusted = true;
-			keyTracker.Λ = runKey.Λ;//config.run.Λ;
-			runKey.saved = true;
-			//console.log( "2 set key ", keys.Λ)
-			//keys.set( keys.Λ, runKey );
+			return Key(config.run.Λ).then( (key)=>{
+                        
+                                var runKey = key;
+
+				Object.defineProperty(config.run, "authed", { enumerable: false, writable: true, configurable: false, value: [] });
+				runKey.trusted = true;
+				keyTracker.Λ = runKey.Λ;//config.run.Λ;
+				runKey.saved = true;
+				//console.log( "2 set key ", keys.Λ)
+				//keys.set( keys.Λ, runKey );
 
 
-			var runKey2 = Key(config.run.Λ);
-			runKey2.trusted = true;
-			// generated a ID but throw it away; create config.run key record.
-			keyTracker.keys.delete(runKey2.Λ);
-			runKey2.Λ = config.run.Λ;
-			runKey2.authby = runKey;
-			runKey2.maker = runKey2;
-			runKey.authby = runKey2;
-			runKey.maker = runKey;
+				return Key(config.run.Λ).then( key=>{
+                                        var runKey2 = key;
+					runKey2.trusted = true;
+					// generated a ID but throw it away; create config.run key record.
+					keyTracker.keys.delete(runKey2.Λ);
+					runKey2.Λ = config.run.Λ;
+					runKey2.authby = runKey;
+					runKey2.maker = runKey2;
+					runKey.authby = runKey2;
+					runKey.maker = runKey;
 
-			keyTracker.keys.set(runKey2.Λ, runKey2);
-			keyTracker.mkey = runKey2;
-			runKey2.saved = true;
-			pendingOps.forEach((p, index) => {
-				if (p.maker === runKey2.Λ)
-					runKey2.made.push(p.key);
-				if (p.maker === runKey.Λ)
-					runKey.made.push(p.key);
-			})
-			saveKeys( config.resume );
+					keyTracker.keys.set(runKey2.Λ, runKey2);
+					keyTracker.mkey = runKey2;
+					runKey2.saved = true;
+					pendingOps.forEach((p, index) => {
+						if (p.maker === runKey2.Λ)
+							runKey2.made.push(p.key);
+						if (p.maker === runKey.Λ)
+							runKey.made.push(p.key);
+					})
+					saveKeys( config.resume );
+                                });
+                        });
 		} else {
 			//console.log( "GOT FILE BACK???", buffer)
 			var data = fc.Utf8ArrayToStr(buffer);
@@ -583,7 +599,6 @@ function loadKeys() {
 				//console.log( "new mkey after file is ... ", mkey );
 			} catch (error) {
 				console.log("bad key file", error);
-				//fs.unlink( fileName );
 			}
 		}
 		//console.log("no error", keys.length());
@@ -591,31 +606,34 @@ function loadKeys() {
 		if (keyTracker.keys.size === 0) {
 			//console.log( Object.keys( keys ).length)
 			console.log("NEED  ROOT KEY INITIALIZATION")
-			var key = Key(config.run.Λ);
-			key.authby = key;
-			key.trusted = true;
-			//console.log( "created root key", key );
-			keyTracker.mkey = key;
-			key.saved = true;
-			//keyTracker.keys.set( key.Λ,  key );
-			//console.log( keyTracker.keys )
-			keyTracker.keys.first = keyTracker.keys.get(key.Λ);
-			//console.log( "new keys after file is ... ", keyTracker.keys );
-
-			console.log("first run key set")
-			keyTracker.keys.set(config.run.Λ, config.run);
-
-			ID(key, config.run.Λ, (runkey) => {
-				//console.log( "created root key", runkey );
-				runkey.authby = key;
-				//console.log( "throwing away ", runkey.Λ );
-				keyTracker.keys.delete(runkey.Λ);
-				keyTracker.keys.set(config.run.Λ, runkey);
-				runkey.Λ = config.run.Λ;
+			return Key(config.run.Λ).then( key=>{
+				key.authby = key;
+				key.trusted = true;
+				//console.log( "created root key", key );
 				keyTracker.mkey = key;
 				key.saved = true;
-				//console.log( "new keys ", Object.keys(keyTracker.keys) );
-			});
+				//keyTracker.keys.set( key.Λ,  key );
+				//console.log( keyTracker.keys )
+				keyTracker.keys.first = keyTracker.keys.get(key.Λ);
+				//console.log( "new keys after file is ... ", keyTracker.keys );
+
+				console.log("first run key set")
+				keyTracker.keys.set(config.run.Λ, config.run);
+
+				ID(key, config.run.Λ, (runkey) => {
+					//console.log( "created root key", runkey );
+					runkey.authby = key;
+					//console.log( "throwing away ", runkey.Λ );
+					keyTracker.keys.delete(runkey.Λ);
+					keyTracker.keys.set(config.run.Λ, runkey);
+					runkey.Λ = config.run.Λ;
+					keyTracker.mkey = key;
+					key.saved = true;
+					//console.log( "new keys ", Object.keys(keyTracker.keys) );
+                                        config.resume();
+
+				});
+                        });
 			//console.log( "fragment keys is a function??", key_frags[0] )
 			//key_frags.keys[frag.Λ] = key.Λ;
 
@@ -625,10 +643,12 @@ function loadKeys() {
 			//console.log("manufacture some keys......-----------", mkey)
 			//Key( keys. )
 			//console.log( "GOT:", keyTracker, keyTracker.mkey.made );
-			ID(keyTracker.mkey, exports.localAuthKey, (key) => {
-				//console.log("newkey:", key)
-				saveKeys();
-			})
+                        exports.localAuthKey.then(lak=>{
+				ID(keyTracker.mkey, lak, (key) => {
+					//console.log("newkey:", key)
+					saveKeys();
+				})
+                        });
 		}
 		config.resume();
 
@@ -649,8 +669,9 @@ function setRunKey(key) {
 	if (config.run.Λ !== key) {
 		var oldkey = keyTracker.keys.get(config.run.Λ);
 		if( !oldkey ) {
-			oldkey = Key(key);
-			oldkey.authby = keyTracker.keys.get(key);
+			Key(key).then( oldkey=>{
+				oldkey.authby = keyTracker.keys.get(key);
+                        });
 		}
 		console.log("Set new run key: ", key, config.run.Λ, oldkey);
 			// delete old key from map
@@ -727,11 +748,13 @@ server.addProtocol( "id.core", (ws)=>{
 			}
 		}
 		else if( msg.op === "fork" ) {
-			var test = IdGen.xor( config.run.Λ, exports.localAuthKey );
-			if( test === msg.key ) {
-				// this remote might know how to validate a key...
-				branches.push( test );
-			}
+                	exports.localAuthKey.then( lak =>{
+				var test = IdGen.xor( config.run.Λ, lak );
+				if( test === msg.key ) {
+					// this remote might know how to validate a key...
+					branches.push( test );
+				}
+                        })
 		}
 		else if( msg.op === "request" ) {
 				ID( msg.auth, msg.maker, (key)=>{

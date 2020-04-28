@@ -3,7 +3,9 @@ const fs = require( 'fs');
 const config = require( "./config.js" );
 const vfs = require( 'sack.vfs' );
 const idGen = require( './util/id_generator.js' );
+
 console.log( "File_Cluster volume Creation (was this ovreridden?");
+console.log( "Does this get reused?")
 const vol = vfs.Volume();
 
 var cvol;
@@ -13,13 +15,13 @@ var fc_local = {
 	authorities : [],
 	store : null,
 	root : null,
-	
 }
 
 var inited = false;
 
 module.exports = exports = {
 	async init() {
+		console.log( "who waits for root to be gotten?");
 		return new Promise( (resume, stop)=>{
 			if( inited ) return;
 			var cvolName;
@@ -27,24 +29,48 @@ module.exports = exports = {
 			cvol = vfs.Volume( null, cvolName = './core/' + config.Λ, keys[0], keys[1] );
 			(fc_local.store = vfs.ObjectStorage( cvol, "storage.os" ))
 				.getRoot()
-				.then( (dir)=>{
-				fc_local.root = dir
-				resume();
-			} );
+					.then( (dir)=>{
+						fc_local.root = dir
+						console.log( "Resume waiter on init...");
+						resume();
+				} );
 			if( debug_ ) console.log( cvol.dir() );
 			console.log( "cvol", cvolName );
 			exports.cvol = cvol;
+			process.on( 'exit', ()=>{
+				fc_local.store.flush();
+				//cvol.flush();
+				console.trace( "Exit event in file cluster" );
+			})
+			
+			
 			inited = true;		
 		});
+	},
+	Store( id ){
+		return vfs.ObjectStorage( cvol, id );
 	},
 	addAuthority( addr ) {
 		athorities += addr;
 	},
-        put( o, opts ) {
-        	return fc_local.store.put( o, opts );
-        },
+	put( o, opts ) {
+       	return fc_local.store.put( o, opts );
+	},
+	get( opts ) {
+       	return fc_local.store.get( opts );
+	},
+	addEncoders( encoders ) {
+		return fc_local.store.addEncoders( encoders );
+	},
+	addDecoders( coders ) {
+		return fc_local.store.addDecoders( coders );
+	},
+	map( o, opts ) { return fc_local.store.map( o, opts ) ; },
 	store( filename, object, callback ) {
 		var fileName;
+		if( callback ) {
+			console.trace( "CALLBACK DEPRECATED ON STORE, PLEASE USE PROMISED RESULT");
+		}
 		if( !object ){
 			console.log( "Nothing to store?");
 			return;
@@ -52,11 +78,20 @@ module.exports = exports = {
 		//console.log( typeof filename )
 		//console.log( 'storing object : ', object, Object.keys( object ) );
 		//console.log( 'storing object : ', object.toString() );
-		//console.log( "storing into : ", filename );
-		if( typeof( filename ) == 'string' )
+		//console.trace( "storing into : ", filename, object, callback );
+		if( typeof( filename ) == 'string' ) {
 			 fileName = filename
-		else {
-				 if( filename.Λ && !object )
+			 return new Promise( (res,rej)=>fc_local.root.open( fileName )
+				 .then( file=>file.write( object )
+						.then( res )
+						.catch( rej ) 
+					).catch(rej)
+				);
+		} else {
+			return new Promise( (res,rej)=>fc_local.store.put( filename )
+				.then( d=>{ console.log( "put filename, callback.." );return (callback&&callback(d),res(d))} ).catch(rej) );
+			/*
+			if( filename.Λ && !object )
 					if( !(fileName = filename.ΛfsName )){
 						console.log( "Init name")
 						fileName =  filename.ΛfsName = GetFilename( fileName );
@@ -83,8 +118,8 @@ module.exports = exports = {
 					}
 				}
 				 //fileName = getpath( filename, object );
+			*/
 		}
-		return fc_local.root.open( fileName ).then( file=>file.write( object ).then( callback ) );
 
 		cvol.write( fileName, object.toString() );
 		if( callback ) callback();
@@ -97,6 +132,9 @@ module.exports = exports = {
 			fs.readdir(  pathobject.ΛfsPath+"Λ", callback );
 	},
 	reload(filename, callback){
+		if( callback ) {
+			console.trace( "CALLBACK DEPRECATED ON STORE, PLEASE USE PROMISED RESULT");
+		}
 		if( filename.Λ )
 			if( filename.ΛfsPath )
 				fileName =  filename.ΛfsPath;
@@ -106,37 +144,9 @@ module.exports = exports = {
 
 		var result;
 		var fileName = filename
-		return fc_local.root.open( fileName )
-			.then( file=>file.read( )
-				.then( (data)=>{callback(false, data)} )
-				.catch( ()=>{callback( true, "No Data" ); }  )
-			);
-
-		if( cvol.exists( fileName ) ) {
-			callback( false, cvol.read( fileName ) );
-		} else {
-			console.log( "not exists:", fileName, "in cvol:",  );
-			callback( true );
-		}
-/*
-		fs.stat(fileName, function(error, stats) {
-			var fileData;
-			if( !stats ) {
-				//console.log( "no such file")
-				callback( true );
-			} else {
-				fs.readFile(fileName, function(err, data) {
-					if (err) throw err;
-					//fileData = new Uint8Array(data.toArrayBuffer());
-					var buffer = new ArrayBuffer(stats.size);
-					var readBuf = new Uint8Array( buffer );
-					for( var n = 0; n < stats.size; n++ )
-						readBuf[n] = data[n];
-					callback( false, buffer, data );
-				});
-			}
-		});
-*/
+		return new Promise( (res,rej)=>{
+			return fc_local.root.open( fileName ).then( file=>file.read().then( res ).catch( rej ) ).catch(rej);
+		})
 	},
 	mkdir: mkdir,
 	cvol: cvol

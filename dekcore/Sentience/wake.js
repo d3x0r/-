@@ -14,6 +14,7 @@ const _debug_run = false;
 
 var sack = require( 'sack.vfs');
 const util = require('util' );
+const idMan = require( '../id_manager.js');
 const fc = require( "../file_cluster.js");
 var wt = require( 'worker_threads');
 wt = ( wt.isMainThread && wt );
@@ -39,6 +40,7 @@ function WakeEntity( e, noWorker ) {
         try {
             if( msg.op )
                 if( msg.op == 'error' ) {
+                    console.log( "Error is a result to 'run'", msg );
                     var id = pendingRuns.findIndex( pend=>pend.id===msg.id);
                     if( id >= 0 ){
                         pendingRuns[id].runReject( msg.error );
@@ -57,14 +59,13 @@ function WakeEntity( e, noWorker ) {
                     if( msg.f === "create" ){
                         // this one has a callback to get the result
                         // the others are all synchrounous normally
-                        e.create( msg.args[0], msg.args[1], (o)=>{
-                            //console.log( "Callback from calling entity core side...")
+                        return e.create( msg.args[0], msg.args[1], (o)=>{
                             try {
-                                let msgout = {op:msg.op,id:msg.id,ret:o.Λ};
+                                let msgout = {op:msg.op,id:msg.id,ret:o.Λ.toString()};
                                 e.thread.post(msgout);
                             } catch(err) {console.log(err);}    
                         } )
-                    }else {
+                    } else {
                         if( !e[msg.f] ) {
                                 e.thread.post( { op:'error',id:msg.id,error:"Unknown Thing:"+msg.f,stack:"Stack.." } );
                                 return;
@@ -139,6 +140,7 @@ function WakeEntity( e, noWorker ) {
                         return e.thread.post({op:msg.op,id:msg.id,ret:r});
                     }
                 } else if( msg.op == 'run' ) {
+                    _debug_run && console.log( "response to 'run'", msg );
                     var id = pendingRuns.findIndex( pend=>pend.id===msg.id);
                     _debug_run && sack.log( util.format("got Reply for run result:", id, msg ));
                     if( id >= 0 ){
@@ -147,6 +149,10 @@ function WakeEntity( e, noWorker ) {
                     }
                 } else if( msg.op === "initDone"){
                     resolveThread( thread );
+                    var threadVolume = fc.Store( e.Λ );
+                    sack.ObjectStorage.Thread.post(e.Λ.toString(), threadVolume );                    
+                    //console.trace( "posting another storage for native", e.Λ.toString()+"?", e.name, msg);
+                    sack.Volume.Thread.post(e.Λ.toString(), sack.Volume() );                    
                 } else if( msg.op[0] == '~' ) {
                     console.log( "not an RPC...");
                 }else {
@@ -254,15 +260,16 @@ function WakeEntity( e, noWorker ) {
             return thread.post( { op:"ing", ing:makeIng(event), args:data });
         }
         , emit( event, data ) {
+            if( data instanceof idMan.keyRef )
+                data = data.toString();
             // drop the promise result, there is no then or catch.
             if( thread.worker )
                 thread.post( { op:"on", on:event, args:data });
             thread.watchers.forEach( watcher=>{
-                watcher.thread.post( {op:"on",Λ:entity.Λ,on:event,args:data} )
+                watcher.thread.post( {op:"on",Λ:entity.Λ.toString(),on:event,args:data} )
             })
         }
     }
-
     e.thread = thread;
     if( wt && !noWorker ) {
         _debug_thread_create && console.trace( "Waking up entity:", e.name, e.Λ, e.thread )
@@ -271,11 +278,10 @@ function WakeEntity( e, noWorker ) {
         const invokePrerun = `{vm.runInContext( ${JSON.stringify(startupPrerunCode)}, sandbox, {filename:"sandboxPrerun.js"});}`
         console.log( "Wanting to remount ...", fc.cvol  )
 
-        fc.cvol.mount(e.Λ); 
+        fc.cvol.mount(e.Λ.toString()); 
 
-
-        thread.worker = new wt.Worker( 'const Λ=' + JSON.stringify(e.Λ) + ";" 
-            + 'Λ.maker=' + JSON.stringify(e.created_by.Λ) + ";" 
+        thread.worker = new wt.Worker( 'const Λ=' + JSON.stringify(e.Λ.toString()) + ";" 
+            + 'Λ.maker=' + JSON.stringify(e.created_by.Λ.toString()) + ";" 
             + startupInitCode
             + invokePrerun
             , {

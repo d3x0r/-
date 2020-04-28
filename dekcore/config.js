@@ -1,7 +1,7 @@
 "use strict";
 const idGen = require("./util/id_generator.js");
 //Error.stackTraceLimit = Infinity;
-const _debug = false;
+const _debug = true;
 
 const os = require( "os" );
 
@@ -25,9 +25,7 @@ var config = module.exports = exports = {
 			return JSOX.stringify(this);
 		}
 	},
-	commit(cb) {
-		saveConfig(cb);
-	},
+	commit : saveConfig,
 	toString() {
 		return this.run.toString();
 	},
@@ -132,49 +130,42 @@ function getLocation() {
 
 getLocation();
 
-
-
-function saveConfig(callback) {
-	console.log( "Saving config.run.jsox" );
-	fc.store(  "config.run.jsox", config.run, callback);
+function saveConfig() {
+	return fc.store(  "config.run.jsox", config.run);
 }
 
 //res.sendfile(localPath);
 //res.redirect(externalURL);
 //
 async function loadConfig(path) {
-	//console.log("loadconfig");
-	await fc.init();
-	loadDefaults();
+	console.trace("loadconfig");
+	return new Promise( ( res, rej )=>{
+		fc.init().then( ()=>{
+			loadDefaults();
+			fc.reload( "config.run.jsox" ).then (  ( result) =>{
+					return loadRun( result ).then( res ).catch(rej);
+			}).catch( rej );
+		}).catch(rej);
 
+	} );
 
-	fc.reload( "config.run.jsox",
-		function (error, result) {
-			if( error ) 
-				loadRun( null );
-			else {
-				loadRun( result.toString() );
-			}
+	function loadRun(object) {
+				// if there's an old config object...
+				if( object ){
+					var file_defaults = config.run.defaults; // already loaded from default config
+					// addresses are always live, and override previously saved information.
+					var intern = config.run.internal_addresses;
+					var extern = config.run.addresses;
+					// merge object into running configuration.
+					Object.assign(config.run, object);  // if there is a defaults, it will change the 'defaults' object
+					Object.assign( config.run.defaults, file_defaults ); // restore original defaults.
+					config.run.internal_addresses = intern;
+					config.run.addresses          = extern;
+				}
+
+				console.log( "Loaded run configuration defaults; save it...");
+				return saveConfig();
 		}
-	);
-
-	function loadRun(str) {
-				var file_defaults = require(  "./config.jsox");
-				var object = str && JSOX.parse(str);
-
-				//console.log( "Reloaded config obj....", object)
-				var intern = config.run.internal_addresses;
-				var extern = config.run.addresses;
-				
-				Object.assign(config.run, object);
-
-				file_defaults = Object.assign( config.run.defaults, file_defaults ); // override with file (or we couldn't change settings.)
-
-				config.run.internal_addresses = intern;
-				config.run.addresses          = extern;
-				saveConfig();
-				resume();
-	}
 
 
 	function loadDefaults() {
@@ -185,6 +176,7 @@ async function loadConfig(path) {
 			console.log("partial recovery??!");
 		config.run.defaults = require( "./config.jsox" );
 	}
+	// prevent resume from just resuming.
 	return true;
 }
 
@@ -225,7 +217,7 @@ exports.defer = function () {
 exports.resume = resume;
 function resume() {
 
-	_debug&&console.log("config.resume....", config.starts, config.starts && config.starts.length)
+	_debug&&console.trace("config.resume....", config.starts, config.starts && config.starts.length)
 	while (config.starts.length) {
 		if (config.start_deferred) break;
 		//console.log( "run thing ", config.starts[0].toString())
@@ -233,11 +225,15 @@ function resume() {
 		var p;
 		if( p = startProc() )  { // return true to get the next ome... will get a resume later{
 			if( p instanceof Promise ) {
-				console.log( "Promises to resume..." );
-				p.then( resume );
+				//console.log( "PROMISES TO RESUME", p, startProc.toString());
+				p.then( resume ).catch( (err)=>{
+					console.trace( "LOST ERROR?", err );
+				});
 			}
+			//console.log( "Something will call resume later?");
 			break;
 		}
+		//console.log( "JUST GOING TO NEXT...", p )
 		if (config.start_deferred) {
 			//console.log( "got deferred...", config.starts)
 			config.starts_deferred = config.starts;

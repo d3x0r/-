@@ -1,8 +1,9 @@
 "use strict"
 
+if(0) {
 
-
-var idGen = ()=>global.idGen( );
+const idGen = (await require ("../../util/id_generator.js")).generator;
+//var idGen = ()=>global.idGen( );
 
 
 var DB = exports = module.exports = {};
@@ -228,4 +229,6 @@ DB.logout = (sessionkey)=>{
 
 DB.connect = (gun)=>{
 	console.log( "Update gun databases?? passed a gun instance to do SOMETHING with...")
+}
+
 }

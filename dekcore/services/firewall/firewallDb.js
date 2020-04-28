@@ -14,26 +14,33 @@ if( !config.firewall ) {
 	}
 }
 */
+onInit( ()=>{
+	console.log( "Should have disk now??");
+var config;
+var rules;
+var configFile;
 
-var opdb = vfs.Sqlite( `option.db` );
-var vol = opdb.op( "vol", idGen() );
-console.log( "Firewall Database...", vol );
-DB.data = vfs.Volume( vol, vol/*, me*/ );
-var db = DB.db = DB.data.Sqlite( `firewall.db` );
+disk.open( "firewall.config.jsox").then( (file)=>{
+	 configFile = file;
+	 file.read().then( data=>{
+		console.log( "Recovered config?", data);
+		config = data;
+		storage.get( config.rules ).then ( rules_=>{
+			rules = rules_
+		})
+	 }).catch( (err)=>{
+		storage.put( rules = []).then ( id=>{
+			file.write( config = { vol:idGen(), rules:id } );
+		})
+	 })
+	 console.log( "firewall config:", file );
+}).catch( (err)=>{
+	 console.log( "This is probably, file not found?", err);
+	 
+});
 
 
-db.do( 'PRAGMA foreign_keys=ON' );
-
-db.makeTable( "create table firewall_rules ( rule_id char PRIMARY KEY"
-	+", name char"
-	+", source char "
-	+", dest char "
-	+", allow int "  // if not allow, is a blocking rule.
-	+" )"
-	 );
-
-var rules = db.do( "select * from firewall_rules" );
-
+//var opdb = nativeDisk.Sqlite( `firewall option.db` );
 DB.blockAddress = addBlock;
 
 function addBlock( tag, source ) {
@@ -47,7 +54,8 @@ function addBlock( tag, source ) {
 }
 
 function invokeRule( rule ) {
-
+	rules.push( rule );
+	storage.put( rules );
 }
 
 
@@ -67,3 +75,4 @@ DB.connect = (gun)=>{
 	} )
 }
 
+})

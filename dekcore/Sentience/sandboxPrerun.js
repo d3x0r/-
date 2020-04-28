@@ -1,4 +1,3 @@
-
 const _debugPaths = false;
 const _debug_commands = false;
 const _debug_requires = false;
@@ -178,8 +177,8 @@ function processMessage(msg, stream) {
 				//msg.args = makeEntity( msg.args );
 				break;
 			case "stored" === msg.on:
-				msg.args = makeEntity(msg.args);
-				onEnt.cache.near.store(msg.args);
+				onEnt.cache.near.store(makeEntity(msg.args));
+				
 				break;
 			case "lost" === msg.on:
 				msg.args = makeEntity(msg.args);
@@ -197,7 +196,8 @@ function processMessage(msg, stream) {
 				//msg.args = makeEntity( msg.args );
 				break;
 		}
-		return emitEvent(msg.on, msg.args.Λ);
+		sack.log(util.format( "Emit event:", msg.on, msg.args ));
+		return emitEvent(msg.on, msg.args);
 
 	}
 	else
@@ -235,7 +235,7 @@ process.stdin.on('data', (chunk) => {
 
 function makeEntity(Λ) {
 	if (Λ instanceof Promise) return Λ.then(Λ => makeEntity(Λ));
-	//console.log( "make entity for:", Λ);
+	//console.trace( "make entity for:", Λ);
 	{
 		let tmp = objects.get(Λ);
 		if (tmp) return tmp;
@@ -367,10 +367,11 @@ function makeEntity(Λ) {
 			return e.post("wake");
 		},
 		require(src) {
-			_debug_requires && doLog(" ---- thread side require:", nameCache, src, codeStack);
+			//_debug_requires && 
+			//doLog(" ---- thread side require:", nameCache, src, codeStack);
 			return e.post("require", src)
 				.then( result=>{
-					console.log( "Finally result should come from codestack:", codeStack, result);
+					//console.log( "Finally result should come from codestack:", codeStack, result);
 					if( "number" === typeof result )
 						return codeStack[result].result
 					return result;
@@ -384,6 +385,9 @@ function makeEntity(Λ) {
 			}
 		}
 	};
+	e.require.resolve = function(a) {
+		return a;
+	}
 	e.cache.near.invalidate = (e) => (nearCache = null);
 
 	// my room changes...  this shodl clear cache
@@ -397,8 +401,10 @@ function makeEntity(Λ) {
 	e.cache.near.part = ((e) => (!!nearCache) && nearCache.get("near").delete(e.Λ));
 	e.cache.near.attached = ((e) => (!!nearCache) && nearCache.get("holding").set(e.Λ, e));
 	e.cache.near.detached = ((e) => (!!nearCache) && nearCache.get("holding").delete(e.Λ));
-	if (objects.size)
+	if (objects.size){
+		//sack.log( "Telling e to watch me?" + Λ +"\n"+(new Error().stack) );
 		e.post("watch", Λ);
+	}
 	objects.set(Λ, e);
 	return e;
 }
@@ -480,7 +486,7 @@ var fillSandbox = {
 		_debug_requires && doLog("Global New Require:", args, codeStack //, new Error().stack
 		);
 		pendingRequire = true;
-		console.log( "posting require...", args );
+		//console.log( "posting require...", args );
 		return self.post("require", {src:args,from:path} ).then(ex => {
 			( _debug_requires || _debug_command_run ) && doLog("Read and run finally resulted, awated on post require", ex, codeStack, new Error().stack );
 			if( "number" === typeof ex ){
@@ -501,8 +507,10 @@ var fillSandbox = {
 	}
 	//, Buffer: Buffer
 	, async create(a, b, c) {
+		//console.log( "Posting create... ", a, b );
 		return self.post("create", a, b).then(
 			(val) => {
+				//console.log( "Create responded.", val );
 				val = makeEntity(val);
 				if ("string" === typeof c) {
 					return val.post("wake").then(() => {
@@ -569,10 +577,10 @@ var fillSandbox = {
 			if (self.io.output)
 				self.io.output(util.format(...args) + "\n");
 			else
-				process.stdout.write(util.format("AAAA", ...args) + "\n")
+				process.stdout.write(util.format(...args));
 		},
 		warn(...args) { return doLog(...args) },
-		trace: (...args) => { console.log(...args); console.log("Call Stack:", new Error().stack); }
+		trace: (...args) => { console.log(...args, "Call Stack:", new Error('').stack); }
 	}
 	, io: {
 		output: null,
@@ -581,7 +589,7 @@ var fillSandbox = {
 		},
 		getInterface(object, name) {
 			var o = object;
-			doLog(util.format("OPEN DRIVER CALLED!", new Error().stack ))
+			doLog(util.format("OPEN DRIVER CALLED!", new Error().stack, this, object, name ))
 			var driver = drivers.find(d => (o === d.object) && (d.name === name));
 			if (driver)
 				return driver.iface;
@@ -877,14 +885,14 @@ function finishFill(sandbox) {
 	sandbox.config = {};
 	sandbox.config.run = { Λ: null };
 
-
 	//entity.idMan.ID( entity.idMan.localAuthKey, o.created_by.Λ, (id)=>{ sandbox.config.run.Λ = id.Λ } );
 	//sandbox.require=  sandboxRequire.bind(sandbox);
 	sandbox.require.resolve = function (path) {
 		//_debug_requires &&
 		_debug_requires && doLog("SANDBOX:", sandbox.module.paths, codeStack, path)
 		var tmp;
-		if (sandbox.module.paths[sandbox.module.paths.length - 1])
+		console.log( "Sandbox has module?", sandbox.module );
+		if (sandbox.module && sandbox.module.paths[sandbox.module.paths.length - 1])
 			tmp = sandbox.module.paths[sandbox.module.paths.length - 1] + "/" + path;
 		else
 			tmp = path;
@@ -1039,6 +1047,7 @@ Object.getOwnPropertyNames(fillSandbox).forEach(function (prop) {
 //process.on("uncaughtException",(e)=>{
 //    process.stdout.write( e.toString() );
 //})
+
 coreThreadEventer.postMessage({ op: 'initDone' });
 coreThreadEventer.on("message", processMessage);
 

@@ -1,64 +1,80 @@
 // This source is loaded, and appended with sandboxPrerun.js
 Error.stackTraceLimit = Infinity;
 
-const vm = require('vm' );
 const sack = require( 'sack.vfs' );
+sack.Volume.Thread.accept( Λ, (ident,hostedVolume)=>{ console.log( "caught nativedisk" ); sandbox.nativeDisk = hostedVolume });
+
+const vm = require('vm' );
 const u8xor = require("./util/u8xor.js")
 const idGenModule = require("./util/id_generator.js")
 const idGen = sack.SaltyRNG.id;
 sack.system.disallowSpawn();
-const hostedVolume = sack.Volume( Λ, null );
-const physicalDisk = sack.Volume();
 
-sack.system.enableThreadFileSystem();
-var config;
-const hostedSqlite = hostedVolume.Sqlite.bind(hostedVolume);
-hostedVolume.Sqlite = (name)=>{
-    return hostedSqlite(  Λ + ":sqlite:" + name);
-}
-hostedVolume.readJSOX( Λ + "config.jsox", (cfg)=>{
-    config = cfg;
-} );
-if( !config ) {
-    config = {
-        keys : [idGen(), idGen()],
-        directory : null
-    }
-}
-const privateStorage = hostedVolume.ObjectStorage( idGen(), idGen( Λ + ":storage" ), config.keys[0], config.keys[1] );
+const pendingInit = [];
+var initDispatched = false;
+sack.ObjectStorage.Thread.accept( Λ, (ident,hostedVolume)=>{
 
-privateStorage.Sqlite = hostedVolume.Sqlite;
+    sandbox.storage = hostedVolume;
 
-if( !config.directory )
-{
-    privateStorage.put( {}, {
-        then(id){
-            config.directory = id;
-            hostedVolume.write( Λ + "config.jsox", JSOX.stringify( config ) );
-        },
-        catch(err){
-            console.log( "Error putting object?", err );
-        }
+    hostedVolume.getRoot()
+    .then( (dir)=>{
+        sandbox.disk = dir;
+        console.log( "Resume waiter on init...");
+
+        dir.open( "config.jsox" )
+            .then( file=>file.read( )
+                .then( (d)=>{ 
+                    sandbox.config = d; 
+                    initDispatched = true;
+                    for( var cb of pendingInit ) cb();
+                    pendingInit.length=0;
+                })
+                .catch( (err)=>{
+                    console.log( "Error in write:", err)
+                    file.write( JSOX.stringify( config)).then( ()=>{
+                        console.log( "config has been stored...")
+                        initDispatched = true;
+                        for( var cb of pendingInit ) cb();
+                        pendingInit.length=0;
+                    })
+                    .catch(err)( (err)=>{
+                        console.log( "Error putting config? (FATALITY)", err );
+                    })
+                }) )
+            .catch( (err)=>{console.log( "Directory open failed? Why?", err )})
+
     } )
-}
+    .catch( (err)=>{
+        console.log( "Get root failed?", err );
+    })
+} );
+
 function Function() {
     throw new Error( "Please use other code import methods.");
 }
 function eval() {
     throw new Error( "Please use other code import methods.");
 }
+
+
 const sandbox = vm.createContext( {
     Λ : Λ
+    , config : null
     , sandbox : null
     , Function : Function
     , eval: eval
     , require: require
     , module:module
-    , disk: privateStorage
-	, nativeDisk : physicalDisk
+    , storage: null // privateStorage
+    , disk : null
+	, nativeDisk : null //physicalDisk
     , console:console
     , process: process
-	, idGen : idGenModule
+    , idGen : idGenModule
+    , onInit(cb) {
+        if( initDispatched)cb();
+        else pendingInit.push(cb);
+    }
     //, Buffer: Buffer
     , vmric:(a,b)=>vm.runInContext(a,sandbox,b)
     //, crypto: crypto
@@ -68,10 +84,9 @@ sandbox.idGen.u8xor = u8xor;
 sandbox.sandbox = sandbox;
 
 /* Seal Sandbox */
-["require","eval", "Function", /*"module",*/ "console", "process", "require", "sandbox", "fs", "vm"].forEach(key => {
+["require","eval", "Function", /*"module",*/ "console", "process", /*"require",*/ "sandbox", "fs", "vm"].forEach(key => {
     if( key in sandbox )
         Object.defineProperty(sandbox, key, { enumerable: false, writable: true, configurable: false });
 });
     
-
 

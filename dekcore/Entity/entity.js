@@ -23,27 +23,31 @@ const vol = vfs.Volume();
 const vfsNaked = require('sack.vfs');
 const JSOX = sack.JSOX;
 
-JSOX.registerToJSOX( "entity", Entity.prototype, function(){
-	console.log( "ToJSOX?", this );
-	return this.toString();
+//JSOX.registerToJSOX( "entity", Entity,
+
+function EntityToJSOX (){
+	console.log( "ToJSOX?", this.toString() );
+	return '~E'+this.toString();
 
 
-})
-JSOX.fromJSOX( "entity", Entity.prototype, function(field,val){
+}
+
+//JSOX.fromJSOX( "entity", Entity, function(field,val){
+function EntityFromJSOX(field,val ) {
 	if( !field ) {
-		objects.set( this.Λ, this );
+		objects.set( this.Λ.toString(), this );
 			console.log( "Get:", this.within );
 			val = objects.get( this.within );
 			console.log( "Got:", !!val );
 			if( val )
-				val.contains.set( this.Λ, this );
+				val.contains.set( this.Λ.toString(), this.Λ.toString() );
 		return this;
 	}
 	if( field === "attached_to" ) {
 		
 		this.attached_to.forEach( e=>{
 			e = objects.get(e);
-			this.attached_to.set( e.Λ, e );
+			this.attached_to.set( e.Λ.toString(), e );
 		})
 		return;
 	}
@@ -56,7 +60,11 @@ JSOX.fromJSOX( "entity", Entity.prototype, function(field,val){
 	}
 	//console.log( "Assinging to this:", this, field, val );
 	this[field] = val;
-} );
+}
+
+
+
+/*
 JSOX.defineClass( "entity", { Λ:null
 	, name: null
 	, description: null
@@ -67,6 +75,7 @@ JSOX.defineClass( "entity", { Λ:null
 	, _module : null
 	, value : null
 } )
+*/
 // this is used to generate an http request to the real core(if there is one?)
 const netRequire = require('../util/myRequire.js');
 
@@ -75,6 +84,11 @@ var fc = require('../file_cluster.js');
 
 const config = require('../config.js');
 
+config.start( ()=>{
+	fc.addEncoders( [{tag:"~E",p:Entity,f:EntityToJSOX }] );
+	fc.addDecoders( [{tag:"~E",p:Entity,f:EntityFromJSOX }] );
+	
+})
 function doLog(...args){
 	var s = util.format(...args);
 	vfs.log(s);
@@ -321,7 +335,7 @@ function sealEntity(o) {
 	//doLog( "before sealing:", JSOX.stringify(o ) );
 	[ //"container", 
 		//"contents", 
-		"attached_to", "created", "created_by", "owner", "save"
+		"attached_to", "created", "created_by", "owner", "save_"
 	].forEach(key => {
 		Object.defineProperty(o, key, { enumerable: true, writable: true, configurable: false });
 	})
@@ -341,7 +355,7 @@ function sealEntity(o) {
 		//,"nearObjects"
 		].forEach(key => {
 		});
-	["Λ", "JSOX", "sandbox"].forEach(key => {
+	["V","Λ", "JSOX", "sandbox"].forEach(key => {
 		Object.defineProperty(o, key, { enumerable: false, writable: true, configurable: false });
 	})
 	Object.defineProperty(o, "io", { enumerable: false, writable: true, configurable: true });
@@ -352,13 +366,14 @@ function makeEntity(obj, name, description, callback, opts) {
 	if (this instanceof makeEntity) throw new Error("Please do not call with new");
 	if (!name && !description) {
 		//var all = all_entities.get(obj);
-		var named = objects.get(obj);
+		//console.trace( "Lookup:", objects, obj );
+		var named = objects.get(obj.toString());
 		//doLog( "Got",  named, obj )
 		obj = named || obj;
 		return named;
 	}
 	//doLog("Called with obj:", name, description, JSOX.stringify(obj,null,"\t"), JSOX.stringify(createdVoid,null,"\t"));
-	console.trace( "Clearing obj...", !!obj);
+	//console.trace( "Clearing obj...", !!obj);
 
 	if (typeof (obj) === "string") {
 		//doLog( "resolve obj as entity ID")
@@ -373,7 +388,7 @@ function makeEntity(obj, name, description, callback, opts) {
 		base_require = require;
 		obj = null;
 	}
-	if ((!obj || !(objects.get(obj.Λ))) && createdVoid) {
+	if ((!obj || !(objects.get(obj.Λ.toString()))) && createdVoid) {
 		//doLog("All Entities", all_entities);
 		doLog("Objects", objects);
 		doLog("invalid object is ", obj);
@@ -395,34 +410,48 @@ function makeEntity(obj, name, description, callback, opts) {
 				throw new Error( "User corrupted entity interface" );
 			throw new Error( "The Void already exists; intitialzation sequence error" );
 		}
-		createdVoid = entity.idMan.localAuthKey;
-		doLog( "Setting void to localAuthkey..." );
+		
+		createdVoid = entity;
 	}
 
 	const o = new Entity( obj, name, description );
 	if( !exports.theVoid ) {
 		if( theVoid )
-			throw new Error( "User corrupted entity interface" );		
+			throw new Error( "User corrupted entity interface" );
 		theVoid = exports.theVoid = o;
 	}
-	if( !o.Λ )
-		fc.put( o, { extraEncoders:[] } ).then( (id )=>{
-			o.Λ = id;
-				
-			if( nextID ) {
+	if( !o.Λ ){
+		//console.log( "Setting the root of all objects.", config.run.Λ, theVoid === o, theVoid );
+		if( theVoid === o ) 
+		{
+			o.Λ = config.run.Λ;
+		}
+
+		if( nextID ) {
+				throw new Error( "NextID should NOT be being used?");
 				o.Λ = nextID;
 				nextID = null;
 				finishCreate();
 			}
-			else entity.idMan.ID(obj || createdVoid, config.run, (key) => {
-				console.log( "id needs to be forged into a key" );
-				//o.Λ = key.Λ;
-				//doLog( "object now has an ID", o.name, o.Λ, key.Λ );
-				finishCreate();
-			} );
-
-		} );
-	finishCreate();
+			else {
+				if( theVoid !== o ) {
+					entity.idMan.ID(obj || createdVoid, config.run, (key) => {
+						o.Λ = key.Λ;
+						//doLog( "object now has an ID", o.name, o.Λ, key.Λ );
+						finishCreate();
+					} );
+				} else {
+					console.log( "Manufacturing new locally authorized key");
+					entity.idMan.localAuthKey.then(lkey=>entity.idMan.ID(config.run, lkey,  (key) => {
+						//console.log( "the void's id needs to be forged into a key", key );
+						o.Λ = key.Λ;
+						//doLog( "object now has an ID", o.name, o.Λ, key.Λ );
+						finishCreate();
+					}) );
+				}
+			}
+	} else
+		finishCreate();
 
 	function finishCreate( ) {
 		//doLog( " ----- FINISH CREATE ---------" );
@@ -433,18 +462,32 @@ function makeEntity(obj, name, description, callback, opts) {
 					o.child.send( { op:"first message test"});
 				}
 			})
-		} else {
-			//doLog( "Used tocreate sandbox here, after getting ID")
-		}
+		} 
 
-		if (o.within) o.within.contains.set(o.Λ, o);
+		if (o.within) o.within.contains.set(o.Λ.toString(), o.Λ.toString() );
 		else {
 			o.within = o;
-                        console.log( "Set object:", o.Λ, o);
-			//objects.set(createdVoid.Λ, o);
+            //console.log( "Set object:", o.Λ, o);
+			//objects.set(createdVoid.Λ.toString(), o);
 		}
-		objects.set(o.Λ, o);
-		//o.attached_to.set(o.Λ, o);
+
+		let oldId = o.Λ.toString();
+		o.Λ.on(()=>{
+			objects.delete(oldId);
+			objects.set(o.Λ.toString(), o);
+
+			o.within.contains.delete( oldId );
+			o.within.contains.set( o.Λ.toString(), o );
+			for( let a of o.attached_to ) {
+				a.attached_to.delete( oldId );
+				a.attached_to.set( o.Λ.toString(), o );
+			}
+			if( o.thread )
+				o.thread.emit( "rekey", o.Λ );
+
+		})
+		objects.set(o.Λ.toString(), o);
+		//o.attached_to.set(o.Λ.toString(), o);
 
 		sealEntity(o);
 		if( o.within ) {
@@ -453,7 +496,7 @@ function makeEntity(obj, name, description, callback, opts) {
 				o.within.thread.emit("stored", o.Λ);
 			}
 		}
-		o.within.contains.forEach(near => (near !== o) ?
+		o.within.contains.forEach(near => (near !== o.Λ) ?
 			( near.thread )&&
 				near.thread.emit("joined", o.Λ) 
 			: 0 
@@ -498,64 +541,6 @@ function makeEntity(obj, name, description, callback, opts) {
 
 		//var o = this ; //makeEntity( this.me );
 		_debug_require && console.log("sandboxRequire ",  src, parentPath );
-		//doLog( "module", o.sandbox.module );
-
-/*		
-		if (src === "entity.js") return exports;
-		if (src === "shell.js") return exports.Sentience;
-		if (src === "text.js") return text;
-		if (src == 'ws') {
-			return sandboxWS;
-		}
-		if (src == 'wss') {
-			return sandboxWSS;
-		}
-		if (o.permissions.allow_file_system && src == 'fs') return fs;
-		if (o.permissions.allow_file_system && src == 'stream') return stream;
-		if (src == 'crypto') return crypto;
-		if (src == 'util') return util;
-		if (src == 'vm') return vm;
-		if (src == 'os') return os;
-		if (src == 'url') return url;
-		if (src == 'tls') return tls;
-		if (src == 'https') return https;
-		if (src == 'path') return path;
-		if( src == 'child_process' ) return cp;
-		if( src == 'process' ) return process;
-                if( src.substr( src.length-8 ) == "sack-gui" ) return sack;
-		//if (src == 'path') return path;
-
-		if (src == 'events') return events;
-
-		if (src == 'sack.vfs') {
-			doLog( "Should change default volume interface?");
-			/*
-			if( o.sandbox )
-			if( !("_vfs" in o.sandbox ) ) {
-				//doLog( "Overriding internal VFS", o.name )
-				try {
-					o.sandbox._vfs = Object.assign( {}, vfsNaked );
-				}catch(err ) {
-					doLog( "vfsNaked is:", vfsNaked );
-				}
-				o.sandbox._vfs.Volume = o.sandbox._vfs.Volume.bind( {} );
-				o.sandbox._vfs.Sqlite = o.sandbox._vfs.Sqlite.bind( {} );
-				try {
-					return new Promise( (resolve,reject)=>{
-						e.thread.run( src, "(" + volOverride + ')(this._vfs,"' +  "." +'")' ).then( resolve ).catch(reject);
-					})
-
-					//vm.runInContext( "(" + volOverride + ')(this._vfs,"' +  "." +'")' , o.sandbox
-					//	, { filename: "moduleSetup" , lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 1000 })
-				} catch( err) {
-					doLog( "VM Error:", err );
-				}
-			}
-			* /
-			return vfs;
-			//return o.sandbox._vfs;
-		}
-		*/
 
 		// resolves path according to relative path of parent modules and resolves ".." and "." parts
 		//_debugPaths && doLog( o.name, JSOX.stringify( o._module,null, "\t"   ));
@@ -586,7 +571,6 @@ function makeEntity(obj, name, description, callback, opts) {
 			console.log( "Entity already had the code for this module... running immediate" );
 			return runModule( o, reloaded );
 		}
-		//doLog( "blah", o.sandbox.scripts)
 
 		if( o.scripts.index < o.scripts.code.length ) {
 			// using an existing script?
@@ -641,16 +625,12 @@ function makeEntity(obj, name, description, callback, opts) {
 				].join("");
 
 				//doLog( "Executing with resume TRUE")
-				try {
-					doLog( "Run this script..." );
-					o.thread.run( {src:src,path:thisModule.paths[0]}, code ).then( (result)=>{
+				doLog( "Run this script..." );
+				o.thread.run( {src:src,path:thisModule.paths[0]}, code ).then( (result)=>{
 
-					} );
-					//vm.runInContext( code, o.sandbox
-					//	, { filename: cache.source , lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 1000 })
-				} catch( err ) {
+				} ).catch( (err ) =>{
 					doLog( "VM Error:", err );
-				}
+				});
 				doLog( "THIS IS THE OTHER POP FOR THAT ")
 				o._module = oldModule;
 				//doLog( "active base module is ... ")
@@ -663,7 +643,7 @@ function makeEntity(obj, name, description, callback, opts) {
 		//doLog( "This will be an async function...posted to run..." );
 		var code =
 			['(async function() { var module={ path:'+ JSON.stringify(filePath) +',src:'+ JSON.stringify(src) 
-				+',parent:'+ JSON.stringify(root)  +',exports:{}, require(what){return global.require(what,module.parent); }}; '
+				+',parent:'+ JSON.stringify(root)  +',exports:{}, require(what){return sandbox.global.require(what,module.parent); }}; module.require.resolve=function(what){return sandbox.fillSandbox.require.resolve(what)};'
 				, 'await (async function(global,exports,module,resume,require){'
 				, file
 				, '}).call(this,this,module.exports,module,false,module.require );'
@@ -677,7 +657,7 @@ function makeEntity(obj, name, description, callback, opts) {
 			filename: root
 			, src : src
 			, code : code
-			, source : "/*DebugHIdeenSource"//file
+			, source : "/*DebugHiddenSource"//file
 			, file: strippedFile
 			, parent: o._module
 			, paths: [strippedRoot]
@@ -685,7 +665,7 @@ function makeEntity(obj, name, description, callback, opts) {
 			, includes : []
 			, loaded: false
 			, toJSON() {
-				//doLog( "Saving this...", this );
+				doLog( "Saving this...", this );
 				return JSOX.stringify( { filename:this.filename, file:this.file, paths:this.paths, src:this.src, source:this.source })
 			}
 			, toString() {
@@ -697,7 +677,7 @@ function makeEntity(obj, name, description, callback, opts) {
 		o._module = thisModule;
 		requireCache.set( thisModule.filename, thisModule );
 		return runModule( o, thisModule ).then( (a)=>{
-			console.log( "Run of src:", src, "finished... (pop current stack?)", a );
+			//console.log( "Run of src:", src, "finished... (pop current stack?)", a /* runId */ );
 			o._module = oldModule
 			return a;
 		} );
@@ -736,6 +716,7 @@ sandboxRequire.resolve = sandboxRequireResolve;
 function Entity(obj,name,desc ) {
 	var o = {
 		Λ: null
+		, V: null
 		, within: obj
 		, attached_to: new Map()//[]
 		, contains: new Map()//[]
@@ -753,7 +734,7 @@ function Entity(obj,name,desc ) {
 		, child : null // child process
 		, vol: null
 		, thread : null
-		, save : false
+		, save_ : false // saved.
 		, watchers : new Map()
 		, scripts : { code: [], index : 0, push(c){ this.index++; this.code.push(c)} }
 		, sandbox : {} // enabled methods.
@@ -774,7 +755,7 @@ function Entity(obj,name,desc ) {
 	//console.log( "o.created_by:", o.created_by, obj, this )
 
 	Object.assign( this, o );
-	this.created_by.created.push( o );
+	this.created_by.created.push( this );
 
 	if( !exports.theVoid ) theVoid = exports.theVoid = this;
 	//Object.assign(o, ee.prototype); ee.call(o);
@@ -802,6 +783,7 @@ var entityMethods = {
 			
 		}
 		, birth( ) {
+			console.log( "REmotes must be a very strange lookup...");
 			remotes.set( this, this );
 			this.child = cp.fork( __dirname + "/childEntity.js", [this.Λ, config.run.defaults.defaultPort.toString()])
 			this.child.on( 'message', (msg)=>{
@@ -824,7 +806,7 @@ var entityMethods = {
 			return done;
 		}
 		, getObjects(...args){ return getObjects(this, ...args) }
-		, get contents() { var refs = new Map();  this.contains.forEach( c=>refs.set(c.Λ, c.Λ) );return refs; }
+		, get contents() { var refs = [];  this.contains.forEach( c=>refs.push(c.Λ.toString() ) );return refs; }
 		, get near() {
 			var result = [];
 			for( let near of this.within.contains){
@@ -850,35 +832,36 @@ var entityMethods = {
 			var anchor = findContained( this );
 			var from = anchor;
 			while( from = from.from ) {
-				from.parent = from.parent.Λ;
-				from.at = from.at.Λ;
+				from.parent = from.parent.Λ.toString();
+				from.at = from.at.Λ.toString();
 			}
-			anchor.parent = anchor.parent.Λ;
-			anchor.at = anchor.at.Λ;
+			anchor.parent = anchor.parent.Λ.toString();
+			anchor.at = anchor.at.Λ.toString();
 			return anchor;
 		}
 		, get nearObjects() {
 			//doLog( "getting near objects", this.contains )
 			var near = new Map();
 			var c = new Map();
-			this.attached_to.forEach( e=>c.set(e.Λ,e.Λ) );
+			this.attached_to.forEach( e=>c.set(e.Λ.toString(),e.Λ.toString()) );
 			near.set("holding", c );
 			c = new Map();
-			this.contains.forEach( e=>c.set(e.Λ,e.Λ) );
+			this.contains.forEach( e=>c.set(e,e) );
 			near.set("contains", c );
 			near.set("near", (function (on) {
 				var result = new Map();
 
 				if (on.within) {
-					on.within.contains.forEach((nearby) => {
-						//doLog( "my room contains:", nearby );
+					on.within.contains.forEach((nearby,nearE) => {
+						//doLog( "my room contains:", nearby, nearE );
 						if (nearby !== on) {
-							result.set(nearby.Λ, nearby.Λ );
+							//let realNear = objects.get( nearby );
+							result.set(nearE,nearE );
 						}
 					});
-					on.within.attached_to.forEach((nearby) => {
-						//doLog( "my room attached to:", nearby );
-						result.set(nearby.Λ, nearby.Λ );
+					on.within.attached_to.forEach((nearby,nearE) => {
+						//doLog( "my room attached to:", nearby, nearE );
+						result.set(nearE, nearE );
 					});
 					return result;
 				}
@@ -905,8 +888,8 @@ var entityMethods = {
 			   a.rebase();
 
 			{
-				a.attached_to.set(this.Λ, this);
-				this.attached_to.set(a.Λ, a);
+				a.attached_to.set(this.Λ.toString(), this);
+				this.attached_to.set(a.Λ.toString(), a);
 
 				if( this.thread )
 					this.thread.emit('attached', a.Λ);
@@ -936,10 +919,10 @@ var entityMethods = {
 		, watch(a) {
 			a = objects.get( a );
 			if( a ) {
-				for( let method of a.sandbox ) {
-					this.emit( "enable", [a.Λ, method] );
+				for( let method in a.sandbox ) {
+					this.emit( "enable", [a.Λ, a.sandbox[method]] );
 				}
-				a.thread && a.watchers.set(this.Λ, this);
+				a.thread && a.watchers.set(this.Λ.toString(), this);
 			}
 		}
 		, ignore(a) {
@@ -950,11 +933,11 @@ var entityMethods = {
 			a.within = this;
 			if( this.thread )
 				this.thread.emit('stored', a.Λ );
-			this.contains.forEach( peer=>{
+			this.contains.forEach( peer=>{peer = objects.get( peer );
 				if( peer.thread )
 					peer.thread.emit('joined', a.Λ );
 			});
-			this.contains.set( a.Λ, a );
+			this.contains.set( a.Λ.toString(), a.Λ.toString() );
 			if( a.thread )
 				a.thread.emit('placed', this.Λ );
 		}
@@ -1026,7 +1009,7 @@ var entityMethods = {
 				watcher.emit( "enable", [this_.Λ, ability] );
 			} );
 			// tell this thread about its own method...
-			if( this.thread ) this.thread.emit( "enable", [this.Λ, ability] );
+			if( this.thread ) this.thread.emit( "enable", [this.Λ.toString(), ability] );
 		}
 		, disable( method ) {
 			
@@ -1049,10 +1032,10 @@ var entityMethods = {
 		}
 		, grab(a) {
 			//doLog( "THing:", this, "A:", a );
-			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ );
+			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ.toString() );
 			if( grabobj ) {
 				if( !grabobj.within ) {
-					throw new Error( "Entity cannot be grabbed, it is not the anchor point.", grabobj.Λ );
+					throw new Error( "Entity cannot be grabbed, it is not the anchor point.", grabobj.Λ.toString() );
 				}
 				grabobj.rebase();
 				this.attach( grabobj );
@@ -1060,14 +1043,14 @@ var entityMethods = {
 		}
 		, hold(a) {
 			//doLog( "THing:", this, "A:", a );
-			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ );
+			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ.toString() );
 			if( grabobj ) {
 				this.attach( grabobj );
 			}
 		}
 		, drop(a) {
 			var outer = this.within || (outer = findContained(this).parent );
-			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ );
+			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ.toString() );
 
 			if( this.detach( grabobj ) ) {
 				doLog( "Detached, can insert", grabobj )
@@ -1091,7 +1074,7 @@ var entityMethods = {
 			return isOwned( this, a );
 		}
 		, store(a) {
-			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ );
+			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ.toString() );
 			if( this.owns( a ) ) {
 				if( this.detach( grabobj ) )
 					this.insert( grabobj );
@@ -1164,17 +1147,19 @@ var entityMethods = {
 			this.contains.forEach((member) => { if (contained) contained += '","'; else contained = ' ["'; contained += member.Λ })
 			if (contained) contained += '"]';
 			else contained = '[]';
-			return '{"Λ":"' + this.Λ
-				+ '","value":' + (this.value && this.value.toString())
-				+ ',"name":"' + (this.name)
-				+ '","description":"' + (this.description)
-				+ '","within":"' + (this.within && this.within.Λ)
-				+ '","attached_to":' + attached
-				+ ',"contains":' + contained
-				+ ',"created_by":"' + this.created_by.Λ
+			console.log( "Saving:", this);
+			return '{Λ:i"' + this.Λ
+				+ '",value:' + (this.value && this.value.toString())
+				+ ',name:"' + (this.name)
+				+ '",description:"' + (this.description)
+									// (this.within === entity.theVoid )?"ref[]" :
+				+ '",within:' + ((this.within)? (this.within.V?('~or"'+this.within.Λ+'"'):('Er"'+this.within.Λ+'"')): "null")
+				+ ',attached_to:' + attached
+				+ ',contains:' + contained
+				+ ',created_by:i"' + this.created_by.Λ + '"'
 				//+ ',"code":' + JSOX.stringify( this.sandbox.scripts.code )
-				+ ',"_module":'+ JSOX.stringify( this._module )
-				+ '"}\n';
+				+ ',_module:'+ JSOX.stringify( this._module )
+				+ '}\n';
 			}
 		}
 		, toRep() {
@@ -1216,13 +1201,30 @@ var entityMethods = {
 		var descriptor = Object.getOwnPropertyDescriptor(entityMethods, prop);
 		Object.defineProperty(Entity.prototype, prop, descriptor);
 	});
+	Entity.prototype.save = function() {
+		this.saved = true;
+		return this.saved;
+	}
 	Object.defineProperty(Entity.prototype, "saved", { enumerable: false, configurable: false
-		, get(){ return this.save; }
+		, get(){ return this.save_; }
 		, set(val){ 
 			//console.log( "Key Saved?", this, val)
 			if( val ) {
-				this.save = val;
-				/* do we require any other things to be saved because this is saved? */
+				const this_ = this;
+				this.save_ = new Promise( (res,rej)=>{
+					let x = this.Λ.save();
+					console.log( "Save should have resulted i a promise?", x );
+					x.then( (id) =>{
+						if( !id ) console.log( "Save somehow failed... (it won't)");
+						this.save_ = fc.put( this ).then( (id )=>{
+							console.log( "Void storage identifier:", id );
+							this_.V = id;
+							res( id );
+							return id;
+						} );
+						/* do we require any other things to be saved because this is saved? */
+					});
+				})
 			}
 		} }
 	);
@@ -1236,26 +1238,35 @@ Entity.fromString = function(s) {
 	var entity = createEntity( s.parent, s.name, s.description )
 
 	o.Λ = s.Λ;
-		console.warn( "create sandbox here, after getting ID")
-		//o.sandbox = vm.createContext(makeSystemSandbox(o, true));
-		//o.Λ = makeEntityInterface(o);
-		//sealSandbox(o.sandbox);
+		console.warn( "create sandbox here, after getting ID --------- FROM STRING?!")
 
 		if (o.within)
-			o.within.contains.set(o.Λ, o);
+			o.within.contains.set(o.Λ.toString(), o);
 		else
 			o.within = o;
 
-		objects.set(o.Λ, o);
+		var oldId = o.Λ.toString();
+		o.Λ.on(()=>{
+			o.within.contains.delete( oldId );
+			o.within.contains.set( o.Λ.toString(), o );
+			for( let a of o.attached_to ) {
+				a.attached_to.delete( oldId );
+				a.attached_to.set( o.Λ.toString(), o );
+			}
+			objects.delete( oldId );
+			objects.set(o.Λ.toString(), o);
+			o.thread.emit( "rekey", o.Λ );
+		})
+		objects.set(o.Λ.toString(), o);
 
 		sealEntity(o);
 
 		if (!o.within) {
-			//o.attached_to.set(o.Λ, o);
+			//o.attached_to.set(o.Λ.toString(), o);
 		}else {
 			if( o.within.thread ) {
-				o.within.thread.emit("created", o);
-				o.within.thread.emit("inserted", o);
+				o.within.thread.emit("created", o.Λ);
+				o.within.thread.emit("inserted", o.Λ);
 			}
 		}
 		//o.within.contains.forEach(near => (near !== o) ? near.thread.emit("joined", o) : 0);
@@ -1270,31 +1281,15 @@ Entity.fromString = function(s) {
 exports.reloadAll = function( onLoadCb, initCb ) {
 	// if reload failed, run initCb; else run code already in the thing...
 	//return initCb();
+	console.log( "So? Config.run use to have a proper ID...", config.run )
+	fc.get( config.run["The Void"] ).then ((obj)=>{
 
-	var file = fc.reload( "core/entities.jsox", (err, file)=>{
-		if( !file ) return initCb();
-		console.log( "INPUT:", file.toString() );
-		try {
-			file = fc.Utf8ArrayToStr(file);
-			//doLog( "got:", err, file );
-			var input = JSOX.parse( file );
-		}catch(err) {
-			doLog( "input jsox is corrupt; defaulting to first run.\n", err)
-			return initCb();
-		}
-		nextID = input[0].Λ;
 		doLog( "recovered core entity...", !!entity.theVoid, !!theVoid, entity.theVoid === theVoid );
-		console.log( "References:", input );
-		makeEntity( null, input[0].name, input[0].description, (o)=>{
-			var defer = [];
-			o.value = input[0][o.Λ];
-			
+		console.log( "References?" );
+		// this is already a made entity.
+
 			if( o.sandbox ) {
 				doLog( "restore scripts to ....", o.sandbox.scripts );
-				//o.sandbox.config = input[0].config;
-				//o.sandbox.scripts.code = input[0].scripts;
-				//doLog( "closure source?", o.sandbox.scripts.code);
-				//for( var c in o.sandbox.scripts.code ) { c.closure = JSOX.parse( c.closure ) }
 			}
 			
 			var executable = [];
@@ -1329,18 +1324,10 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 						} else {
 							// detach from everything for a second...
 							// (probably attached_to will re-join this to the mesh)
-							o.within.contains.delete( o.Λ );
+							o.within.contains.delete( o.Λ.toString() );
 							o.within = null; // temporarily floating
 						}
 
-						if( o.sandbox ) {
-							doLog( "restoring scripts?", ths)
-							o.sandbox.config = ths.config;
-							if( ths.scripts && ths.scripts.length )
-								executable.push( o );
-							//o.sandbox.scripts.code = ths.scripts;
-							//doLog( "Storing scripts?", ths.scripts )
-						}
 						//doLog( "Created :", ths );
 					})
 				}
@@ -1358,24 +1345,13 @@ exports.reloadAll = function( onLoadCb, initCb ) {
 			for( var e of executable ) {
 				// it may have already started...
 				if( !e.scripts.index ) {
-					doLog( "")
+					doLog( "do require of source....")
 					e.require( e.scripts.code[0].source )
 					// after require, things might be run on it...
 				}
-				/*
-				if( e.sandbox.scripts.index < e.sandbox.scripts.code.length ) {
-					var cache = e.sandbox.scripts.code[e.sandbox.scripts.index];
-					doLog( "is this cache a run?", e.sandbox.scripts, cache );
-					if( cache )
-						if( cache.type==="run")
-							e.run( cache.code );
-					else doLog( "index less than end?", cache)
-				}
-				*/
 			}
 			//exports.saveAll();
 		})
-	})
 }
 
 exports.saveAll = function() {
@@ -1392,10 +1368,10 @@ exports.saveAll = function() {
 		fc.store( "core/entities.jsox", JSOX.stringify( output, null, 2 ) )
 		function recurseSave( o ) {
 			if( saved.get(o.Λ) ) return; // already saved.
-			if( o.save ) {
+			if( o.save_ ) {
 				output.push( o.toRep() );
 			}
-			saved.set( o.Λ, o );
+			saved.set( o.Λ.toString(), o );
 			o.attached_to.forEach( recurseSave );
 			//doLog( "Saving:", o.toString() )
 			o.contains.forEach( recurseSave );
@@ -1683,7 +1659,8 @@ function sanityCheck(object) {
 
 function saveConfig(o, callback) {
 	//if( !fs.exists( 'core') )
-	console.trace( "********SaveConfig Volume" );
+	console.trace( "********SaveConfig Volume (FIXME)" );
+	return;
 	if (!("vol" in o))
 		o.vol = vfs.Volume(null, config.run.defaults.dataRoot + "/" + o.Λ);
 	if( o.sandbox )		
@@ -1695,7 +1672,8 @@ function saveConfig(o, callback) {
 //
 function loadConfig(o) {
 	if( !o.sandbox ) return;
-	console.trace( "********LoadConfig Volume" );
+	console.trace( "********LoadConfig Volume (FIXME)" );
+	return;
 	if (!("vol" in o))
 		o.vol = vfs.Volume(null, config.run.defaults.dataRoot + "/" + o.Λ);
 	{

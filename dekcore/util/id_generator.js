@@ -10,16 +10,13 @@ if( "undefined" === typeof Λ) {
  exports.u8xor=u8xor;
 
 } else {
-	console.log( "Asyn id_generator.js...");
 	async function f() {
-	  const arequire = await require( "../../org.d3x0r.common/salty_random_generator.js");
-	  SRG=arequire;
-	 RNG = (arequire).SaltyRNG( 
-		(saltbuf)=>saltbuf.push( new Date().toISOString() ), { mode:1 } );
-	 RNG2 = (arequire).SaltyRNG( 
-		getSalt2, { mode:1 } );
-	 u8xor = await require( "./u8xor.js" );
-	 exports.u8xor=u8xor;
+		const SRG = await require( "../../org.d3x0r.common/salty_random_generator.js");
+		RNG = SRG.SaltyRNG( 
+			(saltbuf)=>saltbuf.push( new Date().toISOString() ), { mode:1 } );
+		RNG2 = SRG.SaltyRNG( getSalt2, { mode:1 } );
+		u8xor = await require( "./u8xor.js" );
+		exports.u8xor=u8xor;
 	}
 	 f();
 }

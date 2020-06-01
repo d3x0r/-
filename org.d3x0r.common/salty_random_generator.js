@@ -61,6 +61,7 @@ Object.freeze( decodings );
 
 exports.SaltyRNG = function (f, opt) {
 
+	const readBufs = [];
 	const K12_SQUEEZE_LENGTH = 32768;
 
 	const shabuf = opt?( opt.mode === 0 )?new SHA256() : null
@@ -145,8 +146,11 @@ exports.SaltyRNG = function (f, opt) {
 		},
 		getByte() {
 			if( this.used & 0x7 ) {
-				var arr = new Uint8Array(this.getBuffer(8));
-				return arr[0];
+				const buf = this.getBuffer(8);
+				const val = buf.u8[0];
+				readBufs[8].push( buf );
+				return val;
+		
 			} else {
 				if(this.available === this.used)
 					needBits();
@@ -161,28 +165,26 @@ exports.SaltyRNG = function (f, opt) {
 			if (count > 32)
 				throw "Use getBuffer for more than 32 bits.";
 			var tmp = this.getBuffer(count);
+			if( !tmp.u32 ) tmp.u32 = new Uint32Array(tmp.ab);
+			var val = tmp.u32[0];
 			if( signed ) {
-				var arr_u = new Uint32Array(tmp);
-				var arr = new Int32Array(tmp);
-				if(  arr_u[0] & ( 1 << (count-1) ) ) {
+				if(  val & ( 1 << (count-1) ) ) { // sign extend
 					var negone = ~0;
 					negone <<= (count-1);
-					//console.log( "set arr_u = ", arr_u[0].toString(16 ) , negone.toString(16 ) );
-					arr_u[0] |= negone;
+					val |= negone;
 				}
-				return arr[0];
 			}
-			else {
-				var arr = new Uint32Array(tmp);
-				return arr[0];
-			}
+			readBufs[count].push( tmp );
+			return val;
 		},
 		getBuffer(bits) {
 			let _bits = bits;
 			let resultIndex = 0;
 			let resultBits = 0;
-			let resultBuffer = new ArrayBuffer(4 * ((bits + 31) >> 5));
-			let result = new Uint8Array(resultBuffer);
+			if( readBufs.length <= bits ) { for( let zz = readBufs.length; zz <= bits; zz++ ) readBufs.push([]); }
+			let resultBuffer = readBufs[bits].length?readBufs[bits].pop():{ab:new ArrayBuffer(4 * ((bits + 31) >> 5)),u8:null,u32:null};
+			let result = resultBuffer.u8?resultBuffer.u8:(resultBuffer.u8 = new Uint8Array(resultBuffer.ab) );
+			for( let zz = 0; zz < result.length; zz++ ) result[zz] = 0;
 			this.total_bits += bits;
 			{
 				let tmp;
@@ -1132,7 +1134,7 @@ exports.Shuffler = function( opts ) {
 }
 
 
-if( !module.parent ) {
+if( "undefined" != typeof module && !module.parent ) {
 	var keybuf = new Uint8Array(1);
 	
 	var output = SRG_XSWS_encryptString( "test", 123, keybuf );

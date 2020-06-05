@@ -18,31 +18,36 @@ let  userAccounts = null;
 bloomHash.hook( storage );
 
 
-if( "undefined" === typeof config )
-	var config = {
-		commit() {
-			console.log( "SAVE CONFIG" );
-			configFile.write( config );
-		}
-	};
+	setup();
+
+async function setup() {
 
 
-function InitAccounts() {
-	userAccounts = bloomHash();
-	userAccounts.store().then( (id)=>{
-		config.userAccounts = userAccounts;
-		console.log( "USER ACCOUNTS SHOULD BE SAVED....", id );
-		config.commit(); // just store direct referece?
-		// debug - make some accounts.
-		asdf();
-	} );
-}
+	if( "undefined" === typeof config )
+		var config = {
+			commit() {
+				console.log( "SAVE CONFIG" );
+				configFile.write( config );
+			}
+		};
 
-const configFile = await fileRoot.open( "config.jsox" ).catch( ()=>{ 
-	const file = fileRoot.create( "config.jsox" )
-	InitAccounts();
-	return file;
-} ).then( (file)=>( file.read().then( storage.map ).then(
+
+	function InitAccounts() {
+		userAccounts = bloomHash();
+		userAccounts.store().then( (id)=>{
+			config.userAccounts = userAccounts;
+			console.log( "USER ACCOUNTS SHOULD BE SAVED....", id );
+			config.commit(); // just store direct referece?
+			// debug - make some accounts.
+			asdf();
+		} );
+	}
+
+	const configFile = await fileRoot.open( "config.jsox" ).catch( ()=>{ 
+		const file = fileRoot.create( "config.jsox" )
+		InitAccounts();
+		return file;
+	} ).then( (file)=>( file.read().then( storage.map ).then(
 		(data)=>{
 			if( data && data.userAccounts ) {
 				config.userAccounts = data.userAccounts;
@@ -65,61 +70,64 @@ const configFile = await fileRoot.open( "config.jsox" ).catch( ()=>{
 		}),  file ) ) ;
 
 
-// create some fake user accounts
-function asdf() {
+	// create some fake user accounts
+	function asdf() {
 
-	let uzr;
-	var n = 0;
+		let uzr;
+		var n = 0;
 	
-	for( var n = 0; n < 280; n++ ) {
-		const uzr = {	account:"user"+n, password:"pass"+n, email:"email"+n   };
-		storage.put( uzr ).then( ()=>// I want to wait until it definatly IS put...
+		for( var n = 0; n < 280; n++ ) {
+			const uzr = new User( "user"+n, "pass"+n, "email"+n );
 			userAccounts.set( uzr.account, uzr )
-		); // set implicitly puts
+		}
+
+		{
+			const uzr = new User( "d3x0r", "password", "email@nowhere.net" );
+			userAccounts.set( "d3x0r", uzr );
+		}
 	}
 
-	{
-		const uzr = {	account:"d3x0r", password:"password", email:"email@nowhere.net"   };
-		storage.put( uzr ).then( ()=>// I want to wait until it definatly IS put...
-			userAccounts.set( "d3x0r", uzr ) );
-	}
-}
 
-function setup() {
+	DB.createUser = createUser;
+	DB.updateUser = updateUser;
+	DB.authUser = authUser;
+
+
+	const logins = new Map(); // cache, for login timers, close notifications to services...
+	const userMap = new Map(); // cache some users...
 
 	return;
 
 
-	var logins = new Map(); // cache, for login timers, close notifications to services...
 
-
-	var userMap = new Map(); // cache some users...
-	var curPage = 0;
-	var userPages = [ [] ];
-
-	function pageUser( user ) {
-		userPages[curPage].push( user );
-		if( userPages[curPage].length < 1 ) {
-			
-		}
+	function Profile( user ) {
+		this.informations = new Map();
+		const now = new Date();
+		this.informations.set( "access", new Access( null, now.setDate( now.getDate()+30 ), true ) );
 	}
 
 	function User( name, email, pass ) {
 		if( name && email && pass ) {
-			if( !(this instanceof "User" ) ) return new User( name, email, pass );
+			if( !(this instanceof User ) ) return new User( name, email, pass );
 			this.name= name;
 			this.email=email;
-			this.pass=pass;
-			const now = new Date();
-			this.access = new Access( null, now.setDay( now.getDay()+30 ), true );
-			storage.put( this ).then( (id)=>{
-				// do I care? Yes, add to userpages...
-				
+			this.pass=sack.id( "passwordHash:"+pass, 3 );
+			this.uid = null;
+			this.profile = new Profile();
+			storage.put( this.profile ).then( (id)=>{
+				storage.put( this ).then( (id)=>{
+					this.uid = id;
+					storage.put( this );
+					// do I care? Yes, add to userpages...
+					config.userAccounts.set( this.name, this );
+				} );
 			} );
 		} else {
 			this.name = null;
 			this.email = null;
 			this.pass = null;
+			this.uid = null;
+			this.profile = null;
 			// content gets filled in later...
 		}
 	}
@@ -166,141 +174,91 @@ function setup() {
 		new Accesss( this, status );
 	}
 
-	function Login( address ) {
-		if( address ) {
-			this.login = new Date(); // now.
-			this.address = address;
+	function Login( user, address ) {
+		if( user instanceof Login ) {
+			this.user = user.user;
+			this.login = new Date();
+			if( address ) 
+				this.address = address;
+			else
+				this.address = user.address;
+			this.prior = user;
 			storage.put( this );
-		}else {
-			this.login = null;
-			this.address = null;
 		}
-	}
-
-
-
-DB.createUser = createUser;
-DB.updateUser = updateUser;
-DB.authUser = authUser;
-
-function createUser( ) {
-}
-
-function createUser( username, email, password ) {
-	if( !email) email = "DoNotCall@localhost";
-	if( !password ) password = true;
-	if( !username ) throw new Error( "Must at least specify a username!" );	
-	return new User();
-}
-
-
-function checkUserName( username ) {
-	const existing = userMap.get( username );
-	if( !existing ) {
-		
-	}
-
-	return db.do( `select count(*) from user where name='${db.escape(username)}'` ) === 0;
-}
-
-
-
-DB.loginUser = (username,pass,req,address,oldcid, sendOk )=>{
-	var result = null;
-	//console.log( "LOGIN USER", user );
-	var user = users.find( u=>u.email===username );
-	if( user ) {
-		var user = db.do( `select 1 from user where passhash=encrypt('${db.escape(pass)}' and user_id='${user.user_id}'`);
-		if( user.length === 0 )
-			return false;
-	}
-	else {
-		var user = db.do( `select user_id,email from user where passhash=encrypt('${db.escape(pass)}' and email='${db.escape(username)}'`);
-		if( user.length === 0 ) {
-			return false;
-		}
-		user = user[0];
-		// cache this user.
-		users.push( user );
-	}
-
-
-
-	{
-		var fail1 = false;
-		if( req.find( r=>( r in services )?!user.services.find( up=>services[r].service_id===up.service_id ):(fail1=true) ) ) {
-			if( fail1 )
-				console.log( "requested service didn't exist... no user can match" )
-			console.log( "service search failure...", req, user.services );
-			return false
-		}
-	}
-
-		if( user.login ) {
-			// there is already a login; a confirmation?
-			if( user.login.address !== address ){
-				// conflict of logins....
+		else
+			if( address ) {
+				this.user = user;
+				this.login = new Date(); // now.
+				this.address = address;
+				this.prior = null;
+				storage.put( this );
 			}else {
-				// migth still be a conflict of logins.
+				this.user = null;
+				this.login = null;
+				this.address = null;
+				this.prior = null;
 			}
-
-				// else the client wasn't actually connected, just log it out.
-		}
-
-
-	db.do( `update userLogin set loggedOut=1 where user_id='${user.user_id}'`)
-	var login_id;  // constant key
-	var client_id;  // rotating key
-	db.do( `insert into userLogin(login_id,user_id,address,client_id)values('${login_id=idGen()}','${user.user_id}',"${address}",'${client_id=idGen()}')`)
-	console.log( "inserted into thing.")
-	var hash_id = IdGen.xor( config.run.Λ, login_id );
-	result = user.login = { id:login_id, key:hash_id, cid:client_id };
-
-	logins.set( user.login.key, user );
-	if( sendOk ) sendOk( user.login.key );
-
-	return true;
-
-}
-
-DB.getLogin = ( service, remote, clientkey )=>{
-	//console.log( "userLogins:", db.do( `select * from userLogin` ) );
-	var login = db.do( `select sha2('RandomPaddingHere'||user_login_id)key,user_login_id id from userLogin WHERE address="${remote}" AND loggedOut=0 AND DATETIME(login)>${config.login.maxLoginLength} AND client_id="${clientkey}"`)
-	if( login.length === 1 ) {
-		return {key:login[0].key,id:login[0].id,cid:clientkey};
 	}
-	else
-		console.log( "too many logins?  too few?", login )
-	return null;
-}
+	Login.prototype.chain() = function() {
+		return new Login( this )
+	}
 
-DB.updateLogin = ( login )=>{
-	var cid = idGen();
-	var test = db.do( `update userLogin set client_id="${cid}" where client_id="${login.cid}"`)
-	login.cid = cid;
-	return cid;
-}
 
-function authUser( user, password, token ) {
-	return users.find( user=>{
-		if( user.name === user && user.password === password  ) {
-			if( token.find( t=>!permissions.find( p=>p===t ) ) )
-				return false;
-			return true;
+
+	function createUser( username, email, password ) {
+		if( !email) email = "DoNotCall@localhost";
+		if( !password ) password = true;
+		if( !username ) throw new Error( "Must at least specify a username!" );	
+		return new User( username, email, password );
+	}
+
+
+	function checkUserName( username ) {
+		return config.userAccounts.get( username ).then( (account)=>!!account )
+	}
+
+
+
+	DB.loginUser = (username,pass,address,oldcid )=>config.userAccounts.get( username ).then( (user)=>{
+		if( sack.id( pass, 3 ) === user.password ) {
+			const history = user.profile.get( "logins" );
+			if( history )
+				const login = new Login( history, address );
+			else
+				const login = new Login( user, address );
+			user.profile.set( "logins", login );
+			storage.put( user.profile );
+			return storage.put( history );
+		} else {
+			return null;
 		}
-		return false;
-	});
-}
+	} );
 
-DB.logout = (sessionkey)=>{
-	var login = logins.get( sessionkey );
-	if( login )
-		db.do( `update userLogin set loggedOut=1 where user_login_id=${login.login.id}`)
-}
 
-DB.connect = (gun)=>{
-	console.log( "Update gun databases?? passed a gun instance to do SOMETHING with...")
-}
+	DB.updateLogin = ( login )=>{
+		var l = logins.get( login );
+	
+		l.user.profile.set( "logins", new Login( l.user.profile.get( login ) ) )
+		return cid;
+	}
+
+	function authUser( user, password, token ) {
+		return users.find( user=>{
+			if( user.name === user && user.password === password  ) {
+				if( token.find( t=>!permissions.find( p=>p===t ) ) )
+					return false;
+				return true;
+			}
+			return false;
+		});
+	}
+
+	DB.logout = (sessionkey)=>{
+		var login = logins.get( sessionkey );
+		if( login )
+			db.do( `update userLogin set loggedOut=1 where user_login_id=${login.login.id}`)
+	}
+
 
 }
 

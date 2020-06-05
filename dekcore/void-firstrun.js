@@ -26,6 +26,7 @@ function BigBang() {
 	}
 	//console.log( "Creating the void....");
 	Entity.create( null, "The Void", "Glistening transparent black clouds swirl in the dark.", (o)=>{
+		const theVoid = o;
 		o.saved = true;
 		o.saved.then( (id)=>{
 			console.log( "Creating first entity" );
@@ -41,10 +42,9 @@ function BigBang() {
 						o.wake().then( (thread)=>{
 							process.stdin.pipe( thread.worker.stdin );
 							console.log( "requiring start script", startScript );
-							setTimeout( o.save, 2000 );
 							o.require( startScript ).then( (r)=>{
 								console.log( "Hmm, what doe shtis result?", r );
-								//Entity.saveAll();
+								o.save();
 							});
 						}).catch( (err) =>{
 							console.log( "MOOSE Startup Wake failed:", err );

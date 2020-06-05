@@ -34,46 +34,50 @@ console.log( "Hello from startup.js" );//, Object.keys(this) );
 
 if( resume ) {
 	console.log( "Okay this a resuming thing so..." );
-	firewall = entity.get( config.run.firewall );
-	auth = entity.get( config.run.auth );
-    	auth.run( {path:"memory://", file:"startup auth" }`io.firewall = io.getInterface( "${firewall.Λ}", "firewall" );` );
+	//firewall = entity.get( config.run.firewall );
+	//auth = entity.get( config.run.auth );
+  //auth.run( {path:"memory://", file:"startup auth" }`io.firewall = io.getInterface( "${firewall.Λ}", "firewall" );` );
 
 }
 else {
 
-create( "Command And Control", "user manager", "userManagerStartup.js" )
+  has("Command And Control").catch( ()=>{
+    create( "Command And Control", "user manager", "userManagerStartup.js" );
+  })
 
-create( "MOOSE-HTTP", "(HTTP)Master Operator of System Entites.", "startupWeb.js" )
+  has("MOOSE-HTTP").catch( ()=>{
+    create( "MOOSE-HTTP", "(HTTP)Master Operator of System Entites.", "startupWeb.js" )
+  });
+  
+  //create( "Command And Control-HTTP", "http MOOSE console", "webShell/shellServer.js" );
 
-//create( "Command And Control-HTTP", "http MOOSE console", "webShell/shellServer.js" );
+  // these are private To MOOSE anyway... so they're not a lot of good?
+  var services = null;
+  var firewall = null;
+  var auth = null;
+  console.log( "------- create services ------------")
+  return create( "Services"
+      , "Service Directory Manager and authenticator"
+      , "services/services/serviceService.js"
+  ).then( (o)=>{
+  console.log( "------- create firewall ------------")
+    services = o;
+    create( "Firewall"
+      , "Your basic iptable rule manager"
+      , "services/firewall/firewallService.js"
+      ).then( (o)=>{
+      firewall = o;
+      console.log( "------- run some code on firewall/serivces? ------------")
+      
+      services.run( {path:"memory://", src:"startup services" }, 'io.firewall = io.getInterface( "firewall" );' );
 
-// these are private To MOOSE anyway... so they're not a lot of good?
-var services = null;
-var firewall = null;
-var auth = null;
-console.log( "------- create services ------------")
-return create( "Services"
-		, "Service Directory Manager and authenticator"
-		, "services/services/serviceService.js"
- ).then( (o)=>{
-console.log( "------- create firewall ------------")
-  services = o;
-  create( "Firewall"
-		, "Your basic iptable rule manager"
-		, "services/firewall/firewallService.js"
-		).then( (o)=>{
-    firewall = o;
-    console.log( "------- run some code on firewall/serivces? ------------")
-    
-    services.run( {path:"memory://", src:"startup services" }, 'io.firewall = io.getInterface( "firewall" );' );
+      create( "userAuth", "User authentication service", "uiServer/userAuth/userProtocol.js").then( (o)=>{
+          auth = o;
+          auth.run( {path:"memory://", src:"startup UserAuth services" }, `io.firewall = io.getInterface( "${firewall.Λ}", "firewall" );` );
+        })
+    } )
 
-    create( "userAuth", "User authentication service", "uiServer/userAuth/userProtocol.js").then( (o)=>{
-        auth = o;
-        auth.run( {path:"memory://", src:"startup UserAuth services" }, `io.firewall = io.getInterface( "${firewall.Λ}", "firewall" );` );
-       })
-   } )
-
-} )
+  } )
 
 }
 //firewall.run(  )

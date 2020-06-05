@@ -26,8 +26,9 @@ const JSOX = sack.JSOX;
 //JSOX.registerToJSOX( "entity", Entity,
 
 function EntityToJSOX (){
-	console.log( "ToJSOX?", this.toString() );
-	return '~E'+this.toString();
+	const r = '~E'+this.toString();
+	console.log(  "Encoded entity:", r );
+	return r
 
 
 }
@@ -35,13 +36,45 @@ function EntityToJSOX (){
 //JSOX.fromJSOX( "entity", Entity, function(field,val){
 function EntityFromJSOX(field,val ) {
 	if( !field ) {
-		objects.set( this.Λ.toString(), this );
-			console.log( "Get:", this.within );
-			val = objects.get( this.within );
-			console.log( "Got:", !!val );
-			if( val )
-				val.contains.set( this.Λ.toString(), this.Λ.toString() );
+		if( this.Λ instanceof Promise ) {
+			const this_ = this;
+			this.Λ.then( Λ=>{
+				objects.set( Λ.Λ, this_ );
+			} )
+		} else 
+			objects.set( this.Λ.toString(), this );
+			
+		console.log( "Get:", this.within );
+		val = objects.get( this.within );
+		this.contains.forEach( (c,i)=>{ if( c instanceof Promise ) c.then( (o)=>this.contains[i] = o )  })
+		console.log( "Got:", !!val );
+		if( val )
+			val.contains.set( this.Λ.toString(), this.Λ.toString() );
+
 		return this;
+	}
+	if( field === "within") {
+		if( "string" === typeof val ){
+			let t;
+			t = objects.get( val );
+			if( t ) val = t;
+			else {
+				if( this.Λ instanceof Promise ) {
+					const this_= this;
+					this.Λ.then( Λ=>{
+						if( Λ === val ) {
+							this_.within = this_;
+						}else {
+							t = objects.get( val );
+							if( t )
+								this_.within = t;
+							else
+								throw new Error( "This is throwing into a promise; but... cannot resolve 'within'");
+						}
+					} )
+				}
+			}
+		}
 	}
 	if( field === "attached_to" ) {
 		
@@ -54,15 +87,34 @@ function EntityFromJSOX(field,val ) {
 	if( field === "created_by") {
 		//console.log( "This is just bad... no cread?", this, field, val );
 		if( !val )  console.log ( "LOST VAL", val, field );
-		val = objects.get( val );
-		if( val && val.created )
+		this.created.length = 0; // on revival, this will have been wrong (all objects get created like TheVoid)
+		const this_ = this;
+		if( val instanceof Promise ) 
+			val.then( (val)=>val.created.push(this_));
+		else
 			val.created.push(this);
+		//if( pval && pval.created )
+		//	pval.created.push(this);
 	}
 	//console.log( "Assinging to this:", this, field, val );
+	if( val instanceof Promise ){
+		const this_ = this;
+		val.then(val=>this_[field] = val);
+	}
 	this[field] = val;
 }
 
 
+function EntityRefFromJSOX( field,val ) {
+	if( field !== undefined ) {
+		if( val instanceof Promise ){
+			const this_ = this;
+			val.then( val=>this_[field] = val);
+		}
+		this[field] = val;
+	}
+	console.log( "in this context what params?", field, val );
+}
 
 /*
 JSOX.defineClass( "entity", { Λ:null
@@ -87,6 +139,7 @@ const config = require('../config.js');
 config.start( ()=>{
 	fc.addEncoders( [{tag:"~E",p:Entity,f:EntityToJSOX }] );
 	fc.addDecoders( [{tag:"~E",p:Entity,f:EntityFromJSOX }] );
+	fc.addDecoders( [{tag:"Er",p:null,f:EntityRefFromJSOX }] );
 	
 })
 function doLog(...args){
@@ -372,17 +425,11 @@ function makeEntity(obj, name, description, callback, opts) {
 		obj = named || obj;
 		return named;
 	}
-	//doLog("Called with obj:", name, description, JSOX.stringify(obj,null,"\t"), JSOX.stringify(createdVoid,null,"\t"));
-	//console.trace( "Clearing obj...", !!obj);
 
 	if (typeof (obj) === "string") {
-		//doLog( "resolve obj as entity ID")
 		obj = objects.get(obj);
-		//if( obj ) return obj;
-		//doLog( "resolve obj as entity ID", obj)
 	}
-	console.log( "Clearing obj...", !!obj);
-
+	
 	if (obj && !obj.Λ) {
 		console.log( "Clearing obj...");
 		base_require = require;
@@ -523,6 +570,7 @@ function makeEntity(obj, name, description, callback, opts) {
 
 	function runModule( o, thisModule ) {
 		( _debug_threads || _debug_run ) &&  doLog( o.name, "POSTED CODE TO RUN TO THE OTHER THREAD... AND WE WAIT (upushed to stack", o._module.src );
+		o._module = thisModule;
 		return o.thread.run( {src:thisModule.src,path:thisModule.paths[0]}, thisModule.code ).then( (v)=>{
 			_debug_run && console.log( "Run resulted... this is in the core; this should translate the result RuNID... (and pop stack)", v);
 			o._module = o._module.parent;
@@ -578,7 +626,7 @@ function makeEntity(obj, name, description, callback, opts) {
 			//doLog( "cache is?", typeof cache, cache);
 			if( cache.source === src ) {
 				o.scripts.index++;
-
+				console.log( "Require is currently in context:", o._module.src )
 				var oldModule = o._module;
 				var root = cache.closure.root;
 				if( !cache.closure.paths ){
@@ -603,8 +651,7 @@ function makeEntity(obj, name, description, callback, opts) {
 				//        { name : src.substr( pathSplit+1 ), parent : o.module, paths:[], exports:{} };
 				//oldModule.children.push( thisModule );
 				doLog( "THIS IS ANOHER RUN THAT SETS o_MODULE");
-				o._module = thisModule;
-
+				
 				var root = cache.closure.filename;
 				try {
 					//doLog( "closure recover:", root, cache.closure )
@@ -626,15 +673,7 @@ function makeEntity(obj, name, description, callback, opts) {
 
 				//doLog( "Executing with resume TRUE")
 				doLog( "Run this script..." );
-				o.thread.run( {src:src,path:thisModule.paths[0]}, code ).then( (result)=>{
-
-				} ).catch( (err ) =>{
-					doLog( "VM Error:", err );
-				});
-				doLog( "THIS IS THE OTHER POP FOR THAT ")
-				o._module = oldModule;
-				//doLog( "active base module is ... ")
-				return thisModule.exports;
+				return runModule( o, thisModule );
 			}
 		}
 
@@ -674,13 +713,8 @@ function makeEntity(obj, name, description, callback, opts) {
 		}
 		oldModule.includes.push( thisModule );
 
-		o._module = thisModule;
 		requireCache.set( thisModule.filename, thisModule );
-		return runModule( o, thisModule ).then( (a)=>{
-			//console.log( "Run of src:", src, "finished... (pop current stack?)", a /* runId */ );
-			o._module = oldModule
-			return a;
-		} );
+		return runModule( o, thisModule );
 
 	}
 
@@ -840,7 +874,6 @@ var entityMethods = {
 			return anchor;
 		}
 		, get nearObjects() {
-			//doLog( "getting near objects", this.contains )
 			var near = new Map();
 			var c = new Map();
 			this.attached_to.forEach( e=>c.set(e.Λ.toString(),e.Λ.toString()) );
@@ -866,7 +899,6 @@ var entityMethods = {
 					return result;
 				}
 			})(this));
-			//doLog( this.name, "near", near );
 			return near;
 		}
 		, assign: (object) => {
@@ -1136,31 +1168,105 @@ var entityMethods = {
 		}
 		, toString() {
 			var attached = null;
+			var strngfr = sack.JSOX.stringifierActive;
 			if( this.attached_to ) {
-				this.attached_to.forEach((member) => { if (attached) attached += '","'; else attached = ' ["'; attached += member.Λ })
-				if (attached) attached += '"]';
+				this.attached_to.forEach((member) => { 
+					let newVal;
+					if( "string" === typeof member ) member = objects.get(member);
+					if( strngfr ) {
+						let status = member.V;
+						if(status)
+							newVal =  '~or"'+status+'"';
+						else {
+							newVal = strngfr.encodeObject( member );
+							if( newVal === member ) {
+								if( member === this )
+									newVal = strngfr.stringify( member )
+								else
+									newVal =  null;
+							}
+						}
+					} else
+						newVal = '"'+member.Λ.toString()+'"';
+					if( newVal ) {
+						if (attached) attached += ','; 
+						else attached = ' ['; 
+						attached += newVal
+					}
+				 })
+				if (attached) attached += ']';
 				else attached = '[]';
 			} else attached = "don't stringify me";
 
 			var contained = null;
 			if( this.contains ){
-			this.contains.forEach((member) => { if (contained) contained += '","'; else contained = ' ["'; contained += member.Λ })
-			if (contained) contained += '"]';
-			else contained = '[]';
-			console.log( "Saving:", this);
+				//this.contains.forEach((member) => { if (contained) contained += ','; else contained = ' ['; contained += strngfr?strngfr.stringify( member ):'"'+member.Λ.toString()+'"' })
+				this.contains.forEach((member) => { 
+					let newVal;// = strngfr?((member.saved||member===this)?strngfr.stringify( member ):''): ('"'+member.Λ.toString()+'"' );
+					if( "string" === typeof member ) member = objects.get(member);
+					if( strngfr ) {
+						console.trace( "Has stringifier this pass", this.saving, member.saving );
+						let status = member.V;
+						if(status && member !== this )
+							newVal =  '~or"'+status+'"';
+						else {
+							newVal = strngfr.encodeObject( member );
+							if( newVal === member ) {
+								if( member === this )
+									newVal = strngfr.stringify( member )
+								else
+									newVal =  null;
+							}
+						}
+					} else {
+						console.log( "No stringifier this pass");
+						newVal = '"'+member.Λ.toString()+'"';
+					}
+					if( newVal ) {
+						if (contained) contained += ','; 
+						else contained = ' ['; 
+						contained += newVal
+					}
+				 })
+				if (contained) contained += ']';
+				else contained = '[]';
+				//sack.log( util.format( "Saving:", this)) ;
+			}
+
+			var wthn = null;
+			if( strngfr ){
+				const tmp = strngfr.encodeObject(this.within);
+				if( tmp !== this.within )
+					wthn = tmp;
+				else
+					wthn = strngfr.stringify( this.within );
+			}
+			if( !wthn  ) {
+				wthn = this.within.V?('~or"'+this.within.V+'"'):('Er[i"'+this.within.Λ+'"]');
+			}
+			var crtd = null;
+			if( strngfr ){
+				const tmp = strngfr.encodeObject(this.created_by);
+				if( tmp !== this.created_by ) crtd = tmp;
+				else crtd = strngfr.stringify( this.created_by );
+			}
+			if( !crtd  ) {
+				crtd = this.created_by.V?('~or"'+this.created_by.V+'"'):('Er[i"'+this.created_by.Λ+'"]');
+			}
+
 			return '{Λ:i"' + this.Λ
 				+ '",value:' + (this.value && this.value.toString())
 				+ ',name:"' + (this.name)
 				+ '",description:"' + (this.description)
 									// (this.within === entity.theVoid )?"ref[]" :
-				+ '",within:' + ((this.within)? (this.within.V?('~or"'+this.within.Λ+'"'):('Er"'+this.within.Λ+'"')): "null")
+				+ '",within:' + wthn
 				+ ',attached_to:' + attached
 				+ ',contains:' + contained
-				+ ',created_by:i"' + this.created_by.Λ + '"'
+				+ ',created_by:' + crtd
 				//+ ',"code":' + JSOX.stringify( this.sandbox.scripts.code )
-				+ ',_module:'+ JSOX.stringify( this._module )
+				+ ',_module:'+ (strngfr?strngfr.stringify(this._module):JSOX.stringify( this._module ))
 				+ '}\n';
-			}
+			
 		}
 		, toRep() {
 			var attached = [];
@@ -1210,16 +1316,29 @@ var entityMethods = {
 		, set(val){ 
 			//console.log( "Key Saved?", this, val)
 			if( val ) {
+				if( this.V ) {
+					return fc.put(this );
+				}
 				const this_ = this;
+				this_.saving = true;
+				console.trace( "Before PUT");
 				this.save_ = new Promise( (res,rej)=>{
-					let x = this.Λ.save();
-					console.log( "Save should have resulted i a promise?", x );
+					let x = this.Λ.save()
 					x.then( (id) =>{
 						if( !id ) console.log( "Save somehow failed... (it won't)");
 						this.save_ = fc.put( this ).then( (id )=>{
-							console.log( "Void storage identifier:", id );
+							if( this.created_by !== this )
+								this.created_by.save();
+							console.log( " storage identifier:", this.name, id );
 							this_.V = id;
 							res( id );
+
+							// all other things which have this as a reference, and have been saved need to update.
+							// if the container is not a saved thing, must also save that thing.
+							if( this_.within !== this_ )
+								this_.within.saved=val;
+							this.saving = false;
+							//this.save_ = '~os"'+id+'"';
 							return id;
 						} );
 						/* do we require any other things to be saved because this is saved? */
@@ -1278,84 +1397,44 @@ Entity.fromString = function(s) {
 		}
 }
 
-exports.reloadAll = function( onLoadCb, initCb ) {
-	// if reload failed, run initCb; else run code already in the thing...
-	//return initCb();
+exports.reloadAll = function( ) {
 	console.log( "So? Config.run use to have a proper ID...", config.run )
-	fc.get( config.run["The Void"] ).then ((obj)=>{
+	return new Promise( (res,rej)=>{
+		fc.get( config.run["The Void"] ).then ((obj)=>{
+			fc.map( obj ).then( obj=>{
 
-		doLog( "recovered core entity...", !!entity.theVoid, !!theVoid, entity.theVoid === theVoid );
-		console.log( "References?" );
-		// this is already a made entity.
-
-			if( o.sandbox ) {
-				doLog( "restore scripts to ....", o.sandbox.scripts );
-			}
-			
-			var executable = [];
-
-			doList( input, 1 );
-
-			function doList( list, start ) {
-				//doLog( "do list of things...", list, n, list.length );
-				for( var n = start; n < list.length; n++ ) {
-					var ths = list[n];
-					var creator = makeEntity(ths.created_by);
-					if( !creator ) {
-						//doLog( "Defered this creaation..." );
-						defer.push( ths );
-						continue;
+				doLog( "recovered core entity...", !!entity.theVoid, !!theVoid, entity.theVoid === theVoid );
+				console.log( "References?" );
+				// this is already a made entity.
+				const waking = [];
+				function wakeEntities( o ){
+					if( waking.find(e=>o===e))return;
+					waking.push(o);
+					for( var e of o.contains ){
+						wakeEntities(e);
 					}
+					for( var e of o.attached_to ){
+						wakeEntities(e);
+					}
+					if( o._module.includes.length ){
+						wake.WakeEntity( o, false ).then( thread=>{
+							runModule( o, o._module.includes[0] );
 
-					var parent = ths.within && makeEntity(ths.within);
-
-					//doLog( "Creator:", creator );
-					//nextID = ths.Λ;
-
-					creator.create( ths.name, ths.description, (o)=>{
-						//doLog( "creator created..." );
-						o.value = input[o.Λ];
-						ths.entity = o;
-
-						if( parent ) {
-							if( parent != creator ) {
-								parent.store( o );
-							}
-						} else {
-							// detach from everything for a second...
-							// (probably attached_to will re-join this to the mesh)
-							o.within.contains.delete( o.Λ.toString() );
-							o.within = null; // temporarily floating
-						}
-
-						//doLog( "Created :", ths );
-					})
+						})
+					}
 				}
-			}
-
-			//doLog( "Is this really serial at this time?", defer );
-			while( defer.length ) {
-				var doit = defer;
-				defer = [];
-				doList( doit, 0 );
-			}
-
-			onLoadCb();
-			//doLog( "first run ran --------- start other things loaded...", executable )
-			for( var e of executable ) {
-				// it may have already started...
-				if( !e.scripts.index ) {
-					doLog( "do require of source....")
-					e.require( e.scripts.code[0].source )
-					// after require, things might be run on it...
-				}
-			}
-			//exports.saveAll();
+				wakeEntities(obj);
+				waking.length = 0;
+				
+				//doLog( "Is this really serial at this time?", defer );
+				res();
+			})
 		})
+	})
 }
 
 exports.saveAll = function() {
-
+	return console.trace( "Don't really want to Save ALL....");
 	if( createdVoid ) {
 		var saved = new Map();
 		var output = [];

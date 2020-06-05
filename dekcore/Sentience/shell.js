@@ -220,11 +220,15 @@ function Filter( e ) {
             if( nextArgs.length ) Grab( sandbox, nextArgs );
             if( where == "contains") {
                 //console.log( "Success, there's a thing on that thing...", foundSandbox );
-                return grab( foundSandbox ).catch( (err)=>{ output( err.toString()+"\n" )});
+                return grab( foundSandbox )
+                        .catch( (err)=>{ output( err.toString()+"\n" )})
+                        .then( obj=>foundSandbox.name( name=>console.log( "Grabbed:", name) ) );
             }
             if( where === "near" || where == "holding,holding" ) {
                 //console.log( "Success, there's a thing on that thing...", foundSandbox );
-                return grab( foundSandbox ).catch( (err)=>{ output( err.toString()+"\n" )});
+                return grab( foundSandbox )
+                    .catch( (err)=>{ output( err.toString()+"\n" )})
+                    .then( obj=>foundSandbox.name( name=>console.log( "Grabbed:", name) ) );
             }else if( foundSandbox ) {
                 console.log( "Error: object was found ", where, " instead of near or contained.")
             }
@@ -235,7 +239,11 @@ function Filter( e ) {
                     no.get("holding").forEach( no=>getObjects( no, args, false, ( foundAttachment, attachName, where, nextArgs )=>{
                         if( where === "holding" ){
                             a = true;
-                            return grab( foundAttachment );
+                            return grab( foundAttachment ).then( (target_)=>{
+                                console.log( "Grabbed:", target);
+                            }).catch( (err)=>{
+                                console.log( "Failed to grab:", target, err );
+                            });
                         }
                     } ) )
                 }).then( ()=>{

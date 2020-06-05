@@ -41,7 +41,7 @@ keyRef.prototype.on = function(cb) {
 keyRef.prototype.save = function() {
 	let realid = tempKeyTracker.keys.get( this.Λ );
 	if( !realid ) {
-		keyTracker.keys.get( this.Λ );
+		realid = keyTracker.keys.get( this.Λ );
 		if( !realid ) {
 			throw new Error( "Invalid key reference." );
 		}
@@ -52,6 +52,8 @@ keyRef.prototype.save = function() {
 
 function keyRefEmitter() {
 	//console.trace( "stringify");
+	if( JSOX.stringifierActive )
+		return JSOX.stringifierActive.stringify( this.Λ);
 	return JSOX.stringify( this.Λ );
 }
 function keyRefRecover(field,val) {
@@ -69,12 +71,12 @@ function keyRefRecover(field,val) {
 						})
 					else
 						key.maker.made.push( key );
-					if( key.auth_by instanceof Promise )
-						key.auth_by.then( (auth)=>{
+					if( key.authby instanceof Promise )
+						key.authby.then( (auth)=>{
 							auth.authed.push( key );
 						})
 					else
-						key.auth_by.authed.push( key );
+						key.authby.authed.push( key );
 				})
 				return key;
 			} );
@@ -352,7 +354,7 @@ Object.defineProperty(exports, "localAuthKey", {
 		if (keyTracker.lkey)
 			return Promise.resolve(keyTracker.lkey);
 		//console.log( "create a new local authority", config.run.Λ );
-		return Key(config.run.Λ).then( (key)=>{
+		return Key(config.run).then( (key)=>{
 			//console.log( "Resulting with local authkey:", key );
 	        keyTracker.lkey = key;
 			// this is one of those illegal operations.
@@ -369,11 +371,11 @@ Object.defineProperty(exports, "publicAuthKey", {
 		if (keyTracker.pkey)
 			return Promise.resolve(keyTracker.pkey);
 		//console.log( "create a new local authority", config.run.Λ );
-		return Key(config.run.Λ).then( (key)=>{
+		return Key(config.run).then( (key)=>{
         	keyTracker.pkey = key;
 			keyTracker.pkey.saved = true;
 			// this is one of those illegal operations.
-			keyTracker.pkey.authby = keyTracker.keys.get(config.run.Λ);
+			keyTracker.pkey.authby = keyTracker.keys.get(config.run.Λ.toString());
 			return keyTracker.pkey;
         });
 	}
@@ -415,7 +417,7 @@ exports.ID = ID; function ID(making_key, authority_key, callback) {
 		return config.defer(); // save any OTHER config things for later...
 	}
 
-	authority_key = authority_key || keyTracker.keys.get(config.run.Λ);
+	authority_key = authority_key || keyTracker.keys.get(config.run.Λ.toString());
 
 	// make sure we get THE keys... and weren't just passed a key-like thing.
 	if (!authority_key.Λ)
@@ -749,7 +751,7 @@ server.addProtocol( "id.core", (ws)=>{
 		var msg = JSOX.parse( _msg );
 		console.log( "received ", msg );
 		if( msg.op === "hello" ) {
-			var test = IdGen.xor( msg.runkey, config.run.Λ );
+			var test = IdGen.xor( msg.runkey, config.run.Λ.toString() );
 			var testkey = keyTracker.keys.get( test );
 			if( testkey ) {
 				// this remote might know how to validate a key...
@@ -762,7 +764,7 @@ server.addProtocol( "id.core", (ws)=>{
 		}
 		else if( msg.op === "fork" ) {
                 	exports.localAuthKey.then( lak =>{
-				var test = IdGen.xor( config.run.Λ, lak );
+				var test = IdGen.xor( config.run.Λ.toString(), lak );
 				if( test === msg.key ) {
 					// this remote might know how to validate a key...
 					branches.push( test );

@@ -19,11 +19,8 @@ const fc = require( "../file_cluster.js");
 var wt = require( 'worker_threads');
 wt = ( wt.isMainThread && wt );
 
-// this is a sandbox; and we don't have real entity support.
 var Entity = require( '../Entity/entity.js');
-//console.log( "Did require Entity:", Entity );
-JSOX = sack.JSOX;
-disk = sack.Volume();
+const disk = sack.Volume();
 
 
 const startupInitCode = disk.read( __dirname + "/sandboxInit.js" ).toString();
@@ -223,9 +220,6 @@ function WakeEntity( e, noWorker ) {
         }
         , run(file,code) {
             if( thread.worker ) {
-                //console.log( "passing check for madefrom?")
-                //var allow = await ID.madeFrom( e.Λ, something );
-                //console.log( "is allow:", allow );
                 return new Promise( (res,rej)=>{
                     _debug_run && sack.log( util.format("Posting run:", file.src, "to", e.name ));
                     var msg = {op:'run', file:file, code:(code), id:runId };
@@ -235,15 +229,6 @@ function WakeEntity( e, noWorker ) {
                 })
             }else {
                 console.trace( "thread does not have a worker, Run fail. This shouldn't be running any VM code Yet.");
-                /*
-                if( !e.sandbox ) {
-                    e.sandbox = {
-                         scripts : { code: [], index : 0, push(c){ this.index++; this.code.push(c)} }
-                    }
-                }
-                e.sandbox.scripts.push( { type:"run", file:file, code:code } );
-                vm.runInContext(code, this.sandbox, { filename: file, lineOffset: 0, columnOffset: 0, displayErrors: true, timeout: 10 })
-                */
             }
         }
         

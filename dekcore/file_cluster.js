@@ -21,7 +21,7 @@ var inited = false;
 
 module.exports = exports = {
 	async init() {
-		console.log( "who waits for root to be gotten?");
+		//console.log( "who waits for root to be gotten?");
 		return new Promise( (resume, stop)=>{
 			if( inited ) return;
 			var cvolName;
@@ -34,8 +34,10 @@ module.exports = exports = {
 						console.log( "Resume waiter on init...");
 						resume();
 				} );
-			if( debug_ ) console.log( cvol.dir() );
-			console.log( "cvol", cvolName );
+			if( debug_ ) {
+				console.log( cvol.dir() );
+				console.log( "cvol", cvolName );
+			}
 			exports.cvol = cvol;
 			process.on( 'exit', ()=>{
 				fc_local.store.flush();

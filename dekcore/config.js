@@ -1,7 +1,7 @@
 "use strict";
 const idGen = require("./util/id_generator.js");
 //Error.stackTraceLimit = Infinity;
-const _debug = true;
+const _debug = false;
 
 const os = require( "os" );
 
@@ -134,11 +134,8 @@ function saveConfig() {
 	return fc.store(  "config.run.jsox", config.run);
 }
 
-//res.sendfile(localPath);
-//res.redirect(externalURL);
-//
 async function loadConfig(path) {
-	console.trace("loadconfig");
+	//console.trace("loadconfig");
 	return new Promise( ( res, rej )=>{
 		fc.init().then( ()=>{
 			loadDefaults();
@@ -163,7 +160,7 @@ async function loadConfig(path) {
 					config.run.addresses          = extern;
 				}
 
-				console.log( "Loaded run configuration defaults; save it...");
+				_debug && console.log( "Loaded run configuration defaults; save it...");
 				return saveConfig();
 		}
 

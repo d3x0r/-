@@ -529,6 +529,19 @@ var fillSandbox = {
 	, enter(...args) { return self.post("enter",  ...args); }
 	, grab(thing) { return entity.grab(thing) }
 	, hold(thing) { return entity.hold(thing) }
+	// has("a").then(a=>console.log(a)).catch( ()=>console.log( "NO" ) );
+	, has(thing) { return entity.nearObjects.then(near=> new Promise( (res,rej)=>{
+		let checks = 0;
+		near.get("contains" ).forEach( content=>{
+			checks++;
+			content.name.then( name=>{
+				if( name === thing)
+					res(content)
+				else if( !(--checks))
+					rej();
+			} )
+		} )
+	} )) }
 	, drop(a) { return entity.drop(a) }
 	, store(thing) { return entity.store(thing) }
 	//, crypto: crypto
@@ -546,6 +559,7 @@ var fillSandbox = {
 		, rawData: ''
 		, includes: []
 	}
+
 	, get now() { return new Date().toString() }
 	, get name() { return entity.name }
 	, get desc() { return entity.description }

@@ -44,22 +44,92 @@ edge = x
 
   this is the array indexes of the 3x top;bottom matrix needed to mesh this area.
   they contain the values at the centroid points of density mesh.
+
+
+	 // bottom and top layers, of the primary coordinates, and secondary required
+	 // missing side, at edge of sector can be assume as infinitly dense or vacuum...  Absolute pressure is 0.
+	 // the more dense, the less pressure it excerts.
+	 // the more vacuous - the more pressure it pulls with... 
+
+
+/*
+	// there is a long combination of possible 3-4 bits some 50(?) of 
+	// which only these 6 apply in reality
+
+this is the vertex references on the right, and which 'vert N' applies.
+
+   0 _ _ 1  
+   |\   /|
+    \\2//     (above page)
+    | | |
+     \|/
+      3  
+
+
+ this is the line index applied.  each 'bit' of valid is this number...
+	. ____0____ . 
+	|\         /|     01  02 03 12 23 31
+	\ \_1   3_/ /
+	 |  \   /  |
+	  \  \ /  /
+	   \  .  /   (above page)
+	  2|  |  |5
+	    \ 4 / 
+	    | | |
+	     \|/
+	      . 
+	
+	
+	const validCombinations = [
+		{ val:[1,1,1,0,0,0], // valid (vert 0, 0,1,2)   0 in, 0 out 
+		},
+		{ val:[1,1,0,0,1,1], // valid 0,1,4,5  (0-3,1-2)
+		},
+		{ val:[1,0,1,1,1,0], // valid 0,2,3,4  (0-2,1-3)
+		},
+		{ val:[1,0,0,1,0,1], // valid (vert 1, 0,3,5)
+		},
+		{ val:[0,1,1,1,0,1], // valid 1,2,3,5 (0-1,2,3)
+		},
+		{ val:[0,1,0,1,1,0], // valid (vert 2, 1,3,4 )
+		},
+		{ val:[0,0,1,0,1,1], // valid (vert 3, 2,4,5 ) 
+		},
+	]
+
+*/
+
+	 
+	 // gradient is >0 is dense and 0 and below is vacuum.
+	 // (there is no such thing as absolute vacuum)
+	 // 0 is ground level atmosphere. 
+	 // 0.5 - cork/lithium
+	 // 0.8 - woods
+	 // 1 is liquid
+	 // 1.5 is sand
+	 // 1.6 is dirt
+	 // 2 is stone/brick
+	 // 1.78 is magnesium
+	 // 3 is granite
+	 // 
+	 // 7 density dirt doesn't exist... 
+	 // zinc/iron
+	 // no particular reasons... 
+	 
+	 // spacial objects like astoids will be very dense, pushing to the edge of the vacuum space on them... 
   
   
      6 7 8
      3 4 5
      0 1 2
      
-	 // bottom and top layers, of the primary coordinates, and secondary required
-	 // missing side, at edge of sector can be assume as infinitly dense or vacuum...  Absolute pressure is 0.
-	 // the more dense, the less pressure it excerts.
-	 // the more vacuous - the more pressure it pulls with... 
-	 
-	 // gradient is >0 is dense and 0 and below is vacuum.
-	 // (there is no such thing as absolute vacuum)
-	 // 0 is ground level atmosphere. 
-	 // 1 is liquid
-	 // 2 is 
+
+    and the resulting 0 crossing value from outside to inside is given as a delta T along the line from one of the points.
+	
+	// sided-ness ends up purely computed from which is <=0 and >0
+	//so number is from -1 to 0, the direction is reversed (from far point)... if from 0-1 the direction is forward from the point.
+	
+	
 	 
 	 
 	 a  a  a    a  a  a
@@ -153,10 +223,64 @@ edge = x
 
     7  1,1,1  0.5,0.5,0.5  1.5,0.5,0.5   0.5,1.5,0.5
 	   1,1,1  1.5,0.5,0.5  1.5,1.5,0.5   0.5,1.5,0.5
-
-
 	
 
+
+ordering of the tetrahedrons matters to generate correctly sided output
+there can be a simple invert passed to the mesher in the case of mirror inputs (top/bottom)
+
+
+   0 1 3 2 
+
+(inverted notes apply to that single point being outside (or notted inside) )
+    0    1  (inverted)
+    \   /
+     \2/    (above page)
+ 	  |
+	  |
+	  3  (inverted)
+	  
+
+
+
+(0,1 outside ... 1,2  2,3  3,0  )
+    0    1  // unfinished
+    \   /
+     \2/ 
+ 	  |
+	  |
+	  3  
+	  
+
+
+// changing the order of the points changes the inversion characteristic 90 degrees.
+// (odd offset vs even offset)
+
+  (inverted)	  
+    0    1 
+    \   /
+     \3/ 
+ 	  |
+	  |
+	  2   (inverted)
+
+// pyramid point ordering
+
+
+    2 ----- 3
+      \   / |
+    |  \ /  |
+    |   4   |(above page)
+    |  / \  |
+	  /   \ |
+    0 ----- 1
+	  
+	  
+	splits into two ordered tetrahedrons with
+	
+    0,2,4,1   1,2,4,3
+	
+	
 	
 	  
 	  

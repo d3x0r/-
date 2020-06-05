@@ -120,9 +120,7 @@ module.exports = exports = {
 				 //fileName = getpath( filename, object );
 			*/
 		}
-
-		cvol.write( fileName, object.toString() );
-		if( callback ) callback();
+		return fc_local.root.open( fileName ).then( file=>file.write( object ).then( callback ) );
 	},
 	reloadFrom( pathobject, callback ) {
 		if( pathobject.Λ )

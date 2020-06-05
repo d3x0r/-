@@ -84,7 +84,7 @@ function init( config ) {
 	//for( var z = 0; z < 2; z++ ) smoothData(config);
 	function tick() {
 		//smoothData(config);
-	erodeData(config);
+		erodeData(config);
 		drawData( config );
 		setTimeout( tick, 1000 );
 	}
@@ -478,6 +478,7 @@ function genData( config ) {
 			gen.cx += gen.dx;
 		}
 	}
+	// normalize the map to 0.0-1.0 (inclusive)
 	for( var n = 0; n < outNoise.length; n++ ) {
 		outNoise[n] = ( ( outNoise[n] ) - minVal ) / ( maxVal-minVal);
 	}

@@ -1,4 +1,4 @@
-
+import {SaltyRNG} from "./salty_random_generator.js"
 var config = {
 	patchSize : 128, // repeat frequency of noise generation (kernel is only 16(x16(x16)) (32x16=512)
 	seed_noise : null,
@@ -27,7 +27,7 @@ const BASE_COLOR_LIGHTRED = [255,0,0,255];
 const BASE_COLOR_LIGHTGREEN = [0,255,0,255];
 
 var data;
-var RNG = exports.SaltyRNG( arr=>arr.push( data ) );
+var RNG = SaltyRNG( arr=>arr.push( data ) );
 
 
 function myRandom() {
@@ -127,11 +127,11 @@ function fillData( config ) {
 	var start = Date.now();
 	var noise = [];
 	for( var n = 0; n < config.patchSize; n++ ) 
-		for( m = 0; m < config.patchSize; m++ ) {
+		for( var m = 0; m < config.patchSize; m++ ) {
 			noise.push( Math.random() );
 		}
 	config.seed_noise = noise;
-	console.log( "Made Random in:", Date.now() - start );
+	//console.log( "Made Random in:", Date.now() - start );
 }
 
 
@@ -182,12 +182,12 @@ function genData( config ) {
 		maxtot += gen.scalar;
 	}
 	gen.maxtot = maxtot;
-	console.log( "scalartotal?:", maxtot );
+	//console.log( "scalartotal?:", maxtot );
 	for( var n = 0; n < noiseGen.length; n++ ) {
 		var gen = noiseGen[n];
 		gen.scaledScalar /= gen.maxtot;
 	}
-	for( y = 0; y < config.patchSize; y++ ) {
+	for( var y = 0; y < config.patchSize; y++ ) {
 			// Y will be 0 at the same time this changes...  which will update all anyway
 	
 		for( var n = 0; n < noiseGen.length; 
@@ -336,7 +336,7 @@ function drawData( config ) {
 	{
 		//output_offset =  + ( surface.height - h - 1 ) * surface.width;
 
-		for( w = 0; w < _output.width; w++ )
+		for( var w = 0; w < _output.width; w++ )
 		{
 			var here3;
 			var here = config.gen_noise[ h * config.patchSize + w ];

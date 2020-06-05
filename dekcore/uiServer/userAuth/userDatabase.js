@@ -44,7 +44,7 @@ const configFile = await fileRoot.open( "config.jsox" ).catch( ()=>{
 	return file;
 } ).then( (file)=>( file.read().then(
 		(data)=>{
-			if( data.userAccounts ) {
+			if( data && data.userAccounts ) {
 				storage.map( data ).then( (data)=>{
 					config.userAccounts = data.userAccounts;
 					//Object.assign( config, data);

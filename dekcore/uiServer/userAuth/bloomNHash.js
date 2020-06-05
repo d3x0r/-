@@ -2,11 +2,11 @@
 const BloomNHash_StorageTag = "?bh"
 const BloomNHash_BlockStorageTag = "?hb"
 	
-const KEY_DATA_ENTRIES_BITS = 10;
+const KEY_DATA_ENTRIES_BITS = 8;
 const KEY_DATA_ENTRIES = (1<<KEY_DATA_ENTRIES_BITS)-1;
 const HASH_MASK_BITS = 5;
 const HASH_MASK = (1<<HASH_MASK_BITS)-1;
-const ROOT_ENTRY_INDEX = 127;
+const ROOT_ENTRY_INDEX = (1<<KEY_DATA_ENTRIES_BITS)-1;
 const ROOT_ENTRY_MASK = ( 1 << (KEY_DATA_ENTRIES_BITS-1) );
 
 
@@ -93,10 +93,6 @@ function BloomNHash( ) {
 
 	return;
 
-// get the number of most significant bit that's on
-function maxBit(x) {
-	var n;  for( n = 0; n < 32; n++ ) if( x & ( 1 << ( 31 - n ) ) ) break; return 32 - n; 
-}
 
 function linearToTreeIndex( f_ ) 
 {

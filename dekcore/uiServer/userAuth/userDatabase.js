@@ -1,133 +1,198 @@
-"use strict"
+"use strict";
 
 
+(async function() {
 
 var idGen = ()=>global.idGen( );
 
 
 var DB = exports = module.exports = {};
+const sack = require( 'sack.vfs');
+const disk = sack.Volume();
+const storage = sack.ObjectStorage( "userdatabase.~os" );
+const fileRoot = await storage.getRoot();
+const bloomHash = require( "./bloomNHash.js" );
+let  userAccounts = null;
 
-var vfs = await require( 'sack.vfs');
+// revive "bnh"
+bloomHash.hook( storage );
 
-if( !("udb" in config) ) {
-	config.udb = { runkey: idGen() };
-	config.commit();
+
+if( "undefined" === typeof config )
+	var config = {
+		commit() {
+			console.log( "SAVE CONFIG" );
+			configFile.write( config );
+		}
+	};
+
+
+function InitAccounts() {
+	userAccounts = bloomHash();
+	userAccounts.store().then( (id)=>{
+		config.userAccounts = userAccounts;
+		console.log( "USER ACCOUNTS SHOULD BE SAVED....", id );
+		config.commit(); // just store direct referece?
+		// debug - make some accounts.
+		asdf();
+	} );
 }
 
-console.log( "UserDatabase... should be ./data.fs" );
-DB.data = vfs.Volume( null, "./data.fs", config.udb.runkey, me );
-//console.log( "vol is:", DB.data, Object.keys( Object.getPrototypeOf( DB.data ) ) );
-var db = DB.db = DB.data.Sqlite( "core.db" );
+const configFile = await fileRoot.open( "config.jsox" ).catch( ()=>{ 
+	const file = fileRoot.create( "config.jsox" )
+	InitAccounts();
+	return file;
+} ).then( (file)=>( file.read().then(
+		(data)=>{
+			if( data.userAccounts ) {
+				storage.map( data ).then( (data)=>{
+					config.userAccounts = data.userAccounts;
+					//Object.assign( config, data);
+					if( config.userAccounts ) {
+						// it has to delay (potentially)
+						config.userAccounts.get( 'd3x0r' ).then( (val)=>{
+							console.log( "WHAT IF I JUST GO AHEAD AND USED IT?", val );
+						} );
+					} else
+						InitAccounts();
+				} );
+			} else
+				InitAccounts();
+		}),  file ) ) ;
 
-// lookup by sessionid
-var logins = new Map();
 
-function createSite( login ) {
-	return { login: login };
-}
+// create some fake user accounts
+function asdf() {
 
-var userMap = new Map();
-var users = [];
-var services = null;
+	let uzr = {	account:"d3x0r", password:"password", email:"email@nowhere.net"   };
+	storage.put( uzr );
 
-db.do( 'PRAGMA foreign_keys=ON' );
+	userAccounts.set( "d3x0r", uzr );
 
-db.makeTable( "create table user ( user_id char PRIMARY KEY"
-	+", name char"
-	+", email char"
-	+", passHash char"
-	+",created DATETIME DEFAULT CURRENT_TIMESTAMP"
-	+")"
-        );
-db.makeTable( "create table services ( service_id char PRIMARY KEY"
-	+", name char" );
-	/*
-db.makeTable( "create table userPerm ( user_perm_id char PRIMARY KEY"
-	+", user_id char"
-	+", perm_id char"
-	+", CONSTRAINT a FOREIGN KEY( user_id ) REFERENCES user(user_id)"
-	+", CONSTRAINT b FOREIGN KEY( perm_id ) REFERENCES permission(perm_id))" );
-*/
-db.makeTable( "create table subscriptions ( sub_id char PRIMARY KEY"
-	+", user_id char"
-	+", service_id char"
-	+", CONSTRAINT a FOREIGN KEY( user_id ) REFERENCES user(user_id)"
-	+", CONSTRAINT b FOREIGN KEY( service_id ) REFERENCES services(service_id))" );
+	for( var n = 0; n < 20; n++ ) {
+		uzr = {	account:"user"+n, password:"pass"+n, email:"email"+n   };
+		storage.put( uzr );
+		userAccounts.set( uzr.account, uzr ); // set implicitly puts
+	}
 
-db.makeTable( "create table userLogin ( user_login_id char PRIMARY KEY"
-	+", user_id char"
-	+", loggedOut int default '0'"
-	+", login TIMESTAMP DEFAULT CURRENT_TIMESTAMP "
-	+", address char"
-	+", client_id char"
-	+", INDEX userkey(client_id,address,loggedOut)"
-	+", CONSTRAINT a FOREIGN KEY( user_id ) REFERENCES user(user_id))" );
-//console.log( db.do( "select * from userLogin" ) );
-
-var services = db.do( 'select * from services')
-//console.log( "permissions:", permissions )
-
-if( services.length === 0 ) {
-	var userId;
-	db.do( `insert into user (user_id,name,email,passHash)values('${userId=idGen()}','root','root@d3x0r.chatment.karaway.net',encrypt('changeme'))`)
-	var core_id;
-	db.do( `insert into services(service_id,name)values ('${core_id=idGen()}','c0r3')` );
-	services = db.do( 'select * from services');
-
-	console.log( "doing insert into subscriptions.... sohould get values back??")
-	db.do( `insert into subscriptions (sub_id,user_id,service_id) values ('${idGen()}','${userId}','${core_id}')` )
 
 }
-services.forEach( p=>(services[p.name]=p) );
-//console.log( "permissions:", permissions )
 
-function dontLoadAll()
-{
-	users = db.do( 'select decrypt(passHash)password,* from user' );
-	users.forEach( user=>{
-		user.services = db.do( "select * from subscriptions where user_id='"+user.user_id+"'" );
-		user.services.forEach(  up=>{
-			var s = services.find( p=>{ return (p.service_id===up.service_id )});
-			if( s )
-				up.name=s.name
-			else {
-				up.name = "Unknown";
-				console.log( "Failed to find ", up, "in", services );
-				throw new Error( "Database is corrupt" );
-			}
-		} );
-	})
+function setup() {
 
-}
-//console.log( "permissions is: ", permissions );
+	return;
+
+
+	var logins = new Map(); // cache, for login timers, close notifications to services...
+
+
+	var userMap = new Map(); // cache some users...
+	var curPage = 0;
+	var userPages = [ [] ];
+
+	function pageUser( user ) {
+		userPages[curPage].push( user );
+		if( userPages[curPage].length < 1 ) {
+			
+		}
+	}
+
+	function User( name, email, pass ) {
+		if( name && email && pass ) {
+			if( !(this instanceof "User" ) ) return new User( name, email, pass );
+			this.name= name;
+			this.email=email;
+			this.pass=pass;
+			const now = new Date();
+			this.access = new Access( null, now.setDay( now.getDay()+30 ), true );
+			storage.put( this ).then( (id)=>{
+				// do I care? Yes, add to userpages...
+				
+			} );
+		} else {
+			this.name = null;
+			this.email = null;
+			this.pass = null;
+			// content gets filled in later...
+		}
+	}
+
+	storage.addEncoders( [ { tag:"u", p:User, f:null } ] );
+	storage.addDecoders( [ { tag:"u", p:User, f:null } ] );
+
+
+	function Service( name  ) {
+		if( name ) {
+			if( !(this instanceof "Service" ) ) return new Service( name );
+			this.name= name;
+			storage.put( this ).then( (id)=>{
+				// do I care? Yes, add to userpages...
+				
+			} );
+		} else {
+			this.name = null;
+			// content gets filled in later...
+		}
+	}
+
+
+	function Access( a, until, status ) {
+		if( status && until ) {
+			this.priorAccess = null;
+			this.status = status;
+			this.until = until ;
+			storage.put( this );
+			return;
+		}
+		else if( a instanceof Access ) {
+			this.priorAccess = a;
+			this.status = status;
+			this.until = until ;
+			storage.put( this );
+		} else {
+			this.priorAccess = null;
+			this.status = 0;
+			this.until = null;
+		}
+	}
+	Access.prototype.new = function(until, status) {
+		new Accesss( this, status );
+	}
+
+	function Login( address ) {
+		if( address ) {
+			this.login = new Date(); // now.
+			this.address = address;
+			storage.put( this );
+		}else {
+			this.login = null;
+			this.address = null;
+		}
+	}
+
+
 
 DB.createUser = createUser;
 DB.updateUser = updateUser;
 DB.authUser = authUser;
 
 function createUser( ) {
-	var userId;
-	db.do( `insert into user (user_id)values("${userId=idGen()}")`)
-	return userId;
 }
 
-function updateUser( userId, username, email, password ) {
-	var userId;
-	var user = userMap.get( userId );
-	if( user && user.email ) {
-		return false;
-	}
-
-	if( !db.do( `update user set name='${db.escape(username)}',email='${db.escape(email)}',passHash=encrypt("${password}") where user_id='${userId}'`) )
-		return false;
-
-	users.push( user = {user_id:userId, email:email} );
-	userMap.set( userId, user );
-	return userId;
+function createUser( username, email, password ) {
+	if( !email) email = "DoNotCall@localhost";
+	if( !password ) password = true;
+	if( !username ) throw new Error( "Must at least specify a username!" );	
+	return new User();
 }
 
 
 function checkUserName( username ) {
+	const existing = userMap.get( username );
+	if( !existing ) {
+		
+	}
+
 	return db.do( `select count(*) from user where name='${db.escape(username)}'` ) === 0;
 }
 
@@ -229,3 +294,7 @@ DB.logout = (sessionkey)=>{
 DB.connect = (gun)=>{
 	console.log( "Update gun databases?? passed a gun instance to do SOMETHING with...")
 }
+
+}
+
+})() // end async function wrapper; and run the function

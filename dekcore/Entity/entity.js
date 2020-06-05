@@ -96,22 +96,13 @@ function EntityFromJSOX(field,val ) {
 		//if( pval && pval.created )
 		//	pval.created.push(this);
 	}
-	//console.log( "Assinging to this:", this, field, val );
-	if( val instanceof Promise ){
-		const this_ = this;
-		val.then(val=>this_[field] = val);
-	}
-	this[field] = val;
+	return this[field] = val;
 }
 
 
 function EntityRefFromJSOX( field,val ) {
 	if( field !== undefined ) {
-		if( val instanceof Promise ){
-			const this_ = this;
-			val.then( val=>this_[field] = val);
-		}
-		this[field] = val;
+		return this[field] = val;
 	}
 	console.log( "in this context what params?", field, val );
 }

@@ -6,8 +6,8 @@ const KEY_DATA_ENTRIES_BITS = 8;
 const KEY_DATA_ENTRIES = (1<<KEY_DATA_ENTRIES_BITS)-1;
 const HASH_MASK_BITS = 5;
 const HASH_MASK = (1<<HASH_MASK_BITS)-1;
-const ROOT_ENTRY_INDEX = (1<<KEY_DATA_ENTRIES_BITS)-1;
 const ROOT_ENTRY_MASK = ( 1 << (KEY_DATA_ENTRIES_BITS-1) );
+const ROOT_ENTRY_INDEX = ROOT_ENTRY_MASK-1;
 
 
 const FLOWER_HASH_DEBUG_MOVES = false;
@@ -38,7 +38,6 @@ function BloomNHash( ) {
 	this.root = null;//new hashBlock();
 	this.hashBlock = hashBlock;
 
-	// please fix indent someday
 	function hashBlock( parent ){
 		var n;
 		this.nextBlock = [];
@@ -94,6 +93,7 @@ function BloomNHash( ) {
 	return;
 
 
+// please fix indent someday
 function linearToTreeIndex( f_ ) 
 {
 	let b;
@@ -131,7 +131,9 @@ function lookupFlowerHashEntry( hash, key, result ) {
 				result.entryMask = curMask;
 				result.hash = hash;
 				if( hash.entries[curName] instanceof Promise ) {
-					return root.storage_.map( hash, { depth:0, paths:[ ["entries", curName] ] } );
+					return root.storage_.map( hash, { depth:0, paths:[ ["entries", curName] ] } ).then( (hash)=>{
+						return lookupFlowerHashEntry( hash, key, result );
+					} );
 				}
 				return Promise.resolve( hash.entries[curName] );
 			}
@@ -146,7 +148,7 @@ function lookupFlowerHashEntry( hash, key, result ) {
 			if( nextblock ) {			
 				if( hash.parent ) key = key.substr(1);
 				if( nextblock instanceof Promise ) {
-					return root.storage_.map( hash, {depth:0, paths: [["nextBlock", hid]] } ).then( ()=>{
+					return root.storage_.map( hash, {depth:0, paths: [["nextBlock", hid]] } ).then( (hash)=>{
 						return lookupFlowerHashEntry( hash.nextBlock[hid], key, result );
 					} );
 				} 
@@ -186,7 +188,8 @@ function updateEmptiness( hash,  entryIndex,  entryMask ) {
 }
 
 function updateFullness( hash, entryIndex, entryMask ) {
-	//if( hash.key[entryIndex ^ (entryMask<<1)] ) 
+	if( !hash.keys[entryIndex ^ (entryMask<<1)] ) 
+		console.trace( "Shouldn't be updating fullness..." );
 	{ // if other leaf is also used
 		var broIndex;
 		var pIndex = entryIndex;
@@ -313,6 +316,7 @@ function upLeftSideTree( hash,  entryIndex,  entryMask ) {
 					moveOneEntry( hash, entryIndex, parent, 1 );
 					hash.keys[entryIndex] = null;
 					hash.entries[entryIndex] = null;
+					//console.log( "Move entry up to ...", entryIndex, entryMask.toString(2), parent, parentMask.toString(2) )
 					entryIndex = parent;
 					entryMask = parentMask;
 					continue;
@@ -450,8 +454,8 @@ function insertFlowerHashEntry( hash
 	let next;
 
 	{
-		c++;
 		if( HASH_DEBUG_BLOCK_DUMP_INCLUDED ) {
+			c++;
 		//	if( ( c > ( 294050 ) ) )
 		//		dump = 1;
 		}
@@ -461,8 +465,6 @@ function insertFlowerHashEntry( hash
 		let d_ = 1;
 		let d = 1;
 		full = hash.used.getBit( entryIndex >> 1 );
-		//if( hash.parent )
-		//	dump = 1;
 		while( 1 ) {
 
 			const offset = hash.keys[entryIndex];
@@ -833,6 +835,7 @@ function insertFlowerHashEntry( hash
 				//console.log( "B Store at %d  %s", entryIndex, toBinary( entryIndex ) );
 				if( !( entryIndex & 1 ) ) { // filled a leaf.... 
 					if( ( entryMask == 1 && ( entryIndex ^ 2 ) >= KEY_DATA_ENTRIES ) || hash.keys[entryIndex ^ ( entryMask << 1 )] ) { // if other leaf is also used
+						console.log( "Filled a leaf, update fullnesss ( but this is the other side of the tree, and, should already be full" );
 						updateFullness( hash, entryIndex, entryMask );
 					}
 				}
@@ -852,7 +855,13 @@ function insertFlowerHashEntry( hash
 		const hid = key.codePointAt(0) & HASH_MASK;
 		if( !( next = hash.nextBlock[hid] ) ) {
 			if( 0 ) next = convertFlowerHashBlock( hash );
-			else next = ( hash.nextBlock[key.codePointAt(0) & HASH_MASK] = new hashBlock( hash ) );
+			else {
+				next = ( hash.nextBlock[key.codePointAt(0) & HASH_MASK] = new hashBlock( hash ) );
+				console.log( "Update, because we added a child hash." );
+				if( root.storage_ ) {
+					root.storage_.put( hash );
+				}
+			}
 		}
 		if( hash.parent )
 			key = key.substr(1);
@@ -862,7 +871,6 @@ function insertFlowerHashEntry( hash
 		hash = next;
 		entryIndex = ROOT_ENTRY_INDEX;
 		entryMask = ROOT_ENTRY_MASK;
-
 	}
 }
 
@@ -1108,6 +1116,13 @@ function dumpBlock_( hash, opt ) {
 	
 	console.log( "%sUSED:%s", leader, buf );
 
+	buf = ''
+	for( n = 0; n < KEY_DATA_ENTRIES; n++ ) {
+		if( hash.entries[n] ) buf += '1'; else buf += '0';
+	}
+	
+	console.log( "%sENTS:%s", leader, buf );
+
 	if(1)
 	{
 		// output empty/full tree in-levels
@@ -1116,7 +1131,7 @@ function dumpBlock_( hash, opt ) {
 			buf = ''
 			for( n = 0; n < KEY_DATA_ENTRIES; n++ ) {
 				if( ( n & ( 0x1FF >> l ) ) == ( 255 >> l ) ) {
-					if( l < (KEY_DATA_ENTRIES_BITS-1) )
+					if( l < (KEY_DATA_ENTRIES_BITS) )
 						if( hash.used.get( n >> 1 ) )
 							buf += '*';
 						else
@@ -1192,7 +1207,7 @@ function dumpBlock_( hash, opt ) {
 			buf = ''
 			for( n = 0; n < KEY_DATA_ENTRIES; n++ ) {
 				if( hash.keys[n] 
-					&& (l)<= hash.keys[n].length  
+					&& (l)< hash.keys[n].length  
 					) {
 					d = 1;
 					buf += hash.keys[n][l]
@@ -1242,24 +1257,62 @@ function dumpBlock( hash ) {
 
 }
 
+const gets = [];
+let getting = false;
+
 BloomNHash.prototype.get = function( key ) {
+	if( getting ) {
+		const g = { t:this, key:key, res:null, rej:null };
+		gets.push( g );
+		return new Promise( (res,rej)=>((g.res=res),(g.rej=rej)) );
+	}
+	getting = true;
 	if( !this.root ) return Promise.resolve( undefined );
 	const result = {};
-	const doit = ()=> this.root.lookupFlowerHashEntry( key, result );
+	//console.trace( "Get:", this, key );
+	const doit = ()=>{// thisless
+		return this.root.lookupFlowerHashEntry( key, result ).then( (obj)=>{
+			getting = false;
+			if( gets.length ) {
+				const g = gets.shift();
+				//console.log( "doing an existing get:", g );
+				g.t.get( g.key ).then( g.res ).catch( g.rej );
+			}
+			return obj;
+		} );
+	};
 	if( this.root instanceof Promise ) {
-		return this.storage_.map( this, { depth:1 } ).then( doit );
+		// reload this.root 
+		return this.storage_.map( this, { depth:0 } ).then( doit );
 	}
 	return doit();
 }
 
+const inserts = [];
+let inserting = false;
 BloomNHash.prototype.set = function( key, val ) {
+	if( inserting ) {
+		let i;
+		inserts.push( i = {t:this, key:key,val:val,res:null,rej:null } );
+		return new Promise( (res,rej)=>((i.res=res),(i.rej=rej)));
+	}
+	inserting = true;
+
 	const result = {};
 	if( !this.root ) this.root = new this.hashBlock(null);
 	return this.root.insertFlowerHashEntry( key, result ).then( (res)=>{
+		//console.log( "SET ENTRY:", result.entryIndex, val );
         	result.hash.entries[result.entryIndex] = val;
 		if( this.storage_ ) {
 			this.storage_.put( result.hash );
 		}
+		inserting = false;
+		if( inserts.length ) {
+			// begin a new insert.
+			const i = inserts.shift();				
+			i.t.set( i.key, i.val ).then( i.res ).catch( i.rej );
+		}
+		return val;
 	} );
 }
 
@@ -1286,8 +1339,10 @@ BloomNHash.prototype.store = function( ) {
 	//storage.addDecoders( [ { tag:".hb", p:this.hashBlock, f:null } ] );
 	//this.storage_ = storage;
 	//bitReader.hook( storage );
-	console.log( "Putting the hash..." );
-	return this.storage_.put( this ); // establish this as an object
+	//console.log( "Putting the hash..." );
+	if( this.storage_ )
+		return this.storage_.put( this ); // establish this as an object
+	else console.trace( "Storage is not enabled on this hash" );
 
 }
 

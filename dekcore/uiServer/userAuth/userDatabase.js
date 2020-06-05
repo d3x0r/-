@@ -42,20 +42,24 @@ const configFile = await fileRoot.open( "config.jsox" ).catch( ()=>{
 	const file = fileRoot.create( "config.jsox" )
 	InitAccounts();
 	return file;
-} ).then( (file)=>( file.read().then(
+} ).then( (file)=>( file.read().then( storage.map ).then(
 		(data)=>{
 			if( data && data.userAccounts ) {
-				storage.map( data ).then( (data)=>{
-					config.userAccounts = data.userAccounts;
-					//Object.assign( config, data);
-					if( config.userAccounts ) {
-						// it has to delay (potentially)
-						config.userAccounts.get( 'd3x0r' ).then( (val)=>{
-							console.log( "WHAT IF I JUST GO AHEAD AND USED IT?", val );
-						} );
-					} else
-						InitAccounts();
-				} );
+				config.userAccounts = data.userAccounts;
+				//Object.assign( config, data);
+				if( config.userAccounts ) {
+					// it has to delay (potentially)
+					config.userAccounts.get( 'd3x0r' ).then( (val)=>{
+						console.log( "WHAT IF I JUST GO AHEAD AND USED IT?(1)", val );
+					} );
+					config.userAccounts.get( 'user260' ).then( (val)=>{
+						console.log( "WHAT IF I JUST GO AHEAD AND USED IT?(2)", val );
+					} );
+					config.userAccounts.get( 'user270' ).then( (val)=>{
+						console.log( "WHAT IF I JUST GO AHEAD AND USED IT?(2)", val );
+					} );
+				} else
+					InitAccounts();
 			} else
 				InitAccounts();
 		}),  file ) ) ;
@@ -64,18 +68,21 @@ const configFile = await fileRoot.open( "config.jsox" ).catch( ()=>{
 // create some fake user accounts
 function asdf() {
 
-	let uzr = {	account:"d3x0r", password:"password", email:"email@nowhere.net"   };
-	storage.put( uzr );
-
-	userAccounts.set( "d3x0r", uzr );
-
-	for( var n = 0; n < 20; n++ ) {
-		uzr = {	account:"user"+n, password:"pass"+n, email:"email"+n   };
-		storage.put( uzr );
-		userAccounts.set( uzr.account, uzr ); // set implicitly puts
+	let uzr;
+	var n = 0;
+	
+	for( var n = 0; n < 280; n++ ) {
+		const uzr = {	account:"user"+n, password:"pass"+n, email:"email"+n   };
+		storage.put( uzr ).then( ()=>// I want to wait until it definatly IS put...
+			userAccounts.set( uzr.account, uzr )
+		); // set implicitly puts
 	}
 
-
+	{
+		const uzr = {	account:"d3x0r", password:"password", email:"email@nowhere.net"   };
+		storage.put( uzr ).then( ()=>// I want to wait until it definatly IS put...
+			userAccounts.set( "d3x0r", uzr ) );
+	}
 }
 
 function setup() {

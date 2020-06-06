@@ -18,7 +18,7 @@ function BigBang() {
 	var Void;
 	Entity( null, "Aether", "Glistening transparent black clouds swirl in the dark.", (Ether)=>{
                 
-		Entity( Void, "GOOSE", " Operator of System Entites.", (o)=>{
+		Entity( Void, "GOOSE", "General Operator of System Entites.", (o)=>{
                 	o.sandbox.command = shell.Filter( o.sandbox );
 	       	  	var path = require.resolve( "./startup.js" ).replace( /\\/g, "/" );
         	        shell.Script( o.sandbox, text.Text( path ) );

@@ -89,7 +89,7 @@ async function setup() {
 
 
 	DB.createUser = createUser;
-	DB.updateUser = updateUser;
+	//DB.updateUser = updateUser;
 	DB.authUser = authUser;
 
 
@@ -222,10 +222,11 @@ async function setup() {
 	DB.loginUser = (username,pass,address,oldcid )=>config.userAccounts.get( username ).then( (user)=>{
 		if( sack.id( pass, 3 ) === user.password ) {
 			const history = user.profile.get( "logins" );
+			let login;
 			if( history )
-				const login = new Login( history, address );
+				login = new Login( history, address );
 			else
-				const login = new Login( user, address );
+				login = new Login( user, address );
 			user.profile.set( "logins", login );
 			storage.put( user.profile );
 			return storage.put( history );

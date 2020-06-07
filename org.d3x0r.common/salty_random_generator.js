@@ -244,7 +244,7 @@ exports.SaltyRNG = function (f, opt) {
 					}
 				} while (bits);
 				//console.log( "output is ", result[0].toString(16), result[1].toString(16), result[2].toString(16), result[3].toString(16) )
-				return resultBuffer;
+				return result;
 			}
 		}
 	}

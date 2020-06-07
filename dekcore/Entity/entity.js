@@ -1392,7 +1392,7 @@ exports.reloadAll = function( ) {
 	console.log( "So? Config.run use to have a proper ID...", config.run )
 	return new Promise( (res,rej)=>{
 		fc.get( config.run["The Void"] ).then ((obj)=>{
-			fc.map( obj ).then( obj=>{
+			fc.map( obj, {depth:-1} ).then( obj=>{
 
 				doLog( "recovered core entity...", !!entity.theVoid, !!theVoid, entity.theVoid === theVoid );
 				console.log( "References?" );

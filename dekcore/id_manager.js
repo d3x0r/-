@@ -57,12 +57,13 @@ function keyRefEmitter() {
 	return JSOX.stringify( this.Λ );
 }
 function keyRefRecover(field,val) {
+	console.log( "has a field so... ", this, field, val );
 	if( !field ) {
 		let realid = tempKeyTracker.keys.get( this.Λ );
 		if( !realid ) keyTracker.keys.get( this.Λ );
 		if( !realid ) {
 			console.log( "Have to recover this key...", this );
-			return fc.get( this.Λ ).then( (key)=>{
+			fc.get( this.Λ ).then( (key)=>{
 				fc.map( key ).then( key=>{
 					keyTracker.keys.set( key.Λ, key );
 					if( key.maker instanceof Promise )
@@ -80,11 +81,14 @@ function keyRefRecover(field,val) {
 				})
 				return key;
 			} );
+		console.log( "Returning same object" );
+			return this;
 		} else {
 			console.log( "found existing key, returning real key.", realid,"for" ,this );
 		}
 		return realid;
 	}
+	return this;
 }
 
 function KeyTracker() {
@@ -147,7 +151,7 @@ function keyProto(Λ, o) {
 		Object.defineProperty(this, prop, { enumerable: false, writable: true, configurable: false, value: [] });
 	})
 }catch(err) {console.log( "Uncaught keproto error:",err)}
-	//console.log( "keyproto called?");
+	console.log( "keyproto called?", this );
 	//return key;
 }
 
@@ -602,11 +606,12 @@ function keyReviver( field, val ) {
 		// this key is now completed.
 		return this;
 	} else {
-		if( val instanceof Promise ) {
-			const this_ = this;
-			val.then( (val)=>this_[field]=val );
+		if( field === 'Λ' ) {
+			console.log( "Update", this.Λ, "to", val );
+			return this.Λ.Λ = val;
 		}
-		return this[field] = val;
+		else
+			return this[field] = val;
 	}
 }
 

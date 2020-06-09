@@ -87,8 +87,10 @@ function keyRefRecover(field,val) {
 			console.log( "found existing key, returning real key.", realid,"for" ,this );
 		}
 		return realid;
+	}else{
+		this[field] = val;
 	}
-	return this;
+	return val;
 }
 
 function KeyTracker() {

@@ -564,10 +564,10 @@ function makeEntity(obj, name, description, callback, opts) {
 		o._module = thisModule;
 		return o.thread.run( {src:thisModule.src,path:thisModule.paths[0]}, thisModule.code ).then( (v)=>{
 			_debug_run && console.log( "Run resulted... this is in the core; this should translate the result RuNID... (and pop stack)", v);
-			o._module = o._module.parent;
+			o._module = thisModule.parent;
 			return v;
 		}).catch( e=>{
-			o._module = o._module.parent;
+			o._module = thisModule.parent;
 			//doLog( "Catch error of course?", e );
 		} );
 	}
@@ -1196,14 +1196,14 @@ var entityMethods = {
 					let newVal;// = strngfr?((member.saved||member===this)?strngfr.stringify( member ):''): ('"'+member.Λ.toString()+'"' );
 					if( "string" === typeof member ) member = objects.get(member);
 					if( strngfr ) {
-						console.trace( "Has stringifier this pass", this.saving, member.saving );
+						//console.trace( "Has stringifier this pass", this.saving, member.saving );
 						let status = member.V;
 						if(status && member !== this )
 							newVal =  '~or"'+status+'"';
 						else {
 							newVal = strngfr.encodeObject( member );
 							if( newVal === member ) {
-								if( member === this )
+								if( member === this ) // encode object reference.
 									newVal = strngfr.stringify( member )
 								else
 									newVal =  null;
@@ -1244,18 +1244,19 @@ var entityMethods = {
 			if( !crtd  ) {
 				crtd = this.created_by.V?('~or"'+this.created_by.V+'"'):('Er[i"'+this.created_by.Λ+'"]');
 			}
-
-			return '{Λ:i"' + this.Λ
+			const mods = (strngfr?strngfr.stringify(this._module,null,null,"_module"):JSOX.stringify( this._module ));
+			console.log( "encoded mods with stringifier? or just raw?", !!strngfr, mods );
+			return '{Λ:i"' + this.Λ.toString()
+				+ '",V:"' + this.V
 				+ '",value:' + (this.value && this.value.toString())
 				+ ',name:"' + (this.name)
 				+ '",description:"' + (this.description)
-									// (this.within === entity.theVoid )?"ref[]" :
 				+ '",within:' + wthn
 				+ ',attached_to:' + attached
 				+ ',contains:' + contained
 				+ ',created_by:' + crtd
 				//+ ',"code":' + JSOX.stringify( this.sandbox.scripts.code )
-				+ ',_module:'+ (strngfr?strngfr.stringify(this._module):JSOX.stringify( this._module ))
+				+ ',_module:'+ mods
 				+ '}\n';
 			
 		}
@@ -1274,24 +1275,6 @@ var entityMethods = {
 			};
 			return rep;
 		}
-		/*
-		, fromString: (string, callback) => {
-			let tmp = JSON.parse(string);
-			for (key in tmp) {
-				if (!idMan.Auth(key)) {
-					throw "Unauthorized object"
-					return;
-					tmp.Λ = key;
-					delete tmp[key];
-					break;
-				}
-				this.within = tmp.within || objects.get(tmp.within) || all_objects.get(tmp.within);
-				this.created_by = tmp.created_by || objects[tmp.created_by];
-				tmp.attached_to.forEach((key) => { this.attached_to.push(objects[key]) })
-				Object.assign(this, tmp);
-			}
-		}
-		*/
 	}
 
 	Object.getOwnPropertyNames(entityMethods).forEach(function (prop) {
@@ -1312,7 +1295,7 @@ var entityMethods = {
 				}
 				const this_ = this;
 				this_.saving = true;
-				console.trace( "Before PUT");
+				//console.trace( "Before PUT");
 				this.save_ = new Promise( (res,rej)=>{
 					let x = this.Λ.save()
 					x.then( (id) =>{
@@ -1320,7 +1303,7 @@ var entityMethods = {
 						this.save_ = fc.put( this ).then( (id )=>{
 							if( this.created_by !== this )
 								this.created_by.save();
-							console.log( " storage identifier:", this.name, id );
+							//console.log( " storage identifier:", this.name, id );
 							this_.V = id;
 							res( id );
 

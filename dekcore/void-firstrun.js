@@ -49,15 +49,14 @@ function BigBang() {
 						}).catch( (err) =>{
 							console.log( "MOOSE Startup Wake failed:", err );
 						})
-					})
+					}).catch(err=>console.log("ERR?",err))
 
-				})
-
+				}).catch(err=>console.log("ERR?",err))
 			})
 			//o.create( "MOOSE-HTTP", "(HTTP)Master Operator of System Entites.", (o)=>{
 					//o.sandbox.require( "startupWeb.js" );
 			//})
-		})
+		}).catch(err=>console.log("ERR?",err))
 	} );
 	//});
 }

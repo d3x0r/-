@@ -532,15 +532,19 @@ var fillSandbox = {
 	// has("a").then(a=>console.log(a)).catch( ()=>console.log( "NO" ) );
 	, has(thing) { return entity.nearObjects.then(near=> new Promise( (res,rej)=>{
 		let checks = 0;
+		console.log( "got near object, looking...", near );
 		near.get("contains" ).forEach( content=>{
 			checks++;
 			content.name.then( name=>{
+				console.log( "Promised name:", name, thing );
 				if( name === thing)
 					res(content)
 				else if( !(--checks))
 					rej();
 			} )
 		} )
+		if( !checks )
+			rej();
 	} )) }
 	, drop(a) { return entity.drop(a) }
 	, store(thing) { return entity.store(thing) }
@@ -599,6 +603,7 @@ var fillSandbox = {
 	, io: {
 		output: null,
 		addInterface(name, iName, iface) {
+			doLog( util.format( "Adding a driver", name, iName, iface ) );
 			addDriver(self, name, iName, iface);
 		},
 		getInterface(object, name) {

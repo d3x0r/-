@@ -296,7 +296,7 @@ function scriptServer( dnsNames, port, internal, http_server, cb ) {
 	}
 
 	function initKeys(genInfo, cb) {
-		fc.reload( "httpInfo-"+(internal?"i":"e")+".json", ( err, data )=> {
+		fc.reload( "httpInfo-"+(internal?"i":"e")+".json").then( ( err, data )=> {
 			var key;
 			if( err ) {
 				console.log( "FAILED TO RECOVER OLDINFO, create new keys.", internal );
@@ -315,7 +315,7 @@ function scriptServer( dnsNames, port, internal, http_server, cb ) {
  					} );
 	 			} );
 			}
-		} );
+		} ).catch(err=>{console.log( "File reload failed:", err) } );
 	}
 
 }

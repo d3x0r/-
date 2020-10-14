@@ -174,7 +174,7 @@ function WakeEntity( e, noWorker ) {
     function makeIng( verb ) {
         if( verb.endsWith( "y" ) 
             || verb.endsWith( "o" ) 
-            ||verb.endsWith( "a" )
+            || verb.endsWith( "a" )
             || verb.endsWith( "u" )
             || verb.endsWith( "w" ) ) {
             // try -> trying
@@ -264,8 +264,8 @@ function WakeEntity( e, noWorker ) {
         console.log( "Wanting to remount ...", fc.cvol  )
 
         fc.cvol.mount(e.Λ.toString()); 
-console.log( "e:", e )
-        thread.worker = new wt.Worker( 'const Λ=' + JSON.stringify(e.Λ.toString()) + ";" 
+	
+	thread.worker = new wt.Worker( 'const Λ=' + JSON.stringify(e.Λ.toString()) + ";" 
             + 'Λ.maker=' + JSON.stringify(e.created_by.Λ.toString()) + ";" 
             + startupInitCode
             + invokePrerun

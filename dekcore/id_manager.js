@@ -57,12 +57,12 @@ function keyRefEmitter() {
 	return JSOX.stringify( this.Λ );
 }
 function keyRefRecover(field,val) {
-	console.log( "has a field so... ", this, field, val );
+	//console.log( "has a field so... ", this, field, val );
 	if( !field ) {
 		let realid = tempKeyTracker.keys.get( this.Λ );
 		if( !realid ) keyTracker.keys.get( this.Λ );
 		if( !realid ) {
-			console.log( "Have to recover this key...", this );
+			//console.log( "Have to recover this key...", this );
 			fc.get( this.Λ ).then( (key)=>{
 				fc.map( key ).then( key=>{
 					keyTracker.keys.set( key.Λ, key );
@@ -81,7 +81,6 @@ function keyRefRecover(field,val) {
 				})
 				return key;
 			} );
-		console.log( "Returning same object" );
 			return this;
 		} else {
 			console.log( "found existing key, returning real key.", realid,"for" ,this );
@@ -134,7 +133,6 @@ function keyStringProxy( id ){
 
 
 function keyProto(Λ, o) {
-	try {
 	if( !(this instanceof keyProto) ) return new keyProto(Λ, o)
 	//var key = o || {
 	this. maker     = null
@@ -147,14 +145,9 @@ function keyProto(Λ, o) {
 	this. authonly  = true // don't send copies to other things
 	this. created   = new Date()
 	if( o ) Object.assign( this, o );
-
-
 	["made", "authed"].forEach(prop => {
 		Object.defineProperty(this, prop, { enumerable: false, writable: true, configurable: false, value: [] });
 	})
-}catch(err) {console.log( "Uncaught keproto error:",err)}
-	console.log( "keyproto called?", this );
-	//return key;
 }
 
 const pendingSaves = [];
@@ -162,10 +155,7 @@ const pendingSaves = [];
 keyProto.prototype.save = function() {
 	if( keyTracker.keys.get( this.Λ.toString() ) ) // only temporary, do nothing.
 		return true;
-	//if( tempKeyTracker.keys.get( this.Λ.toString() ) ) // only temporary, do nothing.
-	//	return null;
-	this.saved = true;
-	//console.log( "Save something:", pendingSaves )
+	this.saved = true; // calls setter to do save.
 	return this.saved;
 }
 
@@ -601,19 +591,12 @@ function loadKeyFragments(o) {
 }
 
 function keyReviver( field, val ) {
-	//console.log( "THIS IS A KEY TO REVIVE:", this, field, val );
 	if( !field ) {
-		console.log( "Adding new key:", this );
 		keyTracker.keys.set( this.Λ.toString, this );
-		// this key is now completed.
 		return this;
 	} else {
-		if( field === 'Λ' ) {
-			console.log( "Update", this.Λ, "to", val );
-			return this.Λ.Λ = val;
-		}
-		else
-			return this[field] = val;
+		if( field === 'Λ' ) return this.Λ.Λ = val;
+		else return this[field] = val;
 	}
 }
 

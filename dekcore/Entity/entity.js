@@ -27,10 +27,7 @@ const JSOX = sack.JSOX;
 
 function EntityToJSOX (){
 	const r = '~E'+this.toString();
-	console.log(  "Encoded entity:", r );
 	return r
-
-
 }
 
 //JSOX.fromJSOX( "entity", Entity, function(field,val){
@@ -38,51 +35,21 @@ function EntityFromJSOX(field,val ) {
 	if( !field ) {
 		if( this.Λ instanceof Promise ) {
 			const this_ = this;
+			console.log( "Still waiting for our identity to revive?")
 			this.Λ.then( Λ=>{
 				objects.set( Λ.Λ, this_ );
 			} )
 		} else 
 			objects.set( this.Λ.toString(), this );
 			
-		console.log( "Get:", this.within );
-		val = objects.get( this.within );
-		this.contains.forEach( (c,i)=>{ if( c instanceof Promise ) c.then( (o)=>this.contains[i] = o )  })
-		console.log( "Got:", !!val );
-		if( val )
-			val.contains.set( this.Λ.toString(), this.Λ.toString() );
+		//console.log( "Get:", this.within );
+		//val = objects.get( this.within );
+		//this.contains.forEach( (c,i)=>{ if( c instanceof Promise ) c.then( (o)=>this.contains[i] = o )  })
+		//console.log( "Got:", !!val );
+		//if( val )
+		//	val.contains.set( this.Λ.toString(), this.Λ.toString() );
 
 		return this;
-	}
-	if( field === "within") {
-		if( "string" === typeof val ){
-			let t;
-			t = objects.get( val );
-			if( t ) val = t;
-			else {
-				if( this.Λ instanceof Promise ) {
-					const this_= this;
-					this.Λ.then( Λ=>{
-						if( Λ === val ) {
-							this_.within = this_;
-						}else {
-							t = objects.get( val );
-							if( t )
-								this_.within = t;
-							else
-								throw new Error( "This is throwing into a promise; but... cannot resolve 'within'");
-						}
-					} )
-				}
-			}
-		}
-	}
-	if( field === "attached_to" ) {
-		
-		this.attached_to.forEach( e=>{
-			e = objects.get(e);
-			this.attached_to.set( e.Λ.toString(), e );
-		})
-		return;
 	}
 	if( field === "created_by") {
 		//console.log( "This is just bad... no cread?", this, field, val );
@@ -583,7 +550,21 @@ function makeEntity(obj, name, description, callback, opts) {
 
 		// resolves path according to relative path of parent modules and resolves ".." and "." parts
 		//_debugPaths && doLog( o.name, JSOX.stringify( o._module,null, "\t"   ));
-		parentPath = parentPath && requireCache.get( parentPath ).paths[0];
+		const thisModule_ = requireCache.get( parentPath );
+		if( thisModule_ ){
+			var include = thisModule_.includes.find( i=>{
+					if( i.src === src ) return true;
+					//if( i.filename === ( thisModule_.paths[0] +'/'+ src ) ) return true;
+					return false;
+			}
+		 );
+			if( include ) {
+				include.parent = thisModule_;  // not sure why this isn't reviving.
+				requireCache.set( include.filename, include );
+				return runModule( o, include );
+			}
+		}
+		parentPath = parentPath && thisModule_ && thisModule_.paths[0];
 		_debugPaths && console.log( "ParentPath:", parentPath )
 
 		var root = (parentPath?parentPath+'/':'')+src;//netRequire.resolvePath(src, o._module);
@@ -1245,7 +1226,7 @@ var entityMethods = {
 				crtd = this.created_by.V?('~or"'+this.created_by.V+'"'):('Er[i"'+this.created_by.Λ+'"]');
 			}
 			const mods = (strngfr?strngfr.stringify(this._module,null,null,"_module"):JSOX.stringify( this._module ));
-			console.log( "encoded mods with stringifier? or just raw?", !!strngfr, mods );
+			//console.log( "encoded mods with stringifier? or just raw?", !!strngfr, mods );
 			return '{Λ:i"' + this.Λ.toString()
 				+ '",V:"' + this.V
 				+ '",value:' + (this.value && this.value.toString())
@@ -1392,7 +1373,9 @@ exports.reloadAll = function( ) {
 					}
 					if( o._module.includes.length ){
 						wake.WakeEntity( o, false ).then( thread=>{
-							runModule( o, o._module.includes[0] );
+							const thisModule = o._module.includes[0];
+							requireCache.set( thisModule.filename, thisModule );
+							runModule( o, thisModule );
 
 						})
 					}

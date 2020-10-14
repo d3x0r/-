@@ -29,19 +29,15 @@ function BigBang() {
 		const theVoid = o;
 		o.saved = true;
 		o.saved.then( (id)=>{
-			console.log( "Creating first entity" );
-			config.run['The Void'] = o.V;
+			config.run['The Void'] = id; // o.V should also equal ID...
 
 			o.create( "MOOSE", "Master Operator of System Entites.", (o)=>{
 				o.saved = true;
 				o.saved.then( (id)=>{
-					console.log( "Moose succesffully saved... ");
-					config.run.MOOSE = o.V;
+					config.run.MOOSE = o.Λ.toString();
 					config.commit().then( ()=>{
-						console.log( "Okay so config IS Written!")
 						o.wake().then( (thread)=>{
 							process.stdin.pipe( thread.worker.stdin );
-							console.log( "requiring start script", startScript );
 							o.require( startScript ).then( (r)=>{
 								console.log( "Hmm, what doe shtis result?", r );
 								o.save();

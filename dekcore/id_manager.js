@@ -263,7 +263,7 @@ Object.defineProperty(keyProto.prototype, "saved", { enumerable: false, configur
 				if( !pendingSaves.find( ps=>ps.key===this )) {
 					console.log( "Already saved, just update?");
 					let p;
-					pendingSaves.push( { key:this_, p:p=fc.put( this, {extraEncoders:[{tag:'i',p:keyRef,f:keyRefEmitter }]} ) } ); 
+					pendingSaves.push( { key:this_, p:p=fc.put( this, {extraEncoders:[{tag:'',p:keyRef,f:keyRefEmitter }]} ) } ); 
 					p.then( (p)=>{
 						const zz = pendingSaves.findIndex( ps=>ps.key === this_ );
 						if( zz >= 0 )
@@ -637,27 +637,29 @@ function loadKeyFragments(o) {
 function keyReviver( field, val ) {
 	if( !field ) {
 		keyTracker.keys.set( this.Λ.toString(), this );
+		// last pass has option to swap entire object.
 		return this;
 	} else {
-		//console.log( "REVIVIE:", field, val );
+		console.log( "ID REVIVE:", field, val );
 		if( val instanceof Promise ){
 			const this_ = this;
+			console.log( "Adding to promised value to set field" );
 			val.then( (fixup)=>{
-				//console.log( "FIXUP OBJECT REFERENCE")
+				console.log( "FIXUP OBJECT REFERENCE", field, fixup)
 				return this_[field]=fixup;}
-				 );
+			);
 		}
-		if( field === 'Λ' ) return this.Λ.Λ = val;
-		else return this[field] = val;
+		if( field === 'Λ' ) this.Λ.Λ = val;
+		else this[field] = val;
 	}
 }
 
 function loadKeys() {
 	var result;
 	fc.addEncoders( [{tag:"id",p:keyProto,f:null }
-				,{tag:"i",p:keyRef,f:keyRefEmitter }] );
+				,{tag:'',p:keyRef,f:keyRefEmitter }] );
 	fc.addDecoders( [{tag:"id",p:keyProto,f:keyReviver }
-				,{tag:"i",p:keyRef,f:keyRefRecover } ] );
+			] );
 
 	if( !config.run.keyTracker ) {
 		commitKeyTracker()

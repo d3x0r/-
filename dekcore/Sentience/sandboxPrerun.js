@@ -1,6 +1,6 @@
 const _debugPaths = false;
 const _debug_commands = false;
-const _debug_requires = true;
+const _debug_requires = false;
 const _debug_command_input = false;
 const _debug_command_post = _debug_commands || false;
 const _debug_command_run = _debug_commands || false;

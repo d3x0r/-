@@ -56,8 +56,10 @@ function WakeEntity( e, noWorker ) {
                     if( msg.f === "create" ){
                         // this one has a callback to get the result
                         // the others are all synchrounous normally
+                        console.log( "create message:", msg )
                         return e.create( msg.args[0], msg.args[1], (o)=>{
                             try {
+                                console.log( "And reply with created object" );
                                 let msgout = {op:msg.op,id:msg.id,ret:o.Λ.toString()};
                                 e.thread.post(msgout);
                             } catch(err) {console.log(err);}    
@@ -69,8 +71,12 @@ function WakeEntity( e, noWorker ) {
                         }
                         //console.log( "Doing:", msg.f );
                         var r = e[msg.f].apply(e,msg.args)
+                        console.log( "Result of call is:", r );
                         if( r instanceof Promise )
-                            r.then((r)=> e.thread.post( {op:msg.op,id:msg.id,ret:r} ) )
+                            r.then((r)=> {
+                                console.log( "R is :", r );
+                                e.thread.post( {op:msg.op,id:msg.id,ret:r} ) 
+                            })
                                 .catch((err)=>e.thread.post( { op:'error',id:msg.id,error:err,stack:err.stack } ) );
                         else {
                             sack.log( util.format( "it's a promise but not?", r ));
@@ -211,6 +217,7 @@ function WakeEntity( e, noWorker ) {
             }else
                 code_ = code;
             if( code_ ) {
+                console.log( "RunFile:", code );
                 var msg = {op:'run', file:code, code:(code_), id:runId};
                 thread.post(msg);
                 return new Promise( (res,rej)=>{
@@ -218,14 +225,18 @@ function WakeEntity( e, noWorker ) {
                 })
             }
         }
+        ,get pendingRuns() { return pendingRuns}
         , run(file,code) {
             if( thread.worker ) {
                 return new Promise( (res,rej)=>{
-                    _debug_run && sack.log( util.format("Posting run:", file.src, "to", e.name ));
+                    _debug_run && sack.log( util.format("Posting run:", file, code, "to", e.name, new Error("").stack ));
                     var msg = {op:'run', file:file, code:(code), id:runId };
                     thread.post(msg); 
                     //console.log( "Pending run has pushed this one... and we return a promise.");
-                    pendingRuns.push( { runResult : res, runReject: rej, id : runId++ } );
+                    pendingRuns.push( { module:e._module
+                        , runResult : res
+                        , runReject: rej
+                        , id : runId++ } );
                 })
             }else {
                 console.trace( "thread does not have a worker, Run fail. This shouldn't be running any VM code Yet.");

@@ -1,7 +1,7 @@
 "use strict";
 const idGen = require("./util/id_generator.js");
 //Error.stackTraceLimit = Infinity;
-const _debug = false;
+const _debug = true;
 
 const os = require( "os" );
 
@@ -131,6 +131,7 @@ function getLocation() {
 getLocation();
 
 function saveConfig() {
+	//console.trace( "SAVE CONFIG FLUSH", config.run );
 	return fc.store(  "config.run.jsox", config.run);
 }
 
@@ -139,30 +140,35 @@ async function loadConfig(path) {
 	return new Promise( ( res, rej )=>{
 		fc.init().then( ()=>{
 			loadDefaults();
-			fc.reload( "config.run.jsox" ).then (  ( result) =>{
-					return loadRun( result ).then( res ).catch(rej);
-			}).catch( rej );
+			return fc.reload( "config.run.jsox" )
+				.then (  ( result) =>loadRun( result )
+					.then( res ).catch(rej))
+				.catch( rej );
 		}).catch(rej);
-
 	} );
 
 	function loadRun(object) {
-				// if there's an old config object...
-				if( object ){
-					var file_defaults = config.run.defaults; // already loaded from default config
-					// addresses are always live, and override previously saved information.
-					var intern = config.run.internal_addresses;
-					var extern = config.run.addresses;
-					// merge object into running configuration.
-					Object.assign(config.run, object);  // if there is a defaults, it will change the 'defaults' object
-					Object.assign( config.run.defaults, file_defaults ); // restore original defaults.
-					config.run.internal_addresses = intern;
-					config.run.addresses          = extern;
-				}
-
-				_debug && console.log( "Loaded run configuration defaults; save it...");
-				return saveConfig();
+		// if there's an old config object...
+		//console.trace( "Load Running config:", object );
+		if( object ) {
+			config.run.Λ = object.Λ;
 		}
+		//console.log( "Reloading run key:", config.Λ, config.run.Λ );
+		if( object ){
+			var file_defaults = config.run.defaults; // already loaded from default config
+			// addresses are always live, and override previously saved information.
+			var intern = config.run.internal_addresses;
+			var extern = config.run.addresses;
+			// merge object into running configuration.
+			Object.assign(config.run, object);  // if there is a defaults, it will change the 'defaults' object
+			Object.assign( config.run.defaults, file_defaults ); // restore original defaults.
+			config.run.internal_addresses = intern;
+			config.run.addresses          = extern;
+		}
+
+		_debug && console.log( "Loaded run configuration defaults; save it...");
+		return saveConfig();
+	}
 
 
 	function loadDefaults() {
@@ -229,8 +235,7 @@ function resume() {
 			}
 			//console.log( "Something will call resume later?");
 			break;
-		}
-		//console.log( "JUST GOING TO NEXT...", p )
+		} 
 		if (config.start_deferred) {
 			//console.log( "got deferred...", config.starts)
 			config.starts_deferred = config.starts;
@@ -238,7 +243,6 @@ function resume() {
 			break;
 		}
 	}
-	//config.starts = []
 	if (config.starts_deferred) {
 		config.starts = config.starts_deferred;
 		config.start_deferred--;

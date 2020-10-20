@@ -31,7 +31,6 @@ if( resume ) {
 	console.log( "Okay this a resuming thing so..." );
 }
 else {
-
   has("Command And Control").catch( ()=>{
     create( "Command And Control", "user manager", "userManagerStartup.js" );
   })

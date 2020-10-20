@@ -26,28 +26,58 @@ const JSOX = sack.JSOX;
 //JSOX.registerToJSOX( "entity", Entity,
 
 function EntityToJSOX (){
-	const r = '~E'+this.toString();
+	const r = this.toString();
 	return r
 }
 
 //JSOX.fromJSOX( "entity", Entity, function(field,val){
 function EntityFromJSOX(field,val ) {
+	//console.log( "Revive entity info:", field, val )
 	if( !field ) {
 		if( this.Λ instanceof Promise ) {
 			const this_ = this;
 			console.log( "Still waiting for our identity to revive?")
 			this.Λ.then( Λ=>{
-				objects.set( Λ.Λ, this_ );
+				setObj( Λ.Λ, this_ );
 			} )
 		} else 
-			objects.set( this.Λ.toString(), this );
-			
-		//console.log( "Get:", this.within );
-		//val = objects.get( this.within );
-		//this.contains.forEach( (c,i)=>{ if( c instanceof Promise ) c.then( (o)=>this.contains[i] = o )  })
-		//console.log( "Got:", !!val );
-		//if( val )
-		//	val.contains.set( this.Λ.toString(), this.Λ.toString() );
+			setObj( this.Λ.toString(), this );
+
+		function setObj( id,o ) {
+			objects.set( id,o );
+			// fixup contains and attach maps... but...
+			const newContains = new Map();
+			o.contains.forEach(content=>{
+				console.log( "Copying content...", content );
+				if( content instanceof Promise ) {
+					console.log( "Attaching to promised item");
+					content.then( c=>{
+							console.log( "promised item is now resolved" );
+							newContains.set( c.Λ, c )
+						} )
+				}
+				else
+					newContains.set( content.Λ, content );
+				
+			})			
+			o.contains = newContains;
+
+			const newAttaches = new Map();
+			o.attached_to.forEach(content=>{
+				console.log( "Copying attachment...", content );
+				if( content instanceof Promise ) {
+					console.log( "Attaching to promised item");
+					content.then( c=>{
+						console.log( "promised item is now resolved" );
+						newAttaches.set( c.Λ, c )
+						} )
+				}
+				else
+					newAttaches.set( content.Λ, content );
+			})			
+			o.attached_to = newAttaches;
+		}
+		
 
 		return this;
 	}
@@ -63,6 +93,13 @@ function EntityFromJSOX(field,val ) {
 		//if( pval && pval.created )
 		//	pval.created.push(this);
 	}
+	/*
+	if( field === "contains" || field === "attached_to") {
+		const this_ = this;
+		val.forEach( content=>this_.contains.set(content.Λ,content));
+		return this.contains;
+	}
+	*/
 	return this[field] = val;
 }
 
@@ -383,7 +420,7 @@ function makeEntity(obj, name, description, callback, opts) {
 		obj = named || obj;
 		return named;
 	}
-
+	console.trace( "Shouldn't be making entities until config.js finishes" );
 	if (typeof (obj) === "string") {
 		obj = objects.get(obj);
 	}
@@ -418,7 +455,7 @@ function makeEntity(obj, name, description, callback, opts) {
 		
 		createdVoid = entity;
 	}
-
+	console.log( "calling a new Entity:", name, description );
 	const o = new Entity( obj, name, description );
 	if( !exports.theVoid ) {
 		if( theVoid )
@@ -440,9 +477,10 @@ function makeEntity(obj, name, description, callback, opts) {
 			}
 			else {
 				if( theVoid !== o ) {
+					console.log( "create new ID?")
 					entity.idMan.ID(obj || createdVoid, config.run, (key) => {
 						o.Λ = key.Λ;
-						//doLog( "object now has an ID", o.name, o.Λ, key.Λ );
+						doLog( "object now has an ID", o.name, o.Λ, key.Λ );
 						finishCreate();
 					} );
 				} else {
@@ -459,7 +497,7 @@ function makeEntity(obj, name, description, callback, opts) {
 		finishCreate();
 
 	function finishCreate( ) {
-		//doLog( " ----- FINISH CREATE ---------" );
+		doLog( " ----- FINISH CREATE ---------" );
 		if( opts && opts.fork ) {
 			o.child = cpts.fork( "childEntity.js", [o.Λ] )
 			o.child.on( "message", (msg)=>{
@@ -468,7 +506,7 @@ function makeEntity(obj, name, description, callback, opts) {
 				}
 			})
 		} 
-
+		console.log( "Finish create and set in container:", o.Λ );
 		if (o.within) o.within.contains.set(o.Λ.toString(), o.Λ.toString() );
 		else {
 			o.within = o;
@@ -478,10 +516,12 @@ function makeEntity(obj, name, description, callback, opts) {
 
 		let oldId = o.Λ.toString();
 		o.Λ.on(()=>{
+			console.log( "RESOLVE PROMISE?" );
 			objects.delete(oldId);
 			objects.set(o.Λ.toString(), o);
 
 			o.within.contains.delete( oldId );
+			console.log( "delay resolve reference:", o.Λ );
 			o.within.contains.set( o.Λ.toString(), o );
 			for( let a of o.attached_to ) {
 				a.attached_to.delete( oldId );
@@ -527,9 +567,13 @@ function makeEntity(obj, name, description, callback, opts) {
 }
 
 	function runModule( o, thisModule ) {
-		( _debug_threads || _debug_run ) &&  doLog( o.name, "POSTED CODE TO RUN TO THE OTHER THREAD... AND WE WAIT (upushed to stack", o._module.src );
+		( _debug_threads || _debug_run ) &&  doLog( o.name, "POSTED CODE TO RUN TO THE OTHER THREAD... AND WE WAIT (pushed to stack)", thisModule.src );
 		o._module = thisModule;
 		return o.thread.run( {src:thisModule.src,path:thisModule.paths[0]}, thisModule.code ).then( (v)=>{
+			// when this happens, I don't care about the result... 
+			// I shouldn't have to pop 'module' because it's all async.
+			// and I don't know if this is running, or another thing is running...
+
 			_debug_run && console.log( "Run resulted... this is in the core; this should translate the result RuNID... (and pop stack)", v);
 			o._module = thisModule.parent;
 			return v;
@@ -546,11 +590,14 @@ function makeEntity(obj, name, description, callback, opts) {
 			console.trace( "FIX THIS CALLER this is", o, src );
 
 		//var o = this ; //makeEntity( this.me );
-		_debug_require && console.log("sandboxRequire ",  src, parentPath );
+		_debug_require && console.trace("sandboxRequire ",  src, parentPath );
 
 		// resolves path according to relative path of parent modules and resolves ".." and "." parts
 		//_debugPaths && doLog( o.name, JSOX.stringify( o._module,null, "\t"   ));
-		const thisModule_ = requireCache.get( parentPath );
+
+		const thisModule_ = 
+				requireCache.get( parentPath );
+		console.log( "This Module is current:", thisModule?thisModule_.filename :"-");
 		if( thisModule_ ){
 			var include = thisModule_.includes.find( i=>{
 					if( i.src === src ) return true;
@@ -569,16 +616,19 @@ function makeEntity(obj, name, description, callback, opts) {
 
 		var root = (parentPath?parentPath+'/':'')+src;//netRequire.resolvePath(src, o._module);
 		_debugPaths && console.log( "ParentPath root...:", root )
+
 		try {
-			var file = fs.readFileSync(root, { encoding: 'utf8' });
+			var file = vol.read( root ).toString();
+			console.log( root,'=',file );
+			//fs.readFileSync(root, { encoding: 'utf8' });
 		} catch (err) {
 			doLog("File failed... is it a HTTP request?", err);
 			return undefined;
 		}
 			
 		const strippedFile = netRequire.stripPath(root);
-		
 		const strippedRoot = netRequire.stripFile(root);
+
 		_debugPaths && doLog("root could be", root, strippedFile, strippedRoot );
 
 		var reloaded = o._module.includes.find( (module)=>{
@@ -812,7 +862,11 @@ var entityMethods = {
 			return done;
 		}
 		, getObjects(...args){ return getObjects(this, ...args) }
-		, get contents() { var refs = [];  this.contains.forEach( c=>refs.push(c.Λ.toString() ) );return refs; }
+		, get contents() { 
+			var refs = [];  t
+			his.contains.forEach( c=>refs.push(c.Λ.toString() ) );
+			console.log( "Returning refs:", refs );
+			return refs; }
 		, get near() {
 			var result = [];
 			for( let near of this.within.contains){
@@ -851,7 +905,7 @@ var entityMethods = {
 			this.attached_to.forEach( e=>c.set(e.Λ.toString(),e.Λ.toString()) );
 			near.set("holding", c );
 			c = new Map();
-			this.contains.forEach( e=>c.set(e,e) );
+			this.contains.forEach( e=>c.set(e.Λ.toString(),e.Λ.toString()) );
 			near.set("contains", c );
 			near.set("near", (function (on) {
 				var result = new Map();
@@ -861,12 +915,12 @@ var entityMethods = {
 						//doLog( "my room contains:", nearby, nearE );
 						if (nearby !== on) {
 							//let realNear = objects.get( nearby );
-							result.set(nearE,nearE );
+							result.set(nearE.toString(),nearE.toString() );
 						}
 					});
 					on.within.attached_to.forEach((nearby,nearE) => {
 						//doLog( "my room attached to:", nearby, nearE );
-						result.set(nearE, nearE );
+						result.set(nearE.toString(), nearE.toString() );
 					});
 					return result;
 				}
@@ -921,12 +975,15 @@ var entityMethods = {
 			return false;
 		}
 		, watch(a) {
+			console.log( "Watching a...", a );
 			a = objects.get( a );
 			if( a ) {
 				for( let method in a.sandbox ) {
 					this.emit( "enable", [a.Λ, a.sandbox[method]] );
 				}
 				a.thread && a.watchers.set(this.Λ.toString(), this);
+			}else {
+				console.log( "getting A for watch failed?", a)
 			}
 		}
 		, ignore(a) {
@@ -1114,6 +1171,11 @@ var entityMethods = {
 		, require (file) { 
 			if( "object" === typeof file ){
 				_debug_require && doLog( "calling sandbox require...", file);
+				if( "runId" in file && this.thread ){
+					const run = this.thread.pendingRuns.find( run=>run.id===file.runId );
+					if( run ) this._module = run.module;
+				}
+		
 				return sandboxRequire(this,file.src, file.from);
 			} else
 				return sandboxRequire(this,file );
@@ -1276,9 +1338,10 @@ var entityMethods = {
 				}
 				const this_ = this;
 				this_.saving = true;
-				//console.trace( "Before PUT");
+				console.trace( "Before PUT");
 				this.save_ = new Promise( (res,rej)=>{
 					let x = this.Λ.save()
+					console.log( "SAVED KEYREF?", x, this );
 					x.then( (id) =>{
 						if( !id ) console.log( "Save somehow failed... (it won't)");
 						this.save_ = fc.put( this ).then( (id )=>{
@@ -1286,6 +1349,7 @@ var entityMethods = {
 								this.created_by.save();
 							//console.log( " storage identifier:", this.name, id );
 							this_.V = id;
+							console.log(" Resolving with new id");
 							res( id );
 
 							// all other things which have this as a reference, and have been saved need to update.
@@ -1314,9 +1378,11 @@ Entity.fromString = function(s) {
 	o.Λ = s.Λ;
 		console.warn( "create sandbox here, after getting ID --------- FROM STRING?!")
 
-		if (o.within)
+		if (o.within) {
+			console.log( "From String  create and set in container:", o.Λ );
+
 			o.within.contains.set(o.Λ.toString(), o);
-		else
+		} else
 			o.within = o;
 
 		var oldId = o.Λ.toString();
@@ -1356,26 +1422,28 @@ exports.reloadAll = function( ) {
 	console.log( "So? Config.run use to have a proper ID...", config.run )
 	return new Promise( (res,rej)=>{
 		fc.get( config.run["The Void"] ).then ((obj)=>{
-			fc.map( obj, {depth:-1} ).then( obj=>{
+			return fc.map( obj, {depth:-1} ).then( obj=>{
 
 				doLog( "recovered core entity...", !!entity.theVoid, !!theVoid, entity.theVoid === theVoid );
-				console.log( "References?" );
 				// this is already a made entity.
+				// wake anyone that had scripts loaded.... 
+				// probalby should save this as a flag instead?
 				const waking = [];
 				function wakeEntities( o ){
 					if( waking.find(e=>o===e))return;
 					waking.push(o);
-					for( var e of o.contains ){
-						wakeEntities(e);
-					}
-					for( var e of o.attached_to ){
-						wakeEntities(e);
-					}
+					o.contains.forEach( e=>wakeEntities(e));
+					o.attached_to.forEach( e=>wakeEntities(e));
 					if( o._module.includes.length ){
+						//console.log( "References?", JSOX.stringify( o._module ) );
+						//console.log( "References2?", JSOX.stringify( o._module .includes) );
 						wake.WakeEntity( o, false ).then( thread=>{
-							const thisModule = o._module.includes[0];
+							const thisModule = o._module;
+							//console.log( "Module had some script....", thisModule.src );
 							requireCache.set( thisModule.filename, thisModule );
-							runModule( o, thisModule );
+							runModule( o, thisModule.includes[0] ).then( ()=>{
+								console.log( "Script resulted... and there's still requires...")
+							});
 
 						})
 					}
@@ -1386,6 +1454,9 @@ exports.reloadAll = function( ) {
 				//doLog( "Is this really serial at this time?", defer );
 				res();
 			})
+		})
+		.catch(err=>{
+			console.log( "Nothing to reload.." );
 		})
 	})
 }

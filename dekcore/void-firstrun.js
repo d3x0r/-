@@ -39,7 +39,8 @@ function BigBang() {
 						o.wake().then( (thread)=>{
 							process.stdin.pipe( thread.worker.stdin );
 							o.require( startScript ).then( (r)=>{
-								console.log( "Hmm, what doe shtis result?", r );
+								// r is a number that is the index of the require...
+								//console.log( "Hmm, what doe shtis result?", r );
 								o.save();
 							});
 						}).catch( (err) =>{

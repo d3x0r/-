@@ -1,6 +1,6 @@
 const _debugPaths = false;
 const _debug_commands = false;
-const _debug_requires = false;
+const _debug_requires = true;
 const _debug_command_input = false;
 const _debug_command_post = _debug_commands || false;
 const _debug_command_run = _debug_commands || false;
@@ -19,6 +19,7 @@ const id = sack.SaltyRNG.id;
 const path = require('path');
 const wt = require('worker_threads');
 const njs_module = require('module');
+//const { getEntity } = require('../Entity/entity.js');
 
 const builtinModules = njs_module.builtinModules.slice(0);
 builtinModules.require = require;
@@ -28,7 +29,7 @@ const JSOX = sack.JSOX;
 const coreThreadEventer = wt.parentPort;
 
 function doLog(...args) {
-	var s = util.format(...args);
+	var s = util.format(...args);// + new Error().stack;
 	sack.log(s);
 	//console.log(s);
 }
@@ -76,7 +77,7 @@ function processMessage(msg, stream) {
 		try {
 			const code = { file: msg.file, id:msg.id, result: null }
 			var codeIndex = codeStack.push(code)-1;
-			//console.log( "Sandbox:", sandbox );
+			console.log( "Run Code Sandbox:",  msg );
 			//var res = vmric(msg.code, sandbox.sandbox , { filename:msg.file.src, lineOffset:0, columnOffset:0, displayErrors:true } );
 			var res = vmric(msg.code, sandbox.sandbox, { filename: msg.file.src, lineOffset: 0, columnOffset: 0, displayErrors: true });
 			if (res && (res instanceof Promise || Promise.resolve(res) === res || ("undefined" !== typeof res.then)))
@@ -133,8 +134,10 @@ function processMessage(msg, stream) {
 		if (msg.out) {
 			if (self.io.output)
 				self.io.output(msg.out);
-			else
+			else{
+				//msg.out = msg.out + (new Error().stack).toString();
 				coreThreadEventer.postMessage(msg);
+			}
 		}
 		//reply(msg.out);
 		return;
@@ -209,11 +212,10 @@ function processMessage(msg, stream) {
 		//doLog( "Will splice...", responseId, msg, pendingOps)
 		pendingOps.splice(responseId, 1);
 		if (msg.op === 'f' || msg.op === 'g' || msg.op === 'e' || msg.op === 'h') {
-			_debug_commands && reply(util.format("Resolve.", msg, response));
-
+			_debug_commands && doLog(util.format("command resolution:", msg, response));
 			response.resolve(msg.ret);
 		} else if (msg.op === 'error') {
-			_debug_commands && doLog(util.format("Reject.", msg, response));
+			_debug_commands && doLog(util.format("command Reject.", msg, response));
 			response.reject(msg.error);
 		}
 	} else {
@@ -235,11 +237,14 @@ process.stdin.on('data', (chunk) => {
 
 function makeEntity(Λ) {
 	if (Λ instanceof Promise) return Λ.then(Λ => makeEntity(Λ));
-	//console.trace( "make entity for:", Λ);
 	{
 		let tmp = objects.get(Λ);
-		if (tmp) return tmp;
+		if (tmp) {
+			console.trace( "got entity for:", Λ);
+			return tmp;
+		}
 	}
+	console.trace( "make entity for:", Λ);
 	var nameCache;
 	var descCache;
 	var nearCache;
@@ -255,7 +260,7 @@ function makeEntity(Λ) {
 			});
 		}
 		, postGetter(name) {
-			_debug_command_post && console.trace("entity get posting:", mid, name, Λ);
+			_debug_command_post && doLog("entity get posting:", mid, name, Λ);
 			return new Promise((resolve, reject) => {
 				const thisId = mid++;
 				coreThreadEventer.postMessage({ op: 'h', o: Λ, id: thisId, h: name });
@@ -285,6 +290,9 @@ function makeEntity(Λ) {
 		detach(fromThing) {
 			if ("string" !== typeof fromThing) fromThing = fromThing.Λ;
 			return e.post("detach", fromThing);
+		},
+		save() {
+			return e.post("save");
 		},
 		enable( ability ) {
 			if( ability.args ) {
@@ -316,9 +324,7 @@ function makeEntity(Λ) {
 				return Promise.resolve(nearCache.get("contains"));
 			}
 			return new Promise(res => {
-				this.nearObjects.then(nearCache => {
-					res(nearCache.get("contains"));
-				})
+				this.nearObjects.then(nearCache => res(nearCache.get("contains")))
 			})
 		},
 		get container() {
@@ -332,18 +338,21 @@ function makeEntity(Λ) {
 				return c;
 			})
 		},
-		get within() { return e.postGetter("room") },
+		get within() { return e.postGetter("room")
+		                .then(id=>makeEntity(id.parent.Λ)) },
 		get holding() {
-			return e.nearObjects.then(near =>  Promise.resolve(near.get("holding"))  );
+			console.log( "GETTING HOLDING 2" );
+			return e.nearObjects.then(near => near.get("holding")  );
 		},
 
 		get nearObjects() {
-			//console.log( "Get near objects" );
+			console.trace( "Get near objects" );
 			if (nearCache) return Promise.resolve(nearCache);
 			return this.postGetter("nearObjects").then(result => {
 				if (e.Λ === self.Λ)
 					nearCache = result;
 				result.forEach((list, key) => {
+					console.trace( "list of objects:", list, key );
 					if( list )
 					list.forEach((name, i) => {
 						list.set(i, makeEntity(name))
@@ -371,7 +380,7 @@ function makeEntity(Λ) {
 			//doLog(" ---- thread side require:", nameCache, src, codeStack);
 			return e.post("require", src)
 				.then( result=>{
-					//console.log( "Finally result should come from codestack:", codeStack, result);
+					console.log( "Finally result should come from codestack:", codeStack, result);
 					if( "number" === typeof result )
 						return codeStack[result].result
 					return result;
@@ -394,18 +403,20 @@ function makeEntity(Λ) {
 	e.cache.near.displaced = ((e) => ((roomCache = null),(nearCache = null)));
 	e.cache.near.placed = ((e) => ((roomCache = e),(nearCache = null)));
 
-	e.cache.near.store = ((e) => (!!nearCache) && nearCache.get("contains").set(e.Λ, e));
-	e.cache.near.lose = ((e) => (!!nearCache) && nearCache.get("contains").delete(e.Λ) );
+	e.cache.near.store = ((e) => (!!nearCache) && nearCache.get("contains").set(e.Λ.toString(), e));
+	e.cache.near.lose = ((e) => (!!nearCache) && nearCache.get("contains").delete(e.Λ.toString()) );
 
-	e.cache.near.joined = ((e) => (!!nearCache) && nearCache.get("near").set(e.Λ, e));
-	e.cache.near.part = ((e) => (!!nearCache) && nearCache.get("near").delete(e.Λ));
-	e.cache.near.attached = ((e) => (!!nearCache) && nearCache.get("holding").set(e.Λ, e));
-	e.cache.near.detached = ((e) => (!!nearCache) && nearCache.get("holding").delete(e.Λ));
+	e.cache.near.joined = ((e) => (!!nearCache) && nearCache.get("near").set(e.Λ.toString(), e));
+	e.cache.near.part = ((e) => (!!nearCache) && nearCache.get("near").delete(e.Λ.toString()));
+	e.cache.near.attached = ((e) => (!!nearCache) && nearCache.get("holding").set(e.Λ.toString(), e));
+	e.cache.near.detached = ((e) => (!!nearCache) && nearCache.get("holding").delete(e.Λ.toString()));
 	if (objects.size){
-		//sack.log( "Telling e to watch me?" + Λ +"\n"+(new Error().stack) );
-		e.post("watch", Λ);
+		sack.log( "Telling e to watch me?" + e.Λ.toString() +"\n"+(new Error().stack) );
+		e.post("watch", Λ.toString());
 	}
+	console.log( "ID:", Λ );
 	objects.set(Λ, e);
+	
 	return e;
 }
 
@@ -471,6 +482,7 @@ var fillSandbox = {
 		_debug_requires && doLog("This is STILL a thread in itself main loop", args);
 		if (args.includes("undefined"))
 			doLog("Failed!", args);
+			
 		var prior_execution = codeStack.find(c => c.file.src === args);
 		if (prior_execution) {
 			_debug_requires && doLog("Require resoving prior object:", args)
@@ -487,7 +499,10 @@ var fillSandbox = {
 		);
 		pendingRequire = true;
 		//console.log( "posting require...", args );
-		return self.post("require", {src:args,from:path} ).then(ex => {
+		return self.post("require", {src:args
+		          ,from:path
+				  ,runId:codeStack.length?codeStack[codeStack.length-1].id:undefined} )
+		    .then(ex => {
 			( _debug_requires || _debug_command_run ) && doLog("Read and run finally resulted, awated on post require", ex, codeStack, new Error().stack );
 			if( "number" === typeof ex ){
 				var ex3 = codeStack[ex].result;
@@ -532,8 +547,9 @@ var fillSandbox = {
 	// has("a").then(a=>console.log(a)).catch( ()=>console.log( "NO" ) );
 	, has(thing) { return entity.nearObjects.then(near=> new Promise( (res,rej)=>{
 		let checks = 0;
-		console.log( "got near object, looking...", near );
+		console.log( "got near object, looking...", near, checks ); try {
 		near.get("contains" ).forEach( content=>{
+			console.log( "Contains is empyt??", content );
 			checks++;
 			content.name.then( name=>{
 				console.log( "Promised name:", name, thing );
@@ -543,9 +559,14 @@ var fillSandbox = {
 					rej();
 			} )
 		} )
-		if( !checks )
-			rej();
-	} )) }
+	} catch(err){
+		console.log( "ERR:", err );
+	}
+		{
+			console.log(  " checks,... and reject.", check ) ;
+			if( !checks )
+				rej();
+		} })) }
 	, drop(a) { return entity.drop(a) }
 	, store(thing) { return entity.store(thing) }
 	//, crypto: crypto
@@ -568,7 +589,7 @@ var fillSandbox = {
 	, get name() { return entity.name }
 	, get desc() { return entity.description }
 	, get description() { return entity.description }
-	, get holding() { return entity.nearObjects.then(near => Promise.resolve(near.get("holding"))); }
+	, get holding() { console.trace( "GETTING HOLDING" ); return entity.nearObjects.then(near => Promise.resolve(near.get("holding"))); }
 	, get container() { return self.postGetter("container") }
 	, get near() {
 		return entity.nearObjects.then(near => Promise.resolve(near.get("near")));
@@ -584,7 +605,7 @@ var fillSandbox = {
 			})()
 		}
 	}
-	, get contains() { { return (async () => { return await self.postGetter("contains") })() } }
+	, get contains() { return  self.postGetter("contains"); }
 	//, get room() { return o.within; }
 	, idGen(cb) {
 		doLog("This ISGEN THEN?")

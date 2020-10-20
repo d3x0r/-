@@ -1,4 +1,4 @@
-const debug_ = true;
+const debug_ = false;
 const fs = require( 'fs');
 const config = require( "./config.js" );
 const vfs = require( 'sack.vfs' );

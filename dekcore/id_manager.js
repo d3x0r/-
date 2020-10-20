@@ -454,7 +454,7 @@ exports.ID = ID; function ID(making_key, authority_key, callback) {
 	//console.log( keyTracker.keys[making_key.Λ] );
 	const id = config.run.Λ;
 	if (!making_key) throw new Error("Must specify at least the maker of a key");
-	console.log( "CHECK IS:",id,  tempKeyTracker.keys.get( id ),keyTracker.keys.get(id) )
+	//console.log( "CHECK IS:",id,  tempKeyTracker.keys.get( id ),keyTracker.keys.get(id) )
 	if( ! ( tempKeyTracker.keys.get( id ) || keyTracker.keys.get(id) ) ) {
 		console.trace("ID() waiting for config...", config.run.Λ, JSOX.stringify(config.run), tempKeyTracker, keyTracker.keys)
 		config.injectStart( function() { ID(making_key, authority_key, callback); });

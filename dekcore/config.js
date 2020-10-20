@@ -1,7 +1,7 @@
 "use strict";
 const idGen = require("./util/id_generator.js");
 //Error.stackTraceLimit = Infinity;
-const _debug = true;
+const _debug = false;
 
 const os = require( "os" );
 

@@ -477,14 +477,14 @@ function makeEntity(obj, name, description, callback, opts) {
 			}
 			else {
 				if( theVoid !== o ) {
-					console.log( "create new ID?")
+					//console.log( "create new ID?")
 					entity.idMan.ID(obj || createdVoid, config.run, (key) => {
 						o.Λ = key.Λ;
-						doLog( "object now has an ID", o.name, o.Λ, key.Λ );
+						//doLog( "object now has an ID", o.name, o.Λ, key.Λ );
 						finishCreate();
 					} );
 				} else {
-					console.log( "Manufacturing new locally authorized key");
+					//console.log( "Manufacturing new locally authorized key");
 					entity.idMan.localAuthKey.then(lkey=>entity.idMan.ID(config.run, lkey,  (key) => {
 						//console.log( "the void's id needs to be forged into a key", key );
 						o.Λ = key.Λ;
@@ -497,7 +497,7 @@ function makeEntity(obj, name, description, callback, opts) {
 		finishCreate();
 
 	function finishCreate( ) {
-		doLog( " ----- FINISH CREATE ---------" );
+		//doLog( " ----- FINISH CREATE ---------" );
 		if( opts && opts.fork ) {
 			o.child = cpts.fork( "childEntity.js", [o.Λ] )
 			o.child.on( "message", (msg)=>{
@@ -506,7 +506,7 @@ function makeEntity(obj, name, description, callback, opts) {
 				}
 			})
 		} 
-		console.log( "Finish create and set in container:", o.Λ );
+		//console.log( "Finish create and set in container:", o.Λ );
 		if (o.within) o.within.contains.set(o.Λ.toString(), o.Λ.toString() );
 		else {
 			o.within = o;
@@ -976,10 +976,12 @@ var entityMethods = {
 			return false;
 		}
 		, watch(a) {
-			console.log( "Watching a...", a );
+			//console.log( "Watching a...", a );
 			a = objects.get( a );
 			if( a ) {
+				//console.log( "A has a sandbox?", a.sandbox );
 				for( let method in a.sandbox ) {
+					console.log( "Methood to watch?", method );
 					this.emit( "enable", [a.Λ, a.sandbox[method]] );
 				}
 				a.thread && a.watchers.set(this.Λ.toString(), this);
@@ -1420,12 +1422,13 @@ Entity.fromString = function(s) {
 }
 
 exports.reloadAll = function( ) {
-	console.log( "So? Config.run use to have a proper ID...", config.run )
+	//console.log( "So? Config.run used to have a proper ID...", config.run )
 	return new Promise( (res,rej)=>{
 		fc.get( config.run["The Void"] ).then ((obj)=>{
 			return fc.map( obj, {depth:-1} ).then( obj=>{
 
-				doLog( "recovered core entity...", !!entity.theVoid, !!theVoid, entity.theVoid === theVoid );
+				//doLog( "recovered core entity...", !!entity.theVoid, !!theVoid, entity.theVoid === theVoid );
+
 				// this is already a made entity.
 				// wake anyone that had scripts loaded.... 
 				// probalby should save this as a flag instead?
@@ -1442,11 +1445,12 @@ exports.reloadAll = function( ) {
 
 						wake.WakeEntity( o, false ).then( thread=>{
 							const thisModule = o._module;
-							console.log( "Module had some script....", thisModule.src, requireCache, thisModule.filename );
+							//console.log( "Module had some script....", thisModule.src, requireCache, thisModule.filename );
 							requireCache.set( thisModule.includes[0].filename, thisModule.includes[0] );
-							runModule( o, thisModule.includes[0] ).then( ()=>{
+							runModule( o, thisModule.includes[0] )
+								/*.then( ()=>{
 								console.log( "Script resulted... and there's still requires...")
-							});
+							});*/
 
 						})
 					}

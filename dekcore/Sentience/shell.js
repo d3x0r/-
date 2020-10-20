@@ -34,7 +34,7 @@ if( "undefined" === typeof Λ ) {
        commandStream = await require('../command_stream_filter/command.js')
        labelStream = await require( "../command_stream_filter/label_insert.js" );
         //sack = await require( 'sack.vfs');
-        console.log( "What did sack get:", sack );
+        //console.log( "What did sack get:", sack );
         //Promise.resolve( exports );
     }
     return asyncInit();

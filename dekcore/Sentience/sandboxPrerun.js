@@ -77,7 +77,8 @@ function processMessage(msg, stream) {
 		try {
 			const code = { file: msg.file, id:msg.id, result: null }
 			var codeIndex = codeStack.push(code)-1;
-			
+			//doLog( "RunInfo: " + msg.file );
+			//console.log( "run code(delayed):"+ msg.code );			
 			var res = vmric(msg.code, sandbox.sandbox, { filename: msg.file.src, lineOffset: 0, columnOffset: 0, displayErrors: true });
 			if (res && (res instanceof Promise || Promise.resolve(res) === res || ("undefined" !== typeof res.then)))
 				res.then(
@@ -200,10 +201,9 @@ function processMessage(msg, stream) {
 		}
 		sack.log(util.format( "Emit event:", msg.on, msg.args ));
 		return emitEvent(msg.on, msg.args);
-
 	}
-	else
-		_debug_commands && doLog("will it find", msg, "in", pendingOps);
+	//else
+	//	doLog("will it find", msg, "in", pendingOps);
 
 	var responseId = ("id" in msg) && pendingOps.findIndex(op => op.id === msg.id);
 	if (responseId >= 0) {
@@ -377,7 +377,7 @@ function makeEntity(Λ) {
 			//doLog(" ---- thread side require:", nameCache, src, codeStack);
 			return e.post("require", src)
 				.then( result=>{
-					console.log( "Finally result should come from codestack:", codeStack, result);
+					//console.log( "Finally result should come from codestack:", codeStack, result);
 					if( "number" === typeof result )
 						return codeStack[result].result
 					return result;
@@ -408,10 +408,10 @@ function makeEntity(Λ) {
 	e.cache.near.attached = ((e) => (!!nearCache) && nearCache.get("holding").set(e.Λ.toString(), e));
 	e.cache.near.detached = ((e) => (!!nearCache) && nearCache.get("holding").delete(e.Λ.toString()));
 	if (objects.size){
-		sack.log( "Telling e to watch me?" + e.Λ.toString() +"\n"+(new Error().stack) );
+		//sack.log( "Telling e to watch me?" + e.Λ.toString() +"\n"+(new Error().stack) );
 		e.post("watch", Λ.toString());
 	}
-	console.log( "ID:", Λ );
+	//console.log( "ID:", Λ );
 	objects.set(Λ, e);
 	
 	return e;
@@ -544,7 +544,8 @@ var fillSandbox = {
 	// has("a").then(a=>console.log(a)).catch( ()=>console.log( "NO" ) );
 	, has(thing) { return entity.nearObjects.then(near=> new Promise( (res,rej)=>{
 		let checks = 0;
-		console.log( "got near object, looking...", near, checks ); try {
+		//console.log( "got near object, looking...", near, checks ); 
+		try {
 		near.get("contains" ).forEach( content=>{
 			console.log( "Contains is empyt??", content );
 			checks++;
@@ -587,11 +588,15 @@ var fillSandbox = {
 	, get desc() { return entity.description }
 	, get description() { return entity.description }
 	, get holding() { return entity.nearObjects.then(near => Promise.resolve(near.get("holding"))); }
-	, get container() { return self.postGetter("container") }
+	, get container() { 
+		//doLog( "Getting container..."+ new Error().stack);
+		return self.postGetter("container") 
+	}
 	, get near() {
 		return entity.nearObjects.then(near => Promise.resolve(near.get("near")));
 	}
 	, get exits() {
+		//doLog( "Getting exits..."+ new Error().stack);
 		{
 			return (async () => {
 				var nearList = await self.postGetter("exits")

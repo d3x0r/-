@@ -56,10 +56,10 @@ function WakeEntity( e, noWorker ) {
                     if( msg.f === "create" ){
                         // this one has a callback to get the result
                         // the others are all synchrounous normally
-                        console.log( "create message:", msg )
+                        //console.log( "create message:", msg )
                         return e.create( msg.args[0], msg.args[1], (o)=>{
                             try {
-                                console.log( "And reply with created object" );
+                                //console.log( "And reply with created object" );
                                 let msgout = {op:msg.op,id:msg.id,ret:o.Λ.toString()};
                                 e.thread.post(msgout);
                             } catch(err) {console.log(err);}    
@@ -71,10 +71,13 @@ function WakeEntity( e, noWorker ) {
                         }
                         //console.log( "Doing:", msg.f );
                         var r = e[msg.f].apply(e,msg.args)
-                        console.log( "Result of call is:", r );
+                        //console.log( "Result of call is:", r );
                         if( r instanceof Promise )
                             r.then((r)=> {
-                                console.log( "R is :", r );
+                                // r is a Number that is the code stack length...
+                                // the result of the post run was stored with this ID
+                                // so internally the scirpt has already run by this point
+                                //console.log( "R is :", r );
                                 e.thread.post( {op:msg.op,id:msg.id,ret:r} ) 
                             })
                                 .catch((err)=>e.thread.post( { op:'error',id:msg.id,error:err,stack:err.stack } ) );

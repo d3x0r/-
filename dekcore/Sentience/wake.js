@@ -272,7 +272,8 @@ function WakeEntity( e, noWorker ) {
         // this is the thread that should be this...
         // so don't create a worker thread again. (tahnkfully worker_thread fails import of second worker_threads.)
         const invokePrerun = `{vm.runInContext( ${JSON.stringify(startupPrerunCode)}, sandbox, {filename:"sandboxPrerun.js"});}`
-        console.log( "Wanting to remount ...", fc.cvol  )
+
+        //console.log( "Wanting to remount ...", fc.cvol  )
 
         fc.cvol.mount(e.Λ.toString()); 
 	

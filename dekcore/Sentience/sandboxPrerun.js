@@ -77,8 +77,7 @@ function processMessage(msg, stream) {
 		try {
 			const code = { file: msg.file, id:msg.id, result: null }
 			var codeIndex = codeStack.push(code)-1;
-			console.log( "Run Code Sandbox:",  msg );
-			//var res = vmric(msg.code, sandbox.sandbox , { filename:msg.file.src, lineOffset:0, columnOffset:0, displayErrors:true } );
+			
 			var res = vmric(msg.code, sandbox.sandbox, { filename: msg.file.src, lineOffset: 0, columnOffset: 0, displayErrors: true });
 			if (res && (res instanceof Promise || Promise.resolve(res) === res || ("undefined" !== typeof res.then)))
 				res.then(
@@ -240,11 +239,11 @@ function makeEntity(Λ) {
 	{
 		let tmp = objects.get(Λ);
 		if (tmp) {
-			console.trace( "got entity for:", Λ);
+			//console.trace( "got entity for:", Λ);
 			return tmp;
 		}
 	}
-	console.trace( "make entity for:", Λ);
+	//console.trace( "make entity for:", Λ);
 	var nameCache;
 	var descCache;
 	var nearCache;
@@ -346,13 +345,11 @@ function makeEntity(Λ) {
 		},
 
 		get nearObjects() {
-			console.trace( "Get near objects" );
 			if (nearCache) return Promise.resolve(nearCache);
 			return this.postGetter("nearObjects").then(result => {
 				if (e.Λ === self.Λ)
 					nearCache = result;
 				result.forEach((list, key) => {
-					console.trace( "list of objects:", list, key );
 					if( list )
 					list.forEach((name, i) => {
 						list.set(i, makeEntity(name))
@@ -589,7 +586,7 @@ var fillSandbox = {
 	, get name() { return entity.name }
 	, get desc() { return entity.description }
 	, get description() { return entity.description }
-	, get holding() { console.trace( "GETTING HOLDING" ); return entity.nearObjects.then(near => Promise.resolve(near.get("holding"))); }
+	, get holding() { return entity.nearObjects.then(near => Promise.resolve(near.get("holding"))); }
 	, get container() { return self.postGetter("container") }
 	, get near() {
 		return entity.nearObjects.then(near => Promise.resolve(near.get("near")));

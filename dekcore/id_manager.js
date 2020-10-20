@@ -230,9 +230,9 @@ Object.defineProperty(keyProto.prototype, "saved", { enumerable: false, configur
 				}
 				//console.trace( "push pending save...", this_);
 				let p;
-				console.log( "Saving key to file cluster..." );
+				//console.log( "Saving key to file cluster..." );
 				pendingSaves.push( { key:this_, p:p=fc.put( this_ ).then( (newId)=>{
-						console.log( "Saved key has a new ID...", newId );
+						//console.log( "Saved key has a new ID...", newId );
 						keyTracker.keys.delete( this_.Λ.toString(), this_ );
 						this_.Λ.Λ = newId;
 						this_.Λ.on();
@@ -286,7 +286,7 @@ function Key(maker_key, askey) {
 	var key = null;
 	var real_key;
 	//console.log( "KEY IS OF COURSE :", typeof maker_key, maker_key)
-	console.log( "keyTracker.keys:", keyTracker.keys );
+	//console.log( "keyTracker.keys:", keyTracker.keys );
 	if( maker_key && ( typeof (maker_key) !== "string" ) && ( "Λ" in maker_key ) ) {
 		real_key = tempKeyTracker.keys.get(maker_key.Λ.toString());
 		real_key = real_key || keyTracker.keys.get(maker_key.Λ.toString());
@@ -486,7 +486,7 @@ exports.ID = ID; function ID(making_key, authority_key, callback) {
 		|| (!authority_key || !validateKey(authority_key, (k) => { if( k === k.authby ) throw new Error( "HEY You're at the root" ); return k.authby }))) {
 		throw new Error( JSON.stringify( { msg: "Invalid source key", maker: making_key, auth: authority_key } ) );
 	}
-	console.log( "Key is a promsie thing...");
+	//console.log( "Key is a promise thing...");
 	return Key(making_key).then( (key)=>{
                 var newkey = key;
 		newkey.authby = authority_key;
@@ -640,12 +640,12 @@ function keyReviver( field, val ) {
 		// last pass has option to swap entire object.
 		return this;
 	} else {
-		console.log( "ID REVIVE:", field, val );
+		//console.log( "ID REVIVE:", field, val );
 		if( val instanceof Promise ){
 			const this_ = this;
-			console.log( "Adding to promised value to set field" );
+			//console.log( "Adding to promised value to set field" );
 			val.then( (fixup)=>{
-				console.log( "FIXUP OBJECT REFERENCE", field, fixup)
+				//console.log( "FIXUP OBJECT REFERENCE", field, fixup)
 				return this_[field]=fixup;}
 			);
 		}
@@ -663,10 +663,10 @@ function loadKeys() {
 
 	if( !config.run.keyTracker ) {
 		commitKeyTracker()
-		console.log( "SOMETHING:create new keys"  );
+		//console.log( "SOMETHING:create new keys"  );
 		return Key(config.run.Λ).then( (key)=>{
 			var runKey = key;
-			console.log( "Got back first root key...", key)
+			//console.log( "Got back first root key...", key)
 			config.run.Λ = key.Λ.Λ;
 			key.Λ.on( (newkey)=>{
 				console.log( "Key value updated...", newkey, key, config.run );
@@ -679,7 +679,7 @@ function loadKeys() {
 			keyTracker.Λ = runKey.Λ.Λ;//config.run.Λ;
 			//console.log( "Save was what?", p );
 			return runKey.save().then( ()=>{
-				console.log( "Make second root key...", key);
+				//console.log( "Make second root key...", key);
 				return Key(key).then( key=>{
 					var runKey2 = key;
 					runKey2.trusted = true;
@@ -690,7 +690,7 @@ function loadKeys() {
 					runKey2.maker = runKey2;
 					runKey.authby = runKey2;
 					runKey.maker = runKey;
-					console.log( "Setting runkey2:", runKey2, runKey );
+					//console.log( "Setting runkey2:", runKey2, runKey );
 					keyTracker.mkey = runKey2;
 					commitKeyTracker()
 					var remainingOps = []
@@ -706,7 +706,7 @@ function loadKeys() {
 							remainingOps.push( p );
 					})
 					pendingOps = remainingOps;
-					console.log( "Saving keys and then resuming...");
+					//console.log( "Saving keys and then resuming...");
 					return runKey2.save().then( (id)=>{
 						runKey.saved = true;
 						//console.log( "config used to be:", config.run.Λ, "will be", runKey2.Λ, id );
@@ -724,15 +724,13 @@ function loadKeys() {
 				} );
 			});
 		});
-	} else {
-	}
-	console.log( "load Keys: root is config.run (or not)", config.run.Λ );
+	} 
+	//console.log( "load Keys: root is config.run (or not)", config.run.Λ );
 
 	//_debug&&console.log("CONFIG DEFER.... ");
 	//config.defer(); // save any OTHER config things for later...
 
-	//_debug&&
-		console.log("RELOAD STATIC FILE....first key", config.run.keyTracker  )
+	_debug&& console.log("RELOAD STATIC FILE....first key", config.run.keyTracker  )
 
 	//console.log( "fc.reload... ")
 	return fc.get( config.run.keyTracker/*, {decoders:[{tag:"id",p:Key,f:null }]}*/ ).then(kt=>{
@@ -742,18 +740,18 @@ function loadKeys() {
 		const loadlkey = ()=> fc.get( kt.lkey ).then( key=>keyTracker.lkey =key);
 		const loadmkey = ()=>fc.get( kt.mkey ).then(o=>{
 			keyTracker.mkey = o;
-			console.log( "Used config.run as the root key id... but what aobut the tracker?" );
+			//console.log( "Used config.run as the root key id... but what aobut the tracker?" );
 			if( !o ){
 				_debug&&console.log(  "Reload failed; Initialize root keys", config.run.Λ);
 			} else {
-				console.log( "Reloaded root key !!!!!!!!!!!!!! (get auth key of it)", keyTracker );
+				//console.log( "Reloaded root key !!!!!!!!!!!!!! (get auth key of it)", keyTracker );
 				//console.log( "GOT FILE BACK???", buffer)
 				//var data = fc.Utf8ArrayToStr(buffer);
 				//console.log( "...", data.length );
 				
 				fc.map( o ).then( (o)=>{
 					//console.log( "main saved keys:", JSON.stringify(keyTracker,null, 3) );
-					console.log( "Completed loading keys?");
+					//console.log( "Completed loading keys?");
 					loaded = true;
 					//config.resume();
 				}); // reload all related values.

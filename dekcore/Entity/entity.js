@@ -48,11 +48,11 @@ function EntityFromJSOX(field,val ) {
 			// fixup contains and attach maps... but...
 			const newContains = new Map();
 			o.contains.forEach(content=>{
-				console.log( "Copying content...", content );
+				//console.log( "Copying content...", content );
 				if( content instanceof Promise ) {
-					console.log( "Attaching to promised item");
+					//console.log( "Attaching to promised item");
 					content.then( c=>{
-							console.log( "promised item is now resolved" );
+							//console.log( "promised item is now resolved" );
 							newContains.set( c.Λ, c )
 						} )
 				}
@@ -64,11 +64,11 @@ function EntityFromJSOX(field,val ) {
 
 			const newAttaches = new Map();
 			o.attached_to.forEach(content=>{
-				console.log( "Copying attachment...", content );
+				//console.log( "Copying attachment...", content );
 				if( content instanceof Promise ) {
-					console.log( "Attaching to promised item");
+					//console.log( "Attaching to promised item");
 					content.then( c=>{
-						console.log( "promised item is now resolved" );
+						//console.log( "promised item is now resolved" );
 						newAttaches.set( c.Λ, c )
 						} )
 				}
@@ -420,7 +420,7 @@ function makeEntity(obj, name, description, callback, opts) {
 		obj = named || obj;
 		return named;
 	}
-	console.trace( "Shouldn't be making entities until config.js finishes" );
+	//console.trace( "Shouldn't be making entities until config.js finishes" );
 	if (typeof (obj) === "string") {
 		obj = objects.get(obj);
 	}
@@ -455,7 +455,7 @@ function makeEntity(obj, name, description, callback, opts) {
 		
 		createdVoid = entity;
 	}
-	console.log( "calling a new Entity:", name, description );
+	//console.log( "calling a new Entity:", name, description );
 	const o = new Entity( obj, name, description );
 	if( !exports.theVoid ) {
 		if( theVoid )
@@ -597,7 +597,7 @@ function makeEntity(obj, name, description, callback, opts) {
 
 		const thisModule_ = 
 				requireCache.get( parentPath );
-		console.log( "This Module is current:", thisModule?thisModule_.filename :"-");
+		_debug_require && console.log( "This Module is current:", src, thisModule?thisModule_.filename :"-" );
 		if( thisModule_ ){
 			var include = thisModule_.includes.find( i=>{
 					if( i.src === src ) return true;
@@ -607,6 +607,7 @@ function makeEntity(obj, name, description, callback, opts) {
 		 );
 			if( include ) {
 				include.parent = thisModule_;  // not sure why this isn't reviving.
+				//console.log( "SEtting cache:", include );
 				requireCache.set( include.filename, include );
 				return runModule( o, include );
 			}
@@ -619,7 +620,7 @@ function makeEntity(obj, name, description, callback, opts) {
 
 		try {
 			var file = vol.read( root ).toString();
-			console.log( root,'=',file );
+			//console.log( "FILE TO LOAD:", root,'=',file );
 			//fs.readFileSync(root, { encoding: 'utf8' });
 		} catch (err) {
 			doLog("File failed... is it a HTTP request?", err);
@@ -1435,12 +1436,14 @@ exports.reloadAll = function( ) {
 					o.contains.forEach( e=>wakeEntities(e));
 					o.attached_to.forEach( e=>wakeEntities(e));
 					if( o._module.includes.length ){
+						const include = o._module.includes[0];
 						//console.log( "References?", JSOX.stringify( o._module ) );
 						//console.log( "References2?", JSOX.stringify( o._module .includes) );
+
 						wake.WakeEntity( o, false ).then( thread=>{
 							const thisModule = o._module;
-							//console.log( "Module had some script....", thisModule.src );
-							requireCache.set( thisModule.filename, thisModule );
+							console.log( "Module had some script....", thisModule.src, requireCache, thisModule.filename );
+							requireCache.set( thisModule.includes[0].filename, thisModule.includes[0] );
 							runModule( o, thisModule.includes[0] ).then( ()=>{
 								console.log( "Script resulted... and there's still requires...")
 							});

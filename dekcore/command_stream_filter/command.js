@@ -278,7 +278,6 @@ function updateCommands( stree, commands, newcmd ) {
 	{
 		var word = text.Parse( chunk );
 		buildPhrases( word );
-		//console.log( "processCommand : ", word )
 		// commands, this.sandbox, this.filter?
 		var next = word.break();
 		inError = false;

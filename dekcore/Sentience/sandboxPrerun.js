@@ -5,6 +5,9 @@ const _debug_command_input = false;
 const _debug_command_post = _debug_commands || false;
 const _debug_command_run = _debug_commands || false;
 
+// debug spcificall the get near command.... 
+const _debug_near = false;
+
 const f= Object.getPrototypeOf({}).constructor.constructor;
 
 const _debug_events = false;
@@ -29,7 +32,7 @@ const JSOX = sack.JSOX;
 const coreThreadEventer = wt.parentPort;
 
 function doLog(...args) {
-	var s = util.format(...args);// + new Error().stack;
+	var s = util.format(...args);//+ new Error().stack;
 	sack.log(s);
 	//console.log(s);
 }
@@ -50,12 +53,6 @@ var remotes = new WeakMap();
 var pendingRequire = false;
 var codeStack = [];
 
-function emitEvent(event, data) {
-	const runcode = `this.emit_( ${JSON.stringify(event)}, ${JSOX.stringify(data)})`
-	//var res = vmric(runcode, sandbox, { filename:"Event Dispatch:"+event, lineOffset:0, columnOffset:0, displayErrors:true} );
-	var res = this.emit_(event, data);
-	return res;
-}
 
 function processMessage(msg, stream) {
 	if ("string" === typeof msg) {
@@ -195,12 +192,18 @@ function processMessage(msg, stream) {
 				msg.args = makeEntity(msg.args);
 				onEnt.cache.near.detached(msg.args);
 				break;
+			case "created" === msg.on:
+				msg.args = makeEntity(msg.args);
+				//console.log( "Created Entty needs to be 'created'", onEnt, msg );
+				if( onEnt.cache.near )
+					onEnt.cache.near.joined( msg.args )
+				break;
 			case "newListener" === msg.on:
 				//msg.args = makeEntity( msg.args );
 				break;
 		}
-		sack.log(util.format( "Emit event:", msg.on, msg.args ));
-		return emitEvent(msg.on, msg.args);
+		//sack.log(util.format( "Emit event:", msg.on, msg.args ));
+		return self.emit_(msg.on, msg.args );
 	}
 	//else
 	//	doLog("will it find", msg, "in", pendingOps);
@@ -235,7 +238,7 @@ process.stdin.on('data', (chunk) => {
 */
 
 function makeEntity(Λ) {
-	if (Λ instanceof Promise) return Λ.then(Λ => makeEntity(Λ));
+	if (Λ instanceof Promise) return Λ.then(Λ_1 => { console.log("MAKE PROMSIED ENTITY:", Λ, Λ_1 ); return makeEntity(Λ_1) });
 	{
 		let tmp = objects.get(Λ);
 		if (tmp) {
@@ -244,14 +247,16 @@ function makeEntity(Λ) {
 		}
 	}
 	//console.trace( "make entity for:", Λ);
-	var nameCache;
-	var descCache;
+	var nameCachePromise;
+	var descCachePromise;
+	var nearCachePromise;
 	var nearCache;
+	var roomCachePromise;
 	const e = {
 		Λ: Λ
 		//, send( msg ){ coreThreadEventer.postMessage( msg ); }
 		, post(name, ...args) {
-			_debug_command_post && doLog("entity posting:", mid, name);
+			_debug_command_post && doLog("entity posting:",  name, Λ, args);
 			return new Promise((resolve, reject) => {
 				const thisId = mid++;
 				coreThreadEventer.postMessage({ op: 'e', o: Λ, id: thisId, e: name, args: args });
@@ -259,7 +264,7 @@ function makeEntity(Λ) {
 			});
 		}
 		, postGetter(name) {
-			_debug_command_post && doLog("entity get posting:", mid, name, Λ);
+			_debug_command_post && doLog("entity get posting:", mid, name, e.Λ, Λ);
 			return new Promise((resolve, reject) => {
 				const thisId = mid++;
 				coreThreadEventer.postMessage({ op: 'h', o: Λ, id: thisId, h: name });
@@ -278,9 +283,8 @@ function makeEntity(Λ) {
 			return e.post("hold", target.Λ);
 		},
 		cache: {
-			get name() { return !!nameCache },
-			get name() { return !!nameCache },
 			near: {},
+			within:null,
 		},
 		attach(toThing) {
 			if ("string" !== typeof toThing) toThing = toThing.Λ;
@@ -305,12 +309,13 @@ function makeEntity(Λ) {
 			delete self[ability.method];
 		},
 		get name() {
-			if (nameCache) return Promise.resolve(nameCache);
-			return e.postGetter("name").then(name => {return Promise.resolve(nameCache = name)});
+			//console.log( "Get name:", e, nameCachePromise );
+			if (nameCachePromise) return nameCachePromise;
+			return nameCachePromise = e.postGetter("name");
 		},
 		get description() {
-			if (descCache) return Promise.resolve(descCache);
-			return e.postGetter("description").then(desc => {return Promise.resolve(descCache = desc)});
+			if (descCachePromise) return descCachePromise;
+			return descCachePromise = e.postGetter("description");
 		},
 		get contents() {
 			if (nearCache) {
@@ -337,25 +342,30 @@ function makeEntity(Λ) {
 				return c;
 			})
 		},
-		get within() { return e.postGetter("room")
-		                .then(id=>makeEntity(id.parent.Λ)) },
+		get within() { 
+			if( roomCachePromise ) return roomCachePromise;
+			return roomCachePromise = e.postGetter("room").then(id=>{
+				return e.cache.within = makeEntity(id.parent.Λ)
+			 })
+		},
 		get holding() {
-			console.log( "GETTING HOLDING 2" );
 			return e.nearObjects.then(near => near.get("holding")  );
 		},
 
 		get nearObjects() {
-			if (nearCache) return Promise.resolve(nearCache);
-			return this.postGetter("nearObjects").then(result => {
-				if (e.Λ === self.Λ)
-					nearCache = result;
+			if (nearCachePromise) {
+				//console.log( "Should just naturally be a promise we can return...", nearCachePromise );
+				return nearCachePromise;
+			}
+			return ( nearCachePromise = this.postGetter("nearObjects") ).then(result => {
+				nearCache = result;
 				result.forEach((list, key) => {
 					if( list )
-					list.forEach((name, i) => {
-						list.set(i, makeEntity(name))
-					});
+						list.forEach((name, i) => {
+							list.set(i, makeEntity(name))
+						});
 				});
-				return Promise.resolve(result);
+				return result;
 			})
 		},
 		idGen() {
@@ -398,7 +408,7 @@ function makeEntity(Λ) {
 
 	// my room changes...  this shodl clear cache
 	e.cache.near.displaced = ((e) => ((roomCache = null),(nearCache = null)));
-	e.cache.near.placed = ((e) => ((roomCache = e),(nearCache = null)));
+	e.cache.near.placed = ((e) => ((roomCache = e,roomCachePromise=Promise.resolve(e)),(nearCache = null)));
 
 	e.cache.near.store = ((e) => (!!nearCache) && nearCache.get("contains").set(e.Λ.toString(), e));
 	e.cache.near.lose = ((e) => (!!nearCache) && nearCache.get("contains").delete(e.Λ.toString()) );
@@ -407,6 +417,7 @@ function makeEntity(Λ) {
 	e.cache.near.part = ((e) => (!!nearCache) && nearCache.get("near").delete(e.Λ.toString()));
 	e.cache.near.attached = ((e) => (!!nearCache) && nearCache.get("holding").set(e.Λ.toString(), e));
 	e.cache.near.detached = ((e) => (!!nearCache) && nearCache.get("holding").delete(e.Λ.toString()));
+	//e.cache.near.created = ((e2) => console.log( "CREATED EVENT:", e.name,e2.name ));
 	if (objects.size){
 		//sack.log( "Telling e to watch me?" + e.Λ.toString() +"\n"+(new Error().stack) );
 		e.post("watch", Λ.toString());
@@ -547,10 +558,9 @@ var fillSandbox = {
 		//console.log( "got near object, looking...", near, checks ); 
 		try {
 		near.get("contains" ).forEach( content=>{
-			console.log( "Contains is empyt??", content );
+			//  console.log( "Contains is empty??", content );
 			checks++;
 			content.name.then( name=>{
-				console.log( "Promised name:", name, thing );
 				if( name === thing)
 					res(content)
 				else if( !(--checks))
@@ -620,7 +630,7 @@ var fillSandbox = {
 			else
 				process.stdout.write(util.format(...args));
 		},
-		warn(...args) { return doLog(...args) },
+		warn(...args) { return doLog(util.format("WARNING:", (args)) )},
 		trace: (...args) => { console.log(...args, "Call Stack:", new Error('').stack); }
 	}
 	, io: {
@@ -679,12 +689,12 @@ var fillSandbox = {
 	, emit_(event, args) {
 		if (args instanceof Array)
 			args.forEach((arg, i) => args[i] = makeEntity(arg));
-		else
+		else if("string" === typeof args )
 			args = makeEntity(args);
 		return this.emit(event, args);
 	}
 	, emit(event, ...args) {
-		_debug_events && doLog("Emitting event(or would):", event, ...args)
+		_debug_event_input && doLog("Emitting event(or would):", event, event in sandbox.events, sandbox.events, ...args)
 		if (event in sandbox.events) {
 			sandbox.events[event].forEach((cb) => cb(...args));
 		}
@@ -761,7 +771,8 @@ var fillSandbox = {
 		// includes everything regardless of text.
 		// callback is invoked with value,key for each
 		// near object.
-		//console.trace ("Getting objects... around me...");
+
+		//console.trace ("Getting objects... around me...", me.Λ, src[0].toString(), all );
 		if( "function" === typeof all ){
 			callback = all;
 			all = true;
@@ -775,7 +786,7 @@ var fillSandbox = {
 			all = all.all;
 		}
 		var awaitList = [];
-		var name = object && object.text;
+		var name = object && object.toString();
 		var count = 0;
 		//var all = false;
 		var run = true;
@@ -790,35 +801,38 @@ var fillSandbox = {
 		}
 
 		if (object && name == 'all' && object.next && object.next.text == '.') {
+			console.log( "all. prefix");
 			all = true;
 			object = object.next.next;
 		}
 		if (object && (tmp = Number(name)) && object.next && object.next.text == '.') {
+			console.log( "#. prefix");
 			object = object.next.next;
-			name = object.text;
+			name = object.toString();
 			count = tmp;
 		}
-
+		console.log( "Looking for:", name );
 		if( !disablePariticiples) {
 			if (src && src.length > 1 && src[1].text === "in") {
-				console.warn("checking 'in'");
+				//console.warn("checking 'in'");
 				in_state = true;
 				src = src.slice(2);
+				console.log( "There was an in parameter?" );
 				return getObjects(me, src, all, (o, oName, location, moreargs) => {
 					o = objects.get(o.me);
-					doLog("in Found:", o.name, name);
+					console.log("in Found:", o.name, name);
 					o.contents.forEach(async content => {
 						//if (value === me) return;
 						content.name.then( contentName => {
 							if (!object || (contentName) === name) {
-								doLog("found object", contentName);
+								console.log("found object", contentName);
 								if (count) {
 									if( --count ) // do run on count to 0
 										return;
 									run = true;
 								}
 								if (run) {
-									doLog("and so key is ", location+"contained", contentName);
+									console.log("and so key is ", location+"contained", contentName);
 									if( callback(content, content.name, location + ",contains", src.splice(1)) === false )
 										count++;
 									run = all;
@@ -838,14 +852,14 @@ var fillSandbox = {
 						nearList.get('holding').forEach(content => {
 							content.name.then( contentName => {
 								if (!object || contentName === name) {
-									doLog("found object", name)
+									//doLog("found object", name)
 									if (count) {
 										if( --count ) // do run on count to 0
 											return;
 										run = true;
 									}
 									if (run) {
-										//doLog("on and so key is ", location+",holding", name)
+										doLog("on and so key is ", location+",holding", name)
 										var r = callback(content, contentName, location + ",holding", src.splice(1));
 										if( r === false ) count++;
 										if (r) awaitList.push(r);
@@ -863,6 +877,7 @@ var fillSandbox = {
 			//var command = src.break();
 			entity.nearObjects.then(checkList => {
 				var names = [];
+				_debug_near && console.log( "NEar Objects lookup:", checkList );
 				checkList.forEach(function (value, location) {
 					// holding, contains, near
 					//doLog("checking key:", run, location, value)
@@ -873,14 +888,15 @@ var fillSandbox = {
 						//doLog( "Pushed a name as a promise");
 					})
 				});
+				_debug_near &&console.log( "Names:", names );
 				Promise.all(names).then(names => {
-					//console.log( "Check list:", names );
+					_debug_near &&console.log( "Check list:", names, run );
 					names.forEach((check, i) => {
 						if (!run) return;
 						if (check.e === me) return;
-						//console.log( "...", count, run, check.name, name, !object )
+						_debug_near &&console.log( "...", count, run, check.name, name,check.name === name, !object )
 						if (!object || check.name === name) {
-							//doLog( "found object", value.name, count )
+							_debug_near &&console.log( "found object", check.name, count )
 							if (count) {
 								if( --count ){ // 1. and 0. are the same object...{
 									//console.log( "Failing on count" );
@@ -889,7 +905,7 @@ var fillSandbox = {
 								run = true;
 							}
 							if (run) {
-								//doLog("N and so key is ", check.l, check.name )
+								_debug_near &&console.log("N and so key is ", check.l, check.name )
 								var r = callback(check.e, check.name, check.l, src && src.splice(1));
 								//console.log( "Back from callback..." );
 								if( r === false )
@@ -899,6 +915,7 @@ var fillSandbox = {
 							}
 						}
 					})
+					_debug_near &&console.log( "Call done callback" );
 					callback(null, null, []);
 					Promise.all(awaitList).then(res)
 				})

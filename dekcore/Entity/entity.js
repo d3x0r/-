@@ -402,6 +402,7 @@ function sealEntity(o) {
 		, "addListener", "removeListener", "removeAllListeners", "vol"
 		//,"nearObjects"
 		].forEach(key => {
+			Object.defineProperty(o, key, { enumerable: false, writable: true, configurable: false });
 		});
 	["V","Λ", "JSOX", "sandbox"].forEach(key => {
 		Object.defineProperty(o, key, { enumerable: false, writable: true, configurable: false });
@@ -513,25 +514,28 @@ function makeEntity(obj, name, description, callback, opts) {
             //console.log( "Set object:", o.Λ, o);
 			//objects.set(createdVoid.Λ.toString(), o);
 		}
-
+		o.within.contains.forEach(near => {
+			const nearo = objects.get(near);
+			nearo&&	nearo.thread&&nearo.thread.emit("created", o.Λ.toString()) 
+		});
 		let oldId = o.Λ.toString();
+		objects.set(oldId, o);
+		
 		o.Λ.on(()=>{
-			console.log( "RESOLVE PROMISE?" );
+			const newId = o.Λ.toString();
 			objects.delete(oldId);
-			objects.set(o.Λ.toString(), o);
+			objects.set(newId, o);
 
 			o.within.contains.delete( oldId );
-			console.log( "delay resolve reference:", o.Λ );
-			o.within.contains.set( o.Λ.toString(), o );
+			o.within.contains.set( newId, o );
 			for( let a of o.attached_to ) {
 				a.attached_to.delete( oldId );
-				a.attached_to.set( o.Λ.toString(), o );
+				a.attached_to.set( newId, o );
 			}
 			if( o.thread )
 				o.thread.emit( "rekey", o.Λ );
-
+			o.saved = o.saved; // save it if it is saved.
 		})
-		objects.set(o.Λ.toString(), o);
 		//o.attached_to.set(o.Λ.toString(), o);
 
 		sealEntity(o);
@@ -906,8 +910,13 @@ var entityMethods = {
 			this.attached_to.forEach( e=>c.set(e.Λ.toString(),e.Λ.toString()) );
 			near.set("holding", c );
 			c = new Map();
-			this.contains.forEach( e=>c.set(e.Λ.toString(),e.Λ.toString()) );
-			near.set("contains", c );
+			this.contains.forEach( e=>{
+				if( "object" === typeof e )
+					c.set(e.Λ.toString(),e.Λ.toString())
+				else
+					c.set(e,e)
+			 } );
+			 near.set("contains", c );
 			near.set("near", (function (on) {
 				var result = new Map();
 
@@ -942,9 +951,7 @@ var entityMethods = {
 				throw new Error( "objects are already attached." );
 				return;
 			}
-			console.log( "Attaching %s to %s", this.name, a.name );
-			if( a.within )
-			   a.rebase();
+			if( a.within ) a.rebase();
 
 			{
 				a.attached_to.set(this.Λ.toString(), this);
@@ -952,36 +959,37 @@ var entityMethods = {
 
 				if( this.thread )
 					this.thread.emit('attached', a.Λ);
-
 				if( a.thread )
 					a.thread.emit('attached', this.Λ);
 			}
 		}
 		, detach(a) {
 			if( "string" === typeof a ) a = objects.get(a);
-			if( a.attached_to.get( this.Λ) )
-				if( this.attached_to.get( a.Λ) ) {
+			const aΛ = a.Λ.toString();
+			const tΛ = this.Λ.toString();
+			if( a.attached_to.get( tΛ ) )
+				if( this.attached_to.get( aΛ )) {
 					// one or the other of these is within.
 					// both have to be attached to the third.
-					a.attached_to.delete(this.Λ);
-					this.attached_to.delete(a.Λ);
+					a.attached_to.delete(tΛ);
+					this.attached_to.delete(aΛ);
 					if( this.thread )
-						this.thread.emit('detached', a.Λ);
+						this.thread.emit('detached', aΛ);
 					if( a.thread )
-						a.thread.emit('detached', this.Λ);				
-
+						a.thread.emit('detached', tΛ);				
+					console.log( "Success detaching..." );
 					return true;
 				}
 			throw "objects are not attached: " + this.name + " & " + a.name;
 			return false;
 		}
 		, watch(a) {
-			//console.log( "Watching a...", a );
 			a = objects.get( a );
+			console.log( this.name, " is watching:", a.name );
 			if( a ) {
 				//console.log( "A has a sandbox?", a.sandbox );
 				for( let method in a.sandbox ) {
-					console.log( "Methood to watch?", method );
+					//console.log( "Method to watch?", method );
 					this.emit( "enable", [a.Λ, a.sandbox[method]] );
 				}
 				a.thread && a.watchers.set(this.Λ.toString(), this);
@@ -1020,7 +1028,8 @@ var entityMethods = {
 					this.thread.emit('displaced', room.Λ );
 				// tell others in the room some parted the room.
 				// headed to?
-				room.contains.forEach( content=>{
+				room.contains.forEach( (id)=>{
+					const content = objects.get( id );
 					if( content.thread )
 						content.thread.emit( "parted", this.Λ );
 				})
@@ -1079,6 +1088,7 @@ var entityMethods = {
 			
 		}
 		, leave(to) {
+			if( !to ) to = this.within;
 			to = objects.get( to );
 			this.rebase(); // free from container
 			outerRoom.insert( to ); // put in new container
@@ -1095,13 +1105,13 @@ var entityMethods = {
 			newRoom.insert( this );  // put in new container
 		}
 		, grab(a) {
-			//doLog( "THing:", this, "A:", a );
+			doLog( "THing:", this, "A:", a );
 			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ.toString() );
 			if( grabobj ) {
 				if( !grabobj.within ) {
 					throw new Error( "Entity cannot be grabbed, it is not the anchor point.", grabobj.Λ.toString() );
 				}
-				grabobj.rebase();
+				grabobj.rebase(); // moves object to use me as a base...
 				this.attach( grabobj );
 			}
 		}
@@ -1115,9 +1125,9 @@ var entityMethods = {
 		, drop(a) {
 			var outer = this.within || (outer = findContained(this).parent );
 			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ.toString() );
-
+			//doLog( "Core:Drop Command", grabobj, this.detach );
 			if( this.detach( grabobj ) ) {
-				doLog( "Detached, can insert", grabobj )
+				//doLog( "Detached, can insert", grabobj )
 				if( !findContainer( grabobj, null )){
 					//doLog( "Is not contained...");
 					outer.insert( grabobj );
@@ -1138,11 +1148,13 @@ var entityMethods = {
 			return isOwned( this, a );
 		}
 		, store(a) {
-			var grabobj = ( "string" === typeof a && objects.get( a ) ) || objects.get( a.entity.Λ.toString() );
-			if( this.owns( a ) ) {
-				if( this.detach( grabobj ) )
+			const grabobj = ( ( "string" === typeof a ) && objects.get( a ) ) || a;
+			if( this.owns( grabobj ) ) {
+				if( this.detach( grabobj ) ) {
 					this.insert( grabobj );
-			}
+				}
+			}else 
+				throw new Error( "Not allowed to store items you don't own.");
 		}
 		, run(file,command) {
 			if( !command ) throw new Error( " PLEASE UPDATE USAGE");
@@ -1341,18 +1353,17 @@ var entityMethods = {
 				}
 				const this_ = this;
 				this_.saving = true;
-				console.trace( "Before PUT");
+				//console.trace( "Before PUT");
 				this.save_ = new Promise( (res,rej)=>{
-					let x = this.Λ.save()
-					console.log( "SAVED KEYREF?", x, this );
-					x.then( (id) =>{
+					//console.log( "SAVED KEYREF?", x, this );
+					this.Λ.save().then( (id) =>{
 						if( !id ) console.log( "Save somehow failed... (it won't)");
 						this.save_ = fc.put( this ).then( (id )=>{
 							if( this.created_by !== this )
 								this.created_by.save();
 							//console.log( " storage identifier:", this.name, id );
 							this_.V = id;
-							console.log(" Resolving with new id");
+							//console.log(" Resolving with new id");
 							res( id );
 
 							// all other things which have this as a reference, and have been saved need to update.
@@ -1445,8 +1456,17 @@ exports.reloadAll = function( ) {
 
 						wake.WakeEntity( o, false ).then( thread=>{
 							const thisModule = o._module;
+							console.log( "fill cache with module's code?")
 							//console.log( "Module had some script....", thisModule.src, requireCache, thisModule.filename );
-							requireCache.set( thisModule.includes[0].filename, thisModule.includes[0] );
+							function addCodeToCache( thisModule ) {
+								for( var i = 0; i < thisModule.includes.length; i++ ) {
+									console.log( "tick:", i );
+									requireCache.set( thisModule.includes[i].filename, thisModule.includes[i] );
+									addCodeToCache( thisModule.includes[i] );
+								}
+							}
+							addCodeToCache( thisModule );
+							console.log( "Cache:", requireCache );
 							runModule( o, thisModule.includes[0] )
 								/*.then( ()=>{
 								console.log( "Script resulted... and there's still requires...")

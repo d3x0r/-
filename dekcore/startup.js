@@ -6,19 +6,19 @@ async function buildPiping(For){
 
    const shell = shellFilter.Filter( For );
     require(  './command_stream_filter/strip_newline.js' ).then( (newline)=>{
-      console.log( "So the thing ran, resulted, and we got back the result??")
-      require( './command_stream_filter/monitor_filter.js' ).then( monitor=>{
-      //var commandFilter = require( './command_stream_filter/command.js');
-        console.log( "And monitor result?", monitor )
-      //var shell = io.command;
-      var nl = newline.Filter();
-      //var cmd = commandFilter.Filter();
+      //console.log( "So the thing ran, resulted, and we got back the result??")
+      //require( './command_stream_filter/monitor_filter.js' ).then( monitor=>{
+        //var commandFilter = require( './command_stream_filter/command.js');
+        //console.log( "And monitor result?", monitor )
+        //var shell = io.command;
+        var nl = newline.Filter();
+        //var cmd = commandFilter.Filter();
 
-      nl.connectInput( process.stdin );
-      nl.connectOutput( shell.filter );
-      shell.connectOutput( process.stdout );
-        console.log( "If the main process did their stdout we'd be gold?");
-      });
+        nl.connectInput( process.stdin );
+        nl.connectOutput( shell.filter );
+        shell.connectOutput( process.stdout );
+       //   console.log( "If the main process did their stdout we'd be gold?");
+     //});
     })
   }).catch(err=>console.log("Require Failed:", err));
 }

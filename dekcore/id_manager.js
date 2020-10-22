@@ -37,7 +37,9 @@ keyRef.prototype.toJSOX = function() {
 }
 keyRef.prototype.on = function(cb) {
 	if(cb) this.cb.push(cb);	
-	else { for( cb of this.cb ) cb(); this.cb.length = 0 }
+	else { 
+		//console.log( "ID CHANGE:", this ); 
+		for( cb of this.cb ) cb(); this.cb.length = 0 }
 }
 keyRef.prototype.save = function() {
 	let realid = tempKeyTracker.keys.get( this.Λ );
@@ -127,7 +129,7 @@ function commitKeyTracker() {
 			console.log( "Saving an identifier for the root key tracker")
 			config.commit();
 		}
-		console.log( "SAVED KEY TRACKER INFO" );
+		//console.log( "SAVED KEY TRACKER INFO" );
 	})
 }
 
@@ -235,9 +237,9 @@ Object.defineProperty(keyProto.prototype, "saved", { enumerable: false, configur
 						//console.log( "Saved key has a new ID...", newId );
 						keyTracker.keys.delete( this_.Λ.toString(), this_ );
 						this_.Λ.Λ = newId;
+						keyTracker.keys.set( this_.Λ.toString(), this_ );
 						this_.Λ.on();
 						fc.put( this_ );
-						keyTracker.keys.set( this_.Λ.toString(), this_ );
 						commitKeyTracker()
 						return this_.Λ;
 					} ) 
@@ -253,17 +255,16 @@ Object.defineProperty(keyProto.prototype, "saved", { enumerable: false, configur
 			}
 			//console.log( "this is a full key?", this );
 			if( tempKeyTracker.keys.get( this.Λ.toString() ) ) {		
-				console.log( "Promoting temporary key to permanent key (save this key, and all related keys)" );
+				//console.log( "Promoting temporary key to permanent key (save this key, and all related keys)" );
 				tempKeyTracker.keys.delete( this.Λ.toString() ); // remove from temporary
 				keyTracker.keys.set( this.Λ.toString(), this );  // put in permanent
 				commitKeyTracker()
 				dependSave( this );   // save required other keys and this key
 			}else {
-				console.trace( "This key is already saved, and we don't really need to resave?");
 				if( !pendingSaves.find( ps=>ps.key===this )) {
-					console.log( "Already saved, just update?");
-					let p;
-					pendingSaves.push( { key:this_, p:p=fc.put( this, {extraEncoders:[{tag:'',p:keyRef,f:keyRefEmitter }]} ) } ); 
+					//console.log( "Already saved, just update?");
+					const p=fc.put( this, {extraEncoders:[{tag:'',p:keyRef,f:keyRefEmitter }]} );
+					pendingSaves.push( { key:this_, p:p } ); 
 					p.then( (p)=>{
 						const zz = pendingSaves.findIndex( ps=>ps.key === this_ );
 						if( zz >= 0 )
@@ -272,7 +273,7 @@ Object.defineProperty(keyProto.prototype, "saved", { enumerable: false, configur
 					})
 					
 				}else {
-					console.log( "already saved, still pending a save, skip this mark to save.")
+					//console.log( "already saved, still pending a save, skip this mark to save.")
 				}
 			}
 		}
@@ -499,11 +500,6 @@ exports.ID = ID; function ID(making_key, authority_key, callback) {
 		//console.log( "made a new key", newkey.Λ );
 		callback(newkey);
 		return key; // chain to any other then's.
-
-//        fc.put( key ).then( (id)=>{
-//			if (callback)
-//			else console.trace( "without callback, you can't get result...");
-//		}); // re-write with content
     })
 	return undefined;// newkey.Λ;
 }
@@ -669,7 +665,7 @@ function loadKeys() {
 			//console.log( "Got back first root key...", key)
 			config.run.Λ = key.Λ.Λ;
 			key.Λ.on( (newkey)=>{
-				console.log( "Key value updated...", newkey, key, config.run );
+				//console.log( "Key value updated...", newkey, key, config.run );
 				config.run.Λ = key.Λ.toString();
 				keyTracker.Λ = runKey.Λ.Λ;//config.run.Λ;
 				config.commit();

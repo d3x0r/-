@@ -193,6 +193,7 @@ function processMessage( ws, msg, txtMsg ) {
 
 		var activity = l.activities.groups.find( i=>i.accrual_activity_id===msg.activity.accrual_activity_id );
 		activity.name = msg.activity.name;
+		db.updateActivity( activity );
 
 		send( null, txtMsg );
 		return;
@@ -203,6 +204,7 @@ function processMessage( ws, msg, txtMsg ) {
 		['name','everyTally','housePercent','startingValue'].forEach( key=>{
 			group[key] = msg.group[key];
 		})
+		db.updateGroup( group );
 		// thresholds will be more work.
 
 		send( null, txtMsg );
@@ -214,9 +216,10 @@ function processMessage( ws, msg, txtMsg ) {
 		 'useMinimum','useScalePrice','useDefault','sqlStatement',
 		 'scalePrice','minimum','isWeekly','isIncrements'
 		].forEach( key=>{
-			input[key] = msg.input[key];
+			if( key in msg.input )
+				input[key] = msg.input[key];
 		})
-		db.updateInput( msg.input );	
+		db.updateInput( input );	
 		send( null, txtMsg );
 		return;
 	}

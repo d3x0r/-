@@ -660,7 +660,15 @@ function makeNameInput( form, input, text ){
 
 	var buttonRename = document.createElement( "Button" );
 	buttonRename.textContent = "(rename)";
+	buttonRename.setAttribute( "type", "button" );
 	buttonRename.className="buttonOption rightJustify";
+	buttonRename.onclick = showNameInput;
+	function showNameInput() {
+		console.log("Tick" );
+		
+		const notice = popups.simpleNotice( "Cannot Rename" );
+		notice.show();
+	}
 
 	binder = document.createElement( "div" );
 	binder.className = "fieldUnit";

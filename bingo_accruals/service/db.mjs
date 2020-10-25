@@ -37,7 +37,6 @@ var idGen = ()=> sack.SaltyRNG.id(4).substr( 0, 16 );
 //var db = vol.Sqlite( "bingo_accruals.db" );
 var db = sack.Sqlite( "nodeTest" );
 
-
 db.function( "UID", ()=>{ return idGen(); } );
 
 function initTables()  {
@@ -202,6 +201,7 @@ function loadAccruals( cb ) {
         } );
         
         accruals.inputs = db.do( "select * from accrual_input_groups" );
+console.log( "RELOADED:", accruals.inputs );
         accruals.inputs.forEach( input=>{
         	input.groups = [];
         	input.activities = [];

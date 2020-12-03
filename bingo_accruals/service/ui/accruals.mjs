@@ -1,5 +1,5 @@
 
-import {JSOX} from "./jsox.mjs";
+import {JSOX} from "./node_modules/jsox/lib/jsox.mjs";
 const JSON = JSOX;
 
 const accruals = {

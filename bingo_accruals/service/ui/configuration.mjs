@@ -1,7 +1,7 @@
 
 import {accruals} from "./accruals.mjs"
-import {JSOX} from "./jsox.mjs"
-import {popups} from "./popups.mjs" 
+import {JSOX} from "./node_modules/jsox/lib/jsox.mjs"
+import {popups} from "./node_modules/popups/popups.mjs" 
 import {utils} from "./utils.mjs"
 //import { link } from "fs";
 

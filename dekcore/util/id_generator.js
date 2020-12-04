@@ -2,12 +2,12 @@
 
 var RNG, RNG2, u8xor, SRG;
 if( "undefined" === typeof Λ) {
-  SRG = require( "../../org.d3x0r.common/salty_random_generator.js");
- RNG = (SRG).SaltyRNG( 
-	(saltbuf)=>saltbuf.push( new Date().toISOString() ), { mode:1 } );
- RNG2 = (SRG).SaltyRNG( getSalt2, { mode:1 } );
- u8xor = require( "./u8xor.js" );
- exports.u8xor=u8xor;
+	SRG = require( "../../org.d3x0r.common/salty_random_generator.js");
+	RNG = (SRG).SaltyRNG( 
+		(saltbuf)=>saltbuf.push( new Date().toISOString() ), { mode:1 } );
+	RNG2 = (SRG).SaltyRNG( getSalt2, { mode:1 } );
+	u8xor = require( "./u8xor.js" );
+	exports.u8xor=u8xor;
 
 } else {
 	async function f() {
@@ -17,8 +17,9 @@ if( "undefined" === typeof Λ) {
 		RNG2 = SRG.SaltyRNG( getSalt2, { mode:1 } );
 		u8xor = await require( "./u8xor.js" );
 		exports.u8xor=u8xor;
+                Object.freeze( exports );
 	}
-	 f();
+	f();
 }
 
 
@@ -354,7 +355,8 @@ function makeU16Key( ) {
 exports.xkey = makeXKey;
 exports.ukey = makeU16Key;
 
-Object.freeze( exports );
+if( "undefined" === typeof Λ)
+	Object.freeze( exports );
 
 
 if( !module.parent ) {

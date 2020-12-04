@@ -10,11 +10,7 @@ const sack = await require('sack' );
 
 var text = null;
 var commandStream = null;
-var labelStream = null;
 
-const strings = {
-    grabWhat : "Grab what?"
-}
 
 if( "undefined" === typeof Λ ) {
     // this is a sandbox; and we don't have real entity support.
@@ -23,15 +19,13 @@ if( "undefined" === typeof Λ ) {
     console.log( "Did require Entity:", Entity );
     Entity.netRequire.provide( "shell.js", exports );
     Entity.Sentience = exports;
-     text = require( "../../org.d3x0r.common/text.js");
-     commandStream = require('../command_stream_filter/command.js')
-     labelStream = require( "../command_stream_filter/label_insert.js" );
+    text = require( "../../org.d3x0r.common/text.js");
+    commandStream = require('../command_stream_filter/command.js')
 } else   {
-    Entity = global;
+    //Entity = global;
     async function asyncInit() {
        text = await require( "../../org.d3x0r.common/text.js");
        commandStream = await require('../command_stream_filter/command.js')
-       labelStream = await require( "../command_stream_filter/label_insert.js" );
         //sack = await require( 'sack.vfs');
         //console.log( "What did sack get:", sack );
         //Promise.resolve( exports );
@@ -316,7 +310,7 @@ function Filter( e ) {
                     } ) )
                 }).then( ()=>{
                     if( !a )
-                        console.log( strings.grabWhat );
+                        console.log( "Grab What?" );
                 })
             }
         });

@@ -5,23 +5,22 @@ const _debug_threads = false;
 const _debug_run = false;
 
 const events = require('events');
-const os = require( 'os' );
 const url = require( 'url' );
-const tls = require( 'tls' );
-const https = require( 'https' );
-const path = require( 'path' );
 const cp = require( 'child_process');
-const vm = require('vm');
 const fs = require('fs');
-const stream = require('stream');
 const util = require('util');
 const process = require('process');
-const crypto = require('crypto');
 const sack = require( "sack.vfs" );
 const vfs = require('sack.vfs');
 const vol = vfs.Volume();
-const vfsNaked = require('sack.vfs');
 const JSOX = sack.JSOX;
+
+// this is used to generate an http request to the real core(if there is one?)
+const netRequire = require('../util/myRequire.js');
+const fc = require('../file_cluster.js');
+const config = require('../config.js');
+const wake = require('../Sentience/wake');
+//const idMan = require('../id_manager.js');
 
 //JSOX.registerToJSOX( "entity", Entity,
 
@@ -111,25 +110,6 @@ function EntityRefFromJSOX( field,val ) {
 	console.log( "in this context what params?", field, val );
 }
 
-/*
-JSOX.defineClass( "entity", { Λ:null
-	, name: null
-	, description: null
-	, within: null
-	, attached_to: null
-	, created_by: null
-	, sandbox : null
-	, _module : null
-	, value : null
-} )
-*/
-// this is used to generate an http request to the real core(if there is one?)
-const netRequire = require('../util/myRequire.js');
-
-
-var fc = require('../file_cluster.js');
-
-const config = require('../config.js');
 
 config.start( ()=>{
 	fc.addEncoders( [{tag:"~E",p:Entity,f:EntityToJSOX }] );
@@ -143,11 +123,10 @@ function doLog(...args){
 	console.log(s);
 }
 
-var entity = module.exports = exports = {
+const entity = module.exports = exports = {
 	create: makeEntity,
 	theVoid: null,
 	getObjects: exported_getObjects,
-	getEntity: getEntity,
 	netRequire: netRequire,
 	addProtocol: null, // filled in when this returns
 	config : config,
@@ -155,8 +134,6 @@ var entity = module.exports = exports = {
 	idMan : null//idMan
 }
 
-const wake = require('../Sentience/wake');
-//const idMan = require('../id_manager.js');
 
 const ee = events.EventEmitter;
 var objects = new Map();
@@ -307,8 +284,6 @@ function sandboxWSS( opts ) {
 //    returns e
 
 
-//
-//doLog( "vfsNaked is something?", vfsNaked );
 
 const volOverride = `(function(vfs, dataRoot) {
 	vfs.mkdir = vfs.Volume.mkdir;
@@ -371,8 +346,6 @@ var drivers = [];
 var nextID = null;
 
 //Λ
-
-//const sentience = require( "../Sentience/shell.js");
 
 var createdVoid = false;
 var theVoid = null; // private tracker, to validate someone didn't cheat the export
@@ -824,7 +797,7 @@ function Entity(obj,name,desc ) {
 }
 
 
-var entityMethods = {
+	var entityMethods = {
 		get container() { /*doLog( "Getting container:",this); */return this.within; }
 		, create(name, desc, cb, value) {
 			//console.trace("Who calls create?  We need to return sandbox.entity?");
@@ -939,8 +912,6 @@ var entityMethods = {
 		}
 		, assign: (object) => {
 			this.value = object;
-			if (config.run.debug)
-				sanityCheck(object);
 		}
 		, attach(a) {
 			if( "string" === typeof a ) a = objects.get(a);
@@ -1387,7 +1358,8 @@ Entity.fromString = function(s) {
 	s = JSOX.parse(s);
 	if( s.parent === s.Λ )
 		s.parent = null;
-	var entity = createEntity( s.parent, s.name, s.description )
+		
+	//var entity = createEntity( s.parent, s.name, s.description )
 
 	o.Λ = s.Λ;
 		console.warn( "create sandbox here, after getting ID --------- FROM STRING?!")
@@ -1488,32 +1460,6 @@ exports.reloadAll = function( ) {
 	})
 }
 
-exports.saveAll = function() {
-	return console.trace( "Don't really want to Save ALL....");
-	if( createdVoid ) {
-		var saved = new Map();
-		var output = [];
-		var o = makeEntity( createdVoid.Λ );
-		recurseSave( o );
-
-		//for( var n = 0; n < output.length; n++ )
-		//		output[n] = output[n].toString();
-		doLog( 'output  "core/entities.jsox"', output );
-		fc.store( "core/entities.jsox", JSOX.stringify( output, null, 2 ) )
-		function recurseSave( o ) {
-			if( saved.get(o.Λ) ) return; // already saved.
-			if( o.save_ ) {
-				output.push( o.toRep() );
-			}
-			saved.set( o.Λ.toString(), o );
-			o.attached_to.forEach( recurseSave );
-			//doLog( "Saving:", o.toString() )
-			o.contains.forEach( recurseSave );
-			o.created.forEach( recurseSave );
-		}
-	}
-
-}
 
 // this 
 	function getObjects(me, src, all, callback) {
@@ -1768,63 +1714,5 @@ function exported_getObjects(o, filter, all, callback) {
 	//doLog( "uhmm did we erase o?", o )
 	if (o)
 		o.getObjects(filter, all, callback)
-}
-
-function getEntity(ref) {
-	var o = objects.get(ref);
-	if (o) return o;
-	return null;
-
-}
-
-function sanityCheck(object) {
-	var s = JSOX.stringify(object);
-	var t = object.toString();
-	doLog(`json is ${s}`);
-	doLog(`toString is ${t}`)
-	var os = JSOX.parse(s);
-	if (os !== object) {
-		doLog(`did not compare for json conversion.  ${os}  ${object}`);
-		doLog(os);
-		doLog(object);
-	}
-}
-
-
-function saveConfig(o, callback) {
-	//if( !fs.exists( 'core') )
-	console.trace( "********SaveConfig Volume (FIXME)" );
-	return;
-	if (!("vol" in o))
-		o.vol = vfs.Volume(null, config.run.defaults.dataRoot + "/" + o.Λ);
-	if( o.sandbox )		
-		o.vol.write(JSOX.stringify(o.sandbox.config));
-}
-
-//res.sendfile(localPath);
-//res.redirect(externalURL);
-//
-function loadConfig(o) {
-	if( !o.sandbox ) return;
-	console.trace( "********LoadConfig Volume (FIXME)" );
-	return;
-	if (!("vol" in o))
-		o.vol = vfs.Volume(null, config.run.defaults.dataRoot + "/" + o.Λ);
-	{
-		var data = o.vol.read("config.json");
-		if (data) {
-			//doLog( "attempt to re-set exports...", result);
-			var object = JSOX.parse(data.toString());
-			Object.assign(o.sandbox.config, object);
-			//doLog( "config reload is", config.run.Λ )
-			//config.run = object;
-			resume();
-		}
-		else {
-			doLog("initializing config.")
-			o.sandbox.config.defaults = require("./config.json");
-			saveConfig(o, resume);
-		}
-	}
 }
 

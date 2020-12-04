@@ -16,15 +16,23 @@ var config = require ('./config.js');
 var idMan = require( "./id_manager.js");
 var Entity = require( "./Entity/entity.js" );
 Entity.idMan = idMan;
-
+console.log( "Entity:", Entity );
 
 function BigBang() {
 	//console.log( "Config:", JSOX.stringify( config, null, "\t" ) );
 	if( config.run['The Void'] ) {
 		console.log( "System has already been pre-initialized, please startup using void-run.js" );
+
+		function BigBang() {
+			Entity.reloadAll().then( ()=>{
+				console.log( "Universe successfully reloaded.")
+				const MOOSE = Entity.create( config.run.MOOSE );
+				process.stdin.pipe( MOOSE.thread.worker.stdin );
+			})
+		}
 		return;
 	}
-	//console.log( "Creating the void....");
+	console.log( "Creating the void....");
 	Entity.create( null, "The Void", "Glistening transparent black clouds swirl in the dark.", (o)=>{
 		const theVoid = o;
 		o.saved = true;

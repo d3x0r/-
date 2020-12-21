@@ -1,3 +1,4 @@
+"use strict";
 // jsox.js
 // JSOX JavaScript Object eXchange. Inherits human features of comments
 // and extended formatting from JSON6; adds macros, big number and date
@@ -7,21 +8,25 @@
 // which is based off of https://github.com/d3x0r/sack  ./src/netlib/html5.websocket/json6_parser.c
 //
 var exports = exports || {};
-
-"use strict";
+////const util = require('util'); // debug inspect.
+//import util from 'util'; 
 
 const _JSON=JSON; // in case someone does something like JSON=JSOX; we still need a primitive _JSON for internal stringification
-var JSOX = exports;
+const JSOX = exports;
+JSOX.version = "1.2.105";
 
-const _DEBUG_LL = false;
-const _DEBUG_PARSING = false;
-const _DEBUG_STRINGIFY = false;
-const _DEBUG_PARSING_STACK = false;
-const _DEBUG_PARSING_NUMBERS = false;
-const _DEBUG_WHITESPACE = false; 
-const SUPPORT_LEAD_ZERO_OCTAL = true;
+//function privateizeEverything() {
+//const _DEBUG_LL = false;
+//const _DEBUG_PARSING = false;
+//const _DEBUG_STRINGIFY = false;
+//const _DEBUG_PARSING_STACK = false;
+//const _DEBUG_PARSING_NUMBERS = false;
+//const _DEBUG_PARSING_DETAILS = false;
+//const _DEBUG_PARSING_CONTEXT = false;
+//const _DEBUG_REFERENCES = false; // this tracks folling context stack when the components have not been completed.
+//const _DEBUG_WHITESPACE = false; 
 const hasBigInt = (typeof BigInt === "function");
-
+const testNonIdentifierCharacters = false; // maybe an option to enable; references otherwise unused table.
 const VALUE_UNDEFINED = -1
 const VALUE_UNSET = 0
 const VALUE_NULL = 1
@@ -34,7 +39,7 @@ const VALUE_NEG_NAN = 7
 const VALUE_NAN = 8
 const VALUE_NEG_INFINITY = 9
 const VALUE_INFINITY = 10
-const VALUE_DATE = 11  // unused yet
+//const VALUE_DATE = 11  // unused yet; this is actuall a subType of VALUE_NUMBER
 const VALUE_EMPTY = 12 // [,] makes an array with 'empty item'
 const VALUE_ARRAY = 13 //
 // internally arrayType = -1 is a normal array
@@ -50,8 +55,8 @@ const knownArrayTypes = [ArrayBuffer
                         ,Uint32Array,Int32Array
                         ,null,null//,Uint64Array,Int64Array
                         ,Float32Array,Float64Array];
-const VALUE_ARRAY_MAX = VALUE_ARRAY + knownArrayTypes.length + 1; // 1 type is not typed; just an array.
-const VALUE_BINARY = VALUE_ARRAY_MAX+1 //
+// somehow max isn't used... it would be the NEXT available VALUE_XXX value...
+//const VALUE_ARRAY_MAX = VALUE_ARRAY + knownArrayTypes.length + 1; // 1 type is not typed; just an array.
 
 const WORD_POS_RESET = 0;
 const WORD_POS_TRUE_1 = 1;
@@ -85,17 +90,16 @@ const WORD_POS_INFINITY_7 = 28;
 const WORD_POS_FIELD = 29;
 const WORD_POS_AFTER_FIELD = 30;
 const WORD_POS_END = 31;
+const WORD_POS_AFTER_FIELD_VALUE = 32;
 //const WORD_POS_BINARY = 32;
 
 const CONTEXT_UNKNOWN = 0
 const CONTEXT_IN_ARRAY = 1
-const CONTEXT_IN_OBJECT = 2
-const CONTEXT_OBJECT_FIELD = 3
-const CONTEXT_OBJECT_FIELD_VALUE = 4
-const CONTEXT_CLASS_FIELD = 5
-const CONTEXT_CLASS_VALUE = 6
-const CONTEXT_IN_TYPED_ARRAY = 7
-const CONTEXT_CLASS_FIELD_VALUE = 8
+const CONTEXT_OBJECT_FIELD = 2
+const CONTEXT_OBJECT_FIELD_VALUE = 3
+const CONTEXT_CLASS_FIELD = 4
+const CONTEXT_CLASS_VALUE = 5
+const CONTEXT_CLASS_FIELD_VALUE = 6
 const keywords = {	["true"]:true,["false"]:false,["null"]:null,["NaN"]:NaN,["Infinity"]:Infinity,["undefined"]:undefined }
 
 const contexts = [];
@@ -103,14 +107,25 @@ function getContext() {
 	var ctx = contexts.pop();
 	if( !ctx )
 		ctx = { context : CONTEXT_UNKNOWN
+		      , current_proto : null
 		      , current_class : null
 		      , current_class_field : 0
 		      , arrayType : -1
+		      , valueType : VALUE_UNSET
 		      , elements : null
-		      , element_array : null };
+		      };
 	return ctx;
 }
-function dropContext(ctx) { contexts.push( ctx ) }
+function dropContext(ctx) { 
+/*
+	console.log( "Dropping context:", ctx );
+	ctx.elements = null;
+	ctx.name = null;
+	ctx.valueType = VALUE_UNSET;
+	ctx.arrayType = -1;
+*/
+	contexts.push( ctx ) 
+}
 
 const buffers = [];
 function getBuffer() { var buf = buffers.pop(); if( !buf ) buf = { buf:null, n:0 }; else buf.n = 0; return buf; }
@@ -119,7 +134,6 @@ function dropBuffer(buf) { buffers.push( buf ); }
 
 JSOX.escape = function(string) {
 	var n;
-	var m = 0;
 	var output = '';
 	if( !string ) return string;
 	for( n = 0; n < string.length; n++ ) {
@@ -131,9 +145,10 @@ JSOX.escape = function(string) {
 	return output;
 }
 
-var toProtoTypes = new WeakMap();
-var toObjectTypes = new Map();
-var fromProtoTypes = new Map();
+const toProtoTypes = new WeakMap();
+const toObjectTypes = new Map();
+const fromProtoTypes = new Map();
+const commonClasses = [];
 
 
 JSOX.begin = function( cb, reviver ) {
@@ -151,36 +166,56 @@ JSOX.begin = function( cb, reviver ) {
 	var	localFromProtoTypes = new Map();
 	var	word = WORD_POS_RESET,
 		status = true,
+		redefineClass = false,
 		negative = false,
 		result = null,
 		rootObject = null,
 		elements = undefined,
-		element_array = [],
 		context_stack = {
 			first : null,
 			last : null,
 			saved : null,
 			push(node) {
+				//_DEBUG_PARSING_CONTEXT && console.log( "pushing context:", node );
 				var recover = this.saved;
-				if( recover ) { this.saved = recover.next; recover.node = node; recover.next = null; recover.prior = this.last; }
+				if( recover ) { this.saved = recover.next; 
+					recover.node = node; 
+					recover.next = null; 
+					recover.prior = this.last; }
 				else { recover = { node : node, next : null, prior : this.last }; }
 				if( !this.last ) this.first = recover;
+				else this.last.next = recover;
 				this.last = recover;
 				this.length++;
 			},
 			pop() {
 				var result = this.last;
-				if( !result ) return null;
+				// through normal usage this line can never be used.
+				//if( !result ) return null;
 				if( !(this.last = result.prior ) ) this.first = null;
-				result.next = this.saved; this.saved = result;
+				result.next = this.saved;
+				if( this.last ) this.last.next = null;
+				if( !result.next ) result.first = null;
+				this.saved = result;
 				this.length--;
+				//_DEBUG_PARSING_CONTEXT && console.log( "popping context:", result.node );
 				return result.node;
 			},
 			length : 0,
-
+			/*dump() {  // //_DEBUG_CONTEXT_STACK
+				console.log( "STACK LENGTH:", this.length );
+				let cur= this.first;
+				let level = 0;
+				while( cur ) {
+					console.log( "Context:", level, cur.node );
+					level++;
+					cur = cur.next;
+				}
+			}*/
 		},
 		classes = [],  // class templates that have been defined.
 		protoTypes = {},
+		current_proto = null,  // the current class being defined or being referenced.
 		current_class = null,  // the current class being defined or being referenced.
 		current_class_field = 0,
 		arrayType = -1,  // the current class being defined or being referenced.
@@ -190,7 +225,6 @@ JSOX.begin = function( cb, reviver ) {
 		decimal = false,
 		exponent = false,
 		exponent_sign = false,
-		exponent_number = false,
 		exponent_digit = false,
 		inQueue = {
 			first : null,
@@ -201,6 +235,7 @@ JSOX.begin = function( cb, reviver ) {
 				if( recover ) { this.saved = recover.next; recover.node = node; recover.next = null; recover.prior = this.last; }
 				else { recover = { node : node, next : null, prior : this.last }; }
 				if( !this.last ) this.first = recover;
+				else this.last.next = recover;
 				this.last = recover;
 			},
 			shift() {
@@ -212,8 +247,11 @@ JSOX.begin = function( cb, reviver ) {
 			},
 			unshift(node) {
 				var recover = this.saved;
-				if( recover ) { this.saved = recover.next; recover.node = node; recover.next = this.first; recover.prior = null; }
-				else { recover = { node : node, next : this.first, prior : null }; }
+				// this is always true in this usage.
+				//if( recover ) { 
+					this.saved = recover.next; recover.node = node; recover.next = this.first; recover.prior = null; 
+				//}
+				//else { recover = { node : node, next : this.first, prior : null }; }
 				if( !this.first ) this.last = recover;
 				this.first = recover;
 			}
@@ -228,18 +266,39 @@ JSOX.begin = function( cb, reviver ) {
 		stringHex = false,
 		hex_char = 0,
 		hex_char_len = 0,
-		stringOct = false,
 		completed = false,
 		date_format = false,
 		isBigInt = false
 		;
 
+	function throwEndError( leader ) {
+		throw new Error( `${leader} at ${n} [${pos.line}:${pos.col}]`);
+	}
+
 	return {
-		registerFromJSOX( prototypeName, f ) {
+		fromJSOX( prototypeName, o, f ) {
 			if( localFromProtoTypes.get(prototypeName) ) throw new Error( "Existing fromJSOX has been registered for prototype" );
-			localFromProtoTypes.set( prototypeName, f );
+			function privateProto() { }
+			if( !o ) o = privateProto;
+			if( o && !("constructor" in o )){
+				throw new Error( "Please pass a prototype like thing...");
+			}
+			localFromProtoTypes.set( prototypeName, { protoCon:o.prototype.constructor, cb:f } );
+		},
+		registerFromJSOX( prototypeName, o/*, f*/ ) {
+			throw new Error( "registerFromJSOX is deprecated, please update to use fromJSOX instead:" + prototypeName + o.toString() );
+		},
+		finalError() {
+			if( comment !== 0 ) { // most of the time everything's good.
+				if( comment === 1 ) throwEndError( "Comment began at end of document" );
+				if( comment === 2 ) /*console.log( "Warning: '//' comment without end of line ended document" )*/;
+				if( comment === 3 ) throwEndError( "Open comment '/*' is missing close at end of document" );
+				if( comment === 4 ) throwEndError( "Incomplete '/* *' close at end of document" );
+			}
+			if( gatheringString ) throwEndError( "Incomplete string" );
 		},
 		value() {
+			this.finalError();
 			var r = result;
 			result = undefined;
 			return r;
@@ -251,13 +310,14 @@ JSOX.begin = function( cb, reviver ) {
 			inQueue.save = inQueue.first;
 			inQueue.first = inQueue.last = null;
 			if( context_stack.last ) context_stack.last.next = context_stack.save;
+			context_stack.length = 0;
 			context_stack.save = inQueue.first;
 			context_stack.first = context_stack.last = null;//= [];
-			element_array = null;
 			elements = undefined;
 			parse_context = CONTEXT_UNKNOWN;
 			classes = [];
 			protoTypes = {};
+			current_proto = null;
 			current_class = null;
 			current_class_field = 0;
 			val.value_type = VALUE_UNSET;
@@ -272,37 +332,36 @@ JSOX.begin = function( cb, reviver ) {
 			gatheringString = false;
 			stringEscape = false;  // string stringEscape intro
 			cr_escaped = false;   // carraige return escaped
+			date_format = false;
 
 			//stringUnicode = false;  // reading \u
 			//unicodeWide = false;  // reading \u{} in string
 			//stringHex = false;  // reading \x in string
-			//stringOct = false;  // reading \[0-3]xx in string
 		},
 		usePrototype(className,protoType ) { protoTypes[className] = protoType; },
 		write(msg) {
 			var retcode;
-			if (typeof msg !== "string") msg = String(msg);
+			if (typeof msg !== "string" && typeof msg !== "undefined") msg = String(msg);
+			if( !status ) throw new Error( "Parser is still in an error state, please reset before resuming" );
 			for( retcode = this._write(msg,false); retcode > 0; retcode = this._write() ) {
-				if( result ) {
-					if( typeof reviver === 'function' ) (function walk(holder, key) {
-						var k, v, value = holder[key];
-						if (value && typeof value === 'object') {
-							for (k in value) {
-								if (Object.prototype.hasOwnProperty.call(value, k)) {
-									v = walk(value, k);
-									if (v !== undefined) {
-										value[k] = v;
-									} else {
-										delete value[k];
-									}
+				if( typeof reviver === 'function' ) (function walk(holder, key) {
+					var k, v, value = holder[key];
+					if (value && typeof value === 'object') {
+						for (k in value) {
+							if (Object.prototype.hasOwnProperty.call(value, k)) {
+								v = walk(value, k);
+								if (v !== undefined) {
+									value[k] = v;
+								} else {
+									delete value[k];
 								}
 							}
 						}
-						return reviver.call(holder, key, value);
-					}({'': result}, ''));
-					cb( result );
-					result = undefined;
-				}
+					}
+					return reviver.call(holder, key, value);
+				}({'': result}, ''));
+				result = cb( result );
+
 				if( retcode < 2 )
 					break;
 			}
@@ -311,9 +370,7 @@ JSOX.begin = function( cb, reviver ) {
 			var cInt;
 			var input;
 			var buf;
-			var output;
 			var retval = 0;
-
 			function throwError( leader, c ) {
 				throw new Error( `${leader} '${String.fromCodePoint( c )}' unexpected at ${n} (near '${buf.substr(n>4?(n-4):0,n>4?3:(n-1))}[${String.fromCodePoint( c )}]${buf.substr(n, 10)}') [${pos.line}:${pos.col}]`);
 			}
@@ -321,38 +378,35 @@ JSOX.begin = function( cb, reviver ) {
 			function RESET_VAL()  {
 				val.value_type = VALUE_UNSET;
 				val.string = '';
+				val.contains = null;
 				//val.className = null;
-			}
-
-			function numberConvert( string ) {
-				if( isBigInt ) if( hasBigInt ) return BigInt(string); else throw new Error( "no builtin BigInt()", 0 );
-				if( date_format ) return new Date( string );
-				if( string.length > 1 ) {
-					if( !fromHex && !decimal && !exponent ) {
-						if( string.charCodeAt(0) === 48/*'0'*/ )
-							return (negative?-1:1) * Number( "0o" + string );
-					}
-				}
-				return (negative?-1:1) * Number( string );
 			}
 
 			function convertValue() {
 				var fp = null;
-				_DEBUG_PARSING && console.log( "CONVERT VAL:", val );
+				//_DEBUG_PARSING && console.log( "CONVERT VAL:", val );
 				switch( val.value_type ){
 				case VALUE_NUMBER:
+					//1502678337047
+					if( ( ( val.string.length > 13 ) || ( val.string.length == 13 && val[0]>'2' ) )
+					    && !date_format && !exponent_digit && !exponent_sign && !decimal ) {
+						isBigInt = true;
+					}
 					if( isBigInt ) { if( hasBigInt ) return BigInt(val.string); else throw new Error( "no builtin BigInt()", 0 ) }
-					if( date_format ) { return new Date( val.string ) }
-					return  SUPPORT_LEAD_ZERO_OCTAL?numberConvert(val.string):((negative?-1:1) * Number( val.string ));//(negative?-1:1) * Number( val.string ) );
+					if( date_format ) { const r = new Date( val.string ); if(isNaN(r.getTime())) throwError( "Bad number format", cInt ); return r;  }
+					return  (negative?-1:1) * Number( val.string );
 				case VALUE_STRING:
 					if( val.className ) {
 						fp = localFromProtoTypes.get( val.className );
 						if( !fp )
 							fp = fromProtoTypes.get( val.className );
-						val.className = null;
-						if( fp ) {
-							return fp.call( val.string );
-						}
+						if( fp && fp.cb ) {
+							val.className = null;
+							return fp.cb.call( val.string );
+						} else {
+							// '[object Object]' throws this error.
+							throw new Error( "Double string error, no constructor for: new " + val.className + "("+val.string+")" )
+						}	
 					}
 					return val.string;
 				case VALUE_TRUE:
@@ -375,25 +429,133 @@ JSOX.begin = function( cb, reviver ) {
 					return undefined;
 				case VALUE_OBJECT:
 					if( val.className ) { 
+						//_DEBUG_PARSING_DETAILS && console.log( "class reviver" );
 						fp = localFromProtoTypes.get( val.className );
 						if( !fp )
 							fp = fromProtoTypes.get( val.className );
 						val.className = null;
-						if( fp ) return fp.call( val.contains ); 
+						if( fp && fp.cb ) return val.contains = fp.cb.call( val.contains ); 
 					}
 					return val.contains;
 				case VALUE_ARRAY:
+					//_DEBUG_PARSING_DETAILS && console.log( "Array conversion:", arrayType, val.contains );
 					if( arrayType >= 0 ) {
-						var ab = DecodeBase64( val.string );//contains[0] );
+						let ab;
+						if( val.contains.length )
+							ab = DecodeBase64( val.contains[0] )
+						else ab = DecodeBase64( val.string );
 						if( arrayType === 0 ) return ab;
 						else return new knownArrayTypes[arrayType]( ab );
 					} else if( arrayType === -2 ) {
 						var obj = rootObject;
-						_DEBUG_PARSING && console.log( "Resolve path:", val,"in", obj );
-						obj = val.contains.reduce( (acc,part)=>acc && (acc = acc[part]), obj );
-						if( !obj ) throw new Error( "Path did not resolve poperly.");
-						_DEBUG_PARSING && console.log( "Resulting resolved object:", obj );
-						arrayType = -1;
+						//let ctx = context_stack.first;
+						let lvl;
+						//console.log( "Resolving Reference...", context_stack.length );
+						//console.log( "--elements and array", elements );
+						
+						const pathlen = val.contains.length;
+						for( lvl = 0; lvl < pathlen; lvl++ ) {
+							const idx = val.contains[lvl];
+							//_DEBUG_REFERENCES && console.log( "Looking up idx:", idx, "of", val.contains, "in", obj );
+							let nextObj = obj[idx];
+
+							//_DEBUG_REFERENCES  && console.log( "Resolve path:", lvl, idx,"in", obj, context_stack.length, val.contains.toString() );
+							//_DEBUG_REFERENCES && console.log( "NEXT OBJECT:", nextObj );
+							if( !nextObj ) {
+								{
+									let ctx = context_stack.first;
+									let p = 0;
+									//_DEBUG_PARSING_CONTEXT && context_stack.dump();
+									while( ctx && p < pathlen && p < context_stack.length ) {
+										const thisKey = val.contains[p];
+										if( thisKey in obj ) {
+											//console.log( "don't need to be in the context stack anymore------------------------------")
+											break;
+										}
+										//_DEBUG_REFERENCES && console.log( "Checking context:", obj, "p=",p, "key=",thisKey, "ctx=",util.inspect(ctx), "ctxNext=",ctx.next);
+										//console.dir(ctx, { depth: null })
+										if( ctx.next ) {
+											if( "number" === typeof thisKey ) {
+												
+												const asdf = ctx.next.node.elements;
+												const actualObject = ctx.next.node.elements;
+												//_DEBUG_REFERENCES && console.log( "Number in index... tracing stack...", obj, actualObject, ctx && ctx.next && ctx.next.next && ctx.next.next.node );
+
+												if( asdf && thisKey >= asdf.length ) {
+													//_DEBUG_REFERENCES && console.log( "AT ", p, actualObject.length, val.contains.length );
+													if( p === (actualObject.length-1) ) {
+														////_DEBUG_REFERENCES && 
+															console.log( "This is actually at the current object so use that" );
+														nextObj = elements;
+														
+														break;
+													}
+													else {
+														if( ctx.next.next && thisKey === asdf.length ) {
+															//_DEBUG_REFERENCES && console.log( "is next... ")
+															nextObj = ctx.next.next.node.elements;
+															ctx = ctx.next;
+															p++;
+															obj = nextObj;
+															continue;
+														}
+														//_DEBUG_REFERENCES && console.log( "FAILING HERE", ctx.next, ctx.next.next, elements );
+														nextObj = elements;
+														p++; // make sure to exit.
+
+														break;
+														//obj = next
+													}
+												}
+											} else {
+												//_DEBUG_REFERENCES && console.log( "field AT index", p,"of", val.contains.length );
+												if( thisKey !== ctx.next.node.name ){
+													//_DEBUG_REFERENCES && console.log( "Expect:", thisKey, ctx.next.node.name, ctx.next.node.elements );
+													nextObj = ( ctx.next.node.elements[thisKey] );
+													//throw new Error( "Unexpected path-context relationship" );													
+													lvl = p;
+													break;
+												} else {
+													//_DEBUG_REFERENCES && console.log( "Updating next object(NEW) to", ctx.next.node, elements, thisKey)
+													if( ctx.next.node.valueType === VALUE_ARRAY ){
+														//_DEBUG_REFERENCES && console.log( "Using the array element of that")
+														nextObj = ctx.next.node.elements_array;
+													}else {
+														nextObj = ctx.next.node.elements[thisKey];
+														//_DEBUG_REFERENCES && console.log( "using named element from", ctx.next.node.elements, "=", nextObj )
+													}
+												}
+											}
+											//if( //_DEBUG_REFERENCES )  {
+											//	const a = ctx.next.node.elements;
+											//	console.log( "Stack Dump:"
+											//		, a?a.length:a
+											//		, ctx.next.node.name
+											//		, thisKey
+											//		);
+											//}
+										} else {
+											nextObj = nextObj[thisKey];
+										}
+										//_DEBUG_REFERENCES && console.log( "Doing next context??", p, context_stack.length, val.contains.length );
+										ctx = ctx.next;
+										p++;
+									}
+									//_DEBUG_REFERENCES && console.log( "Done with context stack...level", lvl, "p", p );
+									if( p < pathlen )
+										lvl = p-1;
+									else lvl = p;
+								}
+								//_DEBUG_REFERENCES && console.log( "End of processing level:", lvl );
+							}
+							if( !nextObj ) {
+								throw new Error( "Path did not resolve properly:" +  val.contains + " at " + idx + '(' + lvl + ')' );
+							}
+							obj = nextObj;
+						}
+						//_DEBUG_PARSING && console.log( "Resulting resolved object:", obj );
+						//_DEBUG_PARSING_DETAILS && console.log( "SETTING MODE TO -3 (resolved -2)" );
+						arrayType = -3;
 						return obj;
 					}
 					if( val.className ) { 
@@ -401,7 +563,7 @@ JSOX.begin = function( cb, reviver ) {
 						if( !fp )
 							fp = fromProtoTypes.get( val.className );
 						val.className = null; 
-						if( fp ) return fp.call( val.contains ); 
+						if( fp && fp.cb ) return fp.cb.call( val.contains ); 
 					}
 					return val.contains;
 				default:
@@ -411,36 +573,66 @@ JSOX.begin = function( cb, reviver ) {
 			}
 
 			function arrayPush() {
-				_DEBUG_PARSING && console.log( "PUSH TO ARRAY:", val );
+				//_DEBUG_PARSING && console.log( "PUSH TO ARRAY:", val );
 				if( arrayType == -3 )  {
-					//console.log( " !!!!!!!!!!!!!!   Already pushed; don't repush. ??");
+					//_DEBUG_PARSING && console.log(" Array type -3?", val.value_type, elements );
+					if( val.value_type === VALUE_OBJECT ) {
+						elements.push( val.contains );
+					}
 					arrayType = -1; // next one should be allowed?
-					// this is like the ',' between objects in an array.
-
 					return;
 				} //else
 				//	console.log( "Finally a push that's not already pushed!", );
 				switch( val.value_type ){
 				case VALUE_EMPTY:
-					element_array.push( undefined );
-					delete element_array[element_array.length-1];
+					elements.push( undefined );
+					delete elements[elements.length-1];
 					break;
 				default:
-					element_array.push( convertValue() );
+					elements.push( convertValue() );
 					break;
 				}
 				RESET_VAL();
 			}
+
 			function objectPush() {
+				if( arrayType === -3 && val.value_type === VALUE_ARRAY ) {
+					//console.log( "Array has already been set in object." );
+					//elements[val.name] = val.contains;
+					RESET_VAL();
+					arrayType = -1;
+					return;
+				}
 				if( val.value_type === VALUE_EMPTY ) return;
-				elements[val.name] = convertValue();
-				_DEBUG_PARSING && console.log( "Adding object field:", val.name, elements[val.name], rootObject );
+				if( !val.name && current_class ) {
+					//_DEBUG_PARSING_DETAILS && console.log( "A Stepping current class field:", current_class_field, val.name );
+					val.name = current_class.fields[current_class_field++];
+				}
+				let value = convertValue();
+
+				if( current_proto && current_proto.protoDef && current_proto.protoDef.cb ) {
+					//_DEBUG_PARSING_DETAILS && console.log( "SOMETHING SHOULD AHVE BEEN REPLACED HERE??", current_proto );
+					//_DEBUG_PARSING_DETAILS && console.log( "(need to do fromprototoypes here) object:", val, value );
+					value = current_proto.protoDef.cb.call( elements, val.name, value );
+					if( value ) elements[val.name] = value;
+					//elements = new current_proto.protoCon( elements );
+				}else {
+				        //_DEBUG_PARSING_DETAILS && console.log( "Default no special class reviver", val.name, value );
+					elements[val.name] = value;
+				}
+				//_DEBUG_PARSING_DETAILS && console.log( "Updated value:", current_class_field, val.name, elements[val.name] );
+			
+				//_DEBUG_PARSING && console.log( "+++ Added object field:", val.name, elements, elements[val.name], rootObject );
 				RESET_VAL();
 			}
 
 			function recoverIdent(cInt) {
+				//_DEBUG_PARSING&&console.log( "Recover Ident char:", cInt, val, String.fromCodePoint(cInt), "word:", word );
 				if( word !== WORD_POS_RESET ) {
-					if( negative ) { valstring += "-"; negative = false; }
+					if( negative ) { 
+						//val.string += "-"; negative = false; 
+						throwError( "Negative outside of quotes, being converted to a string (would lose count of leading '-' characters)", cInt );
+					}
 					switch( word ) {
 					case WORD_POS_END:
 						switch( val.value_type ) {
@@ -448,14 +640,16 @@ JSOX.begin = function( cb, reviver ) {
 						case VALUE_FALSE:  val.string += "false"; break
 						case VALUE_NULL:  val.string += "null"; break
 						case VALUE_INFINITY:  val.string += "Infinity"; break
-						case VALUE_NEG_INFINITY:  val.string += "-Infinity"; break
+						case VALUE_NEG_INFINITY:  val.string += "-Infinity"; throwError( "Negative outside of quotes, being converted to a string", cInt ); break
 						case VALUE_NAN:  val.string += "NaN"; break
-						case VALUE_NEG_NAN:  val.string += "-NaN"; break
+						case VALUE_NEG_NAN:  val.string += "-NaN"; throwError( "Negative outside of quotes, being converted to a string", cInt ); break
 						case VALUE_UNDEFINED:  val.string += "undefined"; break
 						case VALUE_STRING: break;
+						case VALUE_UNSET: break;
 						default:
 							console.log( "Value of type " + val.value_type + " is not restored..." );
 						}
+						break;
 					case WORD_POS_TRUE_1 :  val.string += "t"; break;
 					case WORD_POS_TRUE_2 :  val.string += "tr"; break;
 					case WORD_POS_TRUE_3 : val.string += "tru"; break;
@@ -485,80 +679,73 @@ JSOX.begin = function( cb, reviver ) {
 					case WORD_POS_INFINITY_7 : val.string += "Infinit"; break;
 					case WORD_POS_RESET : break;
 					case WORD_POS_FIELD : break;
+					case WORD_POS_AFTER_FIELD:
+					    //throwError( "String-keyword recovery fail (after whitespace)", cInt);
+					    break;
+					case WORD_POS_AFTER_FIELD_VALUE:
+					    throwError( "String-keyword recovery fail (after whitespace)", cInt );
+					    break;
 					default:
 						//console.log( "Word context: " + word + " unhandled" );
 					}
+					val.value_type = VALUE_STRING;									
+					if( word < WORD_POS_FIELD)
+					    word = WORD_POS_END;
+				} else {
+					word = WORD_POS_END;
+					//if( val.value_type === VALUE_UNSET && val.string.length )
+						val.value_type = VALUE_STRING
 				}
-				val.value_type = VALUE_STRING;									
-				word = WORD_POS_FIELD;
 				if( cInt == 123/*'{'*/ )
 					openObject();
 				else if( cInt == 91/*'['*/ )
 					openArray();
-				else {
+				else if( cInt == 44/*','*/ ) {
+					// comma separates the string, it gets consumed.
+				} else {
 					// ignore white space.
-					if( cInt == 32/*' '*/ || cInt == 13 || cInt == 10 || cInt == 9 || cInt == 0xFEFF || cInt == 2028 || cInt == 2029 )
+					if( cInt == 32/*' '*/ || cInt == 13 || cInt == 10 || cInt == 9 || cInt == 0xFEFF || cInt == 0x2028 || cInt == 0x2029 ) {
+						//_DEBUG_WHITESPACE && console.log( "IGNORE WHITESPACE" );
 						return;
+					}
 
 					if( cInt == 44/*','*/ || cInt == 125/*'}'*/ || cInt == 93/*']'*/ || cInt == 58/*':'*/ )
 						throwError( "Invalid character near identifier", cInt );
-					else
+					else //if( typeof cInt === "number")
 						val.string += str;
 				}
+				//console.log( "VAL STRING IS:", val.string, str );
 			}
 
 			function gatherString( start_c ) {
 				let retval = 0;
-				while( retval == 0 && ( n < buf.length ) )
-				{
+				while( retval == 0 && ( n < buf.length ) ) {
 					str = buf.charAt(n);
 					let cInt = buf.codePointAt(n++);
 					if( cInt >= 0x10000 ) { str += buf.charAt(n); n++; }
 					//console.log( "gathering....", stringEscape, str, cInt, unicodeWide, stringHex, stringUnicode, hex_char_len );
 					pos.col++;
-					if( cInt == start_c )//( cInt == 34/*'"'*/ ) || ( cInt == 39/*'\''*/ ) || ( cInt == 96/*'`'*/ ) )
-					{
-						if( stringEscape ) { val.string += str; stringEscape = false; }
-						else {
-							retval = -1;
-							if( stringOct )
-								throwError( "Incomplete Octal sequence", cInt );
-							else if( stringHex )
+					if( cInt == start_c ) { //( cInt == 34/*'"'*/ ) || ( cInt == 39/*'\''*/ ) || ( cInt == 96/*'`'*/ ) )
+						if( stringEscape ) { 
+							if( stringHex )
 								throwError( "Incomplete hexidecimal sequence", cInt );
 							else if( stringUnicode )
-								throwError( "Incomplete unicode sequence", cInt );
-							else if( unicodeWide )
 								throwError( "Incomplete long unicode sequence", cInt );
+							else if( unicodeWide )
+								throwError( "Incomplete unicode sequence", cInt );
+							if( cr_escaped ) {
+								cr_escaped = false;
+								retval = 1; // complete string, escaped \r
+							} else val.string += str;
+							stringEscape = false; }
+						else {
+							// quote matches, and is not processing an escape sequence.
 							retval = 1;
 						}
 					}
 
 					else if( stringEscape ) {
-						if( stringOct ) {
-							if( hex_char_len < 3 && cInt >= 48/*'0'*/ && cInt <= 57/*'9'*/ ) {
-								hex_char *= 8;
-								hex_char += cInt - 0x30;
-								hex_char_len++;
-								if( hex_char_len === 3 ) {
-									val.string += String.fromCodePoint( hex_char );
-									stringOct = false;
-									stringEscape = false;
-									continue;
-								}
-								continue;
-							} else {
-								if( hex_char > 255 ) {
-									throwError( "(escaped character, parsing octal escape val=%d) fault while parsing", cInt );
-									retval = -1;
-									break;
-								}
-								val.string += String.fromCodePoint( hex_char );
-								stringOct = false;
-								stringEscape = false;
-								continue;
-							}
-						}
-						else if( unicodeWide ) {
+						if( unicodeWide ) {
 							if( cInt == 125/*'}'*/ ) {
 								val.string += String.fromCodePoint( hex_char );
 								unicodeWide = false;
@@ -612,15 +799,21 @@ JSOX.begin = function( cb, reviver ) {
 								continue;
 							}
 						}
-						switch( cInt )
-						{
+						switch( cInt ) {
 						case 13/*'\r'*/:
 							cr_escaped = true;
 							pos.col = 1;
 							continue;
+						case 0x2028: // LS (Line separator)
+						case 0x2029: // PS (paragraph separate)
+							pos.col = 1;
+							// falls through
 						case 10/*'\n'*/:
-						case 2028: // LS (Line separator)
-						case 2029: // PS (paragraph separate)
+							if( !cr_escaped ) { // \\ \n
+								pos.col = 1;
+							} else { // \\ \r \n
+								cr_escaped = false;
+							}
 							pos.line++;
 							break;
 						case 116/*'t'*/:
@@ -638,11 +831,9 @@ JSOX.begin = function( cb, reviver ) {
 						case 102/*'f'*/:
 							val.string += '\f';
 							break;
-						case 48/*'0'*/: case 49/*'1'*/: case 50/*'2'*/: case 51/*'3'*/:
-							stringOct = true;
-							hex_char = cInt - 48;
-							hex_char_len = 1;
-							continue;
+						case 48/*'0'*/: 
+							val.string += '\0';
+							break;
 						case 120/*'x'*/:
 							stringHex = true;
 							hex_char_len = 0;
@@ -665,29 +856,23 @@ JSOX.begin = function( cb, reviver ) {
 						//console.log( "other..." );
 						stringEscape = false;
 					}
-					else if( cInt === 92/*'\\'*/ )
-					{
+					else if( cInt === 92/*'\\'*/ ) {
 						if( stringEscape ) {
 							val.string += '\\';
 							stringEscape = false
 						}
-						else
+						else {
 							stringEscape = true;
+							hex_char = 0;
+							hex_char_len = 0;
+						}
 					}
-					else
-					{
+					else { /* any other character */
 						if( cr_escaped ) {
+							// \\ \r <any char>
 							cr_escaped = false;
-							if( cInt == 10/*'\n'*/ ) {
-								pos.line++;
-								pos.col = 1;
-								stringEscape = false;
-								continue;
-							} else {
-								pos.line++;
-								pos.col = 1;
-							}
-							continue;
+							pos.line++;
+							pos.col = 2; // this character is pos 1; and increment to be after it.
 						}
 						val.string += str;
 					}
@@ -695,97 +880,114 @@ JSOX.begin = function( cb, reviver ) {
 				return retval;
 			}
 
-
 			function collectNumber() {
 				let _n;
-				while( (_n = n) < buf.length )
-				{
+				while( (_n = n) < buf.length ) {
 					str = buf.charAt(_n);
 					let cInt = buf.codePointAt(n++);
-					if( cInt >= 0x10000 ) { throwError( "fault while parsing number;", cInt ); str += buf.charAt(n); n++; }
-					if( _DEBUG_PARSING_NUMBERS ) console.log( "in getting number:", n, cInt, String.fromCodePoint(cInt) );
-					if( cInt == 95 /*_*/ )
-						continue;
-					pos.col++;
-					// leading zeros should be forbidden.
-					if( cInt >= 48/*'0'*/ && cInt <= 57/*'9'*/ )
-					{
-						if( exponent ) {
-							exponent_digit = true;
-						}
-						val.string += str;
-					} else if( cInt == 45/*'-'*/ || cInt == 43/*'+'*/ ) {
-						if( val.string.length == 0 || ( exponent && !exponent_sign && !exponent_digit ) ) {
-							val.string += str;
-							exponent_sign = true;
-						} else {
-							val.string += str;
-							date_format = true;
-						}
-					} else if( cInt == 58/*':'*/ && date_format ) {
-						val.string += str;
-						date_format = true;
-					} else if( cInt == 84/*'T'*/ && date_format ) {
-						val.string += str;
-						date_format = true;
-					} else if( cInt == 90/*'Z'*/ && date_format ) {
-						val.string += str;
-						date_format = true;
-					} else if( cInt == 46/*'.'*/ ) {
-						if( !decimal && !fromHex && !exponent ) {
-							val.string += str;
-							decimal = true;
-						} else {
-							status = false;
-							throwError( "fault while parsing number;", cInt );
-							break;
-						}
-					} else if( cInt == 110/*'n'*/ ) {
-						isBigInt = true;
-						break;
-					} else if( cInt == 120/*'x'*/ || cInt == 98/*'b'*/ || cInt == 111/*'o'*/
-					        || cInt == 88/*'X'*/ || cInt == 66/*'B'*/ || cInt == 79/*'O'*/ ) {
-						// hex conversion.
-						if( !fromHex && val.string == '0' ) {
-							fromHex = true;
-							val.string += str;
-						}
-						else {
-							status = false;
-							throwError( "fault while parsing number;", cInt );
-							break;
-						}
-					} else if( ( cInt == 101/*'e'*/ ) || ( cInt == 69/*'E'*/ ) ) {
-						if( !exponent ) {
-							val.string += str;
-							exponent = true;
-						} else {
-							status = false;
-							throwError( "fault while parsing number;", cInt );
-							break;
-						}
-					} else {
-						if( cInt == 32/*' '*/ || cInt == 13 || cInt == 10 || cInt == 9
-						 || cInt == 0xFEFF || cInt == 44/*','*/ || cInt == 125/*'}'*/ || cInt == 93/*']'*/
-						 || cInt == 58/*':'*/ ) {
+					if( cInt >= 256 ) { 
 							n = _n; // put character back in queue to process.
 							break;
-						}
-						else {
-							if( complete_at_end ) {
+					} else {
+						//_DEBUG_PARSING_NUMBERS  && console.log( "in getting number:", n, cInt, String.fromCodePoint(cInt) );
+						if( cInt == 95 /*_*/ )
+							continue;
+						pos.col++;
+						// leading zeros should be forbidden.
+						if( cInt >= 48/*'0'*/ && cInt <= 57/*'9'*/ ) {
+							if( exponent ) {
+								exponent_digit = true;
+							}
+							val.string += str;
+						} else if( cInt == 45/*'-'*/ || cInt == 43/*'+'*/ ) {
+							if( val.string.length == 0 || ( exponent && !exponent_sign && !exponent_digit ) ) {
+								if( cInt == 45/*'-'*/ && !exponent ) negative = !negative;
+								val.string += str;
+								exponent_sign = true;
+							} else {
+								val.string += str;
+								date_format = true;
+							}
+						} else if( cInt == 78/*'N'*/ ) {
+							if( word == WORD_POS_RESET ) {
+								gatheringNumber = false;
+								word = WORD_POS_NAN_1;
+								return;
+							}
+							throwError( "fault while parsing number;", cInt );
+							break;
+						} else if( cInt == 73/*'I'*/ ) {
+							if( word == WORD_POS_RESET ) {
+								gatheringNumber = false;
+								word = WORD_POS_INFINITY_1;
+								return;
+							}
+							throwError( "fault while parsing number;", cInt );
+							break;
+						} else if( cInt == 58/*':'*/ && date_format ) {
+							val.string += str;
+							date_format = true;
+						} else if( cInt == 84/*'T'*/ && date_format ) {
+							val.string += str;
+							date_format = true;
+						} else if( cInt == 90/*'Z'*/ && date_format ) {
+							val.string += str;
+							date_format = true;
+						} else if( cInt == 46/*'.'*/ ) {
+							if( !decimal && !fromHex && !exponent ) {
+								val.string += str;
+								decimal = true;
+							} else {
 								status = false;
 								throwError( "fault while parsing number;", cInt );
+								break;
 							}
+						} else if( cInt == 110/*'n'*/ ) {
+							isBigInt = true;
 							break;
+						} else if( cInt == 120/*'x'*/ || cInt == 98/*'b'*/ || cInt == 111/*'o'*/
+								|| cInt == 88/*'X'*/ || cInt == 66/*'B'*/ || cInt == 79/*'O'*/ ) {
+							// hex conversion.
+							if( !fromHex && val.string == '0' ) {
+								fromHex = true;
+								val.string += str;
+							}
+							else {
+								status = false;
+								throwError( "fault while parsing number;", cInt );
+								break;
+							}
+						} else if( ( cInt == 101/*'e'*/ ) || ( cInt == 69/*'E'*/ ) ) {
+							if( !exponent ) {
+								val.string += str;
+								exponent = true;
+							} else {
+								status = false;
+								throwError( "fault while parsing number;", cInt );
+								break;
+							}
+						} else {
+							if( cInt == 32/*' '*/ || cInt == 13 || cInt == 10 || cInt == 9 || cInt == 47/*'/'*/ || cInt ==  35/*'#'*/
+							 || cInt == 44/*','*/ || cInt == 125/*'}'*/ || cInt == 93/*']'*/
+							 || cInt == 123/*'{'*/ || cInt == 91/*'['*/ || cInt == 34/*'"'*/ || cInt == 39/*'''*/ || cInt == 96/*'`'*/
+							 || cInt == 58/*':'*/ ) {
+								n = _n; // put character back in queue to process.
+								break;
+							}
+							else {
+								if( complete_at_end ) {
+									status = false;
+									throwError( "fault while parsing number;", cInt );
+								}
+								break;
+							}
 						}
 					}
 				}
-				if( (!complete_at_end) && n == buf.length )
-				{
+				if( (!complete_at_end) && n == buf.length ) {
 					gatheringNumber = true;
 				}
-				else
-				{
+				else {
 					gatheringNumber = false;
 					val.value_type = VALUE_NUMBER;
 					if( parse_context == CONTEXT_UNKNOWN ) {
@@ -795,116 +997,162 @@ JSOX.begin = function( cb, reviver ) {
 			}
 
 			function openObject() {
-				let nextMode;
+				let nextMode = CONTEXT_OBJECT_FIELD;
 				let cls = null;
 				let tmpobj = {};
+				//_DEBUG_PARSING && console.log( "opening object:", val.string, val.value_type, word, parse_context );
 				if( word > WORD_POS_RESET && word < WORD_POS_FIELD )
-					recoverIdent();
-
+					recoverIdent( 123 /* '{' */ );
+				let protoDef;
+				protoDef = getProto(); // lookup classname using val.string and get protodef(if any)
 				if( parse_context == CONTEXT_UNKNOWN ) {
-					if( word == WORD_POS_FIELD /*|| word == WORD_POS_AFTER_FIELD*/ && val.string.length ) {
-						if( localFromProtoTypes.get( val.string ) ) {
-							val.className = val.string;
-						}
-						else if( fromProtoTypes.get( val.string ) ) {
-							val.className = val.string;
-						}
-
-						if( _DEBUG_PARSING ) console.log( "define class:", val.string );
+					if( word == WORD_POS_FIELD /*|| word == WORD_POS_AFTER_FIELD*/ 
+					   || word == WORD_POS_END
+					     && ( protoDef || val.string.length ) ) {
+							if( protoDef && protoDef.protoDef && protoDef.protoDef.protoCon ) {
+								tmpobj = new protoDef.protoDef.protoCon();
+							}
+						if( !protoDef || !protoDef.protoDef && val.string ) // class creation is redundant...
 						{
 							cls = classes.find( cls=>cls.name===val.string );
-							if( !cls ) {			
-								classes.push( cls = { name : val.string, protoObject:protoTypes[val.string]||Object.create({}), fields : [] } );
+							console.log( "Probably creating the Macro-Tag here?", cls )
+							if( !cls ) {
+								/* eslint-disable no-inner-declarations */
+								function privateProto() {} 
+								// this just uses the tmpobj {} container to store the values collected for this class...
+								// this does not generate the instance of the class.
+								// if this tag type is also a prototype, use that prototype, else create a unique proto
+								// for this tagged class type.
+								classes.push( cls = { name : val.string
+								, protoCon: (protoDef && protoDef.protoDef && protoDef.protoDef.protoCon) || privateProto.constructor
+								 , fields : [] } );
+								 nextMode = CONTEXT_CLASS_FIELD;
+							} else if( redefineClass ) {
+								//_DEBUG_PARSING && console.log( "redefine class..." );
+								// redefine this class
+								cls.fields.length = 0;
 								nextMode = CONTEXT_CLASS_FIELD;
 							} else {
-								tmpobj = Object.assign( tmpobj, cls.protoObject );
-								Object.setPrototypeOf( tmpobj, Object.getPrototypeOf( cls.protoObject ) );
+								//_DEBUG_PARSING && console.log( "found existing class, using it....");
+								tmpobj = new cls.protoCon();
+								//tmpobj = Object.assign( tmpobj, cls.protoObject );
+								//Object.setPrototypeOf( tmpobj, Object.getPrototypeOf( cls.protoObject ) );
 								nextMode = CONTEXT_CLASS_VALUE;
 							}
+							redefineClass = false;
 						}
+						current_class = cls
 						word = WORD_POS_RESET;
 					} else {
-						nextMode = CONTEXT_OBJECT_FIELD;
 						word = WORD_POS_FIELD;
 					}
-				} else if( word == WORD_POS_FIELD /*|| word == WORD_POS_AFTER_FIELD*/ || parse_context === CONTEXT_IN_ARRAY || parse_context === CONTEXT_OBJECT_FIELD_VALUE ) {
-					if( word != WORD_POS_RESET ) {
-						if( localFromProtoTypes.get( val.string ) ) {
-							val.className = val.string;
-						}
-						else if( fromProtoTypes.get( val.string ) ) {
-							val.className = val.string;
-						}
-						{
+				} else if( word == WORD_POS_FIELD /*|| word == WORD_POS_AFTER_FIELD*/ 
+						|| parse_context === CONTEXT_IN_ARRAY 
+						|| parse_context === CONTEXT_OBJECT_FIELD_VALUE 
+						|| parse_context == CONTEXT_CLASS_VALUE ) {
+					if( word != WORD_POS_RESET || val.value_type == VALUE_STRING ) {
+						if( protoDef && protoDef.protoDef ) {
+							// need to collect the object,
+							tmpobj = new protoDef.protoDef.protoCon();
+						} else {
+							// look for a class type (shorthand) to recover.
 							cls = classes.find( cls=>cls.name === val.string );
-							if( !cls ) throwError( "Referenced class " + val.string + " has not been defined", cInt );
-							tmpobj = Object.assign( tmpobj, cls.protoObject );
-							Object.setPrototypeOf( tmpobj, Object.getPrototypeOf( cls.protoObject ) );
-							nextMode = CONTEXT_CLASS_VALUE;
-							word = WORD_POS_RESET;
+							if( !cls )
+							{
+								/* eslint-disable no-inner-declarations */
+							   function privateProto(){}
+								//sconsole.log( "privateProto has no proto?", privateProto.prototype.constructor.name );
+								localFromProtoTypes.set( val.string,
+														{ protoCon:privateProto.prototype.constructor
+														, cb: null }
+													   );
+								tmpobj = new privateProto();
+							}
+							else {
+								nextMode = CONTEXT_CLASS_VALUE;
+								tmpobj = {};
+							}
 						}
-					}
-					else {
-						nextMode = CONTEXT_OBJECT_FIELD;
+						//nextMode = CONTEXT_CLASS_VALUE;
+						word = WORD_POS_RESET;
+					} else {
 						word = WORD_POS_RESET;
 					}
 				} else if( ( parse_context == CONTEXT_OBJECT_FIELD && word == WORD_POS_RESET ) ) {
 					throwError( "fault while parsing; getting field name unexpected ", cInt );
 					status = false;
 					return false;
-				} else
-					nextMode = CONTEXT_OBJECT_FIELD;
-				// common code to push into next context
-				{
-					let old_context = getContext();
-					if( _DEBUG_PARSING )
-						console.log( "Begin a new object; previously pushed into elements; but wait until trailing comma or close previously:%d", val.value_type );
-
-					val.value_type = VALUE_OBJECT;
-					if( parse_context === CONTEXT_UNKNOWN )
-						elements = tmpobj;
-					else if( parse_context == CONTEXT_IN_ARRAY ) {
-						if( arrayType == -1 )
-							element_array.push( tmpobj );
-						else if( _DEBUG_PARSING && arrayType !== -3 )
-							console.log( "This is an invalid parsing state, typed array with sub-object elements" );
-					} else if( parse_context == CONTEXT_OBJECT_FIELD_VALUE )
-						elements[val.name] = tmpobj;
-
-					old_context.context = parse_context;
-					old_context.elements = elements;
-					old_context.element_array = element_array;
-					old_context.name = val.name;
-					old_context.current_class = current_class;
-					old_context.current_class_field = current_class_field;
-					old_context.arrayType = arrayType==-1?-3:arrayType; // pop that we don't want to have this value re-pushed.
-					old_context.className = val.className;
-					//arrayType = -3; // this doesn't matter, it's an object state, and a new array will reset to -1
-					val.className = null;
-					current_class = cls;
-					current_class_field = 0;
-					elements = tmpobj;
-					if( !rootObject ) rootObject = elements;
-					if( _DEBUG_PARSING_STACK ) console.log( "push context (open object): ", context_stack.length, " new mode:", nextMode );
-					context_stack.push( old_context );
-					RESET_VAL();
-					parse_context = nextMode;
 				}
+
+				// common code to push into next context
+				let old_context = getContext();
+				//_DEBUG_PARSING && console.log( "Begin a new object; previously pushed into elements; but wait until trailing comma or close previously ", val.value_type, val.className );
+
+				val.value_type = VALUE_OBJECT;
+				if( parse_context === CONTEXT_UNKNOWN ){
+					elements = tmpobj;
+				} else if( parse_context == CONTEXT_IN_ARRAY ) {
+					if( arrayType == -1 ) {
+						// this is pushed later... 
+						//console.log( "PUSHING OPEN OBJECT INTO EXISTING ARRAY - THIS SHOULD BE RE-SET?", JSOX.stringify(context_stack.first.node) );
+						//elements.push( tmpobj );
+					}
+					//else if( //_DEBUG_PARSING && arrayType !== -3 )
+					//	console.log( "This is an invalid parsing state, typed array with sub-object elements" );
+				} else if( parse_context == CONTEXT_OBJECT_FIELD_VALUE || parse_context == CONTEXT_CLASS_VALUE ) {
+					if( !val.name && current_class ){
+						val.name = current_class.fields[current_class_field++];
+						//_DEBUG_PARSING_DETAILS && console.log( "B Stepping current class field:", val, current_class_field, val.name );
+					}
+					//_DEBUG_PARSING_DETAILS && console.log( "Setting element:", val.name, tmpobj );
+					elements[val.name] = tmpobj;
+				}
+
+				old_context.context = parse_context;
+				old_context.elements = elements;
+				//old_context.element_array = element_array;
+				old_context.name = val.name;
+				//_DEBUG_PARSING_DETAILS && console.log( "pushing val.name:", val.name, arrayType );
+				old_context.current_proto = current_proto;
+				old_context.current_class = current_class;
+				old_context.current_class_field = current_class_field;
+				old_context.valueType = val.value_type;
+				old_context.arrayType = arrayType; // pop that we don't want to have this value re-pushed.
+				old_context.className = val.className;
+				//arrayType = -3; // this doesn't matter, it's an object state, and a new array will reset to -1
+				val.className = null;
+				val.name = null;
+				current_proto = protoDef;
+				current_class = cls;
+				//console.log( "Setting current class:", current_class.name );
+				current_class_field = 0;
+				elements = tmpobj;
+				if( !rootObject ) rootObject = elements;
+				//_DEBUG_PARSING_STACK && console.log( "push context (open object): ", context_stack.length, " new mode:", nextMode );
+				context_stack.push( old_context );
+				//_DEBUG_PARSING_DETAILS && console.log( "RESET OBJECT FIELD", old_context, context_stack );
+				RESET_VAL();
+				parse_context = nextMode;
 				return true;
 			}
 
 			function openArray() {
+				//_DEBUG_PARSING_DETAILS && console.log( "openArray()..." );
 				if( word > WORD_POS_RESET && word < WORD_POS_FIELD )
-					recoverIdent();
+					recoverIdent( 91 );
 
-				if( word == WORD_POS_FIELD && val.string.length ) {
-					if( _DEBUG_PARSING ) console.log( "recover arrayType:", val.string );
+				if( word == WORD_POS_END && val.string.length ) {
+					//_DEBUG_PARSING && console.log( "recover arrayType:", arrayType, val.string );
 					var typeIndex = knownArrayTypeNames.findIndex( type=>(type === val.string) );
 					if( typeIndex >= 0 ) {
 						word = WORD_POS_RESET;
 						arrayType = typeIndex;
+						val.className = val.string;
+						val.string = null;
 					} else {
 						if( val.string === "ref" ) {
+							val.className = null;
+							//_DEBUG_PARSING_DETAILS && console.log( "This will be a reference recovery for key:", val );
 							arrayType = -2;
 						} else {
 							if( localFromProtoTypes.get( val.string ) ) {
@@ -913,7 +1161,8 @@ JSOX.begin = function( cb, reviver ) {
 							else if( fromProtoTypes.get( val.string ) ) {
 								val.className = val.string;
 							} else
-								throwError( "Unknown type specified for array:"+val.string, cInt );
+								throwError( `Unknown type '${val.string}' specified for array`, cInt );
+							//_DEBUG_PARSING_DETAILS && console.log( " !!!!!A Set Classname:", val.className );
 						}
 					}
 				} else if( parse_context == CONTEXT_OBJECT_FIELD || word == WORD_POS_FIELD || word == WORD_POS_AFTER_FIELD ) {
@@ -923,41 +1172,94 @@ JSOX.begin = function( cb, reviver ) {
 				}
 				{
 					let old_context = getContext();
-					if( _DEBUG_PARSING ) console.log( "Begin a new array; previously pushed into elements; but wait until trailing comma or close previously:%d", val.value_type );
+					//_DEBUG_PARSING && console.log( "Begin a new array; previously pushed into elements; but wait until trailing comma or close previously ", val.value_type );
 
+					//_DEBUG_PARSING_DETAILS && console.log( "Opening array:", val, parse_context );
 					val.value_type = VALUE_ARRAY;
 					let tmparr = [];
 					if( parse_context == CONTEXT_UNKNOWN )
-						element_array = tmparr;
+						elements = tmparr;
 					else if( parse_context == CONTEXT_IN_ARRAY ) {
-						if( arrayType == -1 )
-							element_array.push( tmparr );
-						else if( _DEBUG_PARSING && arrayType !== -3 )
-							console.log( "This is an invalid parsing state, typed array with sub-array elements" );
-					} else if( parse_context == CONTEXT_OBJECT_FIELD_VALUE )
-						elements[val.name] = tmparr;
+						if( arrayType == -1 ){
+							//console.log( "Pushing new opening array into existing array already RE-SET" );
+							elements.push( tmparr );
+						} //else if( //_DEBUG_PARSING && arrayType !== -3 )
+						//	console.log( "This is an invalid parsing state, typed array with sub-array elements" );
+					} else if( parse_context == CONTEXT_OBJECT_FIELD_VALUE ) {
+						if( !val.name ) {
+							console.log( "This says it's resolved......." );
+							arrayType = -3;
+						}
 
+						if( current_proto && current_proto.protoDef ) {
+							//_DEBUG_PARSING_DETAILS && console.log( "SOMETHING SHOULD HAVE BEEN REPLACED HERE??", current_proto );
+							//_DEBUG_PARSING_DETAILS && console.log( "(need to do fromprototoypes here) object:", val, value );
+							if( current_proto.protoDef.cb ){
+								const newarr = current_proto.protoDef.cb.call( elements, val.name, tmparr );
+								if( newarr !== undefined ) tmparr = elements[val.name] = newarr;
+								else console.log( "Warning: Received undefined for an array; keeping original array, not setting field" );
+							}else
+								elements[val.name] = tmparr;
+						}
+						else
+							elements[val.name] = tmparr;
+					}
 					old_context.context = parse_context;
 					old_context.elements = elements;
-					old_context.element_array = element_array;
+					//old_context.element_array = element_array;
 					old_context.name = val.name;
+					old_context.current_proto = current_proto;
 					old_context.current_class = current_class;
 					old_context.current_class_field = current_class_field;
-					old_context.arrayType = arrayType==-1?-3:arrayType; // pop that we don't want to have this value re-pushed.
+					// already pushed?
+					old_context.valueType = val.value_type;
+					old_context.arrayType = (arrayType==-1)?-3:arrayType; // pop that we don't want to have this value re-pushed.
 					old_context.className = val.className;
 					arrayType = -1;
 					val.className = null;
+
+					//_DEBUG_PARSING_DETAILS && console.log( " !!!!!B Clear Classname:", old_context, val.className, old_context.className, old_context.name );
+					val.name = null;
+					current_proto = null;
 					current_class = null;
 					current_class_field = 0;
-					element_array = tmparr;
-					if( !rootObject ) rootObject = element_array;
-					if( _DEBUG_PARSING_STACK ) console.log( "push context (open array): ", context_stack.length );
+					//element_array = tmparr;
+					elements = tmparr;
+					if( !rootObject ) rootObject = tmparr;
+					//_DEBUG_PARSING_STACK && console.log( "push context (open array): ", context_stack.length );
 					context_stack.push( old_context );
+					//_DEBUG_PARSING_DETAILS && console.log( "RESET ARRAY FIELD", old_context, context_stack );
 
 					RESET_VAL();
 					parse_context = CONTEXT_IN_ARRAY;
 				}
 				return true;
+			}
+
+			function getProto() {
+				const result = {protoDef:null,cls:null};
+				if( ( result.protoDef = localFromProtoTypes.get( val.string ) ) ) {
+					if( !val.className ){
+						val.className = val.string;
+						val.string = null;
+					}
+					// need to collect the object, 
+				}
+				else if( ( result.protoDef = fromProtoTypes.get( val.string ) ) ) {
+					if( !val.className ){
+						val.className = val.string;
+						val.string = null;
+					}
+				} 
+				if( val.string )
+				{
+					result.cls = classes.find( cls=>cls.name === val.string );
+					if( !result.protoDef && !result.cls ) {
+					    // this will creaet a class def with a new proto to cover when we don't KNOW.
+					    //throwError( "Referenced class " + val.string + " has not been defined", cInt );
+					}
+				}
+				return (result.protoDef||result.cls)?result:null;
 			}
 
 			if( !status )
@@ -977,6 +1279,8 @@ JSOX.begin = function( cb, reviver ) {
 					}
 					retval = 1;  // if returning buffers, then obviously there's more in this one.
 				}
+				if( parse_context !== CONTEXT_UNKNOWN )
+					throwError( "Unclosed object at end of stream.", cInt );
 			}
 
 			while( status && ( input = inQueue.shift() ) ) {
@@ -986,8 +1290,7 @@ JSOX.begin = function( cb, reviver ) {
 					let string_status = gatherString( gatheringStringFirstChar );
 					if( string_status < 0 )
 						status = false;
-					else if( string_status > 0 )
-					{
+					else if( string_status > 0 ) {
 						gatheringString = false;
 						if( status ) val.value_type = VALUE_STRING;
 					}
@@ -996,41 +1299,34 @@ JSOX.begin = function( cb, reviver ) {
 					collectNumber();
 				}
 
-				while( !completed && status && ( n < buf.length ) )
-				{
+				while( !completed && status && ( n < buf.length ) ) {
 					str = buf.charAt(n);
 					cInt = buf.codePointAt(n++);
 					if( cInt >= 0x10000 ) { str += buf.charAt(n); n++; }
-					//if( _DEBUG_PARSING ) console.log( "parsing at ", cInt, str );
-					if( _DEBUG_LL ) console.log( "processing: ", cInt, str, pos, comment, parse_context, word );
+					//_DEBUG_PARSING && console.log( "parsing at ", cInt, str );
+					//_DEBUG_LL && console.log( "processing: ", cInt, n, str, pos, comment, parse_context, word );
 					pos.col++;
 					if( comment ) {
 						if( comment == 1 ) {
-							if( cInt == 42/*'*'*/ ) { comment = 3; continue; }
-							if( cInt != 47/*'/'*/ ) {
-								throwError( "fault while parsing;", cInt );
-								status = false;
-							}
+							if( cInt == 42/*'*'*/ ) comment = 3;
+							else if( cInt != 47/*'/'*/ ) return throwError( "fault while parsing;", cInt );
 							else comment = 2;
-							continue;
 						}
-						if( comment == 2 ) {
-							if( cInt == 10/*'\n'*/ ) { comment = 0; continue; }
-							else continue;
+						else if( comment == 2 ) {
+							if( cInt == 10/*'\n'*/ || cInt == 13/*'\r'*/  ) comment = 0;
 						}
-						if( comment == 3 ){
-							if( cInt == 42/*'*'*/ ) { comment = 4; continue; }
-							else continue;
+						else if( comment == 3 ) {
+							if( cInt == 42/*'*'*/ ) comment = 4;
 						}
-						if( comment == 4 ) {
-							if( cInt == 47/*'/'*/ ) { comment = 0; continue; }
-							else { if( cInt != 42/*'*'*/ ) comment = 3; continue; }
+						else {
+							if( cInt == 47/*'/'*/ ) comment = 0;
+							else comment = 3;
 						}
+						continue;
 					}
-					switch( cInt )
-					{
+					switch( cInt ) {
 					case 47/*'/'*/:
-						if( !comment ) comment = 1;
+						comment = 1;
 						break;
 					case 123/*'{'*/:
 						openObject();
@@ -1040,34 +1336,65 @@ JSOX.begin = function( cb, reviver ) {
 						break;
 
 					case 58/*':'*/:
-						//if(_DEBUG_PARSING) console.log( "colon context:", parse_context );
-						if( parse_context == CONTEXT_OBJECT_FIELD || parse_context == CONTEXT_CLASS_FIELD )
-						{
-							if( word != WORD_POS_RESET
-								&& word != WORD_POS_FIELD
-								&& word != WORD_POS_AFTER_FIELD ) {
-								// allow starting a new word
-								status = FALSE;
-								thorwError( `fault while parsing; unquoted keyword used as object field name (state:${word})`, cInt );
-								break;
-							}
+						//_DEBUG_PARSING && console.log( "colon received...")
+						if( parse_context == CONTEXT_CLASS_VALUE ) {
 							word = WORD_POS_RESET;
 							val.name = val.string;
 							val.string = '';
-							parse_context = CONTEXT_OBJECT_FIELD?CONTEXT_OBJECT_FIELD_VALUE:CONTEXT_CLASS_FIELD_VALUE;
 							val.value_type = VALUE_UNSET;
+							
+						} else if( parse_context == CONTEXT_OBJECT_FIELD
+							|| parse_context == CONTEXT_CLASS_FIELD  ) {
+							if( parse_context == CONTEXT_CLASS_FIELD ) {
+								if( !Object.keys( elements).length ) {
+									 console.log( "This is a full object, not a class def...", val.className );
+								const privateProto = ()=>{} 
+								localFromProtoTypes.set( context_stack.last.node.current_class.name,
+														{ protoCon:privateProto.prototype.constructor
+														, cb: null }
+													   );
+								elements = new privateProto();
+								parse_context = CONTEXT_OBJECT_FIELD_VALUE
+								val.name = val.string;
+								word = WORD_POS_RESET;
+								val.string = ''
+								val.value_type = VALUE_UNSET;
+								console.log( "don't do default;s do a revive..." );
+								}
+							} else {
+								if( word != WORD_POS_RESET
+								   && word != WORD_POS_END
+								   && word != WORD_POS_FIELD
+								   && word != WORD_POS_AFTER_FIELD ) {
+									recoverIdent( 32 );
+									// allow starting a new word
+									//status = false;
+									//throwError( `fault while parsing; unquoted keyword used as object field name (state:${word})`, cInt );
+									//break;
+								}
+								word = WORD_POS_RESET;
+								val.name = val.string;
+								val.string = '';
+								parse_context = (parse_context===CONTEXT_OBJECT_FIELD)?CONTEXT_OBJECT_FIELD_VALUE:CONTEXT_CLASS_FIELD_VALUE;
+								val.value_type = VALUE_UNSET;
+							}
 						}
-						else
-						{
+						else if( parse_context == CONTEXT_UNKNOWN ){
+							console.log( "Override colon found, allow class redefinition", parse_context );
+							redefineClass = true;
+							break;
+						} else {
 							if( parse_context == CONTEXT_IN_ARRAY )
 								throwError(  "(in array, got colon out of string):parsing fault;", cInt );
-							else
+							else if( parse_context == CONTEXT_OBJECT_FIELD_VALUE ){
+								throwError( "String unexpected", cInt );
+							} else
 								throwError( "(outside any object, got colon out of string):parsing fault;", cInt );
 							status = false;
 						}
 						break;
 					case 125/*'}'*/:
-						//if(_DEBUG_PARSING) console.log( "close bracket context:", word, parse_context );
+						//_DEBUG_PARSING && console.log( "close bracket context:", word, parse_context, val.value_type, val.string );
 						if( word == WORD_POS_END ) {
 							// allow starting a new word
 							word = WORD_POS_RESET;
@@ -1076,20 +1403,24 @@ JSOX.begin = function( cb, reviver ) {
 						if( parse_context == CONTEXT_CLASS_FIELD ) {
 							if( current_class ) {
 								// allow blank comma at end to not be a field
-								if(val.string) { current_class.protoObject[val.string]=undefined; current_class.fields.push( val.string ); }
+								if(val.string) { current_class.fields.push( val.string ); }
 
 								RESET_VAL();
 								let old_context = context_stack.pop();
-								if( _DEBUG_PARSING_STACK ) console.log( "object pop stack (close obj)", context_stack.length, old_context );
+								//_DEBUG_PARSING_DETAILS && console.log( "close object:", old_context, context_stack );
+								//_DEBUG_PARSING_STACK && console.log( "object pop stack (close obj)", context_stack.length, old_context );
 								parse_context = CONTEXT_UNKNOWN; // this will restore as IN_ARRAY or OBJECT_FIELD
 								word = WORD_POS_RESET;
 								val.name = old_context.name;
 								elements = old_context.elements;
-								element_array = old_context.element_array;
+								//element_array = old_context.element_array;
 								current_class = old_context.current_class;
 								current_class_field = old_context.current_class_field;
+								//_DEBUG_PARSING_DETAILS && console.log( "A Pop old class field counter:", current_class_field, val.name );
 								arrayType = old_context.arrayType;
+								val.value_type = old_context.valueType;
 								val.className = old_context.className;
+								//_DEBUG_PARSING_DETAILS && console.log( " !!!!!C Pop Classname:", val.className );
 								rootObject = null;
 
 								dropContext( old_context );
@@ -1098,111 +1429,131 @@ JSOX.begin = function( cb, reviver ) {
 							}
 						} else if( ( parse_context == CONTEXT_OBJECT_FIELD ) || ( parse_context == CONTEXT_CLASS_VALUE ) ) {
 							if( val.value_type != VALUE_UNSET ) {
-								if( current_class )
+								if( current_class ) {
+									//_DEBUG_PARSING_DETAILS && console.log( "C Stepping current class field:", current_class_field, val.name, arrayType );
 									val.name = current_class.fields[current_class_field++];
-								if( _DEBUG_PARSING ) console.log( "Closing object; set value name, and push...", current_class_field, val );
+								}
+								//_DEBUG_PARSING && console.log( "Closing object; set value name, and push...", current_class_field, val );
 								objectPush();
 							}
-							if( _DEBUG_PARSING ) console.log( "close object; empty object", val, elements );
+							//_DEBUG_PARSING && console.log( "close object; empty object", val, elements );
+
 								val.value_type = VALUE_OBJECT;
+								if( current_proto && current_proto.protoDef ) {
+									console.log( "SOMETHING SHOULD AHVE BEEN REPLACED HERE??", current_proto );
+									console.log( "The other version only revives on init" );
+									elements = new current_proto.protoDef.cb( elements, undefined, undefined );
+									//elements = new current_proto.protoCon( elements );
+								}
 								val.contains = elements;
 								val.string = "";
 
 							let old_context = context_stack.pop();
-							if( _DEBUG_PARSING_STACK ) console.log( "object pop stack (close obj)", context_stack.length, old_context );
+							//_DEBUG_PARSING_STACK && console.log( "object pop stack (close obj)", context_stack.length, old_context );
 							parse_context = old_context.context; // this will restore as IN_ARRAY or OBJECT_FIELD
 							val.name = old_context.name;
 							elements = old_context.elements;
-							element_array = old_context.element_array;
+							//element_array = old_context.element_array;
 							current_class = old_context.current_class;
+							current_proto = old_context.current_proto;
 							current_class_field = old_context.current_class_field;
+							//_DEBUG_PARSING_DETAILS && console.log( "B Pop old class field counter:", context_stack, current_class_field, val.name );
 							arrayType = old_context.arrayType;
+							val.value_type = old_context.valueType;
 							val.className = old_context.className;
+							//_DEBUG_PARSING_DETAILS && console.log( " !!!!!D Pop Classname:", val.className );
 							dropContext( old_context );
 
 							if( parse_context == CONTEXT_UNKNOWN ) {
 								completed = true;
 							}
 						}
-						else if( ( parse_context == CONTEXT_OBJECT_FIELD_VALUE ) )
-						{
+						else if( ( parse_context == CONTEXT_OBJECT_FIELD_VALUE ) ) {
 							// first, add the last value
-							if( _DEBUG_PARSING ) console.log( "close object; push item '%s' %d", val.name, val.value_type );
-							if( val.value_type != VALUE_UNSET ) {
-								objectPush();
+							//_DEBUG_PARSING && console.log( "close object; push item '%s' %d", val.name, val.value_type );
+							if( val.value_type === VALUE_UNSET ) {
+								throwError( "Fault while parsing; unexpected", cInt );
 							}
+							objectPush();
 							val.value_type = VALUE_OBJECT;
 							val.contains = elements;
+							word = WORD_POS_RESET;
 
 							//let old_context = context_stack.pop();
 							var old_context = context_stack.pop();
-							if( _DEBUG_PARSING_STACK ) console.log( "object pop stack (close object)", context_stack.length, old_context );
-							val.name = old_context.name;
+							//_DEBUG_PARSING_STACK  && console.log( "object pop stack (close object)", context_stack.length, old_context );
 							parse_context = old_context.context; // this will restore as IN_ARRAY or OBJECT_FIELD
 							val.name = old_context.name;
 							elements = old_context.elements;
+							current_proto = old_context.current_proto;
 							current_class = old_context.current_class;
 							current_class_field = old_context.current_class_field;
+							//_DEBUG_PARSING_DETAILS && console.log( "C Pop old class field counter:", context_stack, current_class_field, val.name );
 							arrayType = old_context.arrayType;
+							val.value_type = old_context.valueType;
 							val.className = old_context.className;
-							element_array = old_context.element_array;
+							//_DEBUG_PARSING_DETAILS && console.log( " !!!!!E Pop Classname:", val.className );
+							//element_array = old_context.element_array;
 							dropContext( old_context );
 							if( parse_context == CONTEXT_UNKNOWN ) {
 								completed = true;
 							}
 						}
-						else
-						{
+						else {
 							throwError( "Fault while parsing; unexpected", cInt );
 							status = false;
 						}
 						negative = false;
 						break;
 					case 93/*']'*/:
-						if( word == WORD_POS_END ) {
+						if( word >= WORD_POS_AFTER_FIELD ) {
 							word = WORD_POS_RESET;
 						}
-						if( parse_context == CONTEXT_IN_ARRAY )
-						{
+						if( parse_context == CONTEXT_IN_ARRAY ) {
 							
-							if( _DEBUG_PARSING ) console.log( "close array, push last element: %d", val.value_type );
+							//_DEBUG_PARSING  && console.log( "close array, push last element: %d", val.value_type );
 							if( val.value_type != VALUE_UNSET ) {
+								if( val.name ) console.log( "Ya this should blow up" );
 								arrayPush();
 							}
-							//RESET_VAL();
-							//val.value_type = VALUE_ARRAY;
-							val.contains = element_array;
+							val.contains = elements;
 							{
-								var old_context = context_stack.pop();
-								if( _DEBUG_PARSING_STACK ) console.log( "object pop stack (close array)", context_stack.length );
+								let old_context = context_stack.pop();
+								//_DEBUG_PARSING_STACK  && console.log( "object pop stack (close array)", context_stack.length );
 								val.name = old_context.name;
+								val.className = old_context.className;
 								parse_context = old_context.context;
 								elements = old_context.elements;
+								//element_array = old_context.element_array;
+								current_proto = old_context.current_proto;
 								current_class = old_context.current_class;
 								current_class_field = old_context.current_class_field;
 								arrayType = old_context.arrayType;
-								val.className = old_context.className;
-								element_array = old_context.element_array;
+								val.value_type = old_context.valueType;
+								//_DEBUG_PARSING_DETAILS && console.log( "close array:", old_context );
+								//_DEBUG_PARSING_DETAILS && console.log( "D Pop old class field counter:", context_stack, current_class_field, val );
 								dropContext( old_context );
 							}
 							val.value_type = VALUE_ARRAY;
 							if( parse_context == CONTEXT_UNKNOWN ) {
 								completed = true;
 							}
-						}
-						else
-						{
+						} else {
 							throwError( `bad context ${parse_context}; fault while parsing`, cInt );// fault
 							status = false;
 						}
 						negative = false;
 						break;
 					case 44/*','*/:
+						if( word < WORD_POS_AFTER_FIELD && word != WORD_POS_RESET ) {
+							recoverIdent(cInt);
+						}
 						if( word == WORD_POS_END || word == WORD_POS_FIELD ) word = WORD_POS_RESET;  // allow collect new keyword
-						if(_DEBUG_PARSING) console.log( "comma context:", parse_context, val );
+						//if(//_DEBUG_PARSING) 
+						//_DEBUG_PARSING_DETAILS && console.log( "comma context:", parse_context, val );
 						if( parse_context == CONTEXT_CLASS_FIELD ) {
 							if( current_class ) {
-								current_class.protoObject[val.string]=undefined;
+								console.log( "Saving field name(set word to IS A FIELD):", val.string );
 								current_class.fields.push( val.string );
 								val.string = '';
 								word = WORD_POS_FIELD;
@@ -1211,40 +1562,55 @@ JSOX.begin = function( cb, reviver ) {
 							}
 						} else if( parse_context == CONTEXT_OBJECT_FIELD ) {
 							if( current_class ) {
+								//_DEBUG_PARSING_DETAILS && console.log( "D Stepping current class field:", current_class_field, val.name );
 								val.name = current_class.fields[current_class_field++];
-								_DEBUG_PARSING && console.log( "should have a completed value at a comma.:", current_class_field, val );
+								//_DEBUG_PARSING && console.log( "should have a completed value at a comma.:", current_class_field, val );
 								if( val.value_type != VALUE_UNSET ) {
-									if( _DEBUG_PARSING ) console.log( "pushing object field:", val );
+									//_DEBUG_PARSING  && console.log( "pushing object field:", val );
 									objectPush();
 									RESET_VAL();
 								}
 							} else {
-								throwError( "State error; gathering class values, and lost the class", cInt );
+								// this is an empty comma...
+								if( val.string || val.value_type )
+									throwError( "State error; comma in field name and/or lost the class", cInt );
 							}
 						} else if( parse_context == CONTEXT_CLASS_VALUE ) {
 							if( current_class ) {
-								val.name = current_class.fields[current_class_field++];
-								_DEBUG_PARSING && console.log( "should have a completed value at a comma.:", current_class_field, val );
+								//_DEBUG_PARSING_DETAILS && console.log( "reviving values in class...", arrayType, current_class.fields[current_class_field ], val );
+								if( arrayType != -3 && !val.name ) {
+									// this should have still had a name....
+									//_DEBUG_PARSING_DETAILS && console.log( "E Stepping current class field:", current_class_field, val, arrayType );
+									val.name = current_class.fields[current_class_field++];
+									//else val.name = current_class.fields[current_class_field++];
+								}
+								//_DEBUG_PARSING && console.log( "should have a completed value at a comma.:", current_class_field, val );
+								if( val.value_type != VALUE_UNSET ) {
+									if( arrayType != -3 )
+										objectPush();
+									RESET_VAL();
+								}
+							} else {
+								
 								if( val.value_type != VALUE_UNSET ) {
 									objectPush();
 									RESET_VAL();
 								}
-							} else {
-								throwError( "State error; gathering class values, and lost the class", cInt );
+								//throwError( "State error; gathering class values, and lost the class", cInt );
 							}
+							val.name = null;
 						} else if( parse_context == CONTEXT_IN_ARRAY ) {
 							if( val.value_type == VALUE_UNSET )
 								val.value_type = VALUE_EMPTY; // in an array, elements after a comma should init as undefined...
 
-							if( val.value_type != VALUE_UNSET ) {
-								if( _DEBUG_PARSING ) console.log( "back in array; push item %d", val.value_type );
-								arrayPush();
-								RESET_VAL();
-							}
+							//_DEBUG_PARSING  && console.log( "back in array; push item %d", val.value_type );
+							arrayPush();
+							RESET_VAL();
+							word = WORD_POS_RESET;
 							// undefined allows [,,,] to be 4 values and [1,2,3,] to be 4 values with an undefined at end.
-						} else if( parse_context == CONTEXT_OBJECT_FIELD_VALUE ) {
+						} else if( parse_context == CONTEXT_OBJECT_FIELD_VALUE && val.value_type != VALUE_UNSET ) {
 							// after an array value, it will have returned to OBJECT_FIELD anyway
-							if( _DEBUG_PARSING ) console.log( "comma after field value, push field to object: %s", val.name );
+							//_DEBUG_PARSING  && console.log( "comma after field value, push field to object: %s", val.name, val.value_type );
 							parse_context = CONTEXT_OBJECT_FIELD;
 							if( val.value_type != VALUE_UNSET ) {
 								objectPush();
@@ -1259,22 +1625,24 @@ JSOX.begin = function( cb, reviver ) {
 						break;
 
 					default:
+						switch( cInt ) {
+						default:
 						if( ( parse_context == CONTEXT_UNKNOWN )
 						  || ( parse_context == CONTEXT_OBJECT_FIELD_VALUE && word == WORD_POS_FIELD )
-						  || ( parse_context == CONTEXT_OBJECT_FIELD )
+						  || ( ( parse_context == CONTEXT_OBJECT_FIELD ) || word == WORD_POS_FIELD )
 						  || ( parse_context == CONTEXT_CLASS_FIELD ) ) {
-							switch( cInt )
-							{
+							switch( cInt ) {
 							case 96://'`':
 							case 34://'"':
 							case 39://'\'':
 								if( word == WORD_POS_RESET || word == WORD_POS_FIELD ) {
 									if( val.string.length ) {
+										console.log( "IN ARRAY AND FIXING?" );
 										val.className = val.string;
 										val.string = '';
 									}
 									let string_status = gatherString(cInt );
-									if(_DEBUG_PARSING) console.log( "string gather for object field name :", val.string, string_status );
+									//_DEBUG_PARSING && console.log( "string gather for object field name :", val.string, string_status );
 									if( string_status ) {
 										val.value_type = VALUE_STRING;
 									} else {
@@ -1292,10 +1660,12 @@ JSOX.begin = function( cb, reviver ) {
 								// fall through to normal space handling - just updated line/col position
 							case 13://'\r':
 							case 32://' ':
+							case 0x2028://' ':
+							case 0x2029://' ':
 							case 9://'\t':
 							case 0xFEFF: // ZWNBS is WS though
-								if( _DEBUG_WHITESPACE ) console.log( "THIS SPACE", word, parse_context, val );
-								if( word === WORD_POS_END ) { // allow collect new keyword
+								 //_DEBUG_WHITESPACE  && console.log( "THIS SPACE", word, parse_context, val );
+								if( parse_context === CONTEXT_UNKNOWN && word === WORD_POS_END ) { // allow collect new keyword
 									word = WORD_POS_RESET;
 									if( parse_context === CONTEXT_UNKNOWN ) {
 										completed = true;
@@ -1315,7 +1685,9 @@ JSOX.begin = function( cb, reviver ) {
 										break;
 									}
 									if( val.string.length )
+										console.log( "STEP TO NEXT TOKEN." );
 										word = WORD_POS_AFTER_FIELD;
+										//val.className = val.string; val.string = '';
 								}
 								else {
 									status = false;
@@ -1324,8 +1696,8 @@ JSOX.begin = function( cb, reviver ) {
 								// skip whitespace
 								break;
 							default:
-								//if( /((\n|\r|\t)|s|S|[ \{\}\(\)\<\>\!\+\-\*\/\.\:\, ])/.
-								/*
+								//if( /((\n|\r|\t)|s|S|[ \{\}\(\)\<\>\!\+-\*\/\.\:\, ])/.
+								if( testNonIdentifierCharacters ) {
 								let identRow = nonIdent.find( row=>(row.firstChar >= cInt )&& (row.lastChar > cInt) )
 								if( identRow && ( identRow.bits[(cInt - identRow.firstChar) / 24]
 								    & (1 << ((cInt - identRow.firstChar) % 24)))) {
@@ -1335,13 +1707,14 @@ JSOX.begin = function( cb, reviver ) {
 									throwError( `fault while parsing object field name; \\u${cInt}`, cInt );	// fault
 									break;
 								}
-								*/
+								}
+								//console.log( "TICK" );
 								if( word == WORD_POS_RESET && ( ( cInt >= 48/*'0'*/ && cInt <= 57/*'9'*/ ) || ( cInt == 43/*'+'*/ ) || ( cInt == 46/*'.'*/ ) || ( cInt == 45/*'-'*/ ) ) ) {
 									fromHex = false;
 									exponent = false;
 									date_format = false;
 									isBigInt = false;
-								        
+
 									exponent_sign = false;
 									exponent_digit = false;
 									decimal = false;
@@ -1357,23 +1730,116 @@ JSOX.begin = function( cb, reviver ) {
 								}
 								if( word === WORD_POS_RESET ) {
 									word = WORD_POS_FIELD;
-									val.value_type = VALUE_STRING;									
-									if( _DEBUG_PARSING ) console.log( "START IDENTIFER" );
+									val.value_type = VALUE_STRING;
+									val.string += str;
+									//_DEBUG_PARSING  && console.log( "START/CONTINUE IDENTIFER" );
+									break;
 
+								}     
+								if( val.value_type == VALUE_UNSET ) {
+									if( word !== WORD_POS_RESET && word !== WORD_POS_END )
+										recoverIdent( cInt );
+								} else {
+									if( word === WORD_POS_END || word === WORD_POS_FIELD ) {
+										// final word of the line... 
+										// whispace changes the 'word' state to not 'end'
+										// until the next character, which may restore it to
+										// 'end' and this will resume collecting the same string.
+										val.string += str;
+										break;
+									}
+									if( parse_context == CONTEXT_OBJECT_FIELD ) {
+										if( word == WORD_POS_FIELD ) {
+											val.string+=str;
+											break;
+										}
+										throwError( "Multiple values found in field name", cInt );
+									}
+									if( parse_context == CONTEXT_OBJECT_FIELD_VALUE ) {
+										throwError( "String unexpected", cInt );
+									}
 								}
-								val.string += str;
 								break; // default
 							}
+							
+						}else {
+							if( word == WORD_POS_RESET && ( ( cInt >= 48/*'0'*/ && cInt <= 57/*'9'*/ ) || ( cInt == 43/*'+'*/ ) || ( cInt == 46/*'.'*/ ) || ( cInt == 45/*'-'*/ ) ) ) {
+								fromHex = false;
+								exponent = false;
+								date_format = false;
+								isBigInt = false;
 
+								exponent_sign = false;
+								exponent_digit = false;
+								decimal = false;
+								val.string = str;
+								input.n = n;
+								collectNumber();
+							} else {
+								//console.log( "TICK")
+								if( val.value_type == VALUE_UNSET ) {
+									if( word != WORD_POS_RESET ) {
+										recoverIdent( cInt );
+									} else {
+										word = WORD_POS_END;
+										val.string += str;
+										val.value_type = VALUE_STRING;
+									}
+								} else {
+									if( parse_context == CONTEXT_OBJECT_FIELD ) {
+										throwError( "Multiple values found in field name", cInt );
+									}
+									else if( parse_context == CONTEXT_OBJECT_FIELD_VALUE ) {
+
+										if( val.value_type != VALUE_STRING ) {
+											if( val.value_type == VALUE_OBJECT || val.value_type == VALUE_ARRAY ){
+												throwError( "String unexpected", cInt );
+											}
+											recoverIdent(cInt);
+										}
+										if( word == WORD_POS_AFTER_FIELD ){
+											const  protoDef = getProto();
+											if( protoDef){
+												word == WORD_POS_END; // last string.
+												val.string = str;
+											}
+											else 
+												throwError( "String unexpected", cInt );
+										} else {
+											if( word == WORD_POS_END ) {
+												val.string += str;
+											}else
+												throwError( "String unexpected", cInt );
+										}
+									}
+									else if( parse_context == CONTEXT_IN_ARRAY ) {
+										if( word == WORD_POS_AFTER_FIELD ){
+											if( !val.className ){
+												//	getProto()
+												val.className = val.string;
+												val.string = '';
+											}
+											val.string += str;
+											break;
+										} else {
+											if( word == WORD_POS_END )
+												val.string += str;
+										}
+
+									}
+								}
+								
+								//recoverIdent(cInt);
+							}
+							break; // default
 						}
-						else switch( cInt )
-						{
+						break;
 						case 96://'`':
 						case 34://'"':
 						case 39://'\'':
 						{
 							let string_status = gatherString( cInt );
-							if(_DEBUG_PARSING) console.log( "string gather for object field value :", val.string, string_status, completed, input.n, buf.length );
+							//_DEBUG_PARSING && console.log( "string gather for object field value :", val.string, string_status, completed, input.n, buf.length );
 							if( string_status ) {
 								val.value_type = VALUE_STRING;
 								word = WORD_POS_END;
@@ -1386,18 +1852,29 @@ JSOX.begin = function( cb, reviver ) {
 						case 10://'\n':
 							pos.line++;
 							pos.col = 1;
+							//falls through
 						case 32://' ':
 						case 9://'\t':
 						case 13://'\r':
-						case 2028: // LS (Line separator)
-						case 2029: // PS (paragraph separate)
+						case 0x2028: // LS (Line separator)
+						case 0x2029: // PS (paragraph separate)
 						case 0xFEFF://'\uFEFF':
+							//_DEBUG_WHITESPACE && console.log( "Whitespace...", word, parse_context );
 							if( word == WORD_POS_END ) {
-								word = WORD_POS_RESET;
 								if( parse_context == CONTEXT_UNKNOWN ) {
+									word = WORD_POS_RESET;
 									completed = true;
+									break;
+								} else if( parse_context == CONTEXT_OBJECT_FIELD_VALUE ) {
+									word = WORD_POS_AFTER_FIELD_VALUE;
+									break;
+								} else if( parse_context == CONTEXT_OBJECT_FIELD ) {
+									word = WORD_POS_AFTER_FIELD;
+									break;
+								} else if( parse_context == CONTEXT_IN_ARRAY ) {
+									word = WORD_POS_AFTER_FIELD;
+									break;
 								}
-								break;
 							}
 							if( word == WORD_POS_RESET || ( word == WORD_POS_AFTER_FIELD ))
 								break;
@@ -1406,8 +1883,8 @@ JSOX.begin = function( cb, reviver ) {
 									word = WORD_POS_AFTER_FIELD;
 							}
 							else {
-								status = false;
-								throwError( "fault parsing whitespace", cInt );
+								if( word < WORD_POS_END ) 
+									recoverIdent( cInt );
 							}
 							break;
 					//----------------------------------------------------------
@@ -1497,30 +1974,13 @@ JSOX.begin = function( cb, reviver ) {
 							if( word == WORD_POS_RESET ) negative = !negative;
 							else { recoverIdent(cInt); }// fault
 							break;
-					//
-					//----------------------------------------------------------
-						default:
-							if( word == WORD_POS_RESET && ( ( cInt >= 48/*'0'*/ && cInt <= 57/*'9'*/ ) || ( cInt == 43/*'+'*/ ) || ( cInt == 46/*'.'*/ ) || ( cInt == 45/*'-'*/ ) ) )
-							{
-								fromHex = false;
-								exponent = false;
-								date_format = false;
-								isBigInt = false;
-
-								exponent_sign = false;
-								exponent_digit = false;
-								decimal = false;
-								val.string = str;
-								input.n = n;
-								collectNumber();
-							}
-							else
-							{
-								recoverIdent(cInt);
-							}
-							break; // default
+						case 43://'+':
+							if( word !== WORD_POS_RESET ) { recoverIdent(cInt); }
+							break;
 						}
 						break; // default of high level switch
+					//
+					//----------------------------------------------------------
 					}
 					if( completed ) {
 						if( word == WORD_POS_END ) {
@@ -1556,7 +2016,9 @@ JSOX.begin = function( cb, reviver ) {
 
 			if( !status ) return -1;
 			if( completed && val.value_type != VALUE_UNSET ) {
+				word = WORD_POS_RESET;
 				result = convertValue();
+				//_DEBUG_PARSING && console.log( "Result(3):", result );
 				negative = false;
 				val.string = '';
 				val.value_type = VALUE_UNSET;
@@ -1579,10 +2041,18 @@ JSOX.parse = function( msg, reviver ) {
 	parser = _parser[parse_level];
 	if (typeof msg !== "string") msg = String(msg);
 	parser.reset();
-	if( parser._write( msg, true ) > 0 )
-	{
+	const writeResult = parser._write( msg, true );
+	if( writeResult > 0 ) {
+		if( writeResult > 1 ){
+			// probably a carriage return.
+			//console.log( "Extra data at end of message");
+		}
 		var result = parser.value();
-		var reuslt = typeof reviver === 'function' ? (function walk(holder, key) {
+		if( ( "undefined" === typeof result ) && writeResult > 1 ){
+			throw new Error( "Pending value could not complete");
+		}
+
+		result = typeof reviver === 'function' ? (function walk(holder, key) {
 			var k, v, value = holder[key];
 			if (value && typeof value === 'object') {
 				for (k in value) {
@@ -1601,6 +2071,7 @@ JSOX.parse = function( msg, reviver ) {
 		_parse_level--;
 		return result;
 	}
+	parser.finalError();
 	return undefined;
 }
 
@@ -1610,9 +2081,8 @@ JSOX.parse = function( msg, reviver ) {
 	toProtoTypes.set( Object.prototype, { external:false, name:Object.prototype.constructor.name, cb:null } );
 
 
-	function this_value() {_DEBUG_STRINGIFY&&console.log( "this:", this, "valueof:", this&&this.valueOf() ); return this&&this.valueOf(); }
 	// function https://stackoverflow.com/a/17415677/4619267
-        toProtoTypes.set( Date.prototype, { external:false,
+	toProtoTypes.set( Date.prototype, { external:false,
 		name : "Date",
 		cb : function () {
 			var tzo = -this.getTimezoneOffset(),
@@ -1620,6 +2090,10 @@ JSOX.parse = function( msg, reviver ) {
 				pad = function(num) {
 					var norm = Math.floor(Math.abs(num));
 					return (norm < 10 ? '0' : '') + norm;
+				},
+				pad3 = function(num) {
+					var norm = Math.floor(Math.abs(num));
+					return (norm < 100 ? '0' : '') + (norm < 10 ? '0' : '') + norm;
 				};
 			return [this.getFullYear() ,
 				'-' , pad(this.getMonth() + 1) ,
@@ -1627,6 +2101,7 @@ JSOX.parse = function( msg, reviver ) {
 				'T' , pad(this.getHours()) ,
 				':' , pad(this.getMinutes()) ,
 				':' , pad(this.getSeconds()) ,
+				'.' + pad3(this.getMilliseconds()) +
 				dif , pad(tzo / 60) ,
 				':' , pad(tzo % 60)].join("");
 		} 
@@ -1672,6 +2147,7 @@ JSOX.parse = function( msg, reviver ) {
 	toProtoTypes.set( Int32Array.prototype, { external:true, name:"s32"
 	    , cb:function() { return "["+base64ArrayBuffer(this.buffer)+"]" }
 	} );
+	/*
 	if( typeof Uint64Array != "undefined" )
 		toProtoTypes.set( Uint64Array.prototype, { external:true, name:"u64"
 		    , cb:function() { return "["+base64ArrayBuffer(this.buffer)+"]" }
@@ -1680,6 +2156,7 @@ JSOX.parse = function( msg, reviver ) {
 		toProtoTypes.set( Int64Array.prototype, { external:true, name:"s64"
 		    , cb:function() { return "["+base64ArrayBuffer(this.buffer)+"]" }
 		} );
+	*/
 	toProtoTypes.set( Float32Array.prototype, { external:true, name:"f32"
 	    , cb:function() { return "["+base64ArrayBuffer(this.buffer)+"]" }
 	} );
@@ -1693,54 +2170,128 @@ JSOX.parse = function( msg, reviver ) {
 	toProtoTypes.set( Map.prototype, mapToJSOX = { external:true, name:"map"
 	    , cb:null
 	} );
-	fromProtoTypes.set( "map", function (){
-		var newMap = new Map();
-		for( key in this ) newMap.set( key, this[key] );
-		return newMap;
-	} );
+	fromProtoTypes.set( "map", { protoCon:Map, cb:function (field,val){
+		if( field ) {
+			this.set( field, val );
+			return undefined;
+		}
+		return this;
+	} } );
 
 	toProtoTypes.set( Array.prototype, arrayToJSOX = { external:false, name:Array.prototype.constructor.name
 	    , cb: null		    
 	} );
 
 }
+function this_value() {/*//_DEBUG_STRINGIFY&&console.log( "this:", this, "valueof:", this&&this.valueOf() );*/ return this&&this.valueOf(); }
 
-JSOX.registerToJSOX = function( name, prototype, f ) {
-	//console.log( "SET OBJECT TYPE:", prototype, prototype.prototype, Object.prototype, prototype.constructor );
-	if( !prototype.prototype || prototype.prototype !== Object.prototype ) {
-		if( toProtoTypes.get(prototype) ) throw new Error( "Existing toJSOX has been registered for prototype" );
-		_DEBUG_PARSING && console.log( "PUSH PROTOTYPE" );
-		toProtoTypes.set( prototype, { external:true, name:name||f.constructor.name, cb:f } );
+JSOX.defineClass = function( name, obj ) {
+	var cls;
+	var denormKeys = Object.keys(obj);
+	for( var i = 1; i < denormKeys.length; i++ ) {
+		var a, b;
+		if( ( a = denormKeys[i-1] ) > ( b = denormKeys[i] ) ) {
+			denormKeys[i-1] = b;
+			denormKeys[i] = a;
+			if( i ) i-=2; // go back 2, this might need to go further pack.
+			else i--; // only 1 to check.
+		}
+	}
+	//console.log( "normalized:", denormKeys );
+	commonClasses.push( cls = { name : name
+		   , tag:denormKeys.toString()
+		   , proto : Object.getPrototypeOf(obj)
+		   , fields : Object.keys(obj) } );
+	for(var n = 1; n < cls.fields.length; n++) {
+		if( cls.fields[n] < cls.fields[n-1] ) {
+			let tmp = cls.fields[n-1];
+			cls.fields[n-1] = cls.fields[n];
+			cls.fields[n] = tmp;
+			if( n > 1 )
+				n-=2;
+		}
+	}
+	if( cls.proto === Object.getPrototypeOf( {} ) ) cls.proto = null;
+}
+
+
+JSOX.toJSOX =
+JSOX.registerToJSOX = function( name, ptype, f ) {
+	//console.log( "SET OBJECT TYPE:", ptype, ptype.prototype, Object.prototype, ptype.constructor );
+	if( !ptype.prototype || ptype.prototype !== Object.prototype ) {
+		if( toProtoTypes.get(ptype.prototype) ) throw new Error( "Existing toJSOX has been registered for prototype" );
+		//_DEBUG_PARSING && console.log( "PUSH PROTOTYPE" );
+		toProtoTypes.set( ptype.prototype, { external:true, name:name||f.constructor.name, cb:f } );
 	} else {
-		var key = Object.keys( prototype ).toString();
+		var key = Object.keys( ptype ).toString();
 		if( toObjectTypes.get(key) ) throw new Error( "Existing toJSOX has been registered for object type" );
 		//console.log( "TEST SET OBJECT TYPE:", key );
 		toObjectTypes.set( key, { external:true, name:name, cb:f } );
 	}
 }
-JSOX.registerFromJSOX = function( prototypeName, f ) {
-	if( fromProtoTypes.get(prototypeName) ) throw new Error( "Existing fromJSOX has been registered for prototype" );
-	fromProtoTypes.set( prototypeName, f );
+
+JSOX.fromJSOX = function( prototypeName, o, f ) {
+	function privateProto() { }
+		if( !o ) o = privateProto.prototype;
+		if( fromProtoTypes.get(prototypeName) ) throw new Error( "Existing fromJSOX has been registered for prototype" );
+		if( o && !("constructor" in o )){
+			throw new Error( "Please pass a prototype like thing...");
+	}
+	fromProtoTypes.set( prototypeName, {protoCon: o.prototype.constructor, cb:f } );
+
 }
-JSOX.registerToFrom = function( prototypeName, prototype, to, from ) {
-	JSOX.registerToJSOX( prototypeName, prototype, to );
-	JSOX.registerFromJSOX( prototypeName, from );
+JSOX.registerFromJSOX = function( prototypeName, o /*, f*/ ) {
+	throw new Error( "deprecated; please adjust code to use fromJSOX:" + prototypeName + o.toString() );
+	/*
+	if( fromProtoTypes.get(prototypeName) ) throw new Error( "Existing fromJSOX has been registered for prototype" );
+	if( "function" === typeof o ) {
+		console.trace( "Please update usage of registration... proto and function")
+		f = o
+		o = Object.getPrototypeOf( {} );
+	} 
+	if( !f ) {
+		console.trace( "(missing f) Please update usage of registration... proto and function")
+	}
+	fromProtoTypes.set( prototypeName, {protoCon:o, cb:f } );
+	*/
+}
+JSOX.addType = function( prototypeName, prototype, to, from ) {
+	JSOX.toJSOX( prototypeName, prototype, to );
+	JSOX.fromJSOX( prototypeName, prototype, from );
+}
+
+JSOX.registerToFrom = function( prototypeName, prototype/*, to, from*/ ) {
+	throw new Error( "registerToFrom deprecated; please use addType:" + prototypeName + prototype.toString() );
 }
 
 JSOX.stringifier = function() {
 	var classes = [];
 	var useQuote = '"';
 
-	var fieldMap = new WeakMap();
-	var path = [];
-	var localToProtoTypes = new WeakMap();
-	var localToObjectTypes = new Map();
-
-	return {
+	let fieldMap = new WeakMap();
+	const path = [];
+	var encoding = [];
+	const localToProtoTypes = new WeakMap();
+	const localToObjectTypes = new Map();
+	let objectToJSOX = null;
+	const stringifying = []; // things that have been stringified through external toJSOX; allows second pass to skip this toJSOX pass and encode 'normally'
+	let ignoreNonEnumerable = false;
+	const stringifier = {
 		defineClass(name,obj) { 
 			var cls; 
+			var denormKeys = Object.keys(obj);
+			for( var i = 1; i < denormKeys.length; i++ ) {
+				// normalize class key order
+				var a, b;
+				if( ( a = denormKeys[i-1] ) > ( b = denormKeys[i] ) ) {
+					denormKeys[i-1] = b;
+					denormKeys[i] = a;
+					if( i ) i-=2; // go back 2, this might need to go further pack.
+					else i--; // only 1 to check.
+				}
+			}
 			classes.push( cls = { name : name
-			       , tag:Object.keys(obj).toString()
+			       , tag:denormKeys.toString()
 			       , proto : Object.getPrototypeOf(obj)
 			       , fields : Object.keys(obj) } );
 
@@ -1755,24 +2306,38 @@ JSOX.stringifier = function() {
 			}
 			if( cls.proto === Object.getPrototypeOf( {} ) ) cls.proto = null;
 		},
+		setDefaultObjectToJSOX( cb ) { objectToJSOX = cb },
+		isEncoding(o) {
+			//console.log( "is object encoding?", encoding.length, o, encoding );
+			return !!encoding.find( (eo,i)=>eo===o && i < (encoding.length-1) )
+		},
+		encodeObject(o) {
+			if( objectToJSOX ) 
+				return objectToJSOX.apply(o, [this]);
+			return o;
+		},
 		stringify(o,r,s) { return stringify(o,r,s) },
 		setQuote(q) { useQuote = q; },
-		registerToJSOX( name, prototype, f ) {
-			if( prototype.prototype && prototype.prototype !== Object.prototype ) {
-				if( localToProtoTypes.get(prototype) ) throw new Error( "Existing toJSOX has been registered for prototype" );
-				localToProtoTypes.set( prototype, { external:true, name:name||f.constructor.name, cb:f } );
+		registerToJSOX(n,p,f) { return this.toJSOX( n,p,f ) },
+		toJSOX( name, ptype, f ) {
+			if( ptype.prototype && ptype.prototype !== Object.prototype ) {
+				if( localToProtoTypes.get(ptype.prototype) ) throw new Error( "Existing toJSOX has been registered for prototype" );
+				localToProtoTypes.set( ptype.prototype, { external:true, name:name||f.constructor.name, cb:f } );
 			} else {
-				var key = Object.keys( prototype ).toString();
+				var key = Object.keys( ptype ).toString();
 				if( localToObjectTypes.get(key) ) throw new Error( "Existing toJSOX has been registered for object type" );
 				localToObjectTypes.set( key, { external:true, name:name, cb:f } );
 			}
 		},
+		get ignoreNonEnumerable() { return ignoreNonEnumerable; },
+		set ignoreNonEnumerable(val) { ignoreNonEnumerable = val; },
 	}
+	return stringifier;
 
 	function getReference( here ) {
 		if( here === null ) return undefined;
 		var field = fieldMap.get( here );
-		_DEBUG_STRINGIFY && console.log( "path:", _JSON.stringify(path), field );
+		//_DEBUG_STRINGIFY && console.log( "path:", _JSON.stringify(path), field );
 		if( !field ) {
 			fieldMap.set( here, _JSON.stringify(path) );
 			return undefined;
@@ -1791,14 +2356,31 @@ JSOX.stringifier = function() {
 		} );
 		if( cls ) return cls;
 
-		if( useK )  {
-			useK = useK.map( v=>{ if( typeof v === "string" ) return v; else return undefined; } );
-			k = useK.toString();
-		} else
-			k = Object.keys(o).toString();
-		cls = classes.find( cls=>{
-			if( cls.tag === k ) return true;
-		} );
+		if( classes.length || commonClasses.length ) {
+			if( useK )  {
+				useK = useK.map( v=>{ if( typeof v === "string" ) return v; else return undefined; } );
+				k = useK.toString();
+			} else {
+				var denormKeys = Object.keys(o);
+				for( var i = 1; i < denormKeys.length; i++ ) {
+					var a, b;
+					if( ( a = denormKeys[i-1] ) > ( b = denormKeys[i] ) ) {
+						denormKeys[i-1] = b;
+						denormKeys[i] = a;
+						if( i ) i-=2; // go back 2, this might need to go further pack.
+						else i--; // only 1 to check.
+					}
+				}
+				k = denormKeys.toString();
+			}
+			cls = classes.find( cls=>{
+				if( cls.tag === k ) return true;
+			} );
+			if( !cls )
+				cls = commonClasses.find( cls=>{
+					if( cls.tag === k ) return true;
+				} );
+		}
 		return cls;
 	}
 
@@ -1809,7 +2391,6 @@ JSOX.stringifier = function() {
 		var firstRun = true;
 		var gap;
 		var indent;
-		var meta;
 		var rep;
 
 		var i;
@@ -1836,16 +2417,18 @@ JSOX.stringifier = function() {
 
 		rep = replacer;
 		if( replacer && repType !== "function"
-                    && ( repType !== "object"
+		    && ( repType !== "object"
 		       || typeof replacer.length !== "number"
 		   )) {
 			throw new Error("JSOX.stringify");
 		}
 
-		path = [];
+		path.length = 0;
 		fieldMap = new WeakMap();
 
-		return str( "", {"":object} );
+		const finalResult = str( "", {"":object} );
+		commonClasses.length = 0;
+		return finalResult;
 
 		function getIdentifier(s) {
 			
@@ -1863,8 +2446,8 @@ JSOX.stringifier = function() {
 			*/
 			// should check also for if any non ident in string...
 			return ( ( s in keywords /* [ "true","false","null","NaN","Infinity","undefined"].find( keyword=>keyword===s )*/
-				|| /([0-9\-])/.test(s[0])
-				|| /((\n|\r|\t)|[ \{\}\(\)\<\>\!\+\-\*\/\.\:\, ])/.test( s ) )?(useQuote + JSOX.escape(s) +useQuote):s )
+				|| /([0-9-])/.test(s[0])
+				|| /((\n|\r|\t)|[ {}()<>!+*/.:,-])/.test( s ) )?(useQuote + JSOX.escape(s) +useQuote):s )
 			//return s;
 
 		}
@@ -1874,41 +2457,40 @@ JSOX.stringifier = function() {
 
 		// from https://github.com/douglascrockford/JSON-js/blob/master/json2.js#L181
 		function str(key, holder) {
-
 			function doArrayToJSOX() {
 				var v;
-				var partialClass = null;
 				var partial = [];
 				let thisNodeNameIndex = path.length;
-				{
-					// The value is an array. Stringify every element. Use null as a placeholder
-					// for non-JSOX values.
+
+				// The value is an array. Stringify every element. Use null as a placeholder
+				// for non-JSOX values.
 			
-					for (let i = 0; i < this.length; i += 1) {
-						path[thisNodeNameIndex] = i;
-						partial[i] = str(i, this) || "null";
-					}
-					path.splice( thisNodeNameIndex, 1 );
-			
-					// Join all of the elements together, separated with commas, and wrap them in
-					// brackets.
-			
-					v = ( partial.length === 0
-						? "[]"
-						: gap
-							? [
-								"[\n"
-								, gap
-								, partial.join(",\n" + gap)
-								, "\n"
-								, mind
-								, "]"
-							].join("")
-							: "[" + partial.join(",") + "]" );
-					return v;
+				for (let i = 0; i < this.length; i += 1) {
+					path[thisNodeNameIndex] = i;
+					partial[i] = str(i, this) || "null";
 				}
+				path.length = thisNodeNameIndex;
+				//console.log( "remove encoding item", thisNodeNameIndex, encoding.length);
+				encoding.length = thisNodeNameIndex;
+			
+				// Join all of the elements together, separated with commas, and wrap them in
+				// brackets.
+				v = ( partial.length === 0
+					? "[]"
+					: gap
+						? [
+							"[\n"
+							, gap
+							, partial.join(",\n" + gap)
+							, "\n"
+							, mind
+							, "]"
+						].join("")
+						: "[" + partial.join(",") + "]" );
+				return v;
 			} 
 			function mapToObject(){
+				//_DEBUG_PARSING_DETAILS && console.log( "---------- NEW MAP -------------" );
 				var tmp = {tmp:null};
 				var out = '{'
 				var first = true;
@@ -1916,7 +2498,11 @@ JSOX.stringifier = function() {
 				for (var [key, value] of this) {
 					//console.log( "er...", key, value )
 					tmp.tmp = value;
+					var thisNodeNameIndex = path.length;
+					path[thisNodeNameIndex] = key;
+							
 					out += (first?"":",") + getIdentifier(key) +':' + str("tmp", tmp);
+					path.length = thisNodeNameIndex;
 					first = false;
 				}
 				out += '}';
@@ -1928,7 +2514,6 @@ JSOX.stringifier = function() {
 				mapToJSOX.cb = mapToObject;
 				firstRun = false;
 			}
-			arrayToJSOX.cb = doArrayToJSOX;
 
 		// Produce a string from holder[key].
 
@@ -1940,10 +2525,31 @@ JSOX.stringifier = function() {
 			var partialClass;
 			var partial;
 			let thisNodeNameIndex = path.length;
-			var value = holder[key];
-			var protoConverter = (value !== undefined && value !== null) 
-				&& ( localToProtoTypes.get( Object.getPrototypeOf( value ) ) 
-				|| toProtoTypes.get( Object.getPrototypeOf( value ) ) 
+			let value = holder[key];
+			let isObject = (typeof value === "object");
+			let c;
+
+			if( isObject && ( value !== null ) ) {
+				if( objectToJSOX ){
+					if( !stringifying.find( val=>val===value ) ) {
+						stringifying.push( value );
+						encoding[thisNodeNameIndex] = value;
+						value = objectToJSOX.apply(value, [stringifier]);
+						//console.log( "Converted by object lookup -it's now a different type"
+						//	, protoConverter, objectConverter );
+						isObject = ( typeof value === "object" );
+						stringifying.pop();
+						encoding.length = thisNodeNameIndex;
+						isObject = (typeof value === "object");
+					}
+					//console.log( "Value convereted to:", key, value );
+				}
+			}
+			const objType = (value !== undefined && value !== null) && Object.getPrototypeOf( value );
+			
+			var protoConverter = objType
+				&& ( localToProtoTypes.get( objType ) 
+				|| toProtoTypes.get( objType ) 
 				|| null )
 			var objectConverter = !protoConverter && (value !== undefined && value !== null) 
 				&& ( localToObjectTypes.get( Object.keys( value ).toString() ) 
@@ -1952,12 +2558,13 @@ JSOX.stringifier = function() {
 
 				//console.log( "PROTOTYPE:", Object.getPrototypeOf( value ) )
 				//console.log( "PROTOTYPE:", toProtoTypes.get(Object.getPrototypeOf( value )) )
-			_DEBUG_STRINGIFY && console.log( "TEST()", value, protoConverter, objectConverter );
+				if( protoConverter )
+			//_DEBUG_STRINGIFY && console.log( "TEST()", value, protoConverter, objectConverter );
 
 			var toJSOX = ( protoConverter && protoConverter.cb ) 
 			          || ( objectConverter && objectConverter.cb );
 			// If the value has a toJSOX method, call it to obtain a replacement value.
-			_DEBUG_STRINGIFY && console.log( "type:", typeof value, protoConverter, !!toJSOX, path );
+			//_DEBUG_STRINGIFY && console.log( "type:", typeof value, protoConverter, !!toJSOX, path );
 
 			if( value !== undefined
 			    && value !== null
@@ -1966,15 +2573,13 @@ JSOX.stringifier = function() {
 				gap += indent;
 				if( typeof value === "object" ) {
 					v = getReference( value );
+					//_DEBUG_STRINGIFY && console.log( "This object is not yet an tracked object path:", v, value  );
 					if( v ) return "ref"+v;
 				}
 
-				let newValue = toJSOX.apply(value);
-				if(_DEBUG_STRINGIFY ) { 
-					console.log( "translated ", newValue, value );
-				}
+				let newValue = toJSOX.call(value,stringifier);
+				//_DEBUG_STRINGIFY && console.log( "translated ", newValue, value );
 				value = newValue;
-
 				gap = mind;
 			} else 
 				if( typeof value === "object" ) {
@@ -1988,15 +2593,18 @@ JSOX.stringifier = function() {
 			if (typeof rep === "function") {
 				value = rep.call(holder, key, value);
 			}
-
 			// What happens next depends on the value's type.
 			switch (typeof value) {
+			case "bigint":
+				return value + 'n';
 			case "string":
 			case "number": 
 				{
 					let c = '';
 					if( key==="" )
-						c = classes.map( cls=> cls.name+"{"+cls.fields.join(",")+"}" ).join(gap?"\n":"")+(gap?"\n":"");
+						c = classes.map( cls=> cls.name+"{"+cls.fields.join(",")+"}" ).join(gap?"\n":"")+
+						    commonClasses.map( cls=> cls.name+"{"+cls.fields.join(",")+"}" ).join(gap?"\n":"")
+								+(gap?"\n":"");
 					if( protoConverter && protoConverter.external ) 
 						return c + protoConverter.name + value;
 					if( objectConverter && objectConverter.external ) 
@@ -2016,8 +2624,7 @@ JSOX.stringifier = function() {
 				// null.
 
 			case "object":
-
-				_DEBUG_STRINGIFY && console.log( "ENTERINT OBJECT EMISSION WITH:", v );
+				//_DEBUG_STRINGIFY && console.log( "ENTERINT OBJECT EMISSION WITH:", v );
 				if( v ) return "ref"+v;
 
 				// Due to a specification blunder in ECMAScript, typeof null is "object",
@@ -2027,7 +2634,6 @@ JSOX.stringifier = function() {
 				}
 
 				// Make an array to hold the partial results of stringifying this object value.
-
 				gap += indent;
 				partialClass = null;
 				partial = [];
@@ -2062,6 +2668,11 @@ JSOX.stringifier = function() {
 					partialClass = matchObject( value );
 					var keys = [];
 					for (k in value) {
+						if( ignoreNonEnumerable )
+							if( !Object.prototype.propertyIsEnumerable.call( value, k ) ){
+								//_DEBUG_STRINGIFY && console.log( "skipping non-enuerable?", k );
+								continue;
+							}
 						if (Object.prototype.hasOwnProperty.call(value, k)) {
 							var n;
 							for( n = 0; n < keys.length; n++ ) 
@@ -2096,19 +2707,19 @@ JSOX.stringifier = function() {
 
 				// Join all of the member texts together, separated with commas,
 				// and wrap them in braces.
-				_DEBUG_STRINGIFY && console.log( "partial:", partial )
-				{
-				let c;
+				//_DEBUG_STRINGIFY && console.log( "partial:", partial )
+
+				//let c;
 				if( key==="" )
-					c = classes.map( cls=> cls.name+"{"+cls.fields.join(",")+"}" ).join(gap?"\n":"")+(gap?"\n":"");
+					c = ( classes.map( cls=> cls.name+"{"+cls.fields.join(",")+"}" ).join(gap?"\n":"")
+						|| commonClasses.map( cls=> cls.name+"{"+cls.fields.join(",")+"}" ).join(gap?"\n":""))+(gap?"\n":"");
 				else
 					c = '';
-				if( protoConverter && protoConverter.external ) 
-					if( key==="" ) 
-						c = c + protoConverter.name;
-					else
-						c = c + '"' + protoConverter.name + '"';
 
+				if( protoConverter && protoConverter.external ) 
+					c = c + getIdentifier(protoConverter.name);
+
+				//_DEBUG_STRINGIFY && console.log( "PREFIX FOR THIS FIELD:", c );
 				var ident = null;
 				if( partialClass )
 					ident = getIdentifier( partialClass.name ) ;
@@ -2119,7 +2730,7 @@ JSOX.stringifier = function() {
 							? (partialClass?ident:"")+"{\n" + gap + partial.join(",\n" + gap) + "\n" + mind + "}"
 							: (partialClass?ident:"")+"{" + partial.join(",") + "}"
 					);
-				}
+
 				gap = mind;
 				return v;
 			}
@@ -2149,7 +2760,7 @@ JSOX.stringifier = function() {
 	
 	for( var x = 0; x < 256; x++ ) {
 		if( x < 64 ) {
-        		decodings[encodings[x]] = x;
+			decodings[encodings[x]] = x;
 		}
 	}
 	Object.freeze( decodings );
@@ -2170,7 +2781,7 @@ JSOX.stringifier = function() {
 		for (var i = 0; i < mainLength; i = i + 3) {
 			// Combine the three bytes into a single integer
 			chunk = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2]
-        
+
 			// Use bitmasks to extract 6-bit segments from the triplet
 			a = (chunk & 16515072) >> 18 // 16515072 = (2^6 - 1) << 18
 			b = (chunk & 258048)   >> 12 // 258048   = (2^6 - 1) << 12
@@ -2181,7 +2792,7 @@ JSOX.stringifier = function() {
 			base64 += encodings[a] + encodings[b] + encodings[c] + encodings[d]
 		}
 	
-        	// Deal with the remaining bytes and padding
+	// Deal with the remaining bytes and padding
 		if (byteRemainder == 1) {
 			chunk = bytes[mainLength]
 			a = (chunk & 252) >> 2 // 252 = (2^6 - 1) << 2
@@ -2201,8 +2812,7 @@ JSOX.stringifier = function() {
 	}
 	
 	
-        function DecodeBase64( buf )
-	{	
+	function DecodeBase64( buf ) {	
 		var outsize;
 		if( buf.length % 4 == 1 )
 			outsize = ((((buf.length + 3) / 4)|0) * 3) - 3;
@@ -2213,30 +2823,29 @@ JSOX.stringifier = function() {
 		else if( decodings[buf[buf.length - 3]] == -1 )
 			outsize = ((((buf.length + 3) / 4)|0) * 3) - 3;
 		else if( decodings[buf[buf.length - 2]] == -1 ) 
-                  	outsize = ((((buf.length + 3) / 4)|0) * 3) - 2;
+			outsize = ((((buf.length + 3) / 4)|0) * 3) - 2;
 		else if( decodings[buf[buf.length - 1]] == -1 ) 
-      			outsize = ((((buf.length + 3) / 4)|0) * 3) - 1;
+			outsize = ((((buf.length + 3) / 4)|0) * 3) - 1;
 		else
 			outsize = ((((buf.length + 3) / 4)|0) * 3);
 		var ab = new ArrayBuffer( outsize );
 		var out = new Uint8Array(ab);
-		{
-			var n;
-			var l = (buf.length+3)>>2;
-			for( n = 0; n < l; n++ )
-			{
-        			var index0 = decodings[buf[n*4]];
-				var index1 = (n*4+1)<buf.length?decodings[buf[n*4+1]]:-1;
-				var index2 = (index1>=0) && (n*4+2)<buf.length?decodings[buf[n*4+2]]:-1 || -1;
-				var index3 = (index2>=0) && (n*4+3)<buf.length?decodings[buf[n*4+3]]:-1 || -1;
-				if( index1 >= 0 )
-					out[n*3+0] = (( index0 ) << 2 | ( index1 ) >> 4);
-				if( index2 >= 0 )
-					out[n*3+1] = (( index1 ) << 4 | ( ( ( index2 ) >> 2 ) & 0x0f ));
-				if( index3 >= 0 )
-					out[n*3+2] = (( index2 ) << 6 | ( ( index3 ) & 0x3F ));
-			}
+
+		var n;
+		var l = (buf.length+3)>>2;
+		for( n = 0; n < l; n++ ) {
+			var index0 = decodings[buf[n*4]];
+			var index1 = (n*4+1)<buf.length?decodings[buf[n*4+1]]:-1;
+			var index2 = (index1>=0) && (n*4+2)<buf.length?decodings[buf[n*4+2]]:-1 || -1;
+			var index3 = (index2>=0) && (n*4+3)<buf.length?decodings[buf[n*4+3]]:-1 || -1;
+			if( index1 >= 0 )
+				out[n*3+0] = (( index0 ) << 2 | ( index1 ) >> 4);
+			if( index2 >= 0 )
+				out[n*3+1] = (( index1 ) << 4 | ( ( ( index2 ) >> 2 ) & 0x0f ));
+			if( index3 >= 0 )
+				out[n*3+2] = (( index2 ) << 6 | ( ( index3 ) & 0x3F ));
 		}
+
 		return ab;
 	}
 	
@@ -2247,96 +2856,10 @@ JSOX.stringify = function( object, replacer, space ) {
 }
 
 const nonIdent = 
-[ [ 0,384,[ 0xffd9ff,0xff6aff,0x1fc00,0x380000,0x0,0xfffff8,0xffffff,0x7fffff,0x800000,0x0,0x80,0x0,0x0,0x0,0x0,0x0 ] ],
-]/*
-[ 384,768,[ 0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x3c00,0xe0fffc,0xffffaf ] ],
-[ 768,1152,[ 0x0,0x0,0x0,0x0,0x200000,0x3040,0x0,0x0,0x0,0x0,0x40,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 1152,1536,[ 0x304,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xfc,0x0,0xe6,0x0,0x4940,0x0,0x1800 ] ],
-[ 1536,1920,[ 0xffff,0xd8,0x0,0x0,0x3c00,0x0,0x0,0x0,0x100000,0x20060,0xff6000,0xbf,0x0,0x0,0x0,0x0 ] ],
-[ 1920,2304,[ 0x0,0x0,0x0,0x0,0xc00000,0x3,0x0,0x7fff00,0x0,0x40,0x0,0x0,0x0,0x0,0x40000,0x0 ] ],
-[ 2304,2688,[ 0x0,0x0,0x0,0x0,0x10030,0x0,0x0,0x0,0x0,0x0,0x2ffc,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 2688,3072,[ 0x0,0x0,0x0,0x0,0x30000,0x0,0x0,0x0,0x0,0x0,0xfd,0x0,0x0,0x0,0x0,0x7ff00 ] ],
-[ 3072,3456,[ 0x0,0x0,0x0,0x0,0x0,0xff,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x800000,0x7f00,0x3ff00 ] ],
-[ 3456,3840,[ 0x0,0x0,0x0,0x0,0x100000,0x0,0x0,0x800000,0x8000,0xc,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 3840,4224,[ 0xfffffe,0xfc00fc,0x3d5f,0x0,0x0,0x2000,0x0,0xc00000,0xffdfbf,0x7,0x0,0x0,0x0,0xfc0000,0x0,0x0 ] ],
-[ 4224,4608,[ 0x0,0xc0,0x0,0x0,0x0,0x8,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 4608,4992,[ 0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xff0000,0x1ffc01 ] ],
-[ 4992,5376,[ 0xff0000,0x3,0x0,0x0,0x0,0x100,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 5376,5760,[ 0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x60 ] ],
-[ 5760,6144,[ 0x1,0x18,0x0,0x0,0x3800,0x0,0x0,0x6000,0x0,0x0,0x0,0x0,0x0,0x0,0xf70,0x3ff00 ] ],
-[ 6144,6528,[ 0x47ff,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x3100,0x0,0x0 ] ],
-[ 6528,6912,[ 0x0,0x0,0x0,0xc00000,0xffffff,0xff,0xc000,0x0,0x0,0x0,0x0,0x0,0x3f7f,0x40,0x0,0x0 ] ],
-[ 6912,7296,[ 0x0,0x0,0x0,0xfc0000,0xf007ff,0x1f,0x0,0x0,0x0,0x0,0xf000,0x0,0x0,0xf8,0x0,0xc00000 ] ],
-[ 7296,7680,[ 0x0,0x0,0xff0000,0x800,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 8064,8448,[ 0x0,0x0,0x3a000,0xe000e0,0xe000,0xffff60,0xffffff,0x7fffff,0xeffffe,0xffdfff,0xff7ff1,0x7f,0xffffff,0xff,0x1de000,0x0 ] ],
-[ 8448,8832,[ 0xd0037b,0x2afc0,0x1f0c00,0xffffbc,0x0,0xe0000,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff ] ],
-[ 8832,9216,[ 0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff ] ],
-[ 9216,9600,[ 0xffffff,0x7fff,0xff0000,0x7,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff ] ],
-[ 9600,9984,[ 0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff ] ],
-[ 9984,10368,[ 0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff ] ],
-[ 10368,10752,[ 0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff ] ],
-[ 10752,11136,[ 0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffcfff ] ],
-[ 11136,11520,[ 0x3fffff,0xffffff,0xffe3ff,0x7fd,0xf000,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xe00000,0xfe0007 ] ],
-[ 11520,11904,[ 0x0,0x0,0x0,0x0,0x10000,0x0,0x0,0x0,0x0,0x0,0xff0000,0xffffff,0xffffff,0x3ffff,0x0,0x0 ] ],
-[ 11904,12288,[ 0xffffff,0xfffffb,0xffffff,0xffffff,0xfffff,0xffff00,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0x3f,0xfff00 ] ],
-[ 12288,12672,[ 0xffff1f,0x1ff,0xe0c1,0x0,0x0,0x0,0x10000,0x0,0x0,0x0,0x800,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 12672,13056,[ 0xff0000,0xff,0xff0000,0xffffff,0xf,0xffff00,0xff7fff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0x7fffff ] ],
-[ 13056,13440,[ 0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffff,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 19584,19968,[ 0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xffff00,0xffffff,0xffffff ] ],
-[ 41856,42240,[ 0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xffff00,0xffffff,0x7fff,0x0,0xc00000 ] ],
-[ 42240,42624,[ 0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xe0,0x0,0x0,0x0,0x400f00 ] ],
-[ 42624,43008,[ 0x0,0x0,0x0,0x0,0xfc0000,0xffff00,0x3007f,0x0,0x0,0x0,0x0,0x6,0x0,0x0,0x0,0x0 ] ],
-[ 43008,43392,[ 0x0,0xf0000,0x3ff,0x0,0xf00000,0x0,0x0,0x0,0xc000,0x0,0x1700,0x0,0xc000,0x0,0x8000,0x0 ] ],
-[ 43392,43776,[ 0x0,0x0,0xfe0000,0xc0003f,0x0,0x0,0x0,0x0,0x0,0xf0,0x380,0x0,0x0,0x0,0xc000,0x300 ] ],
-[ 43776,44160,[ 0x0,0x0,0x0,0x80000,0x0,0x0,0x0,0x0,0x0,0x80000,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 64128,64512,[ 0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x2,0x0,0x0,0x0,0x0,0xfc0000,0x3ff,0x0,0x0 ] ],
-[ 64512,64896,[ 0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xc0,0x0,0x0 ] ],
-[ 64896,65280,[ 0x0,0x0,0x0,0x0,0x0,0x30,0x3ff,0xffe700,0xf71fff,0xf7fff,0x0,0x0,0x0,0x0,0x0,0x800000 ] ],
-[ 65280,65664,[ 0xfffe,0x1fc,0x17800,0xf80000,0x3f,0x0,0x0,0x0,0x0,0x7f7f00,0x3e00,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 65664,66048,[ 0x0,0x0,0x0,0x0,0x0,0xff8700,0xffffff,0xff8fff,0x0,0x0,0xffffe0,0xfff7f,0x1,0x0,0xffffff,0x1fffff ] ],
-[ 66048,66432,[ 0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xfffe00,0xfff,0x0,0xf,0x0,0x0,0x0 ] ],
-[ 66432,66816,[ 0x0,0x80,0x0,0x100,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 66816,67200,[ 0x0,0x0,0x0,0x0,0x8000,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 67584,67968,[ 0x0,0x0,0x0,0xff8000,0x800000,0xff,0x800000,0xff,0x0,0x0,0xf800,0x8fc000,0x0,0x80,0x0,0x0 ] ],
-[ 67968,68352,[ 0x0,0x0,0xff3000,0xfffcff,0xffffff,0xff,0x0,0x0,0xff00ff,0x1,0xe000,0xe00000,0x0,0x10000,0x0,0x7ff8 ] ],
-[ 68352,68736,[ 0x0,0x0,0xfe00,0xff0000,0x0,0xff,0x1e00,0xfe,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 68736,69120,[ 0x0,0x0,0x0,0x0,0x0,0xfc,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 69120,69504,[ 0x0,0x0,0x0,0x0,0xffffff,0x7f,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 69504,69888,[ 0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xfc3f80,0x3fff,0x0,0x0,0x0,0x3f8,0x0,0x0 ] ],
-[ 69888,70272,[ 0x0,0x0,0xf0000,0x0,0x300000,0x0,0x0,0x0,0x23e0,0xfffee8,0x1f,0x0,0x0,0x3f,0x0,0x0 ] ],
-[ 70272,70656,[ 0x0,0x20000,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 70656,71040,[ 0x0,0x0,0x0,0x2800f8,0x0,0x0,0x0,0x0,0x40,0x0,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 71040,71424,[ 0x0,0x0,0xfe0000,0xffff,0x0,0x0,0x0,0x0,0xe,0x1fff00,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 71424,71808,[ 0x0,0x0,0xfc00,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 71808,72192,[ 0x0,0x0,0x0,0x0,0x7fc00,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 72192,72576,[ 0x0,0x0,0x7f8000,0x0,0x0,0x0,0x7dc00,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 72576,72960,[ 0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x3e,0x1ffffc,0x3,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 74496,74880,[ 0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1f00 ] ],
-[ 92544,92928,[ 0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xc00000,0x0,0x0,0x0,0x0,0x0,0x2000 ] ],
-[ 92928,93312,[ 0x0,0x0,0x30ff80,0xf80000,0x3,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 113664,114048,[ 0x0,0x0,0x0,0x0,0x0,0x0,0xf9000,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 118656,119040,[ 0x0,0x0,0x0,0x0,0x0,0xffff00,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0x3fff ] ],
-[ 119040,119424,[ 0xffffff,0xfe7fff,0xffffff,0xffffff,0xf81c1f,0xf01807,0xffffff,0xffffc3,0xffffff,0x1ffff,0xff0000,0xffffff,0xffffff,0x23ff,0x0,0x0 ] ],
-[ 119424,119808,[ 0x0,0x0,0x0,0x0,0x0,0xffff00,0xffffff,0xffffff,0x7fffff,0xffff00,0x3,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 120192,120576,[ 0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x200,0x800,0x80000 ] ],
-[ 120576,120960,[ 0x200000,0x0,0x20,0x80,0x8000,0x20000,0x0,0x2,0x8,0x0,0xff0000,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff ] ],
-[ 120960,121344,[ 0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff ] ],
-[ 121344,121728,[ 0x0,0x0,0x780,0x0,0xdfe000,0xfefff,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 124800,125184,[ 0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xff8000,0x0,0x0 ] ],
-[ 125184,125568,[ 0x0,0x0,0x0,0xc00000,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 126336,126720,[ 0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x300 ] ],
-[ 126720,127104,[ 0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xff0000,0xffffff,0xff0fff,0xffffff,0xffffff,0xffffff ] ],
-[ 127104,127488,[ 0xfffff,0x7fff00,0xfefffe,0xfffeff,0x3fffff,0x1fff00,0xffffff,0xffff7f,0xffffff,0xfffff,0xffffff,0xffffff,0x1fff,0x0,0xc00000,0xffffff ] ],
-[ 127488,127872,[ 0xff0007,0xffffff,0xff0fff,0x301,0x3f,0x0,0x0,0x0,0x0,0x0,0xff0000,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff ] ],
-[ 127872,128256,[ 0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff ] ],
-[ 128256,128640,[ 0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff,0xffffff ] ],
-[ 128640,129024,[ 0xffffff,0xffffff,0xffffff,0x1fff,0xff1fff,0xffff01,0xffffff,0xffffff,0xffffff,0xffffff,0xff000f,0xffffff,0xffffff,0xffffff,0x1f,0x0 ] ],
-[ 129024,129408,[ 0xff0fff,0xffffff,0xffffff,0x3ff00,0xffffff,0xffff,0xffffff,0x3f,0x0,0x0,0xff0000,0xffff0f,0xffffff,0x1fff7f,0xffffff,0xf ] ],
-[ 129408,129792,[ 0xffffff,0x0,0x10000,0xffff00,0x7f,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 ] ],
-[ 917376,917760,[ 0x0,0x0,0x0,0x0,0x0,0x200,0xff0000,0xffffff,0xffffff,0xffffff ] ]
-]*/.map( row=>{ return{ firstChar : row[0], lastChar: row[1], bits : row[2] }; } );
+[ [ 0,256,[ 0xffd9ff,0xff6aff,0x1fc00,0x380000,0x0,0xfffff8,0xffffff,0x7fffff] ]
+].map( row=>{ return{ firstChar : row[0], lastChar: row[1], bits : row[2] }; } );
 
 
+//} privateizeEverything();
+export {JSOX}
 
-
-export {JSOX};

@@ -711,7 +711,7 @@ exports.u8xor = IdGen.u8xor;
 
 //-----------------------------------------
 
-const WebSocket = require('sack').WebSocket.Client;
+const WebSocket = vfs.WebSocket.Client;
 var ws = null;
 
 function openHello( remote, rid, callback ) {

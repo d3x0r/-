@@ -1,7 +1,7 @@
 const _debugPaths = false;
-const _debug_commands = false;
+const _debug_commands = true;
 const _debug_requires = false;
-const _debug_command_input = false;
+const _debug_command_input = true;
 const _debug_command_post = _debug_commands || false;
 const _debug_command_run = _debug_commands || false;
 
@@ -369,7 +369,7 @@ function makeEntity(Λ) {
 			})
 		},
 		idGen() {
-			return idGen.generator();
+			return id();
 		},
 		run(file, code) {
 			if (!code) {
@@ -1041,6 +1041,7 @@ function finishFill(sandbox) {
 
 
 	const volOverride = `(function(vfs, dataRoot) {
+	console.log( "Sandbox prerun :", vfs, sack );
 	vfs.mkdir = vfs.Volume.mkdir;
 	vfs.Volume = (function (orig) {
 		// entities that want to use the VFS will have to be relocated to their local path
@@ -1048,7 +1049,7 @@ function finishFill(sandbox) {
 			//console.log("what's config?", config);
 			if( name === undefined )
 				return orig();
-			var privatePath = dataRoot + "/" + config.run.Λ + "/" + path;
+			var privatePath = dataRoot + "/" + config.run.Λ + "/" + path; // sentience
 			//console.log("Volume overrride called with : ", name, dataRoot + "/" + config.run.Λ + "/" + path, orig);
 			//console.log("Volume overrride called with : ", a, b );
 			try {
@@ -1058,9 +1059,9 @@ function finishFill(sandbox) {
 			}
 		}
 	})(vfs.Volume);
-	var tmp = vfs.Sqlite.op;
+	var tmp = sack.Sqlite.op;
 
-	vfs.Sqlite = (function(orig) {
+	sack.Sqlite = (function(orig) {
 		return function (path) {
 			//console.log("what's config?", config);
 			if( path[0] === "$" ) return orig( path );
@@ -1086,8 +1087,8 @@ function finishFill(sandbox) {
 			}
 			else return orig( path );
 		}
-	})(vfs.Sqlite);
-	vfs.Sqlite.op = tmp;
+	})(sack.Sqlite);
+	sack.Sqlite.op = tmp;
 })`
 }
 

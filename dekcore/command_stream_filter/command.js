@@ -401,16 +401,22 @@ function updateCommands( stree, commands, newcmd ) {
 				saveword();
 			} else if( state.command ) {
 				var err_ = null;
+				let r;
 				try {
 					if( state.words ) {
 						state.args.push( state.words.first() );
 						state.words = null;
 					}
 					if( state.command.conflicts.length )
-						state.command.code.call( state.command );
+						r = state.command.code.call( state.command );
 					else
-						state.command.code.call( entity, state.args );
+						r = state.command.code.call( entity, state.args );
 				} catch(err) { err_ = err }
+				if( r && r instanceof Promise ) {
+					r.then( (a)=>{console.log( "shell Command Complete:", a )} )
+					 .catch( (err)=>{ console.log( "Sehll Command Error:", err ) } );
+		
+				}
 				state.words = null;
 				state.slashes = 0;
 				state.args = [];

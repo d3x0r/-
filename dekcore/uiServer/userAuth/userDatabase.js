@@ -7,13 +7,15 @@
 
 
 var DB = exports = module.exports = {};
-const sack = require( 'sack.vfs');
+//const sack = require( 'sack.vfs');
+console.log( "Sack:", sack );
 const disk = sack.Volume();
 const storage = sack.ObjectStorage( "userdatabase.~os" );
 const fileRoot = await storage.getRoot();
-const bloomHash = require( "./bloomNHash.js" );
+const bloomHash = await require( "./bloomNHash.js" );
 let  userAccounts = null;
 
+doLog( "Bloom hash??!", bloomHash );
 // revive "bnh"
 bloomHash.hook( storage );
 

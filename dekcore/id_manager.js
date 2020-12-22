@@ -18,8 +18,8 @@ var config = require('./config.js');
 
 const fc = require('./file_cluster.js')
 const Entity = require('./Entity/entity.js')
-var IdGen = require("./util/id_generator.js");
-var idGen = IdGen.generator;
+const IdGen = require("./util/id_generator.js");
+const idGen = IdGen.generator;
 let loaded = false;
 var keyRefs = new WeakMap();
 

@@ -16,7 +16,6 @@ var config = require ('./config.js');
 var idMan = require( "./id_manager.js");
 var Entity = require( "./Entity/entity.js" );
 Entity.idMan = idMan;
-console.log( "Entity:", Entity );
 
 function BigBang() {
 	//console.log( "Config:", JSOX.stringify( config, null, "\t" ) );

@@ -2,7 +2,7 @@
 const _debug_require = false;
 const _debugPaths = _debug_require || false;
 const _debug_threads = false;
-const _debug_run = false;
+const _debug_run = true;
 
 const events = require('events');
 const url = require( 'url' );
@@ -19,7 +19,6 @@ const JSOX = sack.JSOX;
 const netRequire = require('../util/myRequire.js');
 const fc = require('../file_cluster.js');
 const config = require('../config.js');
-const wake = require('../Sentience/wake');
 //const idMan = require('../id_manager.js');
 
 //JSOX.registerToJSOX( "entity", Entity,
@@ -31,7 +30,7 @@ function EntityToJSOX (){
 
 //JSOX.fromJSOX( "entity", Entity, function(field,val){
 function EntityFromJSOX(field,val ) {
-	//console.log( "Revive entity info:", field, val )
+	console.trace( "Revive entity info:", field, val, this )
 	if( !field ) {
 		if( this.Λ instanceof Promise ) {
 			const this_ = this;
@@ -39,8 +38,12 @@ function EntityFromJSOX(field,val ) {
 			this.Λ.then( Λ=>{
 				setObj( Λ.Λ, this_ );
 			} )
-		} else 
-			setObj( this.Λ.toString(), this );
+		} else {
+			console.log( "something?", this );
+			if( "string" === typeof this ) {
+			}else
+				setObj( this.Λ.toString(), this );
+		}
 
 		function setObj( id,o ) {
 			objects.set( id,o );
@@ -110,13 +113,14 @@ function EntityRefFromJSOX( field,val ) {
 	console.log( "in this context what params?", field, val );
 }
 
-
+console.log( "Config.start.." );
 config.start( ()=>{
 	fc.addEncoders( [{tag:"~E",p:Entity,f:EntityToJSOX }] );
 	fc.addDecoders( [{tag:"~E",p:Entity,f:EntityFromJSOX }] );
 	fc.addDecoders( [{tag:"Er",p:null,f:EntityRefFromJSOX }] );
 	
 })
+console.log( "scheduled start..." );
 function doLog(...args){
 	var s = util.format(...args);
 	vfs.log(s);
@@ -131,7 +135,9 @@ const entity = module.exports = exports = {
 	addProtocol: null, // filled in when this returns
 	config : config,
 	makeEntity: makeEntity,
-	idMan : null//idMan
+	idMan : null,//idMan
+	reloadAll : reloadAll,
+	fromString : entityFromString
 }
 
 
@@ -140,6 +146,21 @@ var objects = new Map();
 var remotes = new WeakMap();
 var childPendingMessages = new Map();
 const requireCache = new Map();
+
+
+//var all_entities = new WeakMap();
+
+var drivers = [];
+
+var nextID = null;
+
+//Λ
+
+var createdVoid = false;
+var theVoid = null; // private tracker, to validate someone didn't cheat the export
+var base_require;
+
+const wake = require('../Sentience/wake');
 
 /*
 JSOX.defineClass( "Entity", { name:null } );
@@ -287,12 +308,14 @@ function sandboxWSS( opts ) {
 
 const volOverride = `(function(vfs, dataRoot) {
 	vfs.mkdir = vfs.Volume.mkdir;
+console.log( "Sqlite ? Volume override...", vfs );
 	vfs.Volume = (function (orig) {
 		// entities that want to use the VFS will have to be relocated to their local path
 		return function (name, path, v, a, b) {
 			//doLog("what's config?", config);
 			if( name === undefined ) 
 				return orig();
+		   const config = config || { run : { Λ :"1234" } };
 			var privatePath = dataRoot + "/" + config.run.Λ + "/" + path;
 			//doLog("Volume overrride called with : ", name, dataRoot + "/" + config.run.Λ + "/" + path, orig);
 			//doLog("Volume overrride called with : ", a, b );
@@ -338,18 +361,6 @@ const volOverride = `(function(vfs, dataRoot) {
 //config.start( ()=>eval( volOverride )( vfs, config.run.defaults.dataRoot ) )
 
 
-
-//var all_entities = new WeakMap();
-
-var drivers = [];
-
-var nextID = null;
-
-//Λ
-
-var createdVoid = false;
-var theVoid = null; // private tracker, to validate someone didn't cheat the export
-var base_require;
 
 
 function sealEntity(o) {
@@ -556,7 +567,7 @@ function makeEntity(obj, name, description, callback, opts) {
 			return v;
 		}).catch( e=>{
 			o._module = thisModule.parent;
-			//doLog( "Catch error of course?", e );
+			doLog( "Catch error of course?", e );
 		} );
 	}
 
@@ -797,7 +808,7 @@ function Entity(obj,name,desc ) {
 }
 
 
-	var entityMethods = {
+	const entityMethods = {
 		get container() { /*doLog( "Getting container:",this); */return this.within; }
 		, create(name, desc, cb, value) {
 			//console.trace("Who calls create?  We need to return sandbox.entity?");
@@ -1130,7 +1141,7 @@ function Entity(obj,name,desc ) {
 		, run(file,command) {
 			if( !command ) throw new Error( " PLEASE UPDATE USAGE");
 			if( this.thread ) {
-				return this.thread.run(file,command) ;
+				return this.thread.run(file,command).catch(err=>console.log( "Entity.run:this.thread.run failed:", err ) ) ;
 			} else 
 				throw new Error( this.name+ ": Please wake() this object first.");
 		}
@@ -1354,7 +1365,7 @@ function Entity(obj,name,desc ) {
 	
 		
 
-Entity.fromString = function(s) {
+function entityFromString(s) {
 	s = JSOX.parse(s);
 	if( s.parent === s.Λ )
 		s.parent = null;
@@ -1404,7 +1415,7 @@ Entity.fromString = function(s) {
 		}
 }
 
-exports.reloadAll = function( ) {
+function reloadAll( ) {
 	//console.log( "So? Config.run used to have a proper ID...", config.run )
 	return new Promise( (res,rej)=>{
 		fc.get( config.run["The Void"] ).then ((obj)=>{

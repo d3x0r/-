@@ -5,7 +5,7 @@
 //
 
 const _debug_thread_create = false;
-const _debug_commands = false;
+const _debug_commands = true;
 const _debug_commands_input = _debug_commands || false;
 const _debug_commands_send = _debug_commands || false;
 const _debug_entity_command_handling = _debug_commands || false;
@@ -207,6 +207,7 @@ function WakeEntity( e, noWorker ) {
     const thread = {
         worker : null
         , watchers: []
+		  , lastRun : null
         , post(msg) {
             //thread.worker.stdin.write( JSOX.stringify(msg) );
             _debug_commands_send && console.log( "Post run:", msg );
@@ -233,6 +234,7 @@ function WakeEntity( e, noWorker ) {
             if( thread.worker ) {
                 return new Promise( (res,rej)=>{
                     _debug_run && sack.log( util.format("Posting run:", file, code, "to", e.name, new Error("").stack ));
+							thread.lastRun = file;
                     var msg = {op:'run', file:file, code:(code), id:runId };
                     thread.post(msg); 
                     //console.log( "Pending run has pushed this one... and we return a promise.");
@@ -271,16 +273,17 @@ function WakeEntity( e, noWorker ) {
     }
     e.thread = thread;
     if( wt && !noWorker ) {
-        _debug_thread_create && console.trace( "Waking up entity:", e.name, e.Λ, e.thread )
+//        _debug_thread_create && 
+console.trace( "Waking up entity:", e.name, e.Λ, e.thread )
         // this is the thread that should be this...
         // so don't create a worker thread again. (tahnkfully worker_thread fails import of second worker_threads.)
-        const invokePrerun = `{vm.runInContext( ${JSON.stringify(startupPrerunCode)}, sandbox, {filename:"sandboxPrerun.js"});}`
+		const invokePrerun = `{vm.runInContext( ${JSON.stringify(startupPrerunCode)}, sandbox, {filename:"sandboxPrerun.js"});}`
 
         //console.log( "Wanting to remount ...", fc.cvol  )
 
-        fc.cvol.mount(e.Λ.toString()); 
+		fc.cvol.mount(e.Λ.toString()); 
 	
-	thread.worker = new wt.Worker( 'const Λ=' + JSON.stringify(e.Λ.toString()) + ";" 
+		thread.worker = new wt.Worker( 'const Λ=' + JSON.stringify(e.Λ.toString()) + ";" 
             + 'Λ.maker=' + JSON.stringify(e.created_by.Λ.toString()) + ";" 
             + startupInitCode
             + invokePrerun
@@ -301,7 +304,7 @@ function WakeEntity( e, noWorker ) {
             }
         )
         thread.worker.on('error', (error)=>{
-            console.log( "Error from thread:", error );
+            console.log( "Error from thread:", e.name, thread.lastRun.src, error );
         });
         thread.worker.on('exit', (code) => {
             if (code !== 0);

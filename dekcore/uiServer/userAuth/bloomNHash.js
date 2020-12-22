@@ -23,8 +23,8 @@ const pft = (!FLOWER_TICK_PERF_COUNTERS)?{
 	 lenMovedRight : new Array(128)
 }:null;
 
-const util = require( "util" );
-const bitReader = require( "./bits.js" );
+const util = await require( "util" );
+const bitReader = await require( "./bits.js" );
 exports = module.exports = BloomNHash;
 //import {bitReader} from "./bits.mjs";
 //export {BloomNHash}
@@ -1269,8 +1269,11 @@ BloomNHash.prototype.get = function( key ) {
 	getting = true;
 	if( !this.root ) return Promise.resolve( undefined );
 	const result = {};
-	//console.trace( "Get:", this, key );
-	const doit = ()=>{// thisless
+	doLog( "userAuth Doit Get:", this, key );
+	doLog( "this.root is :", this.root );
+	const doit = (root)=>{// thisless
+		doLog( "Map resulted:", root, new Error() );
+		//this.root = root; 
 		return this.root.lookupFlowerHashEntry( key, result ).then( (obj)=>{
 			getting = false;
 			if( gets.length ) {
@@ -1281,11 +1284,12 @@ BloomNHash.prototype.get = function( key ) {
 			return obj;
 		} );
 	};
-	if( this.root instanceof Promise ) {
+	if( this.root instanceof Promise || Object.getPrototypeOf( this.root ).constructor.name === "Promise" ) {
 		// reload this.root 
-		return this.storage_.map( this, { depth:0 } ).then( doit );
+		//console.log( "calling storage.map on this promsie" );
+		return this.storage_.map( this, { depth:0 } ).then( doit ).catch(err=>{console.log("Error mapping item?", err )} );
 	}
-	return doit();
+	return doit(this.root);
 }
 
 const inserts = [];
@@ -1299,6 +1303,14 @@ BloomNHash.prototype.set = function( key, val ) {
 	inserting = true;
 
 	const result = {};
+	if( this.root instanceof Promise ) {
+		console.log( "Root is a pending promise..." );
+		return this.root.then( (root)=>{
+			console.log( "Mapping of the root finally resolved" );
+			this.root = root;
+			this.set( key, val );
+		} );
+	}
 	if( !this.root ) this.root = new this.hashBlock(null);
 	return this.root.insertFlowerHashEntry( key, result ).then( (res)=>{
 		//console.log( "SET ENTRY:", result.entryIndex, val );
@@ -1323,7 +1335,7 @@ BloomNHash.prototype.delete = function( key ) {
 
 
 function encodeHash( stringifier ){
-	return `${BloomNHash_StorageTag}{root:${stringifier.stringify(this.root)}}`;
+	return `{root:${stringifier.stringify(this.root)}}`;
 }
 
 BloomNHash.hook = function(storage ) {

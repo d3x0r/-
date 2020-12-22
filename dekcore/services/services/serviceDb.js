@@ -26,9 +26,13 @@ if( !( "svcDb" in config ) ) {
 	config.svcDb = { vol : await entity_.idGen() };
 }
 
+const disk = nativeDisk;
+doLog( "Servicedb?", disk );
+if(0) {
 var opdb = disk.Sqlite( `option.db` );
 if( !opdb ) 
 	opdb = disk.Sqlite( "svcdb.db" );
+
 console.log( "vfs?", opdb );
 var vol = opdb.op( "vol", await entity_.idGen() );
 vol = config.svcDb.vol;
@@ -42,6 +46,19 @@ io.addProtocol( "serviceAuth", setupServiceAuth );
 	var db = DB.db = DB.data.Sqlite( `services.db` );
 
 db.do( 'PRAGMA foreign_keys=ON' );
+
+class serviceLogin {
+	name  = "";
+	authorized = false;
+   registered = new Date();
+	address = '';
+	client_id = '';
+};
+
+class ServiceLogins {
+	hash = null;
+	
+}
 
 db.makeTable( "create table serviceLogin ( service_login_id char PRIMARY KEY"
 	+", name char"
@@ -301,6 +318,7 @@ DB.banService = ( id ) => {
 		console.log( "Failed to getservice?", service, id, serviceLogins );
 }
 
+}
 }
 
 }

@@ -12,6 +12,8 @@ console.warn( "Diredt output? UserProtocol Register?");
 
 async function initServices() {
 	var nearThings = await near;
+	console.log( "nearThings:", nearThings );
+	if(0) {
 	var nearNames = nearThings.map( near=>near.name);
 	Promise.all( nearNames ).then( nearNames=>{
 		var serviceDirectory = nearNames.find( near=> near === "Services" );
@@ -23,7 +25,7 @@ async function initServices() {
 			console.log( "service directory inventory:", serviceDirectory.inventory );
 		}
 	} )
-	
+	}
 }
 initServices();
 
@@ -104,7 +106,7 @@ function openHello() {
 	})
 }
 openHello();
-
+if(0)
 io.addProtocol( "karaway.core", (conn)=>{
     console.log( "connected , add peer", conn.upgradeReq.connection. remoteAddress )
     peers.push( conn );

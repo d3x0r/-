@@ -7,6 +7,8 @@
     "gun-db": "latest",
     "gun-file": "latest",
     "gun-ws": "latest",
+    "rollup-plugin-gzip": "^2.5.0",
+    "rollup-plugin-terser": "^7.0.2",
     "sack.vfs": "latest"
   }
 }

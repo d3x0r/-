@@ -14,13 +14,6 @@ doLog( util.format("What sort of require?", require.toString() ));
 
 const root = await require.resolve("./command_stream_filter/ui");
 
-//var disk = sack.Volume();
-//var disk = this.nativeDisk;
-//console.log( "Disk failed, right?", disk, this );
-//var myDisk = sack.Volume( "myDisk" );
-
-//console.warn( "Disk is open in:", root, disk.dir() );
-
 
 function createSpawnServer( sandbox ) {
 
@@ -28,14 +21,11 @@ function createSpawnServer( sandbox ) {
 	options = sandbox || {};
 	var _this = this;
 
-	//  this.console = openConsole( _this.push.bind(_this) );
-
-	//options.decodeStrings = false;
 	stream.Duplex.call(this,options)
 	
 
 	var serverOpts;
-	var server = sack.WebSocket.Server( serverOpts = { port: Number(process.argv[2])||9912 } )
+	var server = sack.WebSocket.Server( serverOpts = { port: Number(process.argv[2])||5000 } )
 	console.warn( "serving on " + serverOpts.port + " at " + root);
 
 	server.onrequest( function( req, res ) {
@@ -109,24 +99,8 @@ function createSpawnServer( sandbox ) {
 	} );
 
 	server.onconnect( function (ws) {
-		var pend = [];
-			
-		console.log( "OnConnect event too??")
-		ws.onmessage( function( msg ) {
-				console.warn( "original acceptor Received data:", msg );
-
-		} );
-		ws.onclose( function() {
-				//console.log( "Remote closed" );
-			} );
+		console.log( "On connect event should never happen here, the socket is posted in accept")
 	} );
-}
-
-var counter = 1;
-
-async function spawnEntity( ws ) {
-
-
 }
 
 
@@ -156,8 +130,4 @@ function Filter() {
 }
 
 exports.Filter = Filter.bind(this);  // bind this to the filter.
-
-if( !module.parent ) {
-	//openServer( null );//newConsole( {} );
-}
 

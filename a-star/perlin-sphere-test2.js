@@ -8,13 +8,11 @@ var config = {
 	gen_noise : null,
 	nodes : [],  // trace of A*Path
 	base : 0,
-	generations : 2,
+	generations : 6,
 	seed : '' + Date.now(),
 	cache : [],  // pool used to cache perlin coordinates
 }
 
-let counter = 0;
-const CUBE_ELEMENT_SIZE = 16
 
 if( typeof document !== "undefined" ) {
 	config.canvas = [document.getElementById( "testSurfacee0" ), //0
@@ -66,8 +64,6 @@ const BASE_COLOR_LIGHTGREEN = [0,255,0,255];
 var h = 0;
 var h2 = 0;
 var h2Target = 20;
-var wO = 0;
-var hO = 0;
 
 init( config );
 
@@ -160,12 +156,46 @@ function drawData( s, noise, config ) {
 				const c1r5 = 0.90;
 
 		output_offset = 0;//config.patchSize *h;
-		for( var h = 0; h < _output.height; h++ )
+
+
+		for( let h = 0; h < _output.height; h++ )
 		{
+			const hh = 2 * ( ( h / _output.height ) - 0.5 );
+			
 			//output_offset =  + ( surface.height - h - 1 ) * surface.width;
-			for( var w = 0; w < _output.width; w++ )
+			for( let w = 0; w < _output.width; w++ )
 			{
-				var here = noise.get( (w+wO), (h+hO), h2, s );
+				let here;
+				const ww = 2 * ( ( w / _output.width ) - 0.5 );
+				if( s === 0 ) {
+					const x = ww * 150;
+					const y = hh * 150;
+					const z = Math.cos(Math.sqrt(ww*ww + hh *hh) * Math.PI/2)  * 150;
+
+				 here = noise.get2( x, y, z, s );
+				}
+				else if( s === 2 ) {
+					const x = ww * 75;
+					const y = hh * 75;
+//					const z = Math.cos(Math.sqrt(ww*ww + hh *hh) * Math.PI/2)  * 150;
+					const z = 0;//Math.sqrt(ww*ww + hh *hh) * 150;
+
+				 here = noise.get2( x, y, z, s );
+				} else if( s === 1 ) {
+					const x = ww * 75;
+					const y = hh * 75;
+//					const z = Math.cos(Math.sqrt(ww*ww + hh *hh) * Math.PI/2)  * 150;
+					const z = Math.sqrt(ww*ww + hh *hh) * 100;
+
+				 here = noise.get2( x, y, z, s );
+				} else if( s === 3 ) {
+					const x = ww * 75;
+					const y = hh * 75;
+//					const z = Math.cos(Math.sqrt(ww*ww + hh *hh) * Math.PI/2)  * 150;
+					const z = 15;
+
+				 here = noise.get2( x, y, z, s );
+				}else continue;
 				//var here1 = noise.get( w+wO+1000, h+hO, h2, s );
 				//var here2 = noise.get( w+wO, h+hO+1000, h2, s );
 				var c1,c2,c3;
@@ -291,7 +321,7 @@ function drawDataAlt( s, noise, config ) {
 
 				var offset = s==4?2:0;//s==0?0:s==1?2:s==2?4:2;
 				var offset2 = s==0?0:s==1?-2:s==2?-4:s==3?0:s==4?2:s==5?4:0;
-				var here = noise.get( (w+wO+offset), (h+hO+offset2), h2, s+6 );
+				var here = noise.get( (w+offset), (h+offset2), h2, s+6 );
 				//var here1 = noise.get( w+wO+1000, h+hO, h2, s );
 				//var here2 = noise.get( w+wO, h+hO+1000, h2, s );
 				var c1,c2,c3;

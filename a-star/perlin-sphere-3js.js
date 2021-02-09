@@ -265,9 +265,9 @@ function mangleGeometry( geometry ) {
 	const verts = geometry.vertices;
 	const faces = geometry.faces;
 	const colors = geometry.colors;
-		const spanx = 125;
-		const spany = 125;
-		const spanz = 125;
+		const spanx = 64;
+		const spany = 64;
+		const spanz = 64;
 if(1)
 	for( var n = 0; n < faces.length; n++ ) {
 		const f = faces[n];	

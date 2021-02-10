@@ -839,7 +839,6 @@ function noise( s, opts ) {
 		
 			var tot = 0;
 //		      console.log( "corn:", gen.corn, gen.cx, gen.cy, gen.cy );
-//debugger;
 
 			for( var n = 0; n < noiseGen.length; n++ ) {
 				var gen = noiseGen[n];

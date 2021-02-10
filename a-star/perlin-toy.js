@@ -505,7 +505,7 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 				return c;
 			}
 		};
-//debugger;
+
 	openSet.add( from, 0, 0 );
 	var check;
 	var longest = [];

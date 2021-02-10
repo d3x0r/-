@@ -8,6 +8,16 @@ import {TrackballControls} from "./three.js/TrackballControls.js"
 import {noise} from "./perlin-sphere.js"
 //import {
 
+const sliders = [
+	document.getElementById( "Slider1" ),
+	document.getElementById( "Slider2" ),
+	document.getElementById( "Slider3" ),
+	document.getElementById( "Slider4" ),
+]
+const buttons = [
+	document.getElementById( "Event1" ),
+];
+
 const BASE_COLOR_WHITE = [255,255,255,255];
 const BASE_COLOR_BLACK = [0,0,0,255];
 const BASE_COLOR_DARK_BLUE = [0,0,132,255];
@@ -51,11 +61,28 @@ let camera = null;
 let cameraControls = null;
 
 const CUBE_ELEMENT_SIZE = 16
-const height = noise( 1.0, config );
+let height = noise( 1.0, config );
 
+let heightScalar = 0.1;
+let xOfs = 0;
+let yOfs = 0;
+let zOfs = 0;
+let updateSphere = true;
 init();
-animate();
 
+
+function getValues() {
+	const v1 = sliders[0].value/100;
+	const v2 = (sliders[1].value)/100;
+	const v3 = sliders[2].value/100;
+	const v4 = sliders[3].value/100;
+
+	heightScalar = v1 * 0.4;
+	xOfs = v2 * 2 - 1.0;
+	yOfs = v3 * 2 - 1.0;
+	zOfs = v4 * 2 - 1.0;
+	updateSphere = true;
+}
 
 function init() {
 	if( typeof document !== "undefined" ) {
@@ -82,7 +109,7 @@ function init() {
 
 	var rect = config.canvas.getBoundingClientRect();
 //	camera = new THREE.PerspectiveCamera( 15, rect.width / rect.height, 0.001, 10000 );
-	camera = new THREE.PerspectiveCamera( 15, window.innerWidth/window.innerHeight, 0.001, 10000 );
+	camera = new THREE.PerspectiveCamera( 15, window.innerWidth/window.innerHeight, 0.1, 1000 );
 
 	//myPerspective( camera.projectionMatrix, 90, rect.width / rect.height, 0.01, 10000 );
 
@@ -130,23 +157,46 @@ function init() {
 
 
 //		const geometry = new THREE.BoxGeometry( 1, 1, 1 );
-		const geometry = new THREE.IcosahedronGeometry( 0, 5 );
+		const geometry = new THREE.IcosahedronGeometry( 0, 4 );
+		const geometryWater = new THREE.Geometry( );
 		// create the Cube
 				//cube = new THREE.Mesh( new THREE.CubeGeometry( 200, 200, 200 ), new THREE.MeshNormalMaterial() );
 		//				cube.position.y = 150;
-		mangleGeometry( geometry );
+		const update = mangleGeometry( geometry, geometryWater );
+
+		sliders[0].addEventListener( "input", getValues );
+		sliders[1].addEventListener( "input", getValues );
+		sliders[2].addEventListener( "input", getValues );
+		sliders[3].addEventListener( "input", getValues );
+
+		buttons[0].addEventListener("click",()=>{
+			config.seed = new Date();
+			config.cache = [];
+			height = noise( 1.0, config );
+			update.newSeed();
+		})
 
 		geometry.colorsNeedUpdate = true;
 
 		const material2 = new THREE.MeshNormalMaterial();
-		const material = new THREE.MeshPhongMaterial( {vertexColors:THREE.VertexColors, color: 0x808080} );
-		material.vertexColors = true;
-		material.vertexColors = THREE.FaceColors;
+		const material = new THREE.MeshPhongMaterial( {vertexColors:THREE.VertexColors, color: 0x80808080} );
+		material.transparent = false
+		//material.vertexColors = true;
+		//material.vertexColors = THREE.FaceColors;
 		material.needsUpdate = true;     
 
+		const materialWater = new THREE.MeshPhongMaterial( {vertexColors:THREE.VertexColors, color: 0x80808080} );
+		materialWater.transparent = true
+		materialWater.opacity = 0.2;
+		//material.vertexColors = true;
+		//material.vertexColors = THREE.FaceColors;
+		materialWater.needsUpdate = true;     
+
 		const cube = new THREE.Mesh( geometry, material );
+		const water = new THREE.Mesh( geometryWater, materialWater );
 
 		scene.add( cube )
+		cube.add( water )
 
 
 			// here you add your objects
@@ -168,11 +218,9 @@ function init() {
 			scene.add( light2 );
 
 
-}
 
-
-
-		
+		animate();
+		return;
 
 		// animation loop
 		function animate() {
@@ -184,7 +232,10 @@ function init() {
 
 			// do the render
 			render();
-
+			if( updateSphere ){
+				updateSphere = false;
+				update.update();
+			}
 			// update stats
 			//stats.update();
 		}
@@ -261,53 +312,146 @@ function getColor( here ) {
 
 
 
-function mangleGeometry( geometry ) {
-	const verts = geometry.vertices;
-	const faces = geometry.faces;
-	const colors = geometry.colors;
-		const spanx = 64;
-		const spany = 64;
-		const spanz = 64;
-if(1)
-	for( var n = 0; n < faces.length; n++ ) {
-		const f = faces[n];	
-		const p1 = verts[f.a];
-		const p2 = verts[f.b];
-		const p3 = verts[f.c];
+function mangleGeometry( land, water ) {
+	const verts_w = water.vertices;
+	const uvs_w = water.faceVertexUvs;
+	const faces_w = water.faces;
 
-		{
-			const h = height.get2( (1+p1.x)*spanx, (1+p1.y)*spany, (1+p1.z)*spanz, 0 );
-			//const h = Math.random();
-			const color = getColor( h );
-			f.vertexColors.push( new THREE.Color( color[0], color[1], color[2], color[3] ) );
-		}
-		{
-			const h = height.get2( (1+p2.x)*spanx, (1+p2.y)*spany, (1+p2.z)*spanz, 0 );
-			//const h = Math.random();
-			const color = getColor( h );
-			f.vertexColors.push( new THREE.Color( color[0], color[1], color[2], color[3] ) );
-		}
-		{
-			const h = height.get2( (1+p3.x)*spanx, (1+p3.y)*spany, (1+p3.z)*spanz, 0 );
-			//const h = Math.random();
-			const color = getColor( h );
-			f.vertexColors.push( new THREE.Color( color[0], color[1], color[2], color[3] ) );
-		}
+	const verts = land.vertices;
+	const faces = land.faces;
+	const uvs = land.faceVertexUvs;
+	const vout = land.vertices = [];
 
-	}
+	const checkVerts = verts.length;
+	const checkFaces = faces.length;
+
+	function updateVerts() {
+		const newUpdate = !vout.length;
 
 
-	for( var n = 0; n < verts.length; n++ ) {
-		const v = verts[n];
-		const h = height.get2( (1+v.x)*spanx, (1+v.y)*spany, (1+v.z)*spanz, 0 );
-		//const h = Math.random();
-//		const color = getColor( h );
-//		colors.push( new THREE.Color( color[0], color[1], color[2], color[3] ) );
 
-		//const r = 0.95 + ( h * 0.1 );
-		const r = 0.9 + ( h * 0.2 );
-		verts[n].multiplyScalar( r );
-	}
-	geometry.colorsNeedUpdate = true;
+		//	const colors = land.colors;
+			const spanx = 64;
+			const spany = 64;
+			const spanz = 64;
+	if(1)
+		for( var n = 0; n < checkFaces; n++ ) {
+			const f = faces[n];	
+			const p1 = verts[f.a];
+			const p2 = verts[f.b];
+			const p3 = verts[f.c];
+			let addOne = false;
+			let newF = 0;
+			f.vertexColors.length = 0;
+			{
+				const h = height.get2( (1+p1.x+xOfs)*spanx, (1+p1.y+yOfs)*spany, (1+p1.z+zOfs)*spanz, 0 );
+				if( h < RANGES_THRESH[3] )
+					addOne = true;
+				//const h = Math.random();
+				const color = getColor( h );
+				f.vertexColors.push( new THREE.Color( color[0], color[1], color[2], color[3] ) );
+			}
+			{
+				const h = height.get2( (1+p2.x+xOfs)*spanx, (1+p2.y+yOfs)*spany, (1+p2.z+zOfs)*spanz, 0 );
+				if( h < RANGES_THRESH[3] )
+					addOne = true;
+				//const h = Math.random();
+				const color = getColor( h );
+				f.vertexColors.push( new THREE.Color( color[0], color[1], color[2], color[3] ) );
+			}
+			{
+				const h = height.get2( (1+p3.x+xOfs)*spanx, (1+p3.y+yOfs)*spany, (1+p3.z+zOfs)*spanz, 0 );
+				if( h < RANGES_THRESH[3] )
+					addOne = true;
+				//const h = Math.random();
+				const color = getColor( h );
+				f.vertexColors.push( new THREE.Color( color[0], color[1], color[2], color[3] ) );
+			}
+
+			if( addOne ) {
+				if( !newUpdate ){
+
+					const f2 = faces_w[newF++];
+					 verts_w[f2.a].copy( verts[f.a] ).multiplyScalar( 1.0 - 0.06 * (heightScalar*2) ) ;
+					 verts_w[f2.b].copy( verts[f.b] ).multiplyScalar( 1.0 - 0.06 * (heightScalar*2) ) ;
+					 verts_w[f2.c].copy( verts[f.c] ).multiplyScalar( 1.0 - 0.06 * (heightScalar*2) ) ;
+
+					const r = BASE_COLOR_DARK_BLUEGREEN[0]/255.0;//0.1;
+					const g = BASE_COLOR_DARK_BLUEGREEN[1]/255.0;//0.8;
+					const b = BASE_COLOR_DARK_BLUEGREEN[2]/255.0;//0.2;
 	
+	
+					f2.vertexColors[0].setRGB(r,g,b);//.push( new THREE.Color( r,g,b, 0.2 ) );
+					f2.vertexColors[1].setRGB(r,g,b);//.push( new THREE.Color( r,g,b, 0.2 ) );
+					f2.vertexColors[2].setRGB(r,g,b);//.push( new THREE.Color(  r,g,b, 0.2 ) );
+	
+					//uvs_w[0].push( uvs[0][n] );
+					//faces_w.push(f2);
+				}else {
+					const f2 = new THREE.Face3( f.a, f.b, f.c, f.normal, f.color );
+					f2.a = verts_w.push( new THREE.Vector3().copy( verts[f.a] ).multiplyScalar( 1.0 - 0.06 * (heightScalar*2) ) )-1;
+					f2.b = verts_w.push( new THREE.Vector3().copy( verts[f.b] ).multiplyScalar( 1.0 - 0.06 * (heightScalar*2) ) )-1;
+					f2.c = verts_w.push( new THREE.Vector3().copy( verts[f.c] ).multiplyScalar( 1.0 - 0.06 * (heightScalar*2) ) )-1;
+					//debugger;
+					//const r = BASE_COLOR_LIGHT_TAN[0]/255.0;//0.1;
+					//const g = BASE_COLOR_LIGHT_TAN[1]/255.0;//0.8;
+					//const b = BASE_COLOR_LIGHT_TAN[2]/255.0;//0.2;
+					const r = BASE_COLOR_DARK_BLUEGREEN[0]/255.0;//0.1;
+					const g = BASE_COLOR_DARK_BLUEGREEN[1]/255.0;//0.8;
+					const b = BASE_COLOR_DARK_BLUEGREEN[2]/255.0;//0.2;
+
+
+					f2.vertexColors.push( new THREE.Color( r,g,b, 0.2 ) );
+					f2.vertexColors.push( new THREE.Color( r,g,b, 0.2 ) );
+					f2.vertexColors.push( new THREE.Color(  r,g,b, 0.2 ) );
+
+					uvs_w[0].push( uvs[0][n] );
+					faces_w.push(f2);
+				}
+			}
+		}
+
+		const tmp = new THREE.Vector3();
+		for( var n = 0; n < checkVerts; n++ ) {
+			const v = verts[n];
+			const h = height.get2( (1+v.x+xOfs)*spanx, (1+v.y+yOfs)*spany, (1+v.z+zOfs)*spanz, 0 );
+			//const h = Math.random();
+	//		const color = getColor( h );
+	//		colors.push( new THREE.Color( color[0], color[1], color[2], color[3] ) );
+
+			//const r = 0.95 + ( h * 0.1 );
+			const r = (1.0-heightScalar) + ( h * (heightScalar*2) );
+			if( newUpdate )
+				vout.push( new THREE.Vector3().copy(v).multiplyScalar( r ) );
+			else 
+				vout[n].copy(v).multiplyScalar( r );
+		}
+
+		land.colorsNeedUpdate = true;
+		land.verticesNeedUpdate  = true;
+		land.elementsNeedUpdate   = true;
+
+		water.colorsNeedUpdate = true;
+		water.verticesNeedUpdate  = true;
+		water.elementsNeedUpdate   = true;
+
+	}
+	updateVerts();
+	return {
+		update() {
+			updateVerts();
+		},
+		newSeed() {
+			faces_w.length = 0;
+			vout.length = 0;
+			verts_w.length = 0;
+			uvs_w[0].length = 0;
+			updateVerts();
+		}
+	}
 }
+
+
+
+}
+ 

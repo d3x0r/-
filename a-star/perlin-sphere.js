@@ -1,6 +1,6 @@
 import {SaltyRNG} from "./salty_random_generator.js"
 
-const CUBE_ELEMENT_SIZE = 16
+const CUBE_ELEMENT_SIZE = 8
 
 function noise( s, opts ) {
 	function NoiseGeneration(n,s) {
@@ -49,19 +49,19 @@ function noise( s, opts ) {
 
 
 	function myRandom() {
-		RNG.reset();
+		//RNG.reset();
 	
 		//console.log( "Data wil lbe:", data );
 		var n = 0;
 		const arr = [];
-		const arrb = RNG.getBuffer( 8*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE );
-		const buf = new Uint8Array( arrb );
+		//const arrb = RNG.getBuffer( 8*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE );
+		//const buf = new Uint8Array( arrb );
 		
 		for( var nz = 0; nz< CUBE_ELEMENT_SIZE; nz++ ) 
 			for( var ny = 0; ny < CUBE_ELEMENT_SIZE; ny++ ) 
 				for( var nx = 0; nx < CUBE_ELEMENT_SIZE; nx++ )  {
-					var val = buf[n++] / 255; // 0 < 1 
-					arr.push( val );
+					//var val = buf[n++] / 255; // 0 < 1 
+					arr.push( Math.random() );
 				}
 		return { id:data, when : 0, next : null, arr: arr, sx:0, sy:0, sz:0 };
 	}
@@ -94,6 +94,7 @@ function noise( s, opts ) {
 		}
 		patch.when = Date.now();
 		if( cacheLen > 500 ) {
+			let counter = 0;
 			for( p1 = most_used; p1; (_p1 = p1),p1 = p1.next ) {
 				counter++;
 				if( counter === 400 ) {
@@ -114,9 +115,9 @@ function noise( s, opts ) {
 			last_used = most_used = patch;
 			cacheLen = 1;
 		}
-		if( counter++ == 1000 ) {
-			counter = 0;
-		}
+		//if( counter++ == 1000 ) {
+		//	counter = 0;
+		//}
 		//patch.next = null;
 	}
 
@@ -124,16 +125,18 @@ function noise( s, opts ) {
 		//var fx = (x=x||0) &  0xF:
 		//var fy = (y=x||0) &  0xF:
 		//var fz = (z=z||0) &  0xF:
-		var sx, sy, sz;
+		const sx= (x/CUBE_ELEMENT_SIZE)|0
+		const sy= (y/CUBE_ELEMENT_SIZE)|0;
+		const sz= (z/CUBE_ELEMENT_SIZE)|0;
 
-			var c_lv1 = cache[sx = (x/CUBE_ELEMENT_SIZE)|0];
+			var c_lv1 = cache[sx ];
 			if( !c_lv1 ) ( c_lv1 = cache[sx] = [] );
 	        
-			var c_lv2 = c_lv1[sy=(y/CUBE_ELEMENT_SIZE)|0];				
+			var c_lv2 = c_lv1[sy];				
 			if( !c_lv2 ) 
 				c_lv2 = c_lv1[sy] = [];
 
-			var c_lv3 = c_lv2[sz=(z/CUBE_ELEMENT_SIZE)|0];
+			let c_lv3 = c_lv2[sz];
 
 			if( !c_lv3 ) {
 				data = [ sx, sy, sz, opts.seed ].join( " " );
@@ -144,7 +147,7 @@ function noise( s, opts ) {
 				//console.log( "clv:", c_lv3 )
 			}
 			heatCache( c_lv3 );
-			return c_lv3;
+			return c_lv3.arr;
 	}
 
 	
@@ -212,24 +215,593 @@ function noise( s, opts ) {
 					//console.log( "noise is...", n, x, y, z, nx, ny, nz, gen.cx, gen.cy, gen.cz );
 					gen.nx = nx; gen.ny =ny; gen.nz = nz;
 
-					var noise1;
-					var noise2;
-					var noise3;
-					var noise4;
-		
-					var noise5;
-					var noise6;
-					var noise7;
-					var noise8;
-						noise1 = getRandom( nx   , ny   , nz ).arr;
-						noise2 = getRandom( (npx), ny   , nz ).arr;
-						noise3 = getRandom( nx   , (npy), nz ).arr;
-						noise4 = getRandom( (npx), (npy), nz ).arr;
+					let noise1, noise2,noise3, noise4;
+					let noise5, noise6,noise7, noise8;
+
+					//const	noise1 = getRandom( nx   , ny   , nz );
+					{
+						//var fx = (x=x||0) &  0xF:
+						//var fy = (y=x||0) &  0xF:
+						//var fz = (z=z||0) &  0xF:
+						const sx= (nx/CUBE_ELEMENT_SIZE)|0
+						const sy= (ny/CUBE_ELEMENT_SIZE)|0;
+						const sz= (nz/CUBE_ELEMENT_SIZE)|0;
+				
+							var c_lv1 = cache[sx ];
+							if( !c_lv1 ) ( c_lv1 = cache[sx] = [] );
+							
+							var c_lv2 = c_lv1[sy];				
+							if( !c_lv2 ) 
+								c_lv2 = c_lv1[sy] = [];
+							let c_lv3 = c_lv2[sz];
+				
+							if( !c_lv3 ) {
+								data = [ sx, sy, sz, opts.seed ].join( " " );
+								c_lv3 = c_lv2[sz] = myRandom();
+								c_lv3.sx = sx;
+								c_lv3.sy = sy;
+								c_lv3.sz = sz;
+								//console.log( "clv:", c_lv3 )
+							}
+							
+							{
+								const patch = c_lv3;
+								var p1 = most_used;
+								var _p1 = null;
+								if( p1 ) {
+									for( ; p1; (_p1 = p1),p1 = p1.next ) {
+										if( patch === p1 )
+											break;
+									}
+									if( p1 && p1 != most_used ) {
+										cacheLen--;
+										if( !_p1 )
+											most_used = most_used.next;
+										else {
+											_p1.next = p1.next;
+										}
+									}
+								}
+								patch.when = Date.now();
+								if( cacheLen > 500 ) {
+									for( p1 = most_used; p1; (_p1 = p1),p1 = p1.next ) {
+										counter++;
+										if( counter === 400 ) {
+											cacheLen = counter;
+											p1.next = null; // trim tail of cached values... recompute later.
+											break;
+										}
+									}
+									
+								}
+								if( most_used ) {
+									if( most_used !== patch ) {
+										patch.next = most_used;
+										most_used = patch;
+										cacheLen++;
+									}
+								} else {
+									last_used = most_used = patch;
+									cacheLen = 1;
+								}
+								//patch.next = null;
+							}
+						
+
+							//heatCache( c_lv3 );
+							noise1 = c_lv3.arr;
+					}
+				
+					//const	noise2 = getRandom( (npx), ny   , nz );
+					{
+						//var fx = (x=x||0) &  0xF:
+						//var fy = (y=x||0) &  0xF:
+						//var fz = (z=z||0) &  0xF:
+						const sx= (npx/CUBE_ELEMENT_SIZE)|0
+						const sy= (ny/CUBE_ELEMENT_SIZE)|0;
+						const sz= (nz/CUBE_ELEMENT_SIZE)|0;
+				
+							var c_lv1 = cache[sx ];
+							if( !c_lv1 ) ( c_lv1 = cache[sx] = [] );
+							
+							var c_lv2 = c_lv1[sy];				
+							if( !c_lv2 ) 
+								c_lv2 = c_lv1[sy] = [];
+				
+							let c_lv3 = c_lv2[sz];
+							const patch = c_lv3;
+					
+							if( !c_lv3 ) {
+								data = [ sx, sy, sz, opts.seed ].join( " " );
+								c_lv3 = c_lv2[sz] = myRandom();
+								c_lv3.sx = sx;
+								c_lv3.sy = sy;
+								c_lv3.sz = sz;
+								//console.log( "clv:", c_lv3 )
+							}
+							{
+								const patch = c_lv3;
+								var p1 = most_used;
+								var _p1 = null;
+								if( p1 ) {
+									for( ; p1; (_p1 = p1),p1 = p1.next ) {
+										if( patch === p1 )
+											break;
+									}
+									if( p1 && p1 != most_used ) {
+										cacheLen--;
+										if( !_p1 )
+											most_used = most_used.next;
+										else {
+											_p1.next = p1.next;
+										}
+									}
+								}
+								patch.when = Date.now();
+								if( cacheLen > 500 ) {
+									for( p1 = most_used; p1; (_p1 = p1),p1 = p1.next ) {
+										counter++;
+										if( counter === 400 ) {
+											cacheLen = counter;
+											p1.next = null; // trim tail of cached values... recompute later.
+											break;
+										}
+									}
+									
+								}
+								if( most_used ) {
+									if( most_used !== patch ) {
+										patch.next = most_used;
+										most_used = patch;
+										cacheLen++;
+									}
+								} else {
+									last_used = most_used = patch;
+									cacheLen = 1;
+								}
+								//patch.next = null;
+							}
+							noise2 = c_lv3.arr;
+					}
+					//const	noise3 = getRandom( nx   , (npy), nz );
+					{
+						//var fx = (x=x||0) &  0xF:
+						//var fy = (y=x||0) &  0xF:
+						//var fz = (z=z||0) &  0xF:
+						const sx= (nx/CUBE_ELEMENT_SIZE)|0
+						const sy= (npy/CUBE_ELEMENT_SIZE)|0;
+						const sz= (nz/CUBE_ELEMENT_SIZE)|0;
+				
+							var c_lv1 = cache[sx ];
+							if( !c_lv1 ) ( c_lv1 = cache[sx] = [] );
+							
+							var c_lv2 = c_lv1[sy];				
+							if( !c_lv2 ) 
+								c_lv2 = c_lv1[sy] = [];
+				
+							let c_lv3 = c_lv2[sz];
+							const patch = c_lv3;
+					
+							if( !c_lv3 ) {
+								data = [ sx, sy, sz, opts.seed ].join( " " );
+								c_lv3 = c_lv2[sz] = myRandom();
+								c_lv3.sx = sx;
+								c_lv3.sy = sy;
+								c_lv3.sz = sz;
+								//console.log( "clv:", c_lv3 )
+							}
+							{
+								const patch = c_lv3;
+								var p1 = most_used;
+								var _p1 = null;
+								if( p1 ) {
+									for( ; p1; (_p1 = p1),p1 = p1.next ) {
+										if( patch === p1 )
+											break;
+									}
+									if( p1 && p1 != most_used ) {
+										cacheLen--;
+										if( !_p1 )
+											most_used = most_used.next;
+										else {
+											_p1.next = p1.next;
+										}
+									}
+								}
+								patch.when = Date.now();
+								if( cacheLen > 500 ) {
+									for( p1 = most_used; p1; (_p1 = p1),p1 = p1.next ) {
+										counter++;
+										if( counter === 400 ) {
+											cacheLen = counter;
+											p1.next = null; // trim tail of cached values... recompute later.
+											break;
+										}
+									}
+									
+								}
+								if( most_used ) {
+									if( most_used !== patch ) {
+										patch.next = most_used;
+										most_used = patch;
+										cacheLen++;
+									}
+								} else {
+									last_used = most_used = patch;
+									cacheLen = 1;
+								}
+								//patch.next = null;
+							}
+							noise3 = c_lv3.arr;
+					}
+					//const	noise4 = getRandom( (npx), (npy), nz );
+					{
+						//var fx = (x=x||0) &  0xF:
+						//var fy = (y=x||0) &  0xF:
+						//var fz = (z=z||0) &  0xF:
+						const sx= (npx/CUBE_ELEMENT_SIZE)|0
+						const sy= (npy/CUBE_ELEMENT_SIZE)|0;
+						const sz= (nz/CUBE_ELEMENT_SIZE)|0;
+				
+							var c_lv1 = cache[sx ];
+							if( !c_lv1 ) ( c_lv1 = cache[sx] = [] );
+							
+							var c_lv2 = c_lv1[sy];				
+							if( !c_lv2 ) 
+								c_lv2 = c_lv1[sy] = [];
+				
+							let c_lv3 = c_lv2[sz];
+							const patch = c_lv3;
+					
+							if( !c_lv3 ) {
+								data = [ sx, sy, sz, opts.seed ].join( " " );
+								c_lv3 = c_lv2[sz] = myRandom();
+								c_lv3.sx = sx;
+								c_lv3.sy = sy;
+								c_lv3.sz = sz;
+								//console.log( "clv:", c_lv3 )
+							}
+							//heatCache( c_lv3 );
+							{
+								const patch = c_lv3;
+								var p1 = most_used;
+								var _p1 = null;
+								if( p1 ) {
+									for( ; p1; (_p1 = p1),p1 = p1.next ) {
+										if( patch === p1 )
+											break;
+									}
+									if( p1 && p1 != most_used ) {
+										cacheLen--;
+										if( !_p1 )
+											most_used = most_used.next;
+										else {
+											_p1.next = p1.next;
+										}
+									}
+								}
+								patch.when = Date.now();
+								if( cacheLen > 500 ) {
+									for( p1 = most_used; p1; (_p1 = p1),p1 = p1.next ) {
+										counter++;
+										if( counter === 400 ) {
+											cacheLen = counter;
+											p1.next = null; // trim tail of cached values... recompute later.
+											break;
+										}
+									}
+									
+								}
+								if( most_used ) {
+									if( most_used !== patch ) {
+										patch.next = most_used;
+										most_used = patch;
+										cacheLen++;
+									}
+								} else {
+									last_used = most_used = patch;
+									cacheLen = 1;
+								}
+								//patch.next = null;
+							}
+							noise4 = c_lv3.arr;
+					}
+
+
+
+					//const	noise1 = getRandom( nx   , ny   , nz );
+					//const	noise2 = getRandom( (npx), ny   , nz );
+					//const	noise3 = getRandom( nx   , (npy), nz );
+					//const	noise4 = getRandom( (npx), (npy), nz );
 		                        
-						noise5 = getRandom( nx   , ny , (npz) ).arr;
-						noise6 = getRandom( (npx), ny , (npz) ).arr;
-						noise7 = getRandom( nx   , npy, (npz) ).arr;
-						noise8 = getRandom( (npx), npy, (npz) ).arr;
+					//const	noise5 = getRandom( nx   , ny , (npz) );
+					{
+						//var fx = (x=x||0) &  0xF:
+						//var fy = (y=x||0) &  0xF:
+						//var fz = (z=z||0) &  0xF:
+						const sx= (nx/CUBE_ELEMENT_SIZE)|0
+						const sy= (ny/CUBE_ELEMENT_SIZE)|0;
+						const sz= (npz/CUBE_ELEMENT_SIZE)|0;
+				
+							var c_lv1 = cache[sx ];
+							if( !c_lv1 ) ( c_lv1 = cache[sx] = [] );
+							
+							var c_lv2 = c_lv1[sy];				
+							if( !c_lv2 ) 
+								c_lv2 = c_lv1[sy] = [];
+				
+							let c_lv3 = c_lv2[sz];
+							const patch = c_lv3;
+					
+							if( !c_lv3 ) {
+								data = [ sx, sy, sz, opts.seed ].join( " " );
+								c_lv3 = c_lv2[sz] = myRandom();
+								c_lv3.sx = sx;
+								c_lv3.sy = sy;
+								c_lv3.sz = sz;
+								//console.log( "clv:", c_lv3 )
+							}
+							//heatCache( c_lv3 );
+							{
+								const patch = c_lv3;
+								var p1 = most_used;
+								var _p1 = null;
+								if( p1 ) {
+									for( ; p1; (_p1 = p1),p1 = p1.next ) {
+										if( patch === p1 )
+											break;
+									}
+									if( p1 && p1 != most_used ) {
+										cacheLen--;
+										if( !_p1 )
+											most_used = most_used.next;
+										else {
+											_p1.next = p1.next;
+										}
+									}
+								}
+								patch.when = Date.now();
+								if( cacheLen > 500 ) {
+									for( p1 = most_used; p1; (_p1 = p1),p1 = p1.next ) {
+										counter++;
+										if( counter === 400 ) {
+											cacheLen = counter;
+											p1.next = null; // trim tail of cached values... recompute later.
+											break;
+										}
+									}
+									
+								}
+								if( most_used ) {
+									if( most_used !== patch ) {
+										patch.next = most_used;
+										most_used = patch;
+										cacheLen++;
+									}
+								} else {
+									last_used = most_used = patch;
+									cacheLen = 1;
+								}
+								//patch.next = null;
+							}
+							noise5 = c_lv3.arr;
+					}
+					//const	noise6 = getRandom( (npx), ny , (npz) );
+					{
+						//var fx = (x=x||0) &  0xF:
+						//var fy = (y=x||0) &  0xF:
+						//var fz = (z=z||0) &  0xF:
+						const sx= (npx/CUBE_ELEMENT_SIZE)|0
+						const sy= (ny/CUBE_ELEMENT_SIZE)|0;
+						const sz= (npz/CUBE_ELEMENT_SIZE)|0;
+				
+							var c_lv1 = cache[sx ];
+							if( !c_lv1 ) ( c_lv1 = cache[sx] = [] );
+							
+							var c_lv2 = c_lv1[sy];				
+							if( !c_lv2 ) 
+								c_lv2 = c_lv1[sy] = [];
+				
+							let c_lv3 = c_lv2[sz];
+							const patch = c_lv3;
+					
+							if( !c_lv3 ) {
+								data = [ sx, sy, sz, opts.seed ].join( " " );
+								c_lv3 = c_lv2[sz] = myRandom();
+								c_lv3.sx = sx;
+								c_lv3.sy = sy;
+								c_lv3.sz = sz;
+								//console.log( "clv:", c_lv3 )
+							}
+							//heatCache( c_lv3 );
+							{
+								const patch = c_lv3;
+								var p1 = most_used;
+								var _p1 = null;
+								if( p1 ) {
+									for( ; p1; (_p1 = p1),p1 = p1.next ) {
+										if( patch === p1 )
+											break;
+									}
+									if( p1 && p1 != most_used ) {
+										cacheLen--;
+										if( !_p1 )
+											most_used = most_used.next;
+										else {
+											_p1.next = p1.next;
+										}
+									}
+								}
+								patch.when = Date.now();
+								if( cacheLen > 500 ) {
+									for( p1 = most_used; p1; (_p1 = p1),p1 = p1.next ) {
+										counter++;
+										if( counter === 400 ) {
+											cacheLen = counter;
+											p1.next = null; // trim tail of cached values... recompute later.
+											break;
+										}
+									}
+									
+								}
+								if( most_used ) {
+									if( most_used !== patch ) {
+										patch.next = most_used;
+										most_used = patch;
+										cacheLen++;
+									}
+								} else {
+									last_used = most_used = patch;
+									cacheLen = 1;
+								}
+								//patch.next = null;
+							}
+							noise6 = c_lv3.arr;
+					}
+					//const	noise7 = getRandom( nx   , npy, (npz) );
+					{
+						//var fx = (x=x||0) &  0xF:
+						//var fy = (y=x||0) &  0xF:
+						//var fz = (z=z||0) &  0xF:
+						const sx= (nx/CUBE_ELEMENT_SIZE)|0
+						const sy= (npy/CUBE_ELEMENT_SIZE)|0;
+						const sz= (npz/CUBE_ELEMENT_SIZE)|0;
+				
+							var c_lv1 = cache[sx ];
+							if( !c_lv1 ) ( c_lv1 = cache[sx] = [] );
+							
+							var c_lv2 = c_lv1[sy];				
+							if( !c_lv2 ) 
+								c_lv2 = c_lv1[sy] = [];
+				
+							let c_lv3 = c_lv2[sz];
+							const patch = c_lv3;
+					
+							if( !c_lv3 ) {
+								data = [ sx, sy, sz, opts.seed ].join( " " );
+								c_lv3 = c_lv2[sz] = myRandom();
+								c_lv3.sx = sx;
+								c_lv3.sy = sy;
+								c_lv3.sz = sz;
+								//console.log( "clv:", c_lv3 )
+							}
+							//heatCache( c_lv3 );
+							{
+								const patch = c_lv3;
+								var p1 = most_used;
+								var _p1 = null;
+								if( p1 ) {
+									for( ; p1; (_p1 = p1),p1 = p1.next ) {
+										if( patch === p1 )
+											break;
+									}
+									if( p1 && p1 != most_used ) {
+										cacheLen--;
+										if( !_p1 )
+											most_used = most_used.next;
+										else {
+											_p1.next = p1.next;
+										}
+									}
+								}
+								patch.when = Date.now();
+								if( cacheLen > 500 ) {
+									for( p1 = most_used; p1; (_p1 = p1),p1 = p1.next ) {
+										counter++;
+										if( counter === 400 ) {
+											cacheLen = counter;
+											p1.next = null; // trim tail of cached values... recompute later.
+											break;
+										}
+									}
+									
+								}
+								if( most_used ) {
+									if( most_used !== patch ) {
+										patch.next = most_used;
+										most_used = patch;
+										cacheLen++;
+									}
+								} else {
+									last_used = most_used = patch;
+									cacheLen = 1;
+								}
+								//patch.next = null;
+							}
+							noise7 = c_lv3.arr;
+					}
+					//const	noise8 = getRandom( (npx), npy, (npz) );
+					{
+						//var fx = (x=x||0) &  0xF:
+						//var fy = (y=x||0) &  0xF:
+						//var fz = (z=z||0) &  0xF:
+						const sx= (npx/CUBE_ELEMENT_SIZE)|0
+						const sy= (npy/CUBE_ELEMENT_SIZE)|0;
+						const sz= (npz/CUBE_ELEMENT_SIZE)|0;
+				
+							var c_lv1 = cache[sx ];
+							if( !c_lv1 ) ( c_lv1 = cache[sx] = [] );
+							
+							var c_lv2 = c_lv1[sy];				
+							if( !c_lv2 ) 
+								c_lv2 = c_lv1[sy] = [];
+				
+							let c_lv3 = c_lv2[sz];
+							const patch = c_lv3;
+					
+							if( !c_lv3 ) {
+								data = [ sx, sy, sz, opts.seed ].join( " " );
+								c_lv3 = c_lv2[sz] = myRandom();
+								c_lv3.sx = sx;
+								c_lv3.sy = sy;
+								c_lv3.sz = sz;
+								//console.log( "clv:", c_lv3 )
+							}
+							//heatCache( c_lv3 );
+							{
+								const patch = c_lv3;
+								var p1 = most_used;
+								var _p1 = null;
+								if( p1 ) {
+									for( ; p1; (_p1 = p1),p1 = p1.next ) {
+										if( patch === p1 )
+											break;
+									}
+									if( p1 && p1 != most_used ) {
+										cacheLen--;
+										if( !_p1 )
+											most_used = most_used.next;
+										else {
+											_p1.next = p1.next;
+										}
+									}
+								}
+								patch.when = Date.now();
+								if( cacheLen > 500 ) {
+									for( p1 = most_used; p1; (_p1 = p1),p1 = p1.next ) {
+										counter++;
+										if( counter === 400 ) {
+											cacheLen = counter;
+											p1.next = null; // trim tail of cached values... recompute later.
+											break;
+										}
+									}
+									
+								}
+								if( most_used ) {
+									if( most_used !== patch ) {
+										patch.next = most_used;
+										most_used = patch;
+										cacheLen++;
+									}
+								} else {
+									last_used = most_used = patch;
+									cacheLen = 1;
+								}
+								//patch.next = null;
+							}
+							noise8 = c_lv3.arr;
+					}
 
 					gen.ix = nx % CUBE_ELEMENT_SIZE;
 					while( gen.ix < 0 ) gen.ix += CUBE_ELEMENT_SIZE;

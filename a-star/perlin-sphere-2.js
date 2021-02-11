@@ -93,7 +93,19 @@ function noise( s, opts ) {
 				if( counter === 400 ) {
 					//console.log( "Trimming some cache...", p1 );
 					cacheLen = counter;
+					for( let p2 =p1.next; p2; p2 = p2.next ) {
+						opts.cache[p2.sx][p2.sy][p2.sz] = null;
+					}
+					/*
+					for( let x = 0; x < opts.cache.length; x++ ) {
+						for( let y = 0; y < opts.cache.length; y++ ) {
+							for( let z = 0; z < opts.cache.length; z++ ) {
+							}
+						}
+					}
+					*/
 					p1.next = null; // trim tail of cached values... recompute later.
+	
 					break;
 				}
 			}
@@ -152,7 +164,9 @@ function noise( s, opts ) {
 			noiseGen[g].oy = oy||0;
 			noiseGen[g].oz = oz||0;
 		}, 
-
+		get(x,y,z,s) {
+			return this.get2(x,y,z,s);
+		},
 
 		get2(x,y,z,s) {
 			z = z || 0;

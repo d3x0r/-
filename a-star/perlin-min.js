@@ -7,14 +7,17 @@ const generate_3D = false;
 
 var config = {
 	patchSize : 128,
+	generations : 7,
 	seed_noise : "Blue",
 	left : 32,    // default left side (entry)
 	right : 96,   // default right side (exit)
 	nodes : [],  // trace of A*Path
 	base : 0,
+	cache : [],
 }
 
-import {noise} from "./perlin-min.mjs";
+//import {noise} from "./perlin-min.mjs";
+import {noise} from "./perlin-sphere-2.js";
 
 const CUBE_ELEMENT_SIZE = 32
 
@@ -67,7 +70,7 @@ function init( config ) {
 	} else {
 	}
 
-	var myNoise = noise( config );
+	var myNoise = noise( 0, config );
 	var start = Date.now();
 	//fillData( config );
 	console.log( "FILL IS:", Date.now() - start );

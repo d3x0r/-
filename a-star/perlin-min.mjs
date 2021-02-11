@@ -43,9 +43,6 @@ function noise( opts ) {
 			dy2 : 0,
 			ox:0,oy:0,oz:0,
 			pitch : opts.patchSize / n,
-			dx : 1/(opts.patchSize/n),
-			dy : 1/(opts.patchSize/n),
-			
 		};
 	}
 	var noiseGen = [];

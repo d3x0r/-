@@ -393,7 +393,6 @@ function mangleGeometry( land, water ) {
 					f2.a = verts_w.push( new THREE.Vector3().copy( verts[f.a] ).multiplyScalar( 1.0 - 0.06 * (heightScalar*2) ) )-1;
 					f2.b = verts_w.push( new THREE.Vector3().copy( verts[f.b] ).multiplyScalar( 1.0 - 0.06 * (heightScalar*2) ) )-1;
 					f2.c = verts_w.push( new THREE.Vector3().copy( verts[f.c] ).multiplyScalar( 1.0 - 0.06 * (heightScalar*2) ) )-1;
-					//debugger;
 					//const r = BASE_COLOR_LIGHT_TAN[0]/255.0;//0.1;
 					//const g = BASE_COLOR_LIGHT_TAN[1]/255.0;//0.8;
 					//const b = BASE_COLOR_LIGHT_TAN[2]/255.0;//0.2;

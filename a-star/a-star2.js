@@ -160,7 +160,6 @@ function genData( config ) {
 				var value2 = gen.corn[2] * ( 1-gen.cx ) + gen.corn[3] * ( gen.cx );
 
 				var value = value1 * ( 1-gen.cy ) + value2 * ( gen.cy );
-				if( value > 1 ) debugger;
 				//console.log( "value: ", value, value1, value2, gen.cy );
 				//if( n == 0 )
 				//	outNoise.push( value );
@@ -392,7 +391,7 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 				return c;
 			}
 		};
-//debugger;
+
 	openSet.add( from, 0, 0 );
 	var check;
 	var longest = [];

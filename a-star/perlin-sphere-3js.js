@@ -5,7 +5,7 @@ import {consts,Vector3Pool} from "./three.js/personalFill.js"
 import {myPerspective} from './three.js/my_perspective.js'
 
 import {TrackballControls} from "./three.js/TrackballControls.js"
-import {noise} from "./perlin-sphere.js"
+import {noise} from "./perlin-sphere-2.js"
 //import {
 
 const sliders = [
@@ -234,7 +234,7 @@ function init() {
 			render();
 			if( updateSphere ){
 				updateSphere = false;
-				update.update();
+				update.newSeed();
 			}
 			// update stats
 			//stats.update();
@@ -326,6 +326,7 @@ function mangleGeometry( land, water ) {
 	const checkFaces = faces.length;
 
 	function updateVerts() {
+		//const start = Date.now();
 		const newUpdate = !vout.length;
 
 
@@ -434,7 +435,7 @@ function mangleGeometry( land, water ) {
 		water.colorsNeedUpdate = true;
 		water.verticesNeedUpdate  = true;
 		water.elementsNeedUpdate   = true;
-
+		//console.log( "Update took:", (Date.now()-start)/1000)
 	}
 	updateVerts();
 	return {

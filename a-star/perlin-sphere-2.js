@@ -1,6 +1,6 @@
 import {SaltyRNG} from "./salty_random_generator.js"
 
-const CUBE_ELEMENT_SIZE = 8
+const CUBE_ELEMENT_SIZE = 16
 
 function noise( s, opts ) {
 	function NoiseGeneration(n,s) {
@@ -22,10 +22,6 @@ function noise( s, opts ) {
 			dy2 : 0,
 			ox:0,oy:0,oz:0,
 			pitch : opts.patchSize / n,
-			dx : 1/(opts.patchSize/n),
-			dy : 1/(opts.patchSize/n),
-			dz : 1/(opts.patchSize/n),
-			
 		};
 	}
 	const gens = opts.generations || 8;
@@ -37,8 +33,8 @@ function noise( s, opts ) {
 		noiseGen.push( gen = NoiseGeneration( 1 << i, 1/((1<<i)) ) );
 		//if( i == 4 ) gen.scalar *= 2;
 		if( i == 1 ) gen.scalar /= 3;
-		if( i == 2 ) gen.scalar /= 2;
-		if( i == 6 ) gen.scalar *= 2;
+		else if( i == 2 ) gen.scalar /= 2;
+		else if( i == 6 ) gen.scalar *= 2;
 		//gen.scalar *= 1;
 		maxtot += gen.scalar;
 	}
@@ -49,19 +45,20 @@ function noise( s, opts ) {
 
 
 	function myRandom() {
-		//RNG.reset();
+		RNG.reset();
 	
 		//console.log( "Data wil lbe:", data );
 		var n = 0;
 		const arr = [];
-		//const arrb = RNG.getBuffer( 8*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE );
-		//const buf = new Uint8Array( arrb );
+		const arrb = RNG.getBuffer( 8*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE );
+		const buf = new Uint8Array( arrb );
 		
 		for( var nz = 0; nz< CUBE_ELEMENT_SIZE; nz++ ) 
 			for( var ny = 0; ny < CUBE_ELEMENT_SIZE; ny++ ) 
 				for( var nx = 0; nx < CUBE_ELEMENT_SIZE; nx++ )  {
-					//var val = buf[n++] / 255; // 0 < 1 
-					arr.push( Math.random() );
+					var val = buf[n++] / 255; // 0 < 1 
+					arr.push(val);
+					//arr.push( Math.random() );
 				}
 		return { id:data, when : 0, next : null, arr: arr, sx:0, sy:0, sz:0 };
 	}
@@ -70,11 +67,7 @@ function noise( s, opts ) {
 	var most_used;
 	var cacheLen = 0;
 
-	function ageCache() {
-		var patch = last_used;
-		
-	}
-		var counter = 0;
+
 	function heatCache( patch ) {
 		var p1 = most_used;
 		var _p1 = null;
@@ -98,6 +91,7 @@ function noise( s, opts ) {
 			for( p1 = most_used; p1; (_p1 = p1),p1 = p1.next ) {
 				counter++;
 				if( counter === 400 ) {
+					//console.log( "Trimming some cache...", p1 );
 					cacheLen = counter;
 					p1.next = null; // trim tail of cached values... recompute later.
 					break;
@@ -162,41 +156,33 @@ function noise( s, opts ) {
 
 		get2(x,y,z,s) {
 			z = z || 0;
-			var side = (x > y);
-			var ox = x;
-			var oy = y;
-			var oz = z;
 
 			// Y will be 0 at the same time this changes...  which will update all anyway
 			for( var n = 0; n < noiseGen.length; n++ ) {
 				var gen = noiseGen[n];
 
-				var offset = noiseGen.length-n;//opts.base % CUBE_ELEMENT_SIZE;
-				var mod = Infinity;
 				var nx;
 				var ny;
 				var nz;
 				var npx, npy, npz;
-				//const oldOffset = s*opts.patchSize;
-				const oldOffset = 0;
+				
+				nx = Math.floor(( (x-gen.ox) / gen.pitch ) )*gen.pitch;
+				ny = Math.floor(( (y-gen.oy) / gen.pitch ) )*gen.pitch;
+				nz = Math.floor(( (z-gen.oz) / gen.pitch ) )*gen.pitch;
+				npx = nx + gen.pitch;
+				npy = ny + gen.pitch;
+				npz = nz + gen.pitch;
 
-					nx = Math.floor(( (x-gen.ox) / gen.pitch ) )*gen.pitch;
-					ny = Math.floor(( (y-gen.oy) / gen.pitch ) )*gen.pitch;
-					nz = Math.floor(( (z-gen.oz) / gen.pitch ) )*gen.pitch;
-					npx = nx + gen.pitch;
-					npy = ny + gen.pitch;
-					npz = nz + gen.pitch;
+				//mod = 6*opts.patchSize;
+				//nx += s*opts.patchSize;
+				gen.cx = ((x - gen.ox)/gen.pitch) % 1;
+				if( gen.cx < 0 ) { gen.cx += 1; /*nx -=1*/ }
 
-					//mod = 6*opts.patchSize;
-					//nx += s*opts.patchSize;
-					gen.cx = ((x - gen.ox)/gen.pitch) % 1;
-					while( gen.cx < 0 ) { gen.cx += 1; /*nx -=1*/ }
+				gen.cy = ((y - gen.oy)/gen.pitch) % 1;
+				if( gen.cy < 0 ) { gen.cy += 1; /*ny -= 1*/ }
 
-					gen.cy = ((y - gen.oy)/gen.pitch) % 1;
-					while( gen.cy < 0 ) { gen.cy += 1; /*ny -= 1*/ }
-
-					gen.cz = ((z - gen.oz)/gen.pitch) % 1;
-					while( gen.cz < 0 ) { gen.cz += 1; }
+				gen.cz = ((z - gen.oz)/gen.pitch) % 1;
+				if( gen.cz < 0 ) { gen.cz += 1; }
 
 				if( ny != gen.ny  ) { 
 					gen.dirty = true; 
@@ -207,6 +193,7 @@ function noise( s, opts ) {
 				if( nz != gen.nz ) { 
 					gen.dirty = true; 
 				}
+
 				//if( ( s == 6 && gen.steps == 4) ||
 				//    ( s == 0 && gen.steps == 4) )
 				//	console.log( "COORDS:", s, "XY:", x, y, "NXY:", nx, ny, "NPXY:",npx, npy );
@@ -225,15 +212,15 @@ function noise( s, opts ) {
 					const	noise8 = getRandom( (npx), npy, (npz) );
 
 					gen.ix = nx % CUBE_ELEMENT_SIZE;
-					while( gen.ix < 0 ) gen.ix += CUBE_ELEMENT_SIZE;
+					if( gen.ix < 0 ) gen.ix += CUBE_ELEMENT_SIZE;
 					gen.jx = (gen.ix+gen.pitch)%CUBE_ELEMENT_SIZE;
 
 					gen.iy = ny % CUBE_ELEMENT_SIZE;
-					while( gen.iy < 0 ) gen.iy += CUBE_ELEMENT_SIZE;
+					if( gen.iy < 0 ) gen.iy += CUBE_ELEMENT_SIZE;
 					gen.jy = (gen.iy+gen.pitch)%CUBE_ELEMENT_SIZE;
 
 					gen.iz = nz % CUBE_ELEMENT_SIZE;
-					while( gen.iz < 0 ) gen.iz += CUBE_ELEMENT_SIZE;
+					if( gen.iz < 0 ) gen.iz += CUBE_ELEMENT_SIZE;
 					gen.jz = (gen.iz+gen.pitch)%CUBE_ELEMENT_SIZE;
 				
 					gen.corn[0] = noise1[ (gen.iz) * (CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE) +  (gen.iy) * CUBE_ELEMENT_SIZE + gen.ix ];
@@ -257,17 +244,15 @@ function noise( s, opts ) {
 				}
 			}
 		
-		
 			var tot = 0;
-//		      console.log( "corn:", gen.corn, gen.cx, gen.cy, gen.cy );
 
 			for( var n = 0; n < noiseGen.length; n++ ) {
 				var gen = noiseGen[n];
 				// ((((c1)*(max-(d))) + ((c2)*(d)))/max)				
 				//console.log( "gen.cx:", gen.cx );
-				const tx = (1-Math.cos( gen.cx *Math.PI) )/2;
-				const ty = (1-Math.cos( gen.cy *Math.PI) )/2;
-				const tz = (1-Math.cos( gen.cz *Math.PI) )/2;
+				const tx = gen.cx;//(1-Math.cos( gen.cx *Math.PI) )/2;
+				const ty = gen.cy;//(1-Math.cos( gen.cy *Math.PI) )/2;
+				const tz = gen.cz;//(1-Math.cos( gen.cz *Math.PI) )/2;
 
 				const value1 = gen.dx1 * ( tx ) + gen.corn[0];
 				const value2 = gen.dx2 * ( tx ) + gen.corn[2];

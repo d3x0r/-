@@ -49,19 +49,20 @@ function noise( s, opts ) {
 
 
 	function myRandom() {
-		//RNG.reset();
+		RNG.reset();
 	
 		//console.log( "Data wil lbe:", data );
 		var n = 0;
 		const arr = [];
-		//const arrb = RNG.getBuffer( 8*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE );
-		//const buf = new Uint8Array( arrb );
+		const arrb = RNG.getBuffer( 8*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE );
+		const buf = new Uint8Array( arrb );
 		
 		for( var nz = 0; nz< CUBE_ELEMENT_SIZE; nz++ ) 
 			for( var ny = 0; ny < CUBE_ELEMENT_SIZE; ny++ ) 
 				for( var nx = 0; nx < CUBE_ELEMENT_SIZE; nx++ )  {
-					//var val = buf[n++] / 255; // 0 < 1 
-					arr.push( Math.random() );
+					var val = buf[n++] / 255; // 0 < 1 
+					arr.push( val );
+					//arr.push( Math.random() );
 				}
 		return { id:data, when : 0, next : null, arr: arr, sx:0, sy:0, sz:0 };
 	}

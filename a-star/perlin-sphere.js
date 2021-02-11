@@ -160,7 +160,9 @@ function noise( s, opts ) {
 			noiseGen[g].oz = oz||0;
 		}, 
 
-
+		get(x,y,z,s) {
+			return this.get2(x,y,z,s);
+		},
 		get2(x,y,z,s) {
 			z = z || 0;
 			var side = (x > y);
@@ -265,9 +267,10 @@ function noise( s, opts ) {
 								}
 								patch.when = Date.now();
 								if( cacheLen > 500 ) {
+									let counter = 0;
 									for( p1 = most_used; p1; (_p1 = p1),p1 = p1.next ) {
 										counter++;
-										if( counter === 400 ) {
+										if( counter >= 400 ) {
 											cacheLen = counter;
 											p1.next = null; // trim tail of cached values... recompute later.
 											break;

@@ -8,19 +8,16 @@ const generate_3D = false;
 var config = {
 	patchSize : 128,
 	generations : 7,
-	seed_noise : "Blue",
+	
 	left : 32,    // default left side (entry)
 	right : 96,   // default right side (exit)
 	nodes : [],  // trace of A*Path
 	base : 0,
-	cache : [],
 	seed : Date.now()
 }
 
 //import {noise} from "./perlin-min.mjs";
 import {noise} from "./perlin-sphere-3.js";
-
-const CUBE_ELEMENT_SIZE = 32
 
 if( typeof document !== "undefined" ) {
 	config.canvas = document.getElementById( "testSurface" );
@@ -65,8 +62,8 @@ var wO = 0;
 var hO = 0;
 
 
-const wstride = ( 40 * Math.random() - 20 ) ;
-const hstride = ( 40 * Math.random() - 20 ) ;
+const wstride = ( 20 * Math.random() - 10 ) ;
+const hstride = ( 20 * Math.random() - 10 ) ;
 
 init( config );
 

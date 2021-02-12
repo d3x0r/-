@@ -1,6 +1,6 @@
 import {SaltyRNG} from "./salty_random_generator.js"
 import {SpacialCache} from "./space_cache.js"
-const CUBE_ELEMENT_BITS = 6
+const CUBE_ELEMENT_BITS = 5
 const CUBE_ELEMENT_SIZE = 1 << CUBE_ELEMENT_BITS
 const _validate_unlink = false;
 

@@ -14,6 +14,7 @@ var config = {
 	nodes : [],  // trace of A*Path
 	base : 0,
 	cache : [],
+	seed : Date.now()
 }
 
 //import {noise} from "./perlin-min.mjs";
@@ -63,6 +64,10 @@ var h2Target = 20;
 var wO = 0;
 var hO = 0;
 
+
+const wstride = ( 40 * Math.random() - 20 ) ;
+const hstride = ( 40 * Math.random() - 20 ) ;
+
 init( config );
 
 function init( config ) {
@@ -71,18 +76,13 @@ function init( config ) {
 	}
 
 	var myNoise = noise( 0, config );
-	var start = Date.now();
-	//fillData( config );
-	console.log( "FILL IS:", Date.now() - start );
-	//genData( myNoise, config );
+
 	if( config.canvas ) {
 		drawData( myNoise, config );
 	}
 
 
 	function stepPlasma() {
-		config.base += 0.1;
-		//genData( config );
 		if( config.canvas ) {
 			drawData( myNoise, config );
 		}
@@ -259,8 +259,8 @@ if (true) {
 	lastTick = now;
 
 
-	hO += 2 * ( delta / 100 );
-	wO += 6 * ( delta / 100 );
+	hO += hstride * ( delta / 100 );
+	wO += wstride * ( delta / 100 );
 	
 	if( h2 > h2Target ) {
 		h2 = 0;

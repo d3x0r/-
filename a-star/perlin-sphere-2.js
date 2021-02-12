@@ -1,6 +1,6 @@
 import {SaltyRNG} from "./salty_random_generator.js"
 
-const CUBE_ELEMENT_SIZE = 16
+const CUBE_ELEMENT_SIZE = 8
 
 function noise( s, opts ) {
 	function NoiseGeneration(n,s) {
@@ -264,9 +264,9 @@ function noise( s, opts ) {
 				var gen = noiseGen[n];
 				// ((((c1)*(max-(d))) + ((c2)*(d)))/max)				
 				//console.log( "gen.cx:", gen.cx );
-				const tx = gen.cx;//(1-Math.cos( gen.cx *Math.PI) )/2;
-				const ty = gen.cy;//(1-Math.cos( gen.cy *Math.PI) )/2;
-				const tz = gen.cz;//(1-Math.cos( gen.cz *Math.PI) )/2;
+				const tx = (1-Math.cos( gen.cx *Math.PI) )/2;
+				const ty = (1-Math.cos( gen.cy *Math.PI) )/2;
+				const tz = (1-Math.cos( gen.cz *Math.PI) )/2;
 
 				const value1 = gen.dx1 * ( tx ) + gen.corn[0];
 				const value2 = gen.dx2 * ( tx ) + gen.corn[2];

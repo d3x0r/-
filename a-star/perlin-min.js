@@ -17,7 +17,7 @@ var config = {
 }
 
 //import {noise} from "./perlin-min.mjs";
-import {noise} from "./perlin-sphere-2.js";
+import {noise} from "./perlin-sphere-3.js";
 
 const CUBE_ELEMENT_SIZE = 32
 

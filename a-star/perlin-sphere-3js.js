@@ -5,7 +5,7 @@ import {consts,Vector3Pool} from "./three.js/personalFill.js"
 import {myPerspective} from './three.js/my_perspective.js'
 
 import {TrackballControls} from "./three.js/TrackballControls.js"
-import {noise} from "./perlin-sphere-2.js"
+import {noise} from "./perlin-sphere-3.js"
 //import {
 
 const sliders = [

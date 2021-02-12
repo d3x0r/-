@@ -79,7 +79,6 @@ const _debug_drop = false;
 			const sx = patch.sx;
 			const sy = patch.sy;
 			const sz = patch.sz;
-//debugger;
 			let p = cache[0];
 			//let finds = [];
 			let _p = null;
@@ -90,10 +89,10 @@ const _debug_drop = false;
 				__p = _p;
 				_p = p;
 			//		finds.push( `compare to ${p.sx} ${p.sy} ${p.sz}  ${!!p.px}  ${!!p.nx}    ${!!p.py}  ${!!p.ny}     ${!!p.pz}  ${!!p.nz} ` );
-				if( inY ) if( p.nx || p.px ) debugger;
-				if( inZ ) if( p.nx || p.px || p.ny || p.py ) debugger;
+				//if( inY ) if( p.nx || p.px ) debugger;
+				//if( inZ ) if( p.nx || p.px || p.ny || p.py ) debugger;
 
-				count++; if( count > 100 ) debugger;
+				//count++; if( count > 100 ) debugger;
 				if( sx > p.sx ) {
 					if( p.nx && p.nx != __p ) p = p.nx;
 					else break;
@@ -255,6 +254,7 @@ const _debug_drop = false;
 							}
 						}
 						p2.px =p2.nx =p2.py =p2.ny =p2.pz =p2.nz = null;
+/*
 						if( _validate_unlink ) {
 							// p2 should be unlinked.
 							if( findInCache( p2 ) )debugger;
@@ -345,7 +345,7 @@ const _debug_drop = false;
 									if( p3.pz.nz != p3 ) debugger;}
 							}
 						}
-						
+*/						
 						//opts.cache[p2.sx][p2.sy][p2.sz] = null;
 					}
 					p1.next = null; // trim tail of cached values... recompute later.
@@ -354,7 +354,9 @@ const _debug_drop = false;
 				}
 			}
 			
-		}else if( _validate_unlink ) {
+		}
+/*
+	else if( _validate_unlink ) {
 			for( let p3 = most_used; p3; p3 = p3.next ) {
 				if( !findInCache( p3 ) ) {
 					debugger;
@@ -390,8 +392,8 @@ const _debug_drop = false;
 					if( p3.pz.sz === p3.sz ) debugger;
 					if( p3.pz.nz != p3 ) debugger;}
 			}
-
 		}
+*/
 		if( most_used ) {
 			if( most_used !== patch ) {
 				patch.next = most_used;
@@ -429,7 +431,7 @@ const _debug_drop = false;
 				__p = _p;
 				_p = p;
 			//		finds.push( `compare to ${p.sx} ${p.sy} ${p.sz}  ${!!p.px}  ${!!p.nx}    ${!!p.py}  ${!!p.ny}     ${!!p.pz}  ${!!p.nz} ` );
-			count++; if( count > 100 ) debugger;
+				//count++; if( count > 100 ) debugger;
 				if( sx > p.sx ) {
 					if( p.nx && ( p.nx != __p ) ) p = p.nx;
 				   	else {

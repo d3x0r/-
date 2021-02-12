@@ -41,15 +41,11 @@ const RANGES = [BASE_COLOR_BLACK, BASE_COLOR_DARK_BLUE, BASE_COLOR_MID_BLUE, BAS
 const RANGES_THRESH = [0, 0.25, 0.37, 0.44, 0.58, 0.67, 0.82, 0.99, 1.0 ];
 
 
+
 var config = {
 	patchSize : 128,
-	seed_noise : null,
-	gen_noise : null,
-	nodes : [],  // trace of A*Path
-	base : 0,
 	generations : 6,
 	seed : Date.now(),
-	cache : [],
 }
 
 let renderer = null;
@@ -60,7 +56,7 @@ let scene3 = null;
 let camera = null;
 let cameraControls = null;
 
-const CUBE_ELEMENT_SIZE = 16
+//const CUBE_ELEMENT_SIZE = 16
 let height = noise( 1.0, config );
 
 let heightScalar = 0.1;
@@ -157,7 +153,7 @@ function init() {
 
 
 //		const geometry = new THREE.BoxGeometry( 1, 1, 1 );
-		const geometry = new THREE.IcosahedronGeometry( 0, 4 );
+		const geometry = new THREE.IcosahedronGeometry( 0, 5 );
 		const geometryWater = new THREE.Geometry( );
 		// create the Cube
 				//cube = new THREE.Mesh( new THREE.CubeGeometry( 200, 200, 200 ), new THREE.MeshNormalMaterial() );
@@ -242,14 +238,8 @@ function init() {
 
 		// render the scene
 		function render() {
-			// variable which is increase by Math.PI every seconds - usefull for animation
-			var PIseconds	= Date.now() * Math.PI;
-
 			// update camera controls
 			cameraControls.update();
-
-		  //surfacemesh.visible = document.getElementById("showfacets").checked;
-		  //wiremesh.visible = document.getElementById("showedges").checked;
 
 			// actually render the scene
 			renderer.render( scene, camera );
@@ -271,43 +261,15 @@ function ColorAverage( a, b, i,m) {
     return c;//`#${(c[0]<16?"0":"")+c[0].toString(16)}${(c[1]<16?"0":"")+c[1].toString(16)}${(c[2]<16?"0":"")+c[2].toString(16)}`
 }
 
-				const c1r1 = 0.10;
-				const c1r2 = 0.36;
-				const c1r3 = 0.50;
-				const c1r4 = 0.63;
-				const c1r5 = 0.90;
 
 function getColor( here ) {
-	let c1;
 	for( var r = 1; r < RANGES_THRESH.length; r++ ) {
 			if( here <= RANGES_THRESH[r] ) {
-				//plot( w, h, ColorAverage( RANGES[r-1], RANGES[r+0], (here-RANGES_THRESH[r-1])/(RANGES_THRESH[r+0]-RANGES_THRESH[r-1]) * 1000, 1000 ) );
 				return ColorAverage( RANGES[r-1], RANGES[r+0], (here-RANGES_THRESH[r-1])/(RANGES_THRESH[r+0]-RANGES_THRESH[r-1]) * 1000, 1000 );
-				break;
 			}
 	}
-				{
-					if( here <= 0.10 )
-						c1 = ColorAverage( BASE_COLOR_WHITE,
-														 BASE_COLOR_BLACK, (here)/(c1r1) * 1000, 1000 );
-					else if( here <= 0.36 )
-						c1=ColorAverage( BASE_COLOR_BLACK,
-														 BASE_COLOR_LIGHTBLUE, (here-c1r1)/(c1r2-c1r1) * 1000, 1000 );
-					else if( here <= 0.5 )
-						c1=ColorAverage( BASE_COLOR_LIGHTBLUE,
-														 BASE_COLOR_LIGHTGREEN, (here-c1r2)/(c1r3-c1r2) * 1000, 1000 );
-					else if( here <= 0.63 )
-						c1=ColorAverage( BASE_COLOR_LIGHTGREEN,
-														 BASE_COLOR_LIGHTRED, (here-c1r3)/(c1r4-c1r3) * 1000, 1000 ) ;
-					else if( here <= 0.90 )
-						c1=ColorAverage( BASE_COLOR_LIGHTRED,
-														 BASE_COLOR_WHITE, (here-c1r4)/(c1r5-c1r4) * 1000, 1000 ) ;
-					else //if( here <= 4.0 / 4 )
-						c1=ColorAverage( BASE_COLOR_WHITE,
-														 BASE_COLOR_BLACK, (here-c1r5)/(1.0-c1r5) * 10000, 10000 );
-				}
-   	
-   	return c1;
+	// somehow out of range.
+	return BASE_COLOR_WHITE;
 }
 
 
@@ -330,12 +292,10 @@ function mangleGeometry( land, water ) {
 		const newUpdate = !vout.length;
 
 
+		const spanx = 64;
+		const spany = 64;
+		const spanz = 64;
 
-		//	const colors = land.colors;
-			const spanx = 64;
-			const spany = 64;
-			const spanz = 64;
-	if(1)
 		for( var n = 0; n < checkFaces; n++ ) {
 			const f = faces[n];	
 			const p1 = verts[f.a];
@@ -381,7 +341,6 @@ function mangleGeometry( land, water ) {
 					const g = BASE_COLOR_DARK_BLUEGREEN[1]/255.0;//0.8;
 					const b = BASE_COLOR_DARK_BLUEGREEN[2]/255.0;//0.2;
 	
-	
 					f2.vertexColors[0].setRGB(r,g,b);//.push( new THREE.Color( r,g,b, 0.2 ) );
 					f2.vertexColors[1].setRGB(r,g,b);//.push( new THREE.Color( r,g,b, 0.2 ) );
 					f2.vertexColors[2].setRGB(r,g,b);//.push( new THREE.Color(  r,g,b, 0.2 ) );
@@ -393,13 +352,10 @@ function mangleGeometry( land, water ) {
 					f2.a = verts_w.push( new THREE.Vector3().copy( verts[f.a] ).multiplyScalar( 1.0 - 0.06 * (heightScalar*2) ) )-1;
 					f2.b = verts_w.push( new THREE.Vector3().copy( verts[f.b] ).multiplyScalar( 1.0 - 0.06 * (heightScalar*2) ) )-1;
 					f2.c = verts_w.push( new THREE.Vector3().copy( verts[f.c] ).multiplyScalar( 1.0 - 0.06 * (heightScalar*2) ) )-1;
-					//const r = BASE_COLOR_LIGHT_TAN[0]/255.0;//0.1;
-					//const g = BASE_COLOR_LIGHT_TAN[1]/255.0;//0.8;
-					//const b = BASE_COLOR_LIGHT_TAN[2]/255.0;//0.2;
+
 					const r = BASE_COLOR_DARK_BLUEGREEN[0]/255.0;//0.1;
 					const g = BASE_COLOR_DARK_BLUEGREEN[1]/255.0;//0.8;
 					const b = BASE_COLOR_DARK_BLUEGREEN[2]/255.0;//0.2;
-
 
 					f2.vertexColors.push( new THREE.Color( r,g,b, 0.2 ) );
 					f2.vertexColors.push( new THREE.Color( r,g,b, 0.2 ) );
@@ -415,11 +371,7 @@ function mangleGeometry( land, water ) {
 		for( var n = 0; n < checkVerts; n++ ) {
 			const v = verts[n];
 			const h = height.get2( (1+v.x+xOfs)*spanx, (1+v.y+yOfs)*spany, (1+v.z+zOfs)*spanz, 0 );
-			//const h = Math.random();
-	//		const color = getColor( h );
-	//		colors.push( new THREE.Color( color[0], color[1], color[2], color[3] ) );
 
-			//const r = 0.95 + ( h * 0.1 );
 			const r = (1.0-heightScalar) + ( h * (heightScalar*2) );
 			if( newUpdate )
 				vout.push( new THREE.Vector3().copy(v).multiplyScalar( r ) );

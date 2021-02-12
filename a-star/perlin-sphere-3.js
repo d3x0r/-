@@ -1,6 +1,7 @@
 import {SaltyRNG} from "./salty_random_generator.js"
 
 const CUBE_ELEMENT_SIZE = 16
+const _validate_unlink = false;
 
 function noise( s, opts ) {
 	function NoiseGeneration(n,s) {
@@ -146,27 +147,18 @@ const _debug_drop = false;
 			}
 		}
 		patch.when = Date.now();
-		if( cacheLen > 50 ) {
+		if( cacheLen > 500 ) {
 			let counter = 0;
 			for( p1 = most_used; p1; (_p1 = p1),p1 = p1.next ) {
 				counter++;
-				if( counter === 40 ) {
+				if( counter === 400 ) {
 					_debug_drop && console.log( "Trimming some cache...", p1 );
 					cacheLen = counter;
 					const dropList = p1.next;
 					p1.next = null;
 					for( let p2 =dropList; p2; p2 = p2.next ) {
-						console.log( "Drop block:", p2.sx, p2.sy, p2.sz );
-						//if( p2.sx === -16 && p2.sy === -16 && p2.sz === 0 ) debugger;
-						//if( p2.sx === -8 && p2.sy === -8 && p2.sz === 0 ) debugger;
-						//if( p2.sx === -6 && p2.sy === -6 && p2.sz === 0 ) debugger;
-						//if( p2.sx === -4 && p2.sy === -4 && p2.sz === 0 ) debugger;
-						//if( p2.id === "-8 0 4 ") debugger;
-						//if( p2.id === "0 -4 2 ") debugger;
-						//if( p2.id === "1 -3 0 ") debugger;
-						if( p2.sx === 18 && p2.sy === 0 && p2.sz === 0 ) debugger;
-
-
+						//console.log( "Drop block:", p2.sx, p2.sy, p2.sz );
+						p2.arr = null;
 						if( p2.nz ) {
 							_debug_drop && console.log( "Node has NY&NZ - swap Z chain into X" );
 							if( p2.nz.pz = p2.pz ) {
@@ -191,6 +183,7 @@ const _debug_drop = false;
 							}
 							if( p2 === cache[0] ) cache[0] = p2.nz;
 						} else if( p2.pz ) {
+							// .zx IS null.. so only do the first assign.
 							p2.pz.nz = null;
 							
 							_debug_drop && console.log( "Node has NY&PZ - swap Z chain into X" );
@@ -207,8 +200,8 @@ const _debug_drop = false;
 								p2.pz.ny = p2.ny;
 							}
 							if( p2.py ) {
-								p2.pz.py = p2.py;
 								p2.py.ny = p2.pz;
+								p2.pz.py = p2.py;
 							}
 							if( p2 === cache[0] ) cache[0] = p2.pz;
 						} else {
@@ -241,83 +234,85 @@ const _debug_drop = false;
 									p2.px.nx = p2.py;
 									p2.py.px = p2.px;
 								}
-								if( p2.ny ){
-									p2.py.ny = p2.ny;
-								}
+
 								if( p2 === cache[0] ) cache[0] = p2.py;
 							} else {
 								_debug_drop && console.log( "must be part of x chain" );
 								if( p2.nx ) {
 									// this is part of the X chain.
 									_debug_drop && console.log( "cut X chain node" );
-									if( p2.nx.px = p2.px ) p2.px.nx = p2.nx;
+									if( p2.nx.px = p2.px )
+										p2.px.nx = p2.nx;
+										
 									if( p2 === cache[0] ) cache[0] = p2.nx;
 								} else if( p2.px ) { // not first, no cache change (is last actually)
 									p2.px.nx = null;
 									if( p2 === cache[0] ) cache[0] = p2.px;
 								} else {
 									console.log( "block wasn't linked into the space at all??");
-									debugger;
+									//debugger;
 								}
 							}
 						}
-						// p2 should be unlinked.
-						if( findInCache( p2 ) )debugger;
-						if( cache[0].sx === -4 && cache[0].sy === -3 && cache[0].sz === 0 ) debugger;
-						let px;
-						for( px = cache[0]; px; px = px.nx ){
-							let spy = px.ny;
-							while( spy && spy.py ) spy = spy.py;
-							let py;
-							for( py = spy; py; py = py.ny ) {
-								let spz = py.nz;
-								if( py.sx != spy.sx ) debugger;
-								if( py != px ) {
-									if( py.nx || py.px ) debugger;
+						p2.px =p2.nx =p2.py =p2.ny =p2.pz =p2.nz = null;
+						if( _validate_unlink ) {
+							// p2 should be unlinked.
+							if( findInCache( p2 ) )debugger;
+							if( cache[0].sx === -4 && cache[0].sy === -3 && cache[0].sz === 0 ) debugger;
+							let px;
+							for( px = cache[0]; px; px = px.nx ){
+								let spy = px.ny;
+								while( spy && spy.py ) spy = spy.py;
+								let py;
+								for( py = spy; py; py = py.ny ) {
+									let spz = py.nz;
+									if( py.sx != spy.sx ) debugger;
+									if( py != px ) {
+										if( py.nx || py.px ) debugger;
+									}
+									while( spz && spz.pz ) spz = spz.pz;
+									let pz;
+									for( pz = spz; pz; pz = pz.nz ) {
+										let p3, p4;
+										if( pz.sy != spz.sy ) debugger;
+										if( pz.sx != spy.sx ) debugger;
+										if( pz != py ) {
+											if( pz.nx || pz.px ) debugger;
+											if( pz.ny || pz.py ) debugger;
+										}
+										if( pz.nx ) if( pz.nx.px != pz ) debugger;
+										if( pz.px ) if( pz.px.nx != pz ) debugger;
+										if( pz.ny ) if( pz.ny.py != pz ) debugger;
+										if( pz.py ) if( pz.py.ny != pz ) debugger;
+										if( pz.nz ) if( pz.nz.pz != pz ) debugger;
+										if( pz.pz ) if( pz.pz.nz != pz ) debugger;
+										if( pz.nx && pz.nx.id === "-4 -3 0 " ) debugger;
+										for( p3 = most_used; p3; p3 = p3.next ) {
+											if( pz === p3 ) break;
+										}
+										for( p4 = p2.next; p4; p4 = p4.next ) {
+											if( pz === p4 ) break;
+										}
+										if( !p3 && !p4 ) debugger;
+										if( p3 ) break;
+									}					
+									if( pz ) break;			
 								}
-								while( spz && spz.pz ) spz = spz.pz;
-								let pz;
-								for( pz = spz; pz; pz = pz.nz ) {
-									let p3, p4;
-									if( pz.sy != spz.sy ) debugger;
-									if( pz.sx != spy.sx ) debugger;
-									if( pz != py ) {
-										if( pz.nx || pz.px ) debugger;
-										if( pz.ny || pz.py ) debugger;
-									}
-									if( pz.nx ) if( pz.nx.px != pz ) debugger;
-									if( pz.px ) if( pz.px.nx != pz ) debugger;
-									if( pz.ny ) if( pz.ny.py != pz ) debugger;
-									if( pz.py ) if( pz.py.ny != pz ) debugger;
-									if( pz.nz ) if( pz.nz.pz != pz ) debugger;
-									if( pz.pz ) if( pz.pz.nz != pz ) debugger;
-									if( pz.nx && pz.nx.id === "-4 -3 0 " ) debugger;
-									for( p3 = most_used; p3; p3 = p3.next ) {
-										if( pz === p3 ) break;
-									}
-									for( p4 = p2.next; p4; p4 = p4.next ) {
-										if( pz === p4 ) break;
-									}
-									if( !p3 && !p4 ) debugger;
-									if( p3 ) break;
-								}					
-								if( pz ) break;			
+								if( py ) break;
 							}
-							if( py ) break;
-						}
-						if( cache[0].nx.id === "-4 -3 0 ")debugger;
-						//if( !px ) debugger;
-            			for( let p3 = p2.next; p3; p3 = p3.next ) {
-							if( !findInCache( p3 ) )debugger;
-							if( p3.nx && p3.nx.id === "-4 -3 0 " ) debugger;
-							if( p3.nx ) if( p3.nx.px != p3 ) debugger;
-							if( p3.px ) if( p3.px.nx != p3 ) debugger;
-							if( p3.ny ) if( p3.ny.py != p3 ) debugger;
-							if( p3.py ) if( p3.py.ny != p3 ) debugger;
-							if( p3.nz ) if( p3.nz.pz != p3 ) debugger;
-							if( p3.pz ) if( p3.pz.nz != p3 ) debugger;
-					}
-            			for( let p3 = most_used; p3; p3 = p3.next ) {
+							if( cache[0].nx.id === "-4 -3 0 ")debugger;
+							//if( !px ) debugger;
+							for( let p3 = p2.next; p3; p3 = p3.next ) {
+								if( !findInCache( p3 ) )debugger;
+								if( p3.nx && p3.nx.id === "-4 -3 0 " ) debugger;
+								if( p3.nx ) if( p3.nx.px != p3 ) debugger;
+								if( p3.px ) if( p3.px.nx != p3 ) debugger;
+								if( p3.ny ) if( p3.ny.py != p3 ) debugger;
+								if( p3.py ) if( p3.py.ny != p3 ) debugger;
+								if( p3.nz ) if( p3.nz.pz != p3 ) debugger;
+								if( p3.pz ) if( p3.pz.nz != p3 ) debugger;
+							}
+            				for( let p3 = most_used; p3; p3 = p3.next ) {
 								if( !findInCache( p3 ) )debugger;
 								if( !p3.nz 
 								   && !p3.ny
@@ -329,31 +324,37 @@ const _debug_drop = false;
 									debugger;
 								}
 								if( p3.nx && p3.nx.id === "-4 -3 0 " ) debugger;
-								if( p3.nx ) if( p3.nx.px != p3 ) debugger;
-								if( p3.px ) if( p3.px.nx != p3 ) debugger;
-								if( p3.ny ) if( p3.ny.py != p3 ) debugger;
-								if( p3.py ) if( p3.py.ny != p3 ) debugger;
-								if( p3.nz ) if( p3.nz.pz != p3 ) debugger;
-								if( p3.pz ) if( p3.pz.nz != p3 ) debugger;
+								if( p3.nx ) {
+									if( p3.nx.sx === p3.sx ) debugger;
+									if( p3.nx.px != p3 ) debugger;
+								}
+								if( p3.px ) {
+									if( p3.px.sx === p3.sx ) debugger;
+									if( p3.px.nx != p3 ) debugger;}
+								if( p3.ny ) {
+									if( p3.ny.sy === p3.sy ) debugger;
+									if( p3.ny.py != p3 ) debugger;}
+								if( p3.py ) {
+									if( p3.py.sy === p3.sy ) debugger;
+									if( p3.py.ny != p3 ) debugger;}
+								if( p3.nz ) {
+									if( p3.nz.sz === p3.sz ) debugger;
+									if( p3.nz.pz != p3 ) debugger;}
+								if( p3.pz ) {
+									if( p3.pz.sz === p3.sz ) debugger;
+									if( p3.pz.nz != p3 ) debugger;}
 							}
+						}
 						
 						//opts.cache[p2.sx][p2.sy][p2.sz] = null;
 					}
-					/*
-					for( let x = 0; x < opts.cache.length; x++ ) {
-						for( let y = 0; y < opts.cache.length; y++ ) {
-							for( let z = 0; z < opts.cache.length; z++ ) {
-							}
-						}
-					}
-					*/
 					p1.next = null; // trim tail of cached values... recompute later.
 	
 					break;
 				}
 			}
 			
-		}else {
+		}else if( _validate_unlink ) {
 			for( let p3 = most_used; p3; p3 = p3.next ) {
 				if( !findInCache( p3 ) ) {
 					debugger;
@@ -368,13 +369,26 @@ const _debug_drop = false;
 					console.log( "This block has (recently?) become orphaned" );
 					debugger;
 				}
-				if( p3.nx && p3.nx.id === "-4 -3 0 " ) debugger;
-				if( p3.nx ) if( p3.nx.px != p3 ) debugger;
-				if( p3.px ) if( p3.px.nx != p3 ) debugger;
-				if( p3.ny ) if( p3.ny.py != p3 ) debugger;
-				if( p3.py ) if( p3.py.ny != p3 ) debugger;
-				if( p3.nz ) if( p3.nz.pz != p3 ) debugger;
-				if( p3.pz ) if( p3.pz.nz != p3 ) debugger;
+				//if( p3.nx && p3.nx.id === "-4 -3 0 " ) debugger;
+				if( p3.nx ) {
+					if( p3.nx.sx === p3.sx ) debugger;
+					if( p3.nx.px != p3 ) debugger;
+				}
+				if( p3.px ) {
+					if( p3.px.sx === p3.sx ) debugger;
+					if( p3.px.nx != p3 ) debugger;}
+				if( p3.ny ) {
+					if( p3.ny.sy === p3.sy ) debugger;
+					if( p3.ny.py != p3 ) debugger;}
+				if( p3.py ) {
+					if( p3.py.sy === p3.sy ) debugger;
+					if( p3.py.ny != p3 ) debugger;}
+				if( p3.nz ) {
+					if( p3.nz.sz === p3.sz ) debugger;
+					if( p3.nz.pz != p3 ) debugger;}
+				if( p3.pz ) {
+					if( p3.pz.sz === p3.sz ) debugger;
+					if( p3.pz.nz != p3 ) debugger;}
 			}
 
 		}
@@ -408,7 +422,9 @@ const _debug_drop = false;
 //debugger;
 			let p = cache[0];
 			//let finds = [];
-			//if( sx == 0 && sy == 0 && sz == 2 ) debugger;
+			//const brk = ()=>{
+				//if( sx == -8 && sy == 0 && sz == 0 ) debugger;
+			//}
 			while( p ) {
 				__p = _p;
 				_p = p;
@@ -420,7 +436,7 @@ const _debug_drop = false;
 						data = [ sx, sy, sz, opts.seed ].join( " " );
 						const b = myRandom();
 						if( p.nx ) {
-							b.nx = p.nx 
+							b.nx = p.nx;
 							p.nx.px = b;
 						}
 						// there will not be a p.nx.
@@ -430,7 +446,7 @@ const _debug_drop = false;
 						break;
 					}
 				} else if( sx < p.sx ) {
-					if( p.px && (p.py !== __p )) p = p.px;
+					if( p.px && (p.px !== __p )) p = p.px;
 					else {
 						data = [ sx, sy, sz, opts.seed ].join( " " );
 						const b = myRandom();
@@ -465,7 +481,7 @@ const _debug_drop = false;
 						} else {
 							data = [ sx, sy, sz, opts.seed ].join( " " );
 							const b = myRandom();
-							if( b.py = p.py ) {
+							if( p.py ) {
 								b.py = p.py;
 								p.py.ny = b;
 							}
@@ -486,7 +502,6 @@ const _debug_drop = false;
 								}
 								p.nz = b;
 								b.pz = p;
-
 								p = b;
 								break;
 							}
@@ -496,11 +511,12 @@ const _debug_drop = false;
 							{
 								data = [ sx, sy, sz, opts.seed ].join( " " );
 								const b = myRandom();
-								if( b.pz = p.pz )
+								if( p.pz ) {
+									b.pz = p.pz
 									p.pz.nz = b;
+								}
 								p.pz = b;
 								b.nz = p;
-
 								p = b;
 								break;
 							}
@@ -519,33 +535,13 @@ const _debug_drop = false;
 			}
 //		 if( sx ==22 && sy == 1&& sz == 0 ) debugger;
 			//if( sx == -4 && sy == -4 && sz == 0 ) debugger;
-			console.log( "Cached ", sx, sy, sz, "on",_p&& _p.sx, _p&&_p.sy, _p&&_p.sz, "on",__p&& __p.sx, __p&&__p.sy, __p&&__p.sz,  );//, finds.join("\n" ) );
+			//console.log( "Cached ", sx, sy, sz, "on",_p&& _p.sx, _p&&_p.sy, _p&&_p.sz, "on",__p&& __p.sx, __p&&__p.sy, __p&&__p.sz,  );//, finds.join("\n" ) );
 			p.sx = sx;
 			p.sy = sy;
 			p.sz = sz;
 			heatCache( p );
 			return p.arr;
 		}
-			
-			var c_lv1 = cache[sx ];
-			if( !c_lv1 ) ( c_lv1 = cache[sx] = [] );
-	        
-			var c_lv2 = c_lv1[sy];				
-			if( !c_lv2 ) 
-				c_lv2 = c_lv1[sy] = [];
-
-			let c_lv3 = c_lv2[sz];
-
-			if( !c_lv3 ) {
-				data = [ sx, sy, sz, opts.seed ].join( " " );
-				c_lv3 = c_lv2[sz] = myRandom();
-				c_lv3.sx = sx;
-				c_lv3.sy = sy;
-				c_lv3.sz = sz;
-				//console.log( "clv:", c_lv3 )
-			}
-			heatCache( c_lv3 );
-			return c_lv3.arr;
 	}
 
 	

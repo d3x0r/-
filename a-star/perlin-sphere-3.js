@@ -1,6 +1,6 @@
 import {SaltyRNG} from "./salty_random_generator.js"
 
-const CUBE_ELEMENT_SIZE = 8
+const CUBE_ELEMENT_SIZE = 16
 
 function noise( s, opts ) {
 	function NoiseGeneration(n,s) {
@@ -73,6 +73,61 @@ function noise( s, opts ) {
 
 const _debug_drop = false;
 
+	function findInCache( patch ) {
+			let count = 0;
+			const sx = patch.sx;
+			const sy = patch.sy;
+			const sz = patch.sz;
+//debugger;
+			let p = cache[0];
+			//let finds = [];
+			let _p = null;
+			let __p = null;
+			let inY = null;
+			let inZ = null;
+			while( p ) {
+				__p = _p;
+				_p = p;
+			//		finds.push( `compare to ${p.sx} ${p.sy} ${p.sz}  ${!!p.px}  ${!!p.nx}    ${!!p.py}  ${!!p.ny}     ${!!p.pz}  ${!!p.nz} ` );
+				if( inY ) if( p.nx || p.px ) debugger;
+				if( inZ ) if( p.nx || p.px || p.ny || p.py ) debugger;
+
+				count++; if( count > 100 ) debugger;
+				if( sx > p.sx ) {
+					if( p.nx && p.nx != __p ) p = p.nx;
+					else break;
+				} else if( sx < p.sx ) {
+					if( p.px && p.px != __p ) p = p.px;
+					else break;
+				} else { // sx == p.sx
+					if( sy > p.sy ) {
+						if( p.ny && p.ny != __p ) p = p.ny;
+						else break;
+					} else if( sy < p.sy ) {
+						if( p.py && p.py != __p ) p = p.py;
+						else break;
+					} else {
+						if( sz > p.sz ) {
+							if( p.nz && p.nz != __p ) p = p.nz;
+							else break;
+						}else if( sz < p.sz ) {
+							if( p.pz && p.pz != __p ) p = p.pz;
+							else break;
+						} else {
+							// sx, sy, sz == here.
+							//console.log( "Return", p.sx, p.sy, p.sz, sx, sy, sz );
+							//heatCache( p );
+							return true;
+						}						
+					}
+				}
+			}
+			//console.log( "Failed to locate patch", patch );
+			//debugger;
+			return false;
+	}
+
+	var deleted = false;
 	function heatCache( patch ) {
 		var p1 = most_used;
 		var _p1 = null;
@@ -91,164 +146,179 @@ const _debug_drop = false;
 			}
 		}
 		patch.when = Date.now();
-		if( cacheLen > 500 ) {
+		if( cacheLen > 50 ) {
 			let counter = 0;
 			for( p1 = most_used; p1; (_p1 = p1),p1 = p1.next ) {
 				counter++;
-				if( counter === 400 ) {
+				if( counter === 40 ) {
 					_debug_drop && console.log( "Trimming some cache...", p1 );
 					cacheLen = counter;
-					for( let p2 =p1.next; p2; p2 = p2.next ) {
-						//console.log( "Drop block:", p2.sx, p2.sy, p2.sz );
-						if( p2.nx ) {
-							// this is part of the X chain.
-							_debug_drop && console.log( "part of x chain" );
+					const dropList = p1.next;
+					p1.next = null;
+					for( let p2 =dropList; p2; p2 = p2.next ) {
+						console.log( "Drop block:", p2.sx, p2.sy, p2.sz );
+						//if( p2.sx === -16 && p2.sy === -16 && p2.sz === 0 ) debugger;
+						//if( p2.sx === -8 && p2.sy === -8 && p2.sz === 0 ) debugger;
+						//if( p2.sx === -6 && p2.sy === -6 && p2.sz === 0 ) debugger;
+						//if( p2.sx === -4 && p2.sy === -4 && p2.sz === 0 ) debugger;
+						//if( p2.id === "-8 0 4 ") debugger;
+						//if( p2.id === "0 -4 2 ") debugger;
+						//if( p2.id === "1 -3 0 ") debugger;
+						if( p2.sx === 18 && p2.sy === 0 && p2.sz === 0 ) debugger;
+
+
+						if( p2.nz ) {
+							_debug_drop && console.log( "Node has NY&NZ - swap Z chain into X" );
+							if( p2.nz.pz = p2.pz ) {
+								p2.pz.nz = p2.nz;
+							}
+
+							if( p2.nx ) {
+								p2.nx.px = p2.nz;
+								p2.nz.nx = p2.nx;
+							}
+							if( p2.px ) {
+								p2.px.nx = p2.nz;
+								p2.nz.px = p2.px;
+							}
 							if( p2.ny ) {
-								if( p2.nz ) {
-									_debug_drop && console.log( "Node has NY&NZ - swap Z chain into X" );
-									if( p2.nx ) p2.nx.px = p2.nz;
-									if( p2.px ) p2.px.nx = p2.nz;
-									p2.nz.nx = p2.nx;
-									p2.nz.px = p2.px;
-									p2.nz.ny = p2.ny;
-									p2.nz.py = p2.py;
-									if( p2 === cache[0] ) cache[0] = p2.nz;
-								} else if( p2.pz ) {
-									_debug_drop && console.log( "Node has NY&PZ - swap Z chain into X" );
-									if( p2.nx ) p2.nx.px = p2.pz;
-									if( p2.px ) p2.px.nx = p2.pz;
-									p2.pz.nx = p2.nx;
-									p2.pz.px = p2.px;
-									p2.pz.ny = p2.ny;
-									p2.pz.py = p2.py;
-									if( p2 === cache[0] ) cache[0] = p2.pz;
-								} else {
-									_debug_drop && console.log( "Node has NY - swap Y chain into X" );
-									if( p2.nx ) p2.nx.px = p2.ny;
-									if( p2.px ) p2.px.nx = p2.ny;
+								p2.ny.py = p2.nz;
+								p2.nz.ny = p2.ny;
+							}
+							if( p2.py ) {
+								p2.py.ny = p2.nz;
+								p2.nz.py = p2.py;
+							}
+							if( p2 === cache[0] ) cache[0] = p2.nz;
+						} else if( p2.pz ) {
+							p2.pz.nz = null;
+							
+							_debug_drop && console.log( "Node has NY&PZ - swap Z chain into X" );
+							if( p2.nx ) {
+								p2.nx.px = p2.pz;
+								p2.pz.nx = p2.nx;
+							}
+							if( p2.px ) {
+								p2.px.nx = p2.pz;
+								p2.pz.px = p2.px;
+							}
+							if( p2.ny ) {
+								p2.ny.py = p2.pz;
+								p2.pz.ny = p2.ny;
+							}
+							if( p2.py ) {
+								p2.pz.py = p2.py;
+								p2.py.ny = p2.pz;
+							}
+							if( p2 === cache[0] ) cache[0] = p2.pz;
+						} else {
+
+							if( p2.ny ) {
+								if( p2.ny.py = p2.py )
+									p2.py.ny = p2.ny;
+
+								_debug_drop && console.log( "Node has NY - swap Y chain into X" );
+								if( p2.nx ) {
+									p2.nx.px = p2.ny;
 									p2.ny.nx = p2.nx;
+								}
+								if( p2.px ) {
+									p2.px.nx = p2.ny;
 									p2.ny.px = p2.px;
-									if( p2 === cache[0] ) cache[0] = p2.ny;
 								}
-								//if( !p2.px ) cache[0] = p2.ny;
+								
+								
+								if( p2 === cache[0] ) cache[0] = p2.ny;
 							} else if( p2.py ) {
-								if( p2.nz ) {
-									_debug_drop && console.log( "Node has PY&NZ - swap Z chain into X" );
-									if( p2.nx ) p2.nx.px = p2.nz;
-									if( p2.px ) p2.px.nx = p2.nz;
-									p2.nz.nx = p2.nx;
-									p2.nz.px = p2.px;
-									p2.nz.ny = p2.ny;
-									p2.nz.py = p2.py;
-									if( p2 === cache[0] ) cache[0] = p2.nz;
-								} else if( p2.pz ) {
-									_debug_drop && console.log( "Node has PY&PZ - swap Z chain into X" );
-									if( p2.nx ) p2.nx.px = p2.pz;
-									if( p2.px ) p2.px.nx = p2.pz;
-									p2.pz.nx = p2.nx;
-									p2.pz.px = p2.px;
-									p2.pz.ny = p2.ny;
-									p2.pz.py = p2.py;
-									if( p2 === cache[0] ) cache[0] = p2.pz;
-								} else {
-									_debug_drop && console.log( "Node has PY - swap Y chain into X" );
-									if( p2.nx ) p2.nx.px = p2.py;
-									if( p2.px ) p2.px.nx = p2.py;
+								_debug_drop && console.log( "Node has PY - swap Y chain into X" );
+								p2.py.ny = null;
+
+								if( p2.nx ) {
+									p2.nx.px = p2.py;
 									p2.py.nx = p2.nx;
-										p2.py.px = p2.px;
-									if( p2 === cache[0] ) cache[0] = p2.py;
 								}
-								//if( !p2.px ) cache[0] = p2.py;
+								if( p2.px ) {
+									p2.px.nx = p2.py;
+									p2.py.px = p2.px;
+								}
+								if( p2.ny ){
+									p2.py.ny = p2.ny;
+								}
+								if( p2 === cache[0] ) cache[0] = p2.py;
 							} else {
-								if( p2.nz ) {
-									_debug_drop && console.log( "Node has NZ - swap Y chain into X" );
-									if( p2.nx ) p2.nx.px = p2.nz;
-									if( p2.px ) p2.px.nx = p2.nz;
-									p2.nz.nx = p2.nx;
-									p2.nz.px = p2.px;
-									if( p2 === cache[0] ) cache[0] = p2.nz;
-									//if( !p2.px ) cache[0] = p2.ny;
-								} else if( p2.pz ) {
-									_debug_drop && console.log( "Node has PZ - swap Y chain into X" );
-									if( p2.nx ) p2.nx.px = p2.pz;
-									if( p2.px ) p2.px.nx = p2.pz;
-									p2.pz.nx = p2.nx;
-									p2.pz.px = p2.px;
-									if( p2 === cache[0] ) cache[0] = p2.pz;
-								} else {
+								_debug_drop && console.log( "must be part of x chain" );
+								if( p2.nx ) {
+									// this is part of the X chain.
 									_debug_drop && console.log( "cut X chain node" );
 									if( p2.nx.px = p2.px ) p2.px.nx = p2.nx;
 									if( p2 === cache[0] ) cache[0] = p2.nx;
-								}
-								//if( !p2.px ) cache[0] = p2.nx;
-							}
-						} else if( p2.px ) { // not first, no cache change (is last actually)
-							_debug_drop && console.log( "last of x chain" );
-							if( p2.ny ) {
-								(p2.px.nx = p2.ny).px = p2.px;
-							} else if( p2.py ) {
-								(p2.px.nx = p2.py).px = p2.px;
-							} else {
-								if( p2.nz ) {
-									console.log( "(todo) z node off xchain" );
-								} else if( p2.nz ) {
-									console.log( "(todo) pz node off xchain" );
-								} else {
-									_debug_drop && console.log( "splice out this node (ychain)" );
+								} else if( p2.px ) { // not first, no cache change (is last actually)
 									p2.px.nx = null;
-								}
-							}
-							if( p2 === cache[0] ) cache[0] = p2.px;
-						} else {
-							if( p2.py ) {
-								_debug_drop && console.log( "part of y chain(not x root)" );
-								if( p2.nz ) {
-									p2.py.ny = p2.nz;
-
-									p2.nz.py = p2.py;
-									p2.nz.ny = p2.ny;
-								} else if( p2.pz ) {
-									p2.py.ny = p2.pz;
-
-									p2.pz.py = p2.py;
-									p2.pz.ny = p2.ny;
+									if( p2 === cache[0] ) cache[0] = p2.px;
 								} else {
-									_debug_drop && console.log( "splice out this node (ychain)" );
-									if( p2.py.ny = p2.ny ) p2.ny.py = p2.py;
-								}
-							} else if( p2.ny ) {
-								_debug_drop && console.log( "part of y chain(not x root)" );
-								if( p2.nz ) {
-									console.log( "replace z chain into Y chain" );
-									p2.py.ny = p2.nz;
-
-									p2.nz.py = p2.py;
-									p2.nz.ny = p2.ny;
-								} else if( p2.pz ) {
-									_debug_drop && console.log( "replace pz chain into Y chain" );
-									p2.py.ny = p2.pz;
-
-									p2.pz.py = p2.py;
-									p2.pz.ny = p2.ny;
-								} else {
-									_debug_drop && console.log( "splice out this node (ychain)" );
-									if( p2.ny.py = p2.py ) p2.py.ny = p2.ny;
-								}
-							} else {
-								if( p2.nz ) {
-									_debug_drop && console.log( "just a Z node" );
-									if( p2.nz.pz = p2.pz )
-										p2.pz.nz = p2.nz;
-								} else if( p2.pz ) {
-									_debug_drop && console.log( "last Z node" );
-									p2.pz.nz = null;
-								} else {
-									console.log( "patch was not linked in space?" );
+									console.log( "block wasn't linked into the space at all??");
 									debugger;
 								}
 							}
 						}
+						// p2 should be unlinked.
+						if( findInCache( p2 ) )debugger;
+						if( cache[0].sx === -4 && cache[0].sy === -3 && cache[0].sz === 0 ) debugger;
+						let px;
+						for( px = cache[0]; px; px = px.nx ){
+							let spy = px.ny;
+							while( spy && spy.py ) spy = spy.py;
+							let py;
+							for( py = spy; py; py = py.ny ) {
+								let spz = py.nz;
+								if( py.sx != spy.sx ) debugger;
+								if( py != px ) {
+									if( py.nx || py.px ) debugger;
+								}
+								while( spz && spz.pz ) spz = spz.pz;
+								let pz;
+								for( pz = spz; pz; pz = pz.nz ) {
+									let p3, p4;
+									if( pz.sy != spz.sy ) debugger;
+									if( pz.sx != spy.sx ) debugger;
+									if( pz != py ) {
+										if( pz.nx || pz.px ) debugger;
+										if( pz.ny || pz.py ) debugger;
+									}
+									if( pz.nx ) if( pz.nx.px != pz ) debugger;
+									if( pz.px ) if( pz.px.nx != pz ) debugger;
+									if( pz.ny ) if( pz.ny.py != pz ) debugger;
+									if( pz.py ) if( pz.py.ny != pz ) debugger;
+									if( pz.nz ) if( pz.nz.pz != pz ) debugger;
+									if( pz.pz ) if( pz.pz.nz != pz ) debugger;
+									if( pz.nx && pz.nx.id === "-4 -3 0 " ) debugger;
+									for( p3 = most_used; p3; p3 = p3.next ) {
+										if( pz === p3 ) break;
+									}
+									for( p4 = p2.next; p4; p4 = p4.next ) {
+										if( pz === p4 ) break;
+									}
+									if( !p3 && !p4 ) debugger;
+									if( p3 ) break;
+								}					
+								if( pz ) break;			
+							}
+							if( py ) break;
+						}
+						if( cache[0].nx.id === "-4 -3 0 ")debugger;
+						//if( !px ) debugger;
+            			for( let p3 = p2.next; p3; p3 = p3.next ) {
+							if( !findInCache( p3 ) )debugger;
+							if( p3.nx && p3.nx.id === "-4 -3 0 " ) debugger;
+							if( p3.nx ) if( p3.nx.px != p3 ) debugger;
+							if( p3.px ) if( p3.px.nx != p3 ) debugger;
+							if( p3.ny ) if( p3.ny.py != p3 ) debugger;
+							if( p3.py ) if( p3.py.ny != p3 ) debugger;
+							if( p3.nz ) if( p3.nz.pz != p3 ) debugger;
+							if( p3.pz ) if( p3.pz.nz != p3 ) debugger;
+					}
             			for( let p3 = most_used; p3; p3 = p3.next ) {
+								if( !findInCache( p3 ) )debugger;
 								if( !p3.nz 
 								   && !p3.ny
 								   && !p3.nx
@@ -258,8 +328,15 @@ const _debug_drop = false;
 									console.log( "This block has (recently?) become orphaned" );
 									debugger;
 								}
+								if( p3.nx && p3.nx.id === "-4 -3 0 " ) debugger;
+								if( p3.nx ) if( p3.nx.px != p3 ) debugger;
+								if( p3.px ) if( p3.px.nx != p3 ) debugger;
+								if( p3.ny ) if( p3.ny.py != p3 ) debugger;
+								if( p3.py ) if( p3.py.ny != p3 ) debugger;
+								if( p3.nz ) if( p3.nz.pz != p3 ) debugger;
+								if( p3.pz ) if( p3.pz.nz != p3 ) debugger;
 							}
-
+						
 						//opts.cache[p2.sx][p2.sy][p2.sz] = null;
 					}
 					/*
@@ -276,6 +353,30 @@ const _debug_drop = false;
 				}
 			}
 			
+		}else {
+			for( let p3 = most_used; p3; p3 = p3.next ) {
+				if( !findInCache( p3 ) ) {
+					debugger;
+					findInCache( p3 );
+				}
+				if( !p3.nz 
+				   && !p3.ny
+				   && !p3.nx
+				   && !p3.pz
+				   && !p3.py
+				   && !p3.px ){
+					console.log( "This block has (recently?) become orphaned" );
+					debugger;
+				}
+				if( p3.nx && p3.nx.id === "-4 -3 0 " ) debugger;
+				if( p3.nx ) if( p3.nx.px != p3 ) debugger;
+				if( p3.px ) if( p3.px.nx != p3 ) debugger;
+				if( p3.ny ) if( p3.ny.py != p3 ) debugger;
+				if( p3.py ) if( p3.py.ny != p3 ) debugger;
+				if( p3.nz ) if( p3.nz.pz != p3 ) debugger;
+				if( p3.pz ) if( p3.pz.nz != p3 ) debugger;
+			}
+
 		}
 		if( most_used ) {
 			if( most_used !== patch ) {
@@ -302,89 +403,123 @@ const _debug_drop = false;
 		const sz= (z/CUBE_ELEMENT_SIZE)|0;
 		{
 			let count = 0;
+			let _p = null;
+			let __p = null;
 //debugger;
 			let p = cache[0];
 			//let finds = [];
+			//if( sx == 0 && sy == 0 && sz == 2 ) debugger;
 			while( p ) {
+				__p = _p;
+				_p = p;
 			//		finds.push( `compare to ${p.sx} ${p.sy} ${p.sz}  ${!!p.px}  ${!!p.nx}    ${!!p.py}  ${!!p.ny}     ${!!p.pz}  ${!!p.nz} ` );
 			count++; if( count > 100 ) debugger;
 				if( sx > p.sx ) {
-					if( p.nx ) p = p.nx;
-				   else {
-						if( p.nx ) debugger;
-						p.nx = myRandom();
-						p.nx.px = p;
-						p = p.nx;
+					if( p.nx && ( p.nx != __p ) ) p = p.nx;
+				   	else {
+						data = [ sx, sy, sz, opts.seed ].join( " " );
+						const b = myRandom();
+						if( p.nx ) {
+							b.nx = p.nx 
+							p.nx.px = b;
+						}
+						// there will not be a p.nx.
+						b.px = p;
+						p.nx = b;
+						p = b;
 						break;
 					}
 				} else if( sx < p.sx ) {
-					//if( p.px ) p = p.px;
-					//else 
-					{
+					if( p.px && (p.py !== __p )) p = p.px;
+					else {
+						data = [ sx, sy, sz, opts.seed ].join( " " );
+						const b = myRandom();
+
 						if( p.px ) {
-							const b = myRandom();
-							//if( p.px.nx ) debugger;
-							b.nx = p;
 							b.px = p.px;
 							p.px.nx = b;
-							p.px = b;
-							p = b;
-						} else {
-							if( p.px ) debugger;
-							const b = cache[0] = p.px = myRandom();
-							b.nx = p;
-							p = b;
 						}
+						b.nx = p;
+						p.px = b;
+						p = b;
 						break;
 					}
 				} else { // sx == p.sx
 					if( sy > p.sy ) {
-						if( p.ny ) p = p.ny;
+						if( p.ny && ( p.ny != __p ) ) p = p.ny;
 						else {
-							p.ny = myRandom();
-							p.ny.py = p;
+							data = [ sx, sy, sz, opts.seed ].join( " " );
+							const b = myRandom();
+							if( p.ny ) {
+								b.ny = p.ny;
+								p.ny.py = b;
+							}
+							b.py = p;
+							p.ny = b;
 							p = p.ny;
 							break;
 						}
 					} else if( sy < p.sy ) {
-						const b = myRandom();
-						if( b.py = p.py ) p.py.ny = b;
-						p.py = b;
-						b.ny = p;
-						p = p.py;
-						break;
+						if( p.py && ( p.py != __p ) ) {
+							p = p.py;
+						} else {
+							data = [ sx, sy, sz, opts.seed ].join( " " );
+							const b = myRandom();
+							if( b.py = p.py ) {
+								b.py = p.py;
+								p.py.ny = b;
+							}
+							p.py = b;
+							b.ny = p;
+							p = b;
+							break;
+						}
 					} else {
 						if( sz > p.sz ) {
-							if( p.nz ) p = p.nz;
+							if( p.nz && ( p.nz != __p ) ) p = p.nz;
 							else {
-								p.nz = myRandom();
-								p.nz.pz = p;
-								p = p.nz;
+								data = [ sx, sy, sz, opts.seed ].join( " " );
+								const b = myRandom();
+								if( p.nz ) {
+									b.nz = p.nz;
+									p.nz.pz = b;
+								}
+								p.nz = b;
+								b.pz = p;
+
+								p = b;
 								break;
 							}
 						}else if( sz < p.sz ) {
-							//if( p.pz ) p = p.pz;
-							//else 
+							if( p.pz && ( p.pz != __p ) ) p = p.pz;
+							else 
 							{
+								data = [ sx, sy, sz, opts.seed ].join( " " );
 								const b = myRandom();
-								b.nz = p;
 								if( b.pz = p.pz )
 									p.pz.nz = b;
 								p.pz = b;
+								b.nz = p;
+
 								p = b;
 								break;
 							}
 						} else {
 							// sx, sy, sz == here.
+							//console.log( "Return", p.sx, p.sy, p.sz, sx, sy, sz );
+							heatCache( p );
 							return p.arr;
 						}						
 					}
 				}
 			}
-			if( !p ) cache[0] = p = myRandom();
-//		 if( sx ==3 && sy == -5&& sz == 0 ) debugger;
+			if( !p ) {
+				data = [ sx, sy, sz, opts.seed ].join( " " );
+				cache[0] = p = myRandom();
+			}
 //		 if( sx ==22 && sy == 1&& sz == 0 ) debugger;
-//			console.log( "Cached ", sx, sy, sz, "..." );//, finds.join("\n" ) );
+			//if( sx == -4 && sy == -4 && sz == 0 ) debugger;
+			console.log( "Cached ", sx, sy, sz, "on",_p&& _p.sx, _p&&_p.sy, _p&&_p.sz, "on",__p&& __p.sx, __p&&__p.sy, __p&&__p.sz,  );//, finds.join("\n" ) );
 			p.sx = sx;
 			p.sy = sy;
 			p.sz = sz;

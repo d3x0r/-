@@ -1,6 +1,6 @@
 import {SaltyRNG} from "./salty_random_generator.js"
 import {SpacialCache} from "./space_cache.js"
-const CUBE_ELEMENT_BITS = 5
+const CUBE_ELEMENT_BITS = 6
 const CUBE_ELEMENT_SIZE = 1 << CUBE_ELEMENT_BITS
 const _validate_unlink = false;
 
@@ -29,6 +29,7 @@ function noise( s, opts ) {
 	}
 	const gens = opts.generations || 6;
 	const cache = new SpacialCache( CUBE_ELEMENT_BITS );
+	if( cache._2d ) cache.cache_size = 50;cache.cache_low = 40;
 	//opts.cache;
 	var noiseGen = [];
 	var maxtot = 0;
@@ -45,7 +46,7 @@ function noise( s, opts ) {
 	console.log( "tot:", maxtot );
 
 	var data;
-	var RNG = SaltyRNG( arr=>arr.push( data ), {mode:0} );
+	var RNG = SaltyRNG( arr=>arr.push( data ), {mode:1} );
 
 
 	function myRandom(node) {

@@ -54,8 +54,8 @@ class SpacialCache {
 
 	most_used = null; // linear list of cache.
 
-	cache_size = 50;
-	cache_low = 40;
+	cache_size = 500;
+	cache_low = 400;
 	cacheLen = 0;
 	cache = null; // 3D root sorted by X/Y/Z
 	CUBE_ELEMENT_SIZE = 1;

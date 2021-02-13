@@ -34,6 +34,9 @@ class SpacialCacheEntry {
 	py = null;
 	pz = null;
 
+	next = null;
+	prev = null;
+
 	arr = null;
 	constructor( x, y, z, cb ){
 		this.sx = x; this.sy = y; this.sz = z;
@@ -47,12 +50,13 @@ class SpacialCacheEntry {
 
 class SpacialCache {
 
-	most_used = null;
+	most_used = null; // linear list of cache.
+
 	cache_size = 500;
 	cache_low = 400;
 	cacheLen = 0;
-	cache = null;
-	CUBE_ELEMENT_SIZE = 4;
+	cache = null; // 3D root sorted by X/Y/Z
+	CUBE_ELEMENT_SIZE = 1;
 
 	constructor( cubeSize )
 	{
@@ -110,20 +114,11 @@ class SpacialCache {
 	heatCache( patch ) {
 		var p1 = this.most_used;
 		var _p1 = null;
-		if( p1 ) {
-			// check in cache list... if it's found remove it.
-			for( ; p1; (_p1 = p1),p1 = p1.next ) {
-				if( patch === p1 )
-					break;
-			}
-			if( p1 && p1 != this.most_used ) {            
-				this.cacheLen--;
-				if( !_p1 )
-					this.most_used = this.most_used.next;
-				else {
-					_p1.next = p1.next;
-				}
-			}
+		if( patch && (patch.next || patch.prev) ) {
+			if( patch.prev ) patch.prev.next = patch.next;
+			else this.most_used = patch.next;
+			if( patch.next ) patch.next.prev = patch.prev;
+			this.cacheLen--;
 		}
 		if( this.cacheLen > this.cache_size ) {
 			let counter = 0;
@@ -133,6 +128,8 @@ class SpacialCache {
 					this.cacheLen = counter;
 					const dropList = p1.next;
 					p1.next = null;
+					if( dropList ) dropList.prev = null;
+					
 					for( let p2 =dropList; p2; p2 = p2.next ) {
 						p2.arr = null;
 						//console.log( "drop:", p2 );
@@ -225,11 +222,10 @@ class SpacialCache {
 			}
 		}
 		if( this.most_used ) {
-			if( this.most_used !== patch ) {
-				patch.next = this.most_used;
-				this.most_used = patch;
-				this.cacheLen++;
-			}
+			this.most_used.prev = patch;
+			patch.next = this.most_used;
+			this.most_used = patch;
+			this.cacheLen++;
 		} else {
 			this.most_used = patch;
 			this.cacheLen = 1;

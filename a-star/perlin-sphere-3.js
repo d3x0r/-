@@ -5,6 +5,7 @@ const CUBE_ELEMENT_SIZE = 1 << CUBE_ELEMENT_BITS
 const _validate_unlink = false;
 
 function noise( s, opts ) {
+	const  _2d = !!( opts && opts["2D"] );
 	function NoiseGeneration(n,s) {
 		return { 
 			steps : n,
@@ -44,26 +45,44 @@ function noise( s, opts ) {
 	console.log( "tot:", maxtot );
 
 	var data;
-	var RNG = SaltyRNG( arr=>arr.push( data ), {mode:1} );
+	var RNG = SaltyRNG( arr=>arr.push( data ), {mode:0} );
 
 
 	function myRandom(node) {
 		RNG.reset();
-	
-		var n = 0;
-		const arr = [];
-		data = `${node.sx} ${node.sy} ${node.sz} ${opts.seed}`
-		const arrb = RNG.getBuffer( 8*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE );
-		const buf = new Uint8Array( arrb );
-		
-		for( var nz = 0; nz< CUBE_ELEMENT_SIZE; nz++ ) 
-			for( var ny = 0; ny < CUBE_ELEMENT_SIZE; ny++ ) 
-				for( var nx = 0; nx < CUBE_ELEMENT_SIZE; nx++ )  {
-					var val = buf[n++] / 255; // 0 < 1 
-					arr.push(val);
-					//arr.push( Math.random() );
-				}
-		return arr;
+		if(  _2d ) {
+			var n = 0;
+			const arr = [];
+			data = `${node.sx} ${node.sy} ${opts.seed}`
+			const arrb = RNG.getBuffer( 8*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE );
+			const buf = new Uint8Array( arrb );
+			
+			//for( var nz = 0; nz< CUBE_ELEMENT_SIZE; nz++ ) 
+				for( var ny = 0; ny < CUBE_ELEMENT_SIZE; ny++ ) 
+					for( var nx = 0; nx < CUBE_ELEMENT_SIZE; nx++ )  {
+						var val = buf[n++] / 255; // 0 < 1 
+						arr.push(val);
+						//arr.push( Math.random() );
+					}
+			return arr;
+
+		}
+		else {
+			let n = 0;
+			const arr = [];
+			data = `${node.sx} ${node.sy} ${node.sz} ${opts.seed}`
+			const arrb = RNG.getBuffer( 8*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE );
+			const buf = new Uint8Array( arrb );
+			
+			for( var nz = 0; nz< CUBE_ELEMENT_SIZE; nz++ ) 
+				for( var ny = 0; ny < CUBE_ELEMENT_SIZE; ny++ ) 
+					for( var nx = 0; nx < CUBE_ELEMENT_SIZE; nx++ )  {
+						var val = buf[n++] / 255; // 0 < 1 
+						arr.push(val);
+						//arr.push( Math.random() );
+					}
+			return arr;
+		}
 	}
 
 	function getRandom( x, y, z ) {
@@ -130,10 +149,17 @@ function noise( s, opts ) {
 					const	noise2 = getRandom( (npx), ny   , nz );
 					const	noise3 = getRandom( nx   , (npy), nz );
 					const	noise4 = getRandom( (npx), (npy), nz );
-					const	noise5 = getRandom( nx   , ny , (npz) );
-					const	noise6 = getRandom( (npx), ny , (npz) );
-					const	noise7 = getRandom( nx   , npy, (npz) );
-					const	noise8 = getRandom( (npx), npy, (npz) );
+					let	noise5 = null;
+					let	noise6 = null;
+					let	noise7 = null;
+					let	noise8 = null;
+
+					if( ! _2d ) {
+						noise5 = getRandom( nx   , ny , (npz) );
+						noise6 = getRandom( (npx), ny , (npz) );
+						noise7 = getRandom( nx   , npy, (npz) );
+						noise8 = getRandom( (npx), npy, (npz) );
+					}
 
 					gen.ix = nx % CUBE_ELEMENT_SIZE;
 					if( gen.ix < 0 ) gen.ix += CUBE_ELEMENT_SIZE;
@@ -143,22 +169,32 @@ function noise( s, opts ) {
 					if( gen.iy < 0 ) gen.iy += CUBE_ELEMENT_SIZE;
 					gen.jy = (gen.iy+gen.pitch)%CUBE_ELEMENT_SIZE;
 
-					gen.iz = nz % CUBE_ELEMENT_SIZE;
-					if( gen.iz < 0 ) gen.iz += CUBE_ELEMENT_SIZE;
-					gen.jz = (gen.iz+gen.pitch)%CUBE_ELEMENT_SIZE;
-				
+					if( ! _2d ) {
+						gen.iz = nz % CUBE_ELEMENT_SIZE;
+						if( gen.iz < 0 ) gen.iz += CUBE_ELEMENT_SIZE;
+						gen.jz = (gen.iz+gen.pitch)%CUBE_ELEMENT_SIZE;
+					}else
+						gen.iz = 0;
+
+	if(  _2d ) {
+					gen.corn[0] = noise1[   (gen.iy) * CUBE_ELEMENT_SIZE + gen.ix ];
+					gen.corn[1] = noise2[   (gen.iy) * CUBE_ELEMENT_SIZE + (gen.jx) ];
+
+					gen.corn[2] = noise3[   (gen.jy) * CUBE_ELEMENT_SIZE + gen.ix ];
+					gen.corn[3] = noise4[   (gen.jy) * CUBE_ELEMENT_SIZE + (gen.jx) ];
+	}
+					if( ! _2d ) {
 					gen.corn[0] = noise1[ (gen.iz) * (CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE) +  (gen.iy) * CUBE_ELEMENT_SIZE + gen.ix ];
 					gen.corn[1] = noise2[ (gen.iz) * (CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE) +  (gen.iy) * CUBE_ELEMENT_SIZE + (gen.jx) ];
 
 					gen.corn[2] = noise3[ (gen.iz) * (CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE) +  (gen.jy) * CUBE_ELEMENT_SIZE + gen.ix ];
 					gen.corn[3] = noise4[ (gen.iz) * (CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE) +  (gen.jy) * CUBE_ELEMENT_SIZE + (gen.jx) ];
+						gen.corn[4] = noise5[ (gen.jz) * (CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE) + gen.iy * CUBE_ELEMENT_SIZE + gen.ix ];
+						gen.corn[5] = noise6[ (gen.jz) * (CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE) + (gen.iy) * CUBE_ELEMENT_SIZE + (gen.jx) ];
 
-					gen.corn[4] = noise5[ (gen.jz) * (CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE) + gen.iy * CUBE_ELEMENT_SIZE + gen.ix ];
-					gen.corn[5] = noise6[ (gen.jz) * (CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE) + (gen.iy) * CUBE_ELEMENT_SIZE + (gen.jx) ];
-
-					gen.corn[6] = noise7[ (gen.jz) * (CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE) + (gen.jy) * CUBE_ELEMENT_SIZE + gen.ix ];
-					gen.corn[7] = noise8[ (gen.jz) * (CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE) + (gen.jy) * CUBE_ELEMENT_SIZE + (gen.jx) ];
-
+						gen.corn[6] = noise7[ (gen.jz) * (CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE) + (gen.jy) * CUBE_ELEMENT_SIZE + gen.ix ];
+						gen.corn[7] = noise8[ (gen.jz) * (CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE) + (gen.jy) * CUBE_ELEMENT_SIZE + (gen.jx) ];
+					}
 					gen.dx1 = gen.corn[1] - gen.corn[0];
 					gen.dx2 = gen.corn[3] - gen.corn[2];
 

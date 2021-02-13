@@ -8,7 +8,7 @@ const generate_3D = false;
 var config = {
 	patchSize : 128,
 	generations : 7,
-	
+	"2D" : true,
 	left : 32,    // default left side (entry)
 	right : 96,   // default right side (exit)
 	nodes : [],  // trace of A*Path
@@ -62,8 +62,8 @@ var wO = 0;
 var hO = 0;
 
 
-const wstride = ( 20 * Math.random() - 10 ) ;
-const hstride = ( 20 * Math.random() - 10 ) ;
+const wstride = ( 50 * Math.random() - 25 ) ;
+const hstride = ( 50 * Math.random() - 25 ) ;
 
 init( config );
 

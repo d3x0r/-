@@ -44,7 +44,7 @@ const RANGES_THRESH = [0, 0.25, 0.37, 0.44, 0.58, 0.67, 0.82, 0.99, 1.0 ];
 
 var config = {
 	patchSize : 128,
-	generations : 6,
+	generations : 5,
 	seed : Date.now(),
 }
 
@@ -58,6 +58,7 @@ let cameraControls = null;
 
 //const CUBE_ELEMENT_SIZE = 16
 let height = noise( 1.0, config );
+let rough = noise( 1.0, config );
 
 let heightScalar = 0.1;
 let xOfs = 0;
@@ -169,6 +170,7 @@ function init() {
 			config.seed = new Date();
 			config.cache = [];
 			height = noise( 1.0, config );
+			rough = noise( 1.0, config );
 			update.newSeed();
 		})
 
@@ -292,9 +294,37 @@ function mangleGeometry( land, water ) {
 		const newUpdate = !vout.length;
 
 
-		const spanx = 64;
-		const spany = 64;
-		const spanz = 64;
+		const spanx = 90;
+		const spany = 90;
+		const spanz = 90;
+
+		const r_spanx = 28;
+		const r_spany = 28;
+		const r_spanz = 28;
+	
+		function fn(x,y,z,a) {
+				//const r = rough.get2( 10+x*r_spanx, y*r_spanz, z*r_spanz, 0 );
+				//const r2 = ( Math.acos( r*2-1 ) ) /Math.PI;
+				//const h = (height.get2( x*spanx, y*spany, z*spanz, 0 )-0.44)*(r2)+0.44;
+				const h = height.get2( x*spanx, y*spany, z*spanz, 0 );
+				const out = (1-Math.cos( h * Math.PI )) /2;
+				return out;
+		if(0)
+				if( h < 0.7 && h > 0.3 ) {
+					const out = ( Math.acos( h*2-1 ) ) /(Math.PI);
+					return out;
+				} else {
+					if( h < 0.5 ) {
+						const out = (1+Math.cos( h * Math.PI )) /2 ;
+						return out;
+					}else {
+						const out = (1+Math.cos( h * Math.PI )) /2 + 0.2;
+						return out;
+					}
+				}
+
+		}
+
 
 		for( var n = 0; n < checkFaces; n++ ) {
 			const f = faces[n];	
@@ -305,7 +335,7 @@ function mangleGeometry( land, water ) {
 			let newF = 0;
 			f.vertexColors.length = 0;
 			{
-				const h = height.get2( (1+p1.x+xOfs)*spanx, (1+p1.y+yOfs)*spany, (1+p1.z+zOfs)*spanz, 0 );
+				const h = fn( (p1.x+xOfs), (p1.y+yOfs), (p1.z+zOfs), 0 );
 				if( h < RANGES_THRESH[3] )
 					addOne = true;
 				//const h = Math.random();
@@ -313,7 +343,7 @@ function mangleGeometry( land, water ) {
 				f.vertexColors.push( new THREE.Color( color[0], color[1], color[2], color[3] ) );
 			}
 			{
-				const h = height.get2( (1+p2.x+xOfs)*spanx, (1+p2.y+yOfs)*spany, (1+p2.z+zOfs)*spanz, 0 );
+				const h = fn( (p2.x+xOfs), (p2.y+yOfs), (p2.z+zOfs), 0 );
 				if( h < RANGES_THRESH[3] )
 					addOne = true;
 				//const h = Math.random();
@@ -321,7 +351,7 @@ function mangleGeometry( land, water ) {
 				f.vertexColors.push( new THREE.Color( color[0], color[1], color[2], color[3] ) );
 			}
 			{
-				const h = height.get2( (1+p3.x+xOfs)*spanx, (1+p3.y+yOfs)*spany, (1+p3.z+zOfs)*spanz, 0 );
+				const h = fn( (p3.x+xOfs), (p3.y+yOfs), (p3.z+zOfs), 0 );
 				if( h < RANGES_THRESH[3] )
 					addOne = true;
 				//const h = Math.random();
@@ -370,7 +400,7 @@ function mangleGeometry( land, water ) {
 		const tmp = new THREE.Vector3();
 		for( var n = 0; n < checkVerts; n++ ) {
 			const v = verts[n];
-			const h = height.get2( (1+v.x+xOfs)*spanx, (1+v.y+yOfs)*spany, (1+v.z+zOfs)*spanz, 0 );
+			const h = fn( (v.x+xOfs), (v.y+yOfs), (v.z+zOfs), 0 );
 
 			const r = (1.0-heightScalar) + ( h * (heightScalar*2) );
 			if( newUpdate )

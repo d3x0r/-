@@ -168,7 +168,7 @@ function init() {
 		
 		// 32 = 13068, 24576, 
 		// 64 = 50700, 98304,
-		const update = computeBall( geometrySquare, 40 );
+		const update = computeBall( geometrySquare, 32 );
 
 		sliders[0].addEventListener( "input", getValues );
 		sliders[1].addEventListener( "input", getValues );

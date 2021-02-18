@@ -60,6 +60,7 @@ function lnQuat( theta, d, a, b, e ){
 	this.θ = 0; // length
 	this.refresh = null;
 	this.dirty = true; // whether update() has to do work.
+	this.basis = null;
 	this.set( theta,d,a,b,e);
 }
 
@@ -90,10 +91,13 @@ lnQuat.prototype.set = function(theta,d,a,b,e)
 		const xy = s * q.nx * tzn  
 		         + s * q.nz * (1-txn);
 		
-		const tmp = 1 /Math.sqrt(yz*yz + xz*xz + xy*xy );
-		q.nx = yz *tmp;
-		q.ny = xz *tmp;
-		q.nz = xy *tmp;
+		const tmp_nsq = yz*yz + xz*xz + xy*xy;
+		if( tmp_nsq ) {
+			const tmp = 1 /Math.sqrt(tmp_nsq);
+			q.nx = yz *tmp;
+			q.ny = xz *tmp;
+			q.nz = xy *tmp;
+		}
 		
 		const lNorm = angle;
 		q.x = q.nx * lNorm;
@@ -129,7 +133,7 @@ lnQuat.prototype.set = function(theta,d,a,b,e)
 		if( "function" === typeof theta  ){
 // what is passed is a function to call during apply
 			this.refresh = theta;
-			return;
+			return this;
 		}
 		if( theta instanceof lnQuat ) {
 // clone an existing lnQuat
@@ -143,7 +147,7 @@ lnQuat.prototype.set = function(theta,d,a,b,e)
 			this.s = theta.s;
 			this.qw = theta.qw;
 			this.dirty = theta.dirty;
-			return;
+			return this;
 		}
 		if( "undefined" !== typeof a ) {
 			//if( ASSERT ) if( theta) throw new Error( "Why? I mean theta is always on the unit circle; else not a unit projection..." );
@@ -187,7 +191,7 @@ lnQuat.prototype.set = function(theta,d,a,b,e)
 						this.update();
 						alignZero(this);
 					}
-					return;
+					return this;
 				}
 				if( "a" in theta ) {
 // angle-angle-angle  {a:,b:,c:}
@@ -198,7 +202,7 @@ lnQuat.prototype.set = function(theta,d,a,b,e)
 						this.y = theta.b * l1 / l3;
 						this.z = theta.c * l1 / l3;
 					}
-					return;
+					return this;
 				}
 				else if( "x" in theta )
 				{
@@ -291,7 +295,7 @@ lnQuat.prototype.set = function(theta,d,a,b,e)
 							}
 						}
 					}
-					return;
+					return this;
 				}
 			}
 
@@ -303,10 +307,11 @@ lnQuat.prototype.set = function(theta,d,a,b,e)
 				this.y = d.y * θ;
 				this.z = d.z * θ;
 				this.update();
-				return;
+				return this;
 			}
 		}
 	}
+	return this;
 }
 
 
@@ -458,6 +463,7 @@ lnQuat.prototype.torque = function( direction, turns ) {
 
 
 lnQuat.prototype.getBasis = function(){return this.getBasisT(1.0) };
+
 lnQuat.prototype.getBasisT = function(del, from, right) {
 	const q = this;
 	//this.update();
@@ -511,12 +517,19 @@ lnQuat.prototype.getBasisT = function(del, from, right) {
 	const xx = cnx*qx;  // y * y / (xx+yy+zz) * (1 - cos(2t))
 	const yy = cny*qy;  // x * x / (xx+yy+zz) * (1 - cos(2t))
 	const zz = cnz*qz;  // z * z / (xx+yy+zz) * (1 - cos(2t))
-
-	const basis = { right  :{ x : c1 + xx, y : wz + xy, z : xz - wy }
-	              , up     :{ x : xy - wz, y : c1 + yy, z : wx + yz }
-		      , forward:{ x : wy + xz, y : yz - wx, z : c1 + zz }
-	              };
-	return basis;	
+	if( this.basis ) {
+		const rt = this.basis.right;
+		rt.x = c1 + xx; rt.y = wz + xy; rt.z = xz - wy ;
+		const up = this.basis.up;
+	   up.x = xy - wz; up.y = c1 + yy; up.z = wx + yz ;
+		const fw = this.basis.forward;
+		fw.x = wy + xz; fw.y = yz - wx; fw.z = c1 + zz ;
+	}else
+		this.basis = { right  :{ x : c1 + xx, y : wz + xy, z : xz - wy }
+		             , up     :{ x : xy - wz, y : c1 + yy, z : wx + yz }
+		             , forward:{ x : wy + xz, y : yz - wx, z : c1 + zz }
+		              };
+	return this.basis;
 	
 
 }

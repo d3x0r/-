@@ -13,11 +13,55 @@ class ballPatch {
 
 
 class ball {
-	
-	constructor() {
+	patches = [];
+	dataGrid = null;
+	segs = 0;
+	constructor( LOD ) {
+		this.segs = LOD;
 		const x = new ballPatch();
+
+		dataGrid = new Float64Array( (LOD *2 + 3 ) * ( 6  *(n+1)) );		
+	}
+
+	getLatLength( lat ) {
+		if( lat < (this.size+1 ) ) {
+			if( !lat ) return 1;
+			return lat * 6;
+		} else if( lat <= (this.size+1)*2 ) {
+			return ( this.size+1)*6;
+		} else {
+			const lat = ( ( lat - (this.size+1) * 2 ) ) + 1;
+			if( !lat ) return 1;
+			return lat*6;
+		}
+	}
+
+	getHeight( lat, long ) {
+		/*
+		const wraps = ( lat / ((this.size*2)+3) ) | 0;
+		if( wraps & 1 ) {
+			long = -long;
+
+		}
+		*/
+		if( lat / ((this.size*2)+3) )
+
+		if( lat < (this.size+1 ) ) {
+			const y = lat;
+			const x = long;
+			// 0->
+		} else if( lat <= (this.size+1)*2 ) {
 		
-		
+		} else {
+			const y = ((size+1) - lat - (this.size+1)*2);
+			const x = (this.size+1)*6 - long;
+		}
+	}
+
+	setLOD( LOD ) {
+		this.segs = LOD;
+		dataGrid = new Float64Array( (LOD *2 + 3 ) * ( 6  *(n+1)) );
+
 	}
 }
 

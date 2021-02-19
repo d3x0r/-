@@ -187,19 +187,53 @@ lnQuat.prototype.set = function(theta,d,a,b,e)
 					const z = Math.cos(theta.lng);
 					this.x = x * theta.lat; this.y = 0; this.z = z * theta.lat;
 					this.dirty = true;
+
+					if( !theta.lat ) {
+						if( theta.lng > Math.PI )
+							this.y = theta.lng;
+						else
+							this.y = theta.lng;
+						return this;
+					}
+
 					if( d ) {
 						this.update();
 						alignZero(this);
 					}
-					if(1)
-						if( theta.lng > Math.PI )
-							yaw( this.update(), twistDelta + Math.PI*2/*+ angle*/ );
-						else if( theta.lng <= -Math.PI )
-							yaw( this.update(), twistDelta - Math.PI*2/*+ angle*/ );
-						else
-							if( twistDelta ) {
-								yaw( this.update(), twistDelta /*+ angle*/ );
-							}
+						if( theta.lng > Math.PI  ) {
+							//if( theta.lng > 2* Math.PI  ) 
+							//	yaw( this.update(), Math.PI*4/*+ angle*/ );
+							//else
+							yaw( this.update(), Math.PI*2/*+ angle*/ );
+						} else if( theta.lng <= -Math.PI )
+							yaw( this.update(), - Math.PI*2/*+ angle*/ );
+						//else
+						//	if( twistDelta ) {
+						//		yaw( this.update(), twistDelta /*+ angle*/ );
+						//	}
+
+
+				if( theta.lat > Math.PI ) {
+
+					if( theta.lat > 2*Math.PI ) {
+					}else{
+						this.x = -this.x;
+						this.y = this.y;
+						this.z = -this.z;
+						this.dirty = true;
+						this.update();
+					}
+				}
+				if( theta.lat < 0 ) {
+					if( theta.lat < -2*Math.PI) {
+					} else {
+						this.x = -this.x;
+						this.y = this.y;
+						this.z = -this.z;
+						this.dirty = true;
+						this.update();
+					}
+				}
 					return this;
 				}
 				if( "a" in theta ) {

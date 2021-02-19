@@ -200,7 +200,7 @@ function init() {
 		materialWater.needsUpdate = true;     
 
 
-		const ball = new THREE.Mesh( geometrySquare, materialNormal );
+		const ball = new THREE.Mesh( geometrySquare, material );
 		const cube = new THREE.Mesh( geometry, material );
 		const water = new THREE.Mesh( geometryWater, materialWater );
 
@@ -349,12 +349,15 @@ function computeBall( geometry, size ) {
 					const color1 = getColor2( h );
 					const h2 = fn( -basis.up.x, -basis.up.y, -basis.up.z, 0 );
 					const color2 = getColor2( h2 );
+
+			//if( lat > 5 ) continue;
+			
 					if( addFaces ) {					
 						norms.push( {x:lnQ.x, y:lnQ.y, z:lnQ.z } );
 						vertices.push( new THREE.Vector3( basis.up.x, basis.up.y, basis.up.z  ).multiplyScalar(h) );
 						colors.push( new THREE.Color( color1[0], color1[1],color1[2]))
 
-						const basis2 = lnQ.set( {lat:deg2rad(179)-qlat, lng:deg2rad(180)+qlng}, true ).getBasis();
+						const basis2 = lnQ.set( {lat:(deg2rad(180)-qlat), lng:deg2rad(180)+qlng}, true ).getBasis();
 						norms.push( {x:lnQ.x, y:lnQ.y, z:lnQ.z } );
 						vertices.push( new THREE.Vector3( basis2.up.x, basis2.up.y, basis2.up.z  ).multiplyScalar(2*h2) );
 						//vertices.push( new THREE.Vector3( -basis.up.x, -basis.up.y, -basis.up.z  ).multiplyScalar(h2) );
@@ -380,6 +383,8 @@ function computeBall( geometry, size ) {
 						v2.z = -( basis.up.z*h2);
 					}
 					if( addFaces ){
+			//	if( pp != 2 ) continue; 
+			//	if( lng < (len-1) ) continue;
 						let f, fp1,fp2,fp3;
 						if( lng < lat ) {
 							// before the bend... 
@@ -521,8 +526,9 @@ function computeBall( geometry, size ) {
 
 		}
 
-		if( 1 )
+		if( 0 )
 		{
+			// smooth shade (with lnQuaternion geometry)
 			for (var i=0; i<geometry.faces.length; ++i) {
 				const f = geometry.faces[i];
 				const vA = norms[f.a];
@@ -535,7 +541,7 @@ function computeBall( geometry, size ) {
 		 	
 		}
 		
-		if(0)
+		if(1) // unsmooth normals
 		{
 			var cb = new THREE.Vector3(), ab = new THREE.Vector3();
 			for (var i=0; i<geometry.faces.length; ++i) {

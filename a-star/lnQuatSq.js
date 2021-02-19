@@ -191,6 +191,15 @@ lnQuat.prototype.set = function(theta,d,a,b,e)
 						this.update();
 						alignZero(this);
 					}
+					if(1)
+						if( theta.lng > Math.PI )
+							yaw( this.update(), twistDelta + Math.PI*2/*+ angle*/ );
+						else if( theta.lng <= -Math.PI )
+							yaw( this.update(), twistDelta - Math.PI*2/*+ angle*/ );
+						else
+							if( twistDelta ) {
+								yaw( this.update(), twistDelta /*+ angle*/ );
+							}
 					return this;
 				}
 				if( "a" in theta ) {
@@ -466,7 +475,7 @@ lnQuat.prototype.getBasis = function(){return this.getBasisT(1.0) };
 
 lnQuat.prototype.getBasisT = function(del, from, right) {
 	const q = this;
-	//this.update();
+	this.update();
 	if( "undefined" === typeof del ) del = 1.0;
 	let ax, ay, az;
 	if( SLERPbasis ) {

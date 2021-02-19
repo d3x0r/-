@@ -37,9 +37,9 @@ function noise( s, opts ) {
 		var gen;
 		noiseGen.push( gen = NoiseGeneration( 1 << i, 1/((1<<i)) ) );
 		//if( i == 4 ) gen.scalar *= 2;
-		if( i == 1 ) gen.scalar /= 3;
-		if( i == 2 ) gen.scalar /= 2;
-		if( i == 6 ) gen.scalar *= 2;
+		//if( i == 1 ) gen.scalar /= 3;
+		//if( i == 2 ) gen.scalar /= 2;
+		//if( i == 6 ) gen.scalar *= 2;
 		//gen.scalar *= 1;
 		maxtot += gen.scalar;
 	}

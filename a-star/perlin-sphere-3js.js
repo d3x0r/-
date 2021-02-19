@@ -136,8 +136,8 @@ function init() {
 
 		camera.matrixAutoUpdate = false;
 		camera.position.y = 3.3;
-		camera.position.x = 1.5;
-		camera.position.z = 6.5;
+		camera.position.x = 5.5;
+		camera.position.z = 8.5;
 		camera.matrix.origin.copy( camera.position );
 
 		if ( !renderer.extensions.get('WEBGL_depth_texture') ) {
@@ -200,14 +200,15 @@ function init() {
 		materialWater.needsUpdate = true;     
 
 
-		const ball = new THREE.Mesh( geometrySquare, material );
+		const ball = new THREE.Mesh( geometrySquare, materialNormal );
 		const cube = new THREE.Mesh( geometry, material );
 		const water = new THREE.Mesh( geometryWater, materialWater );
 
 		scene.add( ball )
 		scene.add( cube )
 		cube.add( water )
-		cube.position.set(3.0, 0.0, 0.0);
+		cube.position.set(1.5, 0.0, 0.0);
+		ball.position.set(-1.5, 0.0, 0.0);
 
 
 			// here you add your objects
@@ -305,15 +306,10 @@ function deg2rad(x) { return x * Math.PI / 180.0 }
 function computeBall( geometry, size ) {
 	const vertices = geometry.vertices;
 	const faces = geometry.faces;
-	const norms = geometry.normals;
+	const norms = [];
 	const colors = geometry.colors;
 	const lnQ = new lnQuat();
-	const latStep = deg2rad(60) / size; // 180/3 / size
-	const lngStep = deg2rad(60) / size; // 360/6 / size
 
-	const lngOfs = lngStep/2;
-
-	let latBase = 0;
 	let priorLen = 0;
 	let priorRow = vertices.length;
 	let thisLen = 0;
@@ -354,9 +350,14 @@ function computeBall( geometry, size ) {
 					const h2 = fn( -basis.up.x, -basis.up.y, -basis.up.z, 0 );
 					const color2 = getColor2( h2 );
 					if( addFaces ) {					
+						norms.push( {x:lnQ.x, y:lnQ.y, z:lnQ.z } );
 						vertices.push( new THREE.Vector3( basis.up.x, basis.up.y, basis.up.z  ).multiplyScalar(h) );
 						colors.push( new THREE.Color( color1[0], color1[1],color1[2]))
-						vertices.push( new THREE.Vector3( -basis.up.x, -basis.up.y, -basis.up.z  ).multiplyScalar(h2) );
+
+						const basis2 = lnQ.set( {lat:deg2rad(179)-qlat, lng:deg2rad(180)+qlng}, true ).getBasis();
+						norms.push( {x:lnQ.x, y:lnQ.y, z:lnQ.z } );
+						vertices.push( new THREE.Vector3( basis2.up.x, basis2.up.y, basis2.up.z  ).multiplyScalar(2*h2) );
+						//vertices.push( new THREE.Vector3( -basis.up.x, -basis.up.y, -basis.up.z  ).multiplyScalar(h2) );
 						colors.push( new THREE.Color( color2[0], color2[1],color2[2]))
 					}else{
 						const c1 = colors[v];
@@ -373,6 +374,7 @@ function computeBall( geometry, size ) {
 						c2.r = color2[0];
 						c2.g = color2[1];
 						c2.b = color2[2];
+
 						v2.x = -( basis.up.x*h2);
 						v2.y = -( basis.up.y*h2);
 						v2.z = -( basis.up.z*h2);
@@ -469,14 +471,20 @@ function computeBall( geometry, size ) {
 			const eqStart = vertices.length;
 			//console.log( "vertices start at:", eqStart );
 			for( let lat = 0; lat <= size; lat++ ) {
+				
 				const thisRow = eqStart + (lat-1)*(size+1);
 				const nextRow = eqStart + (lat)*(size+1);
 				for( let lng = 0; lng <= size; lng++ ) {
 					// 0, 2  (1, 3)  120, 40
+					const x = {lat:deg2rad(60) + sqStep * lat, lng:deg2rad(60)*eqp + lng*sqStep };
 					const basis = lnQ.set( {lat:deg2rad(60) + sqStep * lat, lng:deg2rad(60)*eqp + lng*sqStep }, true ).getBasis();
+					//if( lng == 0 || lng == 1 || lng == 2 ) {
+					//	console.log( "GOT:", lat, lng, lnQ.x, lnQ.y, lnQ.z, x )
+					//}
 					const h = fn( basis.up.x, basis.up.y, basis.up.z, 0 );
 					const color1 = getColor2( h );
 					if( addFaces ){
+						norms.push( {x:lnQ.x, y:lnQ.y, z:lnQ.z } );
 						vertices.push( new THREE.Vector3( basis.up.x, basis.up.y, basis.up.z  ).multiplyScalar(h) );
 						colors.push( new THREE.Color( color1[0], color1[1],color1[2]))
 					} else{
@@ -490,6 +498,7 @@ function computeBall( geometry, size ) {
 						v1.z = basis.up.z*h;
 					}
 
+					//if( lng < 3 )
 					if( lat && lng && addFaces ){
 						let f, fp1,fp2,fp3;
 
@@ -512,8 +521,21 @@ function computeBall( geometry, size ) {
 
 		}
 
+		if( 1 )
+		{
+			for (var i=0; i<geometry.faces.length; ++i) {
+				const f = geometry.faces[i];
+				const vA = norms[f.a];
+				const vB = norms[f.b];
+				const vC = norms[f.c];
+				const vD = {x:(vA.x+vB.x+vC.x)/3, y:(vA.y+vB.y+vC.y)/3, z:(vA.z+vB.z+vC.z)/3} ; 
+				const b = lnQ.set( 0, vD.x, vD.y, vD.z ).getBasis()
+				f.normal.copy(b.up);
+			}
+		 	
+		}
 		
-		if(1)
+		if(0)
 		{
 			var cb = new THREE.Vector3(), ab = new THREE.Vector3();
 			for (var i=0; i<geometry.faces.length; ++i) {

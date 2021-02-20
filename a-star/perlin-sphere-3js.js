@@ -203,7 +203,7 @@ function init() {
 		materialWater.needsUpdate = true;     
 
 
-		const ball = new THREE.Mesh( geometrySquare, materialNormal );
+		const ball = new THREE.Mesh( geometrySquare, material );
 		const cube = new THREE.Mesh( geometry, material );
 		const water = new THREE.Mesh( geometryWater, materialWater );
 

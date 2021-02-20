@@ -200,13 +200,19 @@ lnQuat.prototype.set = function(theta,d,a,b,e)
 						this.update();
 						alignZero(this);
 					}
-						if( theta.lng > Math.PI  ) {
-							//if( theta.lng > 2* Math.PI  ) 
-							//	yaw( this.update(), Math.PI*4/*+ angle*/ );
-							//else
-							yaw( this.update(), Math.PI*2/*+ angle*/ );
-						} else if( theta.lng <= -Math.PI )
-							yaw( this.update(), - Math.PI*2/*+ angle*/ );
+
+					if( theta.lng > Math.PI ) {
+						if( theta.lng <= Math.PI*2 )
+							yaw( this.update(), twistDelta + Math.PI*2/*+ angle*/ );
+						else
+							if( theta.lng <= Math.PI*3 )
+								yaw( this.update(), twistDelta - Math.PI*2/*+ angle*/ );
+							else 
+								yaw( this.update(), twistDelta - Math.PI*4/*+ angle*/ );
+
+					} else if( theta.lng <= -Math.PI )
+						yaw( this.update(), - Math.PI*2/*+ angle*/ );
+
 						//else
 						//	if( twistDelta ) {
 						//		yaw( this.update(), twistDelta /*+ angle*/ );
@@ -214,22 +220,24 @@ lnQuat.prototype.set = function(theta,d,a,b,e)
 
 
 				if( theta.lat > Math.PI ) {
-
 					if( theta.lat > 2*Math.PI ) {
+						this.x = 0;
 					}else{
 						this.x = -this.x;
-						this.y = this.y;
+						this.y = 0*this.y;
 						this.z = -this.z;
 						this.dirty = true;
 						this.update();
 					}
 				}
+
 				if( theta.lat < 0 ) {
+				
 					if( theta.lat < -2*Math.PI) {
 					} else {
-						this.x = -this.x;
+						this.x = this.x;
 						this.y = this.y;
-						this.z = -this.z;
+						this.z = this.z;
 						this.dirty = true;
 						this.update();
 					}

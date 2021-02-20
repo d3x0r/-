@@ -19,6 +19,9 @@ const sliders = [
 const buttons = [
 	document.getElementById( "Event1" ),
 ];
+const toggles = [
+	document.getElementById( "Check1" ),
+];
 
 const BASE_COLOR_WHITE = [255,255,255,255];
 const BASE_COLOR_BLACK = [0,0,0,255];
@@ -200,7 +203,7 @@ function init() {
 		materialWater.needsUpdate = true;     
 
 
-		const ball = new THREE.Mesh( geometrySquare, material );
+		const ball = new THREE.Mesh( geometrySquare, materialNormal );
 		const cube = new THREE.Mesh( geometry, material );
 		const water = new THREE.Mesh( geometryWater, materialWater );
 
@@ -353,12 +356,15 @@ function computeBall( geometry, size ) {
 			//if( lat > 5 ) continue;
 			
 					if( addFaces ) {					
-						norms.push( {x:lnQ.x, y:lnQ.y, z:lnQ.z } );
+						norms.push( { lat:qlat, lng:qlng } );
 						vertices.push( new THREE.Vector3( basis.up.x, basis.up.y, basis.up.z  ).multiplyScalar(h) );
 						colors.push( new THREE.Color( color1[0], color1[1],color1[2]))
 
-						const basis2 = lnQ.set( {lat:(deg2rad(180)-qlat), lng:deg2rad(180)+qlng}, true ).getBasis();
-						norms.push( {x:lnQ.x, y:lnQ.y, z:lnQ.z } );
+						const qlat2 = (deg2rad(180)-qlat);
+						const qlng2 = deg2rad(180)+qlng;
+						const basis2 = lnQ.set( {lat:qlat, lng:qlng}, true ).getBasis();
+						norms.push( { lat:qlat2, lng:qlng2 } );
+						//norms.push( {x:lnQ.x, y:lnQ.y, z:lnQ.z } );
 						vertices.push( new THREE.Vector3( basis2.up.x, basis2.up.y, basis2.up.z  ).multiplyScalar(2*h2) );
 						//vertices.push( new THREE.Vector3( -basis.up.x, -basis.up.y, -basis.up.z  ).multiplyScalar(h2) );
 						colors.push( new THREE.Color( color2[0], color2[1],color2[2]))
@@ -482,14 +488,16 @@ function computeBall( geometry, size ) {
 				for( let lng = 0; lng <= size; lng++ ) {
 					// 0, 2  (1, 3)  120, 40
 					const x = {lat:deg2rad(60) + sqStep * lat, lng:deg2rad(60)*eqp + lng*sqStep };
-					const basis = lnQ.set( {lat:deg2rad(60) + sqStep * lat, lng:deg2rad(60)*eqp + lng*sqStep }, true ).getBasis();
+					const qlat = deg2rad(60) + sqStep * lat;
+					const qlng = deg2rad(60)*eqp + lng*sqStep;
+					const basis = lnQ.set( {lat:qlat, lng:qlng }, true ).getBasis();
 					//if( lng == 0 || lng == 1 || lng == 2 ) {
 					//	console.log( "GOT:", lat, lng, lnQ.x, lnQ.y, lnQ.z, x )
 					//}
 					const h = fn( basis.up.x, basis.up.y, basis.up.z, 0 );
 					const color1 = getColor2( h );
 					if( addFaces ){
-						norms.push( {x:lnQ.x, y:lnQ.y, z:lnQ.z } );
+						norms.push( { lat:qlat, lng:qlng } );
 						vertices.push( new THREE.Vector3( basis.up.x, basis.up.y, basis.up.z  ).multiplyScalar(h) );
 						colors.push( new THREE.Color( color1[0], color1[1],color1[2]))
 					} else{
@@ -526,7 +534,7 @@ function computeBall( geometry, size ) {
 
 		}
 
-		if( 0 )
+		if( 1 )
 		{
 			// smooth shade (with lnQuaternion geometry)
 			for (var i=0; i<geometry.faces.length; ++i) {
@@ -534,14 +542,14 @@ function computeBall( geometry, size ) {
 				const vA = norms[f.a];
 				const vB = norms[f.b];
 				const vC = norms[f.c];
-				const vD = {x:(vA.x+vB.x+vC.x)/3, y:(vA.y+vB.y+vC.y)/3, z:(vA.z+vB.z+vC.z)/3} ; 
-				const b = lnQ.set( 0, vD.x, vD.y, vD.z ).getBasis()
+				const vD = {lat:(vA.lat+vB.lat+vC.lat)/3, lng:(vA.lng+vB.lng+vC.lng)/3 } ; 
+				const b = lnQ.set( vD, false ).getBasis()
 				f.normal.copy(b.up);
 			}
 		 	
 		}
 		
-		if(1) // unsmooth normals
+		if(0) // unsmooth normals
 		{
 			var cb = new THREE.Vector3(), ab = new THREE.Vector3();
 			for (var i=0; i<geometry.faces.length; ++i) {

@@ -7,6 +7,23 @@ var SLERP = false;
 var SLERPbasis = false;
 const abs = (x)=>Math.abs(x);
 
+const np = -Math.PI;
+const pp = Math.PI;
+const p2 = 2*Math.PI;
+//           4-3 3-2 2-1 1-0  0  0-1 1-2 2-3 3-4
+const grid =[[ 0, p2, p2,  0, 0,  0, p2, p2,  0 ] // -4- -3
+			,[np, np, pp, pp,p2, np, np, pp, pp ] // 3-2
+			,[p2,  0,  0, p2, 0, p2,  0,  0, p2 ] // 2-1
+			,[pp, pp, np, np, 0, pp, pp, np, np ] // 1-0
+
+			,[ 0,  0,  0,  0, 0,  0,  0,  0,  0 ]  //0-1
+
+			,[ 0, p2, p2,  0, 0,  0, p2, p2,  0 ]  //0-1
+			,[np, np, pp, pp,p2, np, np, pp, pp ]  //1-2
+			,[p2,  0,  0, p2, 0, p2,  0,  0, p2 ]  //2-3
+			,[pp, pp, np, np,p2, pp, pp, np, np ]  //3-4
+			];
+
 // 'fixed' acos for inputs > 1
 function acos(x) {
 	// uncomment this line to cause failure for even 1/2 rotations(at the limit of the other side)
@@ -60,8 +77,11 @@ function lnQuat( theta, d, a, b, e ){
 	this.θ = 0; // length
 	this.refresh = null;
 	this.dirty = true; // whether update() has to do work.
-	this.basis = null;
 	this.set( theta,d,a,b,e);
+}
+
+lnQuat.setTwistDelta = function(t) {
+	twistDelta = t;
 }
 
 lnQuat.setVectorType = function( vT ){
@@ -83,20 +103,32 @@ lnQuat.prototype.set = function(theta,d,a,b,e)
 		const c = 1- Math.cos( cosTheta ); // double angle substituted
 		
 		// determinant coordinates
-		const angle = acos( ( ty + 1 ) * ( 1 - txn ) / 2 - 1 );
+		let angle = txn===1?acos( ( ty )  )
+				:acos( ( ty + 1 ) * ( 1 - txn ) / 2 - 1 );
 		
+		//console.log( "Q:", q, txn, tzn, ty, angle)
+
 		// compute the axis
 		const yz = s * q.nx;
 		const xz = ( 2 - c * (q.nx*q.nx + q.nz*q.nz)) * tzn;
-		const xy = s * q.nx * tzn  
-		         + s * q.nz * (1-txn);
-		
-		const tmp_nsq = yz*yz + xz*xz + xy*xy;
-		if( tmp_nsq ) {
-			const tmp = 1 /Math.sqrt(tmp_nsq);
+		const xy = txn===1?(s * q.nx * tzn  
+			+ s * q.nz * (1) )
+			:(s * q.nx * tzn  
+		         + s * q.nz * (1-txn) );
+
+		//if( txn === 1 ) angle += Math.PI*2;
+
+		const newlen = Math.sqrt(yz*yz + xz*xz + xy*xy );
+		if( Math.abs(newlen)>0.00000001){
+			const tmp = 1 /newlen;
 			q.nx = yz *tmp;
 			q.ny = xz *tmp;
 			q.nz = xy *tmp;
+		}else{
+			q.nx = 0;
+			q.ny = 1;
+			q.nz = 0;
+
 		}
 		
 		const lNorm = angle;
@@ -104,6 +136,8 @@ lnQuat.prototype.set = function(theta,d,a,b,e)
 		q.y = q.ny * lNorm;
 		q.z = q.nz * lNorm;
 		
+		//console.log( "post Q:", q )
+
 		// the remining of this is update()
 		q.θ = Math.sqrt(q.x*q.x+q.y*q.y+q.z*q.z);
 		q.s = Math.sin( q.θ/2);
@@ -183,65 +217,80 @@ lnQuat.prototype.set = function(theta,d,a,b,e)
 					return this.fromBasis( theta );
 				}
 				if( "lat" in theta ) {
-					const x = Math.sin(theta.lng);
-					const z = Math.cos(theta.lng);
-					this.x = x * theta.lat; this.y = 0; this.z = z * theta.lat;
-					this.dirty = true;
-
-					if( !theta.lat ) {
-						if( theta.lng > Math.PI )
-							this.y = theta.lng;
-						else
-							this.y = theta.lng;
-						return this;
+					let spin = 0;
+					let lat = theta.lat % (Math.PI*4);
+					let lng = theta.lng % (Math.PI*4)
+					
+					if( !lat ) {
+						this.x = 0; this.z = 0; this.y = lng+twistDelta;
+						this.dirty = true; 
+						return this.update();
 					}
 
+					const gridlat = 
+						( lat < -Math.PI*3 ) ?0
+						:( lat < -Math.PI*2 ) ?1
+						:( lat < -Math.PI*1 ) ?2
+						:( lat < 0 ) ?3
+						:( lat === 0 ) ?4
+						:( lat > Math.PI*3 ) ?8
+						:( lat > Math.PI*2 ) ?7
+						:( lat > Math.PI*1 ) ?6
+						:/*( lat > Math.PI*0 ) ?*/ 5;
+					const gridlng = 
+						( lng < -Math.PI*3 ) ?0
+						:( lng < -Math.PI*2 ) ?1
+						:( lng < -Math.PI*1 ) ?2
+						:( lng < 0 ) ?3
+						:( lng === 0 ) ?4
+						:( lng > Math.PI*3 ) ?8
+						:( lng > Math.PI*2 ) ?7
+						:( lng > Math.PI*1 ) ?6
+						:/*( lng > Math.PI*0 ) ?*/ 5;
+
+
+					if( lat < 0 ) {
+						if( lat < -Math.PI*3 ) {
+							lat += Math.PI*4;
+						} else if( lat < -Math.PI*2 ) {
+							lat = Math.PI*2+lat;
+						} else if( lat < -Math.PI ) {
+							lat = (Math.PI-(lat+Math.PI));
+						} else {
+							lng += Math.PI;
+							lat = -lat;
+						}
+					}
+					else {
+						if( lat > Math.PI*3 ) {
+							lat -= Math.PI*4;
+						} else if( lat > Math.PI*2 ) {
+							lat = lat-Math.PI*2;
+						} else if( lat > Math.PI ) {
+							lng += Math.PI;
+							lat = Math.PI*2-lat;
+						}else{
+							// 0 to Math.PI (no adjustment)
+						}
+					}
+					spin = grid[gridlat][gridlng];
+
+					const x = Math.sin(lng);
+					const z = Math.cos(lng);
+					this.x = x * lat; this.y = 0; this.z = z * lat;
+					this.dirty = true;
 					if( d ) {
 						this.update();
 						alignZero(this);
+
 					}
 
-					if( theta.lng > Math.PI ) {
-						if( theta.lng <= Math.PI*2 )
-							yaw( this.update(), twistDelta + Math.PI*2/*+ angle*/ );
-						else
-							if( theta.lng <= Math.PI*3 )
-								yaw( this.update(), twistDelta - Math.PI*2/*+ angle*/ );
-							else 
-								yaw( this.update(), twistDelta - Math.PI*4/*+ angle*/ );
-
-					} else if( theta.lng <= -Math.PI )
-						yaw( this.update(), - Math.PI*2/*+ angle*/ );
-
-						//else
-						//	if( twistDelta ) {
-						//		yaw( this.update(), twistDelta /*+ angle*/ );
-						//	}
-
-
-				if( theta.lat > Math.PI ) {
-					if( theta.lat > 2*Math.PI ) {
-						this.x = 0;
-					}else{
-						this.x = -this.x;
-						this.y = 0*this.y;
-						this.z = -this.z;
-						this.dirty = true;
-						this.update();
+					if( twistDelta ) {
+						yaw( this.update(), spin+twistDelta /*+ angle*/ );
 					}
-				}
+					else
+						yaw( this.update(), spin /*+ angle*/ );
 
-				if( theta.lat < 0 ) {
-				
-					if( theta.lat < -2*Math.PI) {
-					} else {
-						this.x = this.x;
-						this.y = this.y;
-						this.z = this.z;
-						this.dirty = true;
-						this.update();
-					}
-				}
 					return this;
 				}
 				if( "a" in theta ) {
@@ -362,7 +411,6 @@ lnQuat.prototype.set = function(theta,d,a,b,e)
 			}
 		}
 	}
-	return this;
 }
 
 
@@ -514,10 +562,9 @@ lnQuat.prototype.torque = function( direction, turns ) {
 
 
 lnQuat.prototype.getBasis = function(){return this.getBasisT(1.0) };
-
 lnQuat.prototype.getBasisT = function(del, from, right) {
 	const q = this;
-	this.update();
+	//this.update();
 	if( "undefined" === typeof del ) del = 1.0;
 	let ax, ay, az;
 	if( SLERPbasis ) {
@@ -568,19 +615,12 @@ lnQuat.prototype.getBasisT = function(del, from, right) {
 	const xx = cnx*qx;  // y * y / (xx+yy+zz) * (1 - cos(2t))
 	const yy = cny*qy;  // x * x / (xx+yy+zz) * (1 - cos(2t))
 	const zz = cnz*qz;  // z * z / (xx+yy+zz) * (1 - cos(2t))
-	if( this.basis ) {
-		const rt = this.basis.right;
-		rt.x = c1 + xx; rt.y = wz + xy; rt.z = xz - wy ;
-		const up = this.basis.up;
-	   up.x = xy - wz; up.y = c1 + yy; up.z = wx + yz ;
-		const fw = this.basis.forward;
-		fw.x = wy + xz; fw.y = yz - wx; fw.z = c1 + zz ;
-	}else
-		this.basis = { right  :{ x : c1 + xx, y : wz + xy, z : xz - wy }
-		             , up     :{ x : xy - wz, y : c1 + yy, z : wx + yz }
-		             , forward:{ x : wy + xz, y : yz - wx, z : c1 + zz }
-		              };
-	return this.basis;
+
+	const basis = { right  :{ x : c1 + xx, y : wz + xy, z : xz - wy }
+	              , up     :{ x : xy - wz, y : c1 + yy, z : wx + yz }
+		      , forward:{ x : wy + xz, y : yz - wx, z : c1 + zz }
+	              };
+	return basis;	
 	
 
 }
@@ -673,7 +713,7 @@ lnQuat.prototype.apply = function( v ) {
 		const result = new lnQuat(
 			function() {
 				this_.update(); 
-	                        return finishRodrigues( v.update(), 0, this_.nx, this_.ny, this_.nz, this_.θ );
+	            return finishRodrigues( v.update(), 0, this_.nx, this_.ny, this_.nz, this_.θ );
 			}
 		);
 		return result.refresh();
@@ -959,9 +999,9 @@ function finishRodrigues( q, oct, ax, ay, az, th ) {
 	let ang = acos( cosCo2 )*2 + ((oct|0)) * (Math.PI*4);
 	// only good for rotations between 0 and pi.
 
-	const temp =  (-AdotB * Math.sin(q.θ/2)* Math.cos(th/2) 
-			       - Math.cos(q.θ/2) *Math.sin(th/2)) / 2;
-	const dAng = acos( temp ) * 2;
+	//const temp =  (-AdotB * Math.sin(q.θ/2)* Math.cos(th/2) 
+	//		       - Math.cos(q.θ/2) *Math.sin(th/2)) / 2;
+	//const dAng = acos( temp ) * 2;
 
 	if( ang ) {      // as bc     bs ac       as bs
 		const sxmy = Math.sin(xmy);
@@ -983,24 +1023,25 @@ function finishRodrigues( q, oct, ax, ay, az, th ) {
 		// and is not normalized with sin of angle/2.
 		const crsX = (ay*q.nz-az*q.ny);
 		const Cx = ( crsX * cc1 +  ax * ss1 + q.nx * ss2 );
-		const dCx = crsX * Math.sin(q.θ/2)*Math.cos(th/2) 
-					- q.nx * Math.sin(q.θ/2)*Math.sin(th/2)
-					+ ax * Math.cos(q.θ/2) * Math.cos(th/2);
+		//const dCx = crsX * Math.sin(q.θ/2)*Math.cos(th/2) 
+		//			- q.nx * Math.sin(q.θ/2)*Math.sin(th/2)
+		//			+ ax * Math.cos(q.θ/2) * Math.cos(th/2);
 		const crsY = (az*q.nx-ax*q.nz);
 		const Cy = ( crsY * cc1 +  ay * ss1 + q.ny * ss2 );
-		const dCy = crsY * Math.sin(q.θ/2)*Math.cos(th/2) 
-					- q.ny * Math.sin(q.θ/2)*Math.sin(th/2)
-					+ ay * Math.cos(q.θ/2) * Math.cos(th/2);
+		//const dCy = crsY * Math.sin(q.θ/2)*Math.cos(th/2) 
+		//			- q.ny * Math.sin(q.θ/2)*Math.sin(th/2)
+		//			+ ay * Math.cos(q.θ/2) * Math.cos(th/2);
 		const crsZ = (ax*q.ny-ay*q.nx);
 		const Cz = ( crsZ * cc1 +  az * ss1 + q.nz * ss2 );
-		const dCz = crsZ * Math.sin(q.θ/2)*Math.cos(th/2) 
-					- q.nz * Math.sin(q.θ/2)*Math.sin(th/2)
-					+ az * Math.cos(q.θ/2) * Math.cos(th/2);
+		//const dCz = crsZ * Math.sin(q.θ/2)*Math.cos(th/2) 
+		//			- q.nz * Math.sin(q.θ/2)*Math.sin(th/2)
+		//			+ az * Math.cos(q.θ/2) * Math.cos(th/2);
 
 		// this is NOT /sin(theta);  it is, but only in some ranges...
+		//const Clx = 1/Math.sin( sAng/2);//Math.sqrt(Cx*Cx+Cy*Cy+Cz*Cz);
 		const Clx = 1/Math.sqrt(Cx*Cx+Cy*Cy+Cz*Cz);
 
-		const dClx = 1/Math.sqrt(dCx*dCx+dCy*dCy+dCz*dCz);
+		//const dClx = 1/Math.sqrt(dCx*dCx+dCy*dCy+dCz*dCz);
 
 		q.θ  = ang;
 		q.qw = cosCo2;
@@ -1009,10 +1050,10 @@ function finishRodrigues( q, oct, ax, ay, az, th ) {
 		q.ny = Cy*Clx;
 		q.nz = Cz*Clx;
 
-		q.dnx = dCx*dClx;
-		q.dny = dCy*dClx;
-		q.dnz = dCz*dClx;
-		q.dθ = dAng; 
+		//q.dnx = dCx*dClx;
+		//q.dny = dCy*dClx;
+		//q.dnz = dCz*dClx;
+		//q.dθ = dAng; 
 		
 		q.x  = q.nx*ang;
 		q.y  = q.ny*ang;
@@ -1139,8 +1180,23 @@ function yaw( q, th ) {
 	const ax = ( cny*q.nx ) - s*q.nz;
 	const ay = ( cny*q.ny ) + c1;
 	const az = ( cny*q.nz ) + s*q.nx;
-
+	//console.log( "Rotate ", q.nx, q.ny, q.nz, ax, ay, az, th );
 	return finishRodrigues( q, 0, ax, ay, az, th );
+}
+
+lnQuat.prototype.up = function() {
+	
+	const q = this;
+	if( q.dirty ) q.update();
+	// input angle...
+	const s = Math.sin( q.θ ); // double angle sin
+	const c1 = Math.cos( q.θ ); // sin/cos are the function of exp()
+	const c = 1- c1;
+	return {x: c*q.nx*q.ny - s*q.nz
+		, y: c1 + c*( q.ny*q.ny )
+		, z: s*q.nx      + c*q.ny*q.nz
+		} 	
+
 }
 
 // rotate the passed vector 'from' this space
@@ -1157,6 +1213,115 @@ lnQuat.prototype.addConj = function( q ) {
 	this.dirty = true;
 	return this;//.update();
 }
+
+
+function deg2rad(n) { return n * Math.PI/180 }
+
+// v is a point (x,y,z)
+// q is the relative origin rotation
+// range is the expected distance... (should? only return +/-1 range)
+// q.applyInverse( v ) and then use the result as a new normal and compute x/z relative 
+function SphereToXY( q, v, range ){
+
+	const s  = q.s;
+	const qw = q.qw;
+	
+	const dqw = s/q.θ; // sin(theta)/r
+	// inverse
+	const qx = -q.x * dqw;
+	const qy = -q.y * dqw;
+	const qz = -q.z * dqw;
+
+	const tx = 2 * (qy * v.z - qz * v.y);
+	const ty = 2 * (qz * v.x - qx * v.z);
+	const tz = 2 * (qx * v.y - qy * v.x);
+
+	const vxOut = v.x + qw * tx + ( qy * tz - ty * qz );
+	const vyOut = v.y + qw * ty + ( qz * tx - tz * qx );
+	const vzOut = v.z + qw * tz + ( qx * ty - tx * qy );
+
+	{ // convert normal to x/0/z normal
+		const l3 = Math.sqrt(vxOut*vxOut+vyOut*vyOut+vzOut*vzOut);
+		const tmpy = vyOut /l3; // square normal
+		const cosTheta = Math.acos( tmpy ); // 1->-1 (angle from pole around this circle.
+		const norm1 = Math.sqrt(vxOut*vxOut+vzOut*vzOut);
+		return {x: (vzOut/norm1 * cosTheta/range), y: (-vxOut/norm1 * cosTheta)/range };
+	}
+}
+
+// o is the origin of the grid
+// x/y is an angle to map... 
+function updateGridXY(q, x, y, o ){
+
+				//lnQ.x = theta; lnQ.y = 0; lnQ.z = gamma;
+				//lnQ.dirty = true;
+	const qlen = Math.sqrt(x*x + y*y);
+
+	const qnx = qlen?x / qlen:0;
+	const qny = qlen?0:1;
+	const qnz = qlen?y / qlen:0;
+
+	const ax = o.nx
+	const ay = o.ny
+	const az = o.nz
+	const th = o.θ
+
+	{ // finish rodrigues
+		const AdotB = (qnx*ax + /*q.ny*ay +*/ qnz*az);
+	
+		const xmy = (th - qlen)/2; // X - Y  (x minus y)
+		const xpy = (th + qlen)/2  // X + Y  (x plus y )
+		const cxmy = Math.cos(xmy);
+		const cxpy = Math.cos(xpy);
+		const cosCo2 = ( ( 1-AdotB )*cxmy + (1+AdotB)*cxpy )/2;
+	
+		let ang = Math.acos( cosCo2 )*2;
+		// only good for rotations between 0 and pi.
+	
+		if( ang ) {
+			const sxmy = Math.sin(xmy); // sin x minus y
+			const sxpy = Math.sin(xpy); // sin x plus y
+	
+			const ss1 = sxmy + sxpy
+			const ss2 = sxpy - sxmy
+			const cc1 = cxmy - cxpy
+	
+			// these have q.ny terms remove - q.ny is 0.
+			const Cx = ( (ay*qnz       ) * cc1 +  ax * ss1 + qnx * ss2 );
+			const Cy = ( (az*qnx-ax*qnz) * cc1 +  ay * ss1             );
+			const Cz = ( (      -ay*qnx) * cc1 +  az * ss1 + qnz * ss2 );
+
+			const Clx = 1/Math.sqrt(Cx*Cx+Cy*Cy+Cz*Cz);
+			
+			q.θ  = ang;
+			q.qw = cosCo2;
+			q.s  = Math.sin(ang/2);
+			q.nx = Cx*Clx;
+			q.ny = Cy*Clx;
+			q.nz = Cz*Clx;
+			
+			q.x  = q.nx*ang;
+			q.y  = q.ny*ang;
+			q.z  = q.nz*ang;
+	
+			q.dirty = false;
+		} else {
+			// two axles are coincident, add...
+			if( AdotB > 0 ) {
+				q.x = qnx * (qlen+th);
+				q.y = qny * (qlen+th);
+				q.z = qnz * (qlen+th);
+			}else {
+				q.x = qnx * (qlen-th);
+				q.y = qny * (qlen-th);
+				q.z = qnz * (qlen-th);
+			}
+			q.dirty = true;
+		}
+	}
+	return q;
+}
+
 
 class EulerRotor {
 	x = new lnQuat(0,0,0,0);

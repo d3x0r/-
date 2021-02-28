@@ -158,9 +158,12 @@ function noise( s, opts ) {
 			noiseGen[g].oz = oz||0;
 		}, 
 
-		get(x,y,z,s) {
+		get(x,y,z,sx, sy, sz) {
 			z = z || 0;
-			var side = (x > y);
+			sx = sx || 0;
+			sy = sy || 0;
+			sz = sz || 0;
+
 			var ox = x;
 			var oy = y;
 			var oz = z;
@@ -445,10 +448,6 @@ function noise( s, opts ) {
 
 		get2(x,y,z,s) {
 			z = z || 0;
-			var side = (x > y);
-			var ox = x;
-			var oy = y;
-			var oz = z;
 
 			var minX = 0;
 			var maxX = opts.patchSize;
@@ -459,16 +458,14 @@ function noise( s, opts ) {
 
 			var dolog = false;
 
-//	        	x += opts.patchSize;        
-	        	y += 3*opts.patchSize;        
+//        	x += opts.patchSize;        
+//			y += 3*opts.patchSize;        
 
 			var _x;
 			// Y will be 0 at the same time this changes...  which will update all anyway
 			for( var n = 0; n < noiseGen.length; n++ ) {
 				var gen = noiseGen[n];
 
-				var offset = noiseGen.length-n;//opts.base % CUBE_ELEMENT_SIZE;
-				var mod = Infinity;
 				var nx;
 				var ny;
 				var nz;

@@ -169,11 +169,11 @@ function init() {
 		//				cube.position.y = 150;
 		const update2 = mangleGeometry( geometry, geometryWater );
 		
-		const texture = drawNoiseTexture( 16 );
+		const texture = drawNoiseTexture( 128, 1 );
 
 		// 32 = 13068, 24576, 
 		// 64 = 50700, 98304,
-		const update = computeBall( geometrySquare, 16 );
+		const update = computeBall( geometrySquare, 4 );
 
 		sliders[0].addEventListener( "input", getValues );
 		sliders[1].addEventListener( "input", getValues );
@@ -323,12 +323,24 @@ function getColor( here ) {
 
 function deg2rad(x) { return x * Math.PI / 180.0 }
 
-function makeDrawer( size ) {
+function makeDrawer( size, gsize ) {
 
 	const width = size*6+2;
 	const height = size*2+4;
 
 	function plotTo( lat, long, alt ) {
+		
+		if( long < 0 ){
+			console.log( "FIX long:", lat, long );
+			if( lat === 0 )
+				long = 5;
+			else {				
+				long += (size*6);
+			}
+		}else {
+
+		}
+
 		const out = [];
 		alt = alt || 0;
 		const sect = Math.floor(long/lat);
@@ -340,6 +352,8 @@ function makeDrawer( size ) {
 		//const qlat = lat * deg2rad(60)/size;
 		if( lat === 0 ) {
 			if(1) {
+
+				console.log( "pole:", lat, lng, long );
 				if( alt === 0 )
 					out.push( { lat:0,lng:0, x:1+0, y:3 });
 				if( alt === 1 )
@@ -354,6 +368,7 @@ function makeDrawer( size ) {
 			//console.log( "south pole." );
 			if(1)
 			{
+				console.log( "pole:", lat, lng, long );
 				if( alt === 0 )
 					out.push( { lat:qlat,lng:0, x:1+size*1, y:size-1 + 1 });
 				if( alt === 1 )
@@ -364,7 +379,7 @@ function makeDrawer( size ) {
 		} else if( lat < size ) {
 			//return [];
 			const qlng = (sect * deg2rad(60)) + lng * (deg2rad(30)/(lat||1))*2;
-			
+
 			//const qlng = 
 			//return [];
 			{
@@ -381,6 +396,7 @@ function makeDrawer( size ) {
 							}
 						}
 						
+						
 						if( alt === 0 ) {
 							out.push( {lat:qlat,lng:qlng, x:((sect+1)*size) -(lat-1),y:y})
 							//console.log( "pushed:", out );
@@ -393,7 +409,7 @@ function makeDrawer( size ) {
 						if(alt === 0)
 							out.push( {lat:qlat,lng:qlng, x:(sect+1)*size-lat+lng+1,y:y})
 						if( alt === 1 ) {
-							;//out.push( {lat:qlat,lng:qlng, x:(sect-1)*size+lat,y:y})
+							out.push( {lat:qlat,lng:qlng, x:(sect-1)*size+lat,y:y})
 						}
 						if( alt === 1 ) {
 							if( sect === 5 ){
@@ -427,6 +443,8 @@ function makeDrawer( size ) {
 					{
 						if(alt === 0)
 							out.push( {lat:qlat,lng:qlng, x:(sect)*size+lng+1,y:y})
+						//else
+						//	out.push( {lat:qlat,lng:qlng, x:2+(sect)*size-lat+lng+y,y:y+1})
 					}
 					
 				}
@@ -537,6 +555,22 @@ function makeDrawer( size ) {
 	}
 
 	function uvPlotTo( lat,long,alt ) {
+		const nlat = (lat / gsize) * size;
+		if( lat < gsize ) {
+			const sect = Math.floor( long / (lat+1) );
+			
+			if( long < 0 ) long += (lat+1)*6;
+			if( lat === 0 ){
+				// long does not translate.
+			}else {
+				long = long * (nlat) / (lat+1);
+			}
+		}
+		else
+			long = (long / gsize) * size;
+
+		lat = nlat;
+
 		let out = plotTo( lat, long, alt );
 		if( alt && !out.length )
 			out = plotTo( lat, long, 0 );
@@ -556,11 +590,11 @@ function makeDrawer( size ) {
 }
 
 
-function drawNoiseTexture( size ) {
+function drawNoiseTexture( size, gsize ) {
 
 	{
 		//const size = 64;
-		const dr = makeDrawer( size );
+		const dr = makeDrawer( size,gsize );
 		let lat, long;
 		const canvas = document.createElement( "canvas" );
 		canvas.width = size*6+2;
@@ -631,14 +665,26 @@ function drawNoiseTexture( size ) {
 						c1=ColorAverage255( BASE_COLOR_WHITE,
 														 BASE_COLOR_BLACK, (here-c1r5)/(1.0-c1r5) * 10000, 10000 );
 				}
-				if( long === 0 ){
-					console.log( "converted:", lat, qlat, out[0].lat)
-				}
-				if(0){
-				c1[0] = (out[0].lat*255/Math.PI);;
-				c1[1] = ((out[0].lng*180/Math.PI) /360)*255;
-				
-				c1[2] = 0;//(out[0].lat*180/Math.PI - 64) * 3;;
+				if(1){
+					if( (long % size) === 0 || lat === size || lat === size*2){
+						//console.log( "BLUE" );
+						c1[0] = 255;
+						c1[1] = 255;
+						
+						c1[2] = 0;//(out[0].lat*180/Math.PI - 64) * 3;;
+					
+					}else if( (long % (len/6)) === 0 || (long % (len/6)) === (len/6)-1  ) {
+						c1[0] = 255;
+						c1[1] = 255;
+						
+						c1[2] = 255;//(out[0].lat*180/Math.PI - 64) * 3;;
+
+					}else {
+						c1[0] = (out[0].lat*255/Math.PI);;
+						c1[1] = ((out[0].lng*180/Math.PI) /360)*255;
+						
+						c1[2] = 0;//(out[0].lat*180/Math.PI - 64) * 3;;
+					}
 				}
 				
 				const d = c1;//[255/(size*6)*lat,255/size*long,128,255]
@@ -653,13 +699,28 @@ function drawNoiseTexture( size ) {
 					}
 					//alt = 5;
 					out =  dr.plot( lat, long, alt++ );
-					if(0)
+					if(1)
 					if( out.length ) {
-					c1[0] = (out[0].lat*255/Math.PI);;
-					c1[1] = ((out[0].lng*180/Math.PI) /360)*255;
-					
-					c1[2] = 0;//(out[0].lat*180/Math.PI - 64) * 3;;
-					}
+						if( (long % size) === 0 ){
+							//console.log( "BLUE" );
+							c1[0] = (out[0].lat*255/Math.PI);;
+							c1[1] = ((out[0].lng*180/Math.PI) /360)*255;
+							
+							c1[2] = 1.0;//(out[0].lat*180/Math.PI - 64) * 3;;
+						
+						}else if( (long % lat) === 0 ) {
+							c1[0] = (out[0].lat*255/Math.PI);;
+							c1[1] = ((out[0].lng*180/Math.PI) /360)*255;
+							
+							c1[2] = 1.0;//(out[0].lat*180/Math.PI - 64) * 3;;
+	
+						}else {
+							c1[0] = (out[0].lat*255/Math.PI);;
+							c1[1] = ((out[0].lng*180/Math.PI) /360)*255;
+							
+							c1[2] = 0;//(out[0].lat*180/Math.PI - 64) * 3;;
+						}
+						}
 		
 				} while( out.length && alt < 3 );
 			}
@@ -679,7 +740,7 @@ function computeBall( geometry, size ) {
 	geometry.faceVertexUvs[0] = [];
 	//const uvs = [];
 	const uvs = geometry.faceVertexUvs[0];
-	const drawer = makeDrawer( size );
+	const drawer = makeDrawer( 128, size );
 	/*
 	geometry.faceVertexUvs[0].push([
         new THREE.Vector2((v1.x + offset.x)/range.x ,(v1.y + offset.y)/range.y),
@@ -695,12 +756,14 @@ function computeBall( geometry, size ) {
 	let priorRow = vertices.length;
 	let thisLen = 0;
 	let thisRow = vertices.length;
+	let basis = null;
 
 	
 
 	addVerts( true ) ;
 	function addVerts(addFaces) {
 		function fn(x,y,z,a) {
+			
 			//const r = rough.get2( 10+x*r_spanx, y*r_spanz, z*r_spanz, 0 );
 			//const r2 = ( Math.acos( r*2-1 ) ) /Math.PI;
 			//const h = (height.get2( x*spanx, y*spany, z*spanz, 0 )-0.44)*(r2)+0.44;
@@ -713,53 +776,61 @@ function computeBall( geometry, size ) {
 
 		let v = 0;
 
+		function addFace( fp1, fp2, fp3, seg ) {
+			console.log( "Adding:", fp1, fp2, fp3 )
+			faces.push( f = new THREE.Face3( fp1, fp2, fp3 ) );
+			{
+				const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, seg );
+				const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, seg );
+				const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, seg );
+				uvs.push( [
+					new THREE.Vector2(uv1.x,uv1.y),
+					new THREE.Vector2(uv2.x,uv2.y),
+					new THREE.Vector2(uv3.x,uv3.y)
+					] )
+			}
+			{
+				f.vertexColors.push( colors[fp1] );
+				f.vertexColors.push( colors[fp2] );
+				f.vertexColors.push( colors[fp3] );
+				
+				f.normal.copy( basis.up );
+			}
 
-		for( let lat = 0; lat <= size; lat++ ) {
-			priorRow = thisRow;
-			priorLen = thisLen;
-			thisRow = vertices.length;
-			const len = thisLen = lat *2+1;
-			const midlen = (lat+1);
-			let firstLat = 0;
-			let logged = 0;
-			for(let pp = 0; pp < 3; pp++ )
-				for( let lng = 0; lng < len; lng++ ){
+		}
 
+		for( let lat = 0; lat < size; lat++ ) {
+			for( let seg = 0; seg < 6; seg++ ) {
+				if( !lat && seg ) continue;
+				//console.log( "Vertices:", seg, lat, vertices.length );
+				for( let lng = 0; (!lat &&!lng)|| (lng < (lat)); lng++ ){
 					const qlat = lat * deg2rad(60)/size;
-					const qlng = (pp * deg2rad(120)) + lng * (deg2rad(30)/(lat||1)*2);
+					const qlng = (seg * deg2rad(60)) + lng * (deg2rad(60)/(lat||1));
 
-					const basis = lnQ.set( {lat:qlat, lng:qlng}, true ).getBasis();
+					basis = lnQ.set( {lat:qlat, lng:qlng}, true ).getBasis();
 
-					const up2 = { x:basis.up.x, y:-basis.up.y, z:basis.up.z } ;
 					const h = fn( basis.up.x, basis.up.y, basis.up.z, 0 );
-					const color1 = [1,1,1];//getColor2( h );
+					const color1 = getColor2( h );
 					const h2 = fn( basis.up.x, -basis.up.y, basis.up.z, 0 );
-					const color2 = [1,1,1];//getColor2( h2 );
+					const color2 = getColor2( h2 );
 			
 					if( addFaces ) {	
-						const p = { lat:qlat, lng:qlng, lt:lat, lg:lng+(pp*len-1), alt:0 };
+						const p = { lat:qlat, lng:qlng, lt:lat, lg:lng+(seg*(lat+1)), alt:0 };
 						norms.push( p );
 						vertices.push( new THREE.Vector3( basis.up.x, basis.up.y, basis.up.z  ).multiplyScalar(h) );
 						colors.push( new THREE.Color( color1[0], color1[1],color1[2]))
 
-						if( !lng && !pp )
-							firstLat = p;
-						else {
-							if( firstLat.lat !== p.lat ){
-								if( logged++ < 10 ){
-									console.log( "Lattitude changed during long?", firstLat, p );
-								}
-							}
-						}
-
+						//console.log( "pushed norm:", lat, lng, p );
+						//if( p.lg < 0 ) console.log( "GOT:", p, lat, lng)
 						const qlat2 = (deg2rad(180)-qlat);
 						const qlng2 = qlng;
 						const basis2 = lnQ.set( {lat:qlat2, lng:qlng2}, true ).getBasis();
 						
 						if( lat === size ) // this 'near point' is on the top of the image...
-							norms.push( { lat:qlat2, lng:qlng2, lt:size*3-lat, lg:(lng+pp*(len-1)), alt:1 } );
+							norms.push( { lat:qlat2, lng:qlng2, lt:size*3-lat, lg:(lng+seg*(lat))+1, alt:1 } );
 						else
-							norms.push( { lat:qlat2, lng:qlng2, lt:size*3-lat, lg:(lng+pp*(len-1)), alt:0 } );
+							norms.push( { lat:qlat2, lng:qlng2, lt:size*3-lat, lg:(lng+seg*(lat))+1, alt:0 } );
+						//console.log( "pushed second norm:", norms[norms.length-1])
 						//norms.push( {x:lnQ.x, y:lnQ.y, z:lnQ.z } );
 						vertices.push( new THREE.Vector3( basis2.up.x, basis2.up.y, basis2.up.z  ).multiplyScalar(h2) );
 						//vertices.push( new THREE.Vector3( -basis.up.x, -basis.up.y, -basis.up.z  ).multiplyScalar(h2) );
@@ -785,382 +856,23 @@ function computeBall( geometry, size ) {
 						v2.y = -( basis.up.y*h2);
 						v2.z = ( basis.up.z*h2);
 					}
-					if( addFaces ){
-						//if( lng !== midlen ) continue;
-						//if( lng == Math.floor(len/2)-1 ) continue;
-			//	if( pp != 2 ) continue; 
-			//	if( lng < (len-1) ) continue;
-						let f, fp1,fp2,fp3;
-						if( lng < lat ) {
-							// before the bend... 
-							{
-								//if(  lng < lat-1 ) 
-								// emmit a 4 face...
-								//if( true ) continue;
-								if(  lng ) {
-									if( pp === 2 && lng == lat-2 ) {
-										faces.push( f = new THREE.Face3( fp1=priorRow +( lng + pp*priorLen)*2,fp2=priorRow +( lng-1+ pp*priorLen)*2,fp3=thisRow+(lng + pp*thisLen)*2) );
-										{
-											const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, 1 );
-											const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, 0 );
-											const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, 0 );
-											uvs.push( [
-												new THREE.Vector2(uv1.x,uv1.y),
-												new THREE.Vector2(uv2.x,uv2.y),
-												new THREE.Vector2(uv3.x,uv3.y)
-												] )
-										}
-										{
-											f.vertexColors.push( colors[fp1] );
-											f.vertexColors.push( colors[fp2] );
-											f.vertexColors.push( colors[fp3] );
-											
-											f.normal.copy( basis.up );
-										}
-
-									}
-									else 
-									{
-										faces.push( f = new THREE.Face3( fp1=priorRow +( lng + pp*priorLen)*2,fp2=priorRow +( lng-1+ pp*priorLen)*2,fp3=thisRow+(lng + pp*thisLen)*2) );
-										{
-											const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, norms[fp1].alt );
-											const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, (((pp==1) && (lng===lat-1))?1:2)-norms[fp2].alt );
-											const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, (((pp==1) && (lng===lat-1))?1:2)-norms[fp3].alt );
-											uvs.push( [
-												new THREE.Vector2(uv1.x,uv1.y),
-												new THREE.Vector2(uv2.x,uv2.y),
-												new THREE.Vector2(uv3.x,uv3.y)
-												] )
-										}
-										{
-											f.vertexColors.push( colors[fp1] );
-											f.vertexColors.push( colors[fp2] );
-											f.vertexColors.push( colors[fp3] );
-											
-											f.normal.copy( basis.up );
-										}
-									}
-								}
-								if(lng) {
-									//if( lng < lat-1)
-									let skip = false;
-									{
-										faces.push( f = new THREE.Face3( fp1=priorRow +( lng-1+ pp*priorLen)*2,fp2=thisRow + (lng-1+ pp*thisLen)*2,fp3=thisRow+(lng+ pp*thisLen )*2) );
-										{
-											
-											if( pp == 2 && lng === lat-1 ) {
-												const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, 1 );
-												const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, 0 );
-												const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, 1 );
-								
-												uvs.push( [
-													new THREE.Vector2(uv1.x,uv1.y),
-													new THREE.Vector2(uv2.x,uv2.y),
-													new THREE.Vector2(uv3.x,uv3.y)
-													] )
-												//faces.length--;
-												//skip = true; 
-											}
-											else {
-
-													const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, norms[fp1].alt );
-													const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, norms[fp2].alt );
-													const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, norms[fp3].alt );
-									
-													uvs.push( [
-														new THREE.Vector2(uv1.x,uv1.y),
-														new THREE.Vector2(uv2.x,uv2.y),
-														new THREE.Vector2(uv3.x,uv3.y)
-														] )
-											}
-										}
-										if( !skip ) {
-											f.vertexColors.push( colors[fp1] );
-											f.vertexColors.push( colors[fp2] );
-											f.vertexColors.push( colors[fp3] );
-											f.normal.copy( basis.up );
-										}
-									}
-							}
-
-							if( lng ) {
-								// south polar face.								
-								faces.push( f = new THREE.Face3( fp1=priorRow +( lng-1+ pp*priorLen)*2+1,fp2=priorRow +( lng + pp*priorLen)*2+1,fp3=thisRow+(lng + pp*thisLen)*2+1) );
-								{
-									const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, norms[fp1].alt );
-									const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, norms[fp2].alt );
-									const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, norms[fp3].alt );
-				
-									uvs.push( [
-										new THREE.Vector2(uv1.x,uv1.y),
-										new THREE.Vector2(uv2.x,uv2.y),
-										new THREE.Vector2(uv3.x,uv3.y)
-										] )
-								}
-								f.vertexColors.push( colors[fp1] );
-								f.vertexColors.push( colors[fp2] );
-								f.vertexColors.push( colors[fp3] );
-								f.normal.copy( up2 );
-								{ // south polar face...
-									faces.push( f = new THREE.Face3( fp1=thisRow + (lng-1+ pp*thisLen)*2+1,fp2=priorRow +( lng-1+ pp*priorLen)*2+1,fp3=thisRow+(lng+ pp*thisLen )*2+1  ));
-									{
-										const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, norms[fp1].alt );
-										const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, norms[fp2].alt );
-										const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, norms[fp3].alt );
-					
-										uvs.push( [
-											new THREE.Vector2(uv1.x,uv1.y),
-											new THREE.Vector2(uv2.x,uv2.y),
-											new THREE.Vector2(uv3.x,uv3.y)
-											] )
-									}
-									f.vertexColors.push( colors[fp1] );
-									f.vertexColors.push( colors[fp2] );
-									f.vertexColors.push( colors[fp3] );
-									f.normal.copy( up2 );
-									}
-								}
-							}
-						} else if( lng < midlen ){
-							// on the corner... do the point, no face yet.
-						} else if( lng === midlen ){
-							// this is around the bend.
-							//if(true)continue;
-							
-							if(1) {
-								if( pp === 1 ) {
-									faces.push( f = new THREE.Face3( fp1=priorRow + (lng-2+ pp*priorLen)*2,fp2=thisRow + (lng-2+ pp*thisLen)*2,fp3=thisRow+(lng-1+ pp*thisLen)*2 ) );
-									{
-										const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, 0 );
-										const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, 1 );
-										const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, 0 );
-										uvs.push( [
-											new THREE.Vector2(uv1.x,uv1.y),
-											new THREE.Vector2(uv2.x,uv2.y),
-											new THREE.Vector2(uv3.x,uv3.y)
-											] )
-									}
-									f.vertexColors.push( colors[fp1] );
-									f.vertexColors.push( colors[fp2] );
-									f.vertexColors.push( colors[fp3] );
-									f.normal.copy( basis.up );
-
-								}else {
-									faces.push( f = new THREE.Face3( fp1=priorRow + (lng-2+ pp*priorLen)*2,fp2=thisRow + (lng-2+ pp*thisLen)*2,fp3=thisRow+(lng-1+ pp*thisLen)*2 ) );
-									{
-										const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, norms[fp1].alt );
-										const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, norms[fp2].alt );
-										const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, norms[fp3].alt );
-					
-										uvs.push( [
-											new THREE.Vector2(uv1.x,uv1.y),
-											new THREE.Vector2(uv2.x,uv2.y),
-											new THREE.Vector2(uv3.x,uv3.y)
-											] )
-									}
-									f.vertexColors.push( colors[fp1] );
-									f.vertexColors.push( colors[fp2] );
-									f.vertexColors.push( colors[fp3] );
-									f.normal.copy( basis.up );
-								}
-								}
-							if(1) {
-								if( pp === 0 ) {
-									faces.push( f = new THREE.Face3( fp1=priorRow + (lng-2+ pp*priorLen)*2,fp2=thisRow + (lng-1+ pp*thisLen)*2,fp3=thisRow+(lng+ pp*thisLen)*2 ) );
-									{
-										const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, 0 );
-										const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, 0 );
-										const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, 1 );
-					
-										uvs.push( [
-											new THREE.Vector2(uv1.x,uv1.y),
-											new THREE.Vector2(uv2.x,uv2.y),
-											new THREE.Vector2(uv3.x,uv3.y)
-											] )
-									}
-									f.vertexColors.push( colors[fp1] );
-									f.vertexColors.push( colors[fp2] );
-									f.vertexColors.push( colors[fp3] );
-									f.normal.copy( basis.up );
-	
-								}else {
-								faces.push( f = new THREE.Face3( fp1=priorRow + (lng-2+ pp*priorLen)*2,fp2=thisRow + (lng-1+ pp*thisLen)*2,fp3=thisRow+(lng+ pp*thisLen)*2 ) );
-								{
-									const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, norms[fp1].alt );
-									const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, norms[fp2].alt );
-									const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, norms[fp3].alt );
-				
-									uvs.push( [
-										new THREE.Vector2(uv1.x,uv1.y),
-										new THREE.Vector2(uv2.x,uv2.y),
-										new THREE.Vector2(uv3.x,uv3.y)
-										] )
-								}
-								f.vertexColors.push( colors[fp1] );
-								f.vertexColors.push( colors[fp2] );
-								f.vertexColors.push( colors[fp3] );
-								f.normal.copy( basis.up );
-								}
-							}
-						 { 
-							 // south polar face.
-							faces.push( f = new THREE.Face3( fp1=thisRow + (lng-2+ pp*thisLen)*2+1,fp2=priorRow + (lng-2+ pp*priorLen)*2+1,fp3=thisRow+(lng-1+ pp*thisLen)*2+1 ) );
-							{
-								const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, norms[fp1].alt );
-								const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, norms[fp2].alt );
-								const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, norms[fp3].alt );
-			
-								uvs.push( [
-									new THREE.Vector2(uv1.x,uv1.y),
-									new THREE.Vector2(uv2.x,uv2.y),
-									new THREE.Vector2(uv3.x,uv3.y)
-									] )
-							}
-							f.vertexColors.push( colors[fp1] );
-							f.vertexColors.push( colors[fp2] );
-							f.vertexColors.push( colors[fp3] );
-							f.normal.copy( up2 );
-						}
-						{ 
-							//south polar face
-							faces.push( f = new THREE.Face3( fp1=thisRow + (lng-1+ pp*thisLen)*2+1,fp2=priorRow + (lng-2+ pp*priorLen)*2+1,fp3=thisRow+(lng+ pp*thisLen)*2+1 ) );
-							{
-								const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, norms[fp1].alt );
-								const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, norms[fp2].alt );
-								const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, norms[fp3].alt );
-			
-								uvs.push( [
-									new THREE.Vector2(uv1.x,uv1.y),
-									new THREE.Vector2(uv2.x,uv2.y),
-									new THREE.Vector2(uv3.x,uv3.y)
-									] )
-							}
-							f.vertexColors.push( colors[fp1] );
-							f.vertexColors.push( colors[fp2] );
-							f.vertexColors.push( colors[fp3] );
-							f.normal.copy( up2 );
-						}
-
-						} else {
-							//if( lng === len-1)continue;
-							//if(true)continue;
-							// past the bend, going up...
-							if(1) {
-								if( pp === 0 && lng === midlen+1 ) {
-									faces.push( f = new THREE.Face3( fp1=priorRow + (lng-3+1+pp*priorLen)*2,fp2=priorRow + (lng-3+pp*priorLen)*2,fp3=thisRow+(lng-1 + pp*thisLen)*2 ) );
-									{
-										const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, 1 );
-										const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, 0 );
-										const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, 1 );
-					
-										uvs.push( [
-											new THREE.Vector2(uv1.x,uv1.y),
-											new THREE.Vector2(uv2.x,uv2.y),
-											new THREE.Vector2(uv3.x,uv3.y)
-											] )
-									}
-									f.vertexColors.push( colors[fp1] );
-									f.vertexColors.push( colors[fp2] );
-									f.vertexColors.push( colors[fp3] );
-									f.normal.copy( basis.up );
-	
-								}else {
-								faces.push( f = new THREE.Face3( fp1=priorRow + (lng-3+1+pp*priorLen)*2,fp2=priorRow + (lng-3+pp*priorLen)*2,fp3=thisRow+(lng-1 + pp*thisLen)*2 ) );
-								{
-									const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, norms[fp1].alt );
-									const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, norms[fp2].alt );
-									const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, norms[fp3].alt );
-				
-									uvs.push( [
-										new THREE.Vector2(uv1.x,uv1.y),
-										new THREE.Vector2(uv2.x,uv2.y),
-										new THREE.Vector2(uv3.x,uv3.y)
-										] )
-								}
-								f.vertexColors.push( colors[fp1] );
-								f.vertexColors.push( colors[fp2] );
-								f.vertexColors.push( colors[fp3] );
-								f.normal.copy( basis.up );
-								}
-							}
-							faces.push( f = new THREE.Face3( fp1=thisRow + (lng+pp*thisLen)*2,fp2=priorRow + (lng-2+pp*priorLen)*2,fp3=thisRow+(lng-1+pp*thisLen)*2 ) );
-							{
-								const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, norms[fp1].alt );
-								const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, norms[fp2].alt );
-								const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, norms[fp3].alt );
-			
-								uvs.push( [
-									new THREE.Vector2(uv1.x,uv1.y),
-									new THREE.Vector2(uv2.x,uv2.y),
-									new THREE.Vector2(uv3.x,uv3.y)
-									] )
-							}
-							f.vertexColors.push( colors[fp1] );
-							f.vertexColors.push( colors[fp2] );
-							f.vertexColors.push( colors[fp3] );
-							f.normal.copy( basis.up );
-
-							faces.push( f = new THREE.Face3( fp1=priorRow + (lng-3+pp*priorLen)*2+1,fp2=priorRow + (lng-3+1+pp*priorLen)*2+1,fp3=thisRow+(lng-1 + pp*thisLen)*2+1 ) );
-							{
-								let uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, norms[fp1].alt );
-								let uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, ((pp==0||pp==1||pp==2)?((lng === len-1)?1:2):2) - norms[fp2].alt );
-								let uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg,  norms[fp3].alt );
-
-								uvs.push( [
-									new THREE.Vector2(uv1.x,uv1.y),
-									new THREE.Vector2(uv2.x,uv2.y),
-									new THREE.Vector2(uv3.x,uv3.y)
-									] )
-									if( pp == 0 && lng === len-1){
-										//console.log( "points:", uv1, uv2, uv3 )
-										//faces.length = faces.length-1;
-										//continue;
-									}
-								}
-							f.vertexColors.push( colors[fp1] );
-							f.vertexColors.push( colors[fp2] );
-							f.vertexColors.push( colors[fp3] );
-							f.normal.copy( up2 );
-							faces.push( f = new THREE.Face3( fp1=thisRow + (lng-1+pp*thisLen)*2+1,fp2=priorRow + (lng-2+pp*priorLen)*2+1,fp3=thisRow+(lng+pp*thisLen)*2+1 ) );
-							{
-								const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, norms[fp1].alt );
-								const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, ((lat<size-1)?((lng === len-1)?1:2):2) - norms[fp2].alt );
-								const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, ((lat<size-1)?((lng === len-1)?1:2):2) - norms[fp3].alt );
-			
-								uvs.push( [
-									new THREE.Vector2(uv1.x,uv1.y),
-									new THREE.Vector2(uv2.x,uv2.y),
-									new THREE.Vector2(uv3.x,uv3.y)
-									] )
-							}
-							f.vertexColors.push( colors[fp1] );
-							f.vertexColors.push( colors[fp2] );
-							f.vertexColors.push( colors[fp3] );
-							f.normal.copy( up2 );
-						}
-					}
 				}
+			}
 		}
 
-		
 		const sqStep = deg2rad(60) / (size); // 360/6 / size
-
+		const eqStart = vertices.length;
 		for( let eqp = 0; eqp < 6; eqp++ ) {
 			const eqStart = vertices.length;
 			//console.log( "vertices start at:", eqStart );
 			for( let lat = 0; lat <= size; lat++ ) {
 				
-				const thisRow = eqStart + (lat-1)*(size+1);
-				const nextRow = eqStart + (lat)*(size+1);
-				for( let lng = 0; lng <= size; lng++ ) {
+				for( let lng = 0; lng < size; lng++ ) {
 					// 0, 2  (1, 3)  120, 40
-					const x = {lat:deg2rad(60) + sqStep * lat, lng:deg2rad(60)*eqp + lng*sqStep };
 					const qlat = deg2rad(60) + sqStep * lat;
 					const qlng = deg2rad(60)*eqp + lng*sqStep;
 					const basis = lnQ.set( {lat:qlat, lng:qlng }, true ).getBasis();
-					//if( lng == 0 || lng == 1 || lng == 2 ) {
-					//	console.log( "GOT:", lat, lng, lnQ.x, lnQ.y, lnQ.z, x )
-					//}
+
 					const h = fn( basis.up.x, basis.up.y, basis.up.z, 0 );
 					const color1 = [1,1,1];//getColor2( h );
 					if( addFaces ){
@@ -1177,45 +889,180 @@ function computeBall( geometry, size ) {
 						v1.y = basis.up.y*h;
 						v1.z = basis.up.z*h;
 					}
+				}
+			}
+		}
+
+		if( addFaces ){
+			for( let seg = 0; seg < 6; seg++ ) {
+				for( let lat = 0; lat < size; lat++ ) {
+					const base = (lat?1:0) + ((lat)*seg) + ((lat * (lat-1))/2)*6;
+					const base2 = (lat<(size-1))
+							? 1 + ((lat+1)*seg) + (((lat+1) * (lat))/2)*6
+							: ((size*(size+1))*seg) + eqStart;
+
+					for( let lng = 0; lng <= lat; lng++ ){
+						if( lat === (size-1) ) {
+							if( lng === (size-1))
+								if( seg === 5 ) {
+									if(1)
+										addFace( (base +lng)*2
+										, (base2 +lng)
+										, (eqStart+lat*size), seg) ;
+
+								}else {
+									addFace( (base +lng)*2
+									, (base2 +lng)
+									, (base2 +(size*(size+1))), seg) ;
+								}
+							else
+								addFace( (base +lng)*2
+									, (base2 +lng)
+									, (base2 +lng+(1)), seg) ;
+							if( lng < lat ) {
+								addFace( (base +lng+1)*2
+								, (base +lng)*2
+								, (base2 +lng+1), seg ) ;
+							}
+
+						}else {
+							addFace( (base +lng)*2
+								, (base2 +lng)*2
+								, (base2 +lng+1)*2, seg) ;
+							if( lng < lat ) {
+								addFace( (base +lng+1)*2
+								, (base +lng)*2
+								, (base2 +lng+1)*2, seg ) ;
+							}
+						}
+						if(1){
+						/* south pole */
+							if( lat === (size-1) ) {
+								const base2 = ((size*(size+1))*seg) + eqStart  + (size*(size)) ;
+								if( lng === (size-1))
+									if( seg === 5 ) {
+										const base2 = eqStart + (size*(size-1));
+										if(1)
+										addFace( (base2 +lng)
+										, (base +lng)*2+1
+										, (base2 +lng), seg) ;
+
+									}else {
+										addFace( (base2 +lng)
+										, (base +lng)*2+1
+										, (base2 +(size*(size+1))), seg) ;
+									}
+								else {
+									{
+										addFace( (base2 +lng)
+										, (base +lng)*2+1
+											, (base2 +lng+(1)), seg) ;
+									}
+								}
+								if( lng < lat ) {
+									if( seg === 5 && lng == (size-2))
+									{
+										addFace( (base +lng)*2+1
+											, (base +lng+1)*2+1
+											, (eqStart + lat*size)
+											, seg ) ;
+	
+									}else
+										addFace( (base +lng)*2+1
+											, (base +lng+1)*2+1
+											, (base2 +lng+1), seg ) ;
+								}
+
+							}else {
+								addFace( (base2 +lng)*2+1
+									, (base +lng)*2+1
+									, (base2 +lng+1)*2+1, seg) ;
+								if( lng < lat ) {
+									addFace( (base +lng)*2+1
+									, (base +lng+1)*2+1
+									, (base2 +lng+1)*2+1, seg ) ;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if(1)
+		for( let eqp = 0; eqp < 6; eqp++ ) {
+			//console.log( "vertices start at:", eqStart );
+			for( let lat = 0; lat < size; lat++ ) {
+				
+				const thisRow = eqStart + (lat)*(size) + eqp*((size+1)*size);
+				const nextRow = eqStart + (lat+1)*(size)+ eqp*((size+1)*size);
+				for( let lng = 0; lng < size; lng++ ) {
+					// 0, 2  (1, 3)  120, 40
+					const x = {lat:deg2rad(60) + sqStep * lat, lng:deg2rad(60)*eqp + lng*sqStep };
+					const qlat = deg2rad(60) + sqStep * lat;
+					const qlng = deg2rad(60)*eqp + lng*sqStep;
+					const basis = lnQ.set( {lat:qlat, lng:qlng }, true ).getBasis();
+					//if( lng == 0 || lng == 1 || lng == 2 ) {
+					//	console.log( "GOT:", lat, lng, lnQ.x, lnQ.y, lnQ.z, x )
+					//}
+					const h = fn( basis.up.x, basis.up.y, basis.up.z, 0 );
+					const color1 = [1,1,1];//getColor2( h );
 
 					//if( lng < 3 )
-					if( lat && lng && addFaces ){
+					if( addFaces ){
 						let f, fp1,fp2,fp3;
 
 						// 0, 2  (1, 3)  120, 40
 						//const v1 = vertices[eqStart + lat*size*6 + lng]
-						faces.push( f = new THREE.Face3(  fp1 = thisRow+lng-1, fp2 = nextRow+lng-1, fp3 = thisRow+(lng)  ) );
-						{
-							const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, norms[fp1].alt );
-							const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, norms[fp2].alt );
-							const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, norms[fp3].alt );
-		
-							uvs.push( [
-								new THREE.Vector2(uv1.x,uv1.y),
-								new THREE.Vector2(uv2.x,uv2.y),
-								new THREE.Vector2(uv3.x,uv3.y)
-								] )
+						if( 1 ) {
+							
+							faces.push( f = new THREE.Face3(  fp1 = thisRow+lng
+									, fp2 = nextRow+lng
+									, fp3 = thisRow+(lng+1)  ) );
+							{
+								const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, norms[fp1].alt );
+								const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, norms[fp2].alt );
+								const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, norms[fp3].alt );
+			
+								uvs.push( [
+									new THREE.Vector2(uv1.x,uv1.y),
+									new THREE.Vector2(uv2.x,uv2.y),
+									new THREE.Vector2(uv3.x,uv3.y)
+									] )
+							}
+							f.vertexColors.push( colors[fp1] );
+							f.vertexColors.push( colors[fp2] );
+							f.vertexColors.push( colors[fp3] );
+							f.normal.copy( basis.up );
 						}
-						f.vertexColors.push( colors[fp1] );
-						f.vertexColors.push( colors[fp2] );
-						f.vertexColors.push( colors[fp3] );
-						f.normal.copy( basis.up );
-						faces.push( f = new THREE.Face3(  fp1 = nextRow+lng-1, fp2 = nextRow+(lng), fp3 = thisRow+(lng)  ) );
-						{
-							const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, norms[fp1].alt );
-							const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, norms[fp2].alt );
-							const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, norms[fp3].alt );
-		
-							uvs.push( [
-								new THREE.Vector2(uv1.x,uv1.y),
-								new THREE.Vector2(uv2.x,uv2.y),
-								new THREE.Vector2(uv3.x,uv3.y)
-								] )
+						if(1) {
+							if( eqp === 5 && lng === size-1 ){
+								continue;
+								faces.push( f = new THREE.Face3(  fp1 = nextRow+lng
+									, fp2 = eqStart + lat*(6*size)
+									, fp3 = thisRow+(lng+1)  ) );
+
+							}else{
+								faces.push( f = new THREE.Face3(  fp1 = nextRow+lng
+										, fp2 = nextRow+(lng+1)
+										, fp3 = thisRow+(lng+1)  ) );
+								}
+							{
+								const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, norms[fp1].alt );
+								const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, norms[fp2].alt );
+								const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, norms[fp3].alt );
+			
+								uvs.push( [
+									new THREE.Vector2(uv1.x,uv1.y),
+									new THREE.Vector2(uv2.x,uv2.y),
+									new THREE.Vector2(uv3.x,uv3.y)
+									] )
+							}
+							f.vertexColors.push( colors[fp1] );
+							f.vertexColors.push( colors[fp2] );
+							f.vertexColors.push( colors[fp3] );
+							f.normal.copy( basis.up );
 						}
-						f.vertexColors.push( colors[fp1] );
-						f.vertexColors.push( colors[fp2] );
-						f.vertexColors.push( colors[fp3] );
-						f.normal.copy( basis.up );
 					}
 		
 				}

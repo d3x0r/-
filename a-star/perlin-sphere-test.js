@@ -370,76 +370,71 @@ function deg2rad(x) { return x * Math.PI / 180.0 }
 
 function makeDrawer( size ) {
 
-	const width = size*6+2;
-	const height = size*2+4;
+	const eqOffset = 5;
+	const width = size*6+1;
+	const height = size*2+7;
 
 	function plotTo( lat, long, alt ) {
+		
 		const out = [];
 		alt = alt || 0;
 		const sect = Math.floor(long/lat);
 		const lng  = long%(lat);
 		const qlat = lat/(size*3)*Math.PI;
 
-		//while( lat > )
-		//lat = lat%(3*size);
-		//const qlat = lat * deg2rad(60)/size;
 		if( lat === 0 ) {
-			if(1) {
-				if( alt === 0 )
-					out.push( { lat:0,lng:0, x:1+0, y:3 });
-				if( alt === 1 )
-					out.push( { lat:0,lng:Math.PI*2/3, x:1+size*2, y:3 });
-				if( alt === 2 )
-					out.push( { lat:0,lng:Math.PI*4/3, x:1+size*4, y:3 });
-				if( alt === 3 )
-					out.push( { lat:0,lng:0, x:1+size*6, y:3 });
-				//console.log( "output:", out );
-			}
+			// 'north' pole.. 4 peaks
+			if( alt === 0 )
+				out.push( { lat:0,lng:0, x:0, y:eqOffset });
+			if( alt === 1 )
+				out.push( { lat:0,lng:Math.PI*2/3, x:size*2, y:eqOffset });
+			if( alt === 2 )
+				out.push( { lat:0,lng:Math.PI*4/3, x:size*4, y:eqOffset });
+			if( alt === 3 )
+				out.push( { lat:0,lng:0, x:size*6, y:eqOffset });
 		} else if( lat === 3*size ){
-			//console.log( "south pole." );
-			if(1)
-			{
-				if( alt === 0 )
-					out.push( { lat:qlat,lng:0, x:1+size*1, y:size-1 + 1 });
-				if( alt === 1 )
-					out.push( { lat:qlat,lng:Math.PI*2/3, x:1+size*3, y:size-1 + 1 });
-				if( alt === 2 )
-					out.push( { lat:qlat,lng:Math.PI*4/3, x:1+size*5, y:size-1 + 1 });
-			}
+			// 'south' pole.. 3 peaks
+			if( alt === 0 )
+				out.push( { lat:qlat,lng:0, x:size*1, y:size-1 + 1 });
+			if( alt === 1 )
+				out.push( { lat:qlat,lng:Math.PI*2/3, x:size*3, y:size-1 + 1 });
+			if( alt === 2 )
+				out.push( { lat:qlat,lng:Math.PI*4/3, x:size*5, y:size-1 + 1 });
 		} else if( lat < size ) {
-			//return [];
 			const qlng = (sect * deg2rad(60)) + lng * (deg2rad(30)/(lat||1))*2;
-			
-			//const qlng = 
-			//return [];
+			// north polar patches...
 			{
-				const y = lat+3;
-				//const y = y + 3;
-//				if( sect != 1 ) return [];
+				const y = lat+5;
 				if( sect & 1 ) {
 					//if( sect !== 5 ) return[];
 					
 					if( lng === 0 ){
 						if( sect === 5 && lat == 1 ) {
 							if( alt === 2 ) {
+								if(0) // duplicate right to left (not anymore)
 								out.push( {lat:qlat,lng:qlng, x:0,y:y})
 							}
 						}
 						
-						if( alt === 0 ) {
+						if( alt === 1 ) {
+													
 							out.push( {lat:qlat,lng:qlng, x:((sect+1)*size) -(lat-1),y:y})
 							//console.log( "pushed:", out );
 						}
-						if( alt === 1 ) {
-							out.push( {lat:qlat,lng:qlng, x:(sect-1)*size+lat+lng+1,y:y})
+						if( alt === 0 ) {
+							// duplicate bottom to top...
+							out.push( {lat:qlat,lng:qlng, x:(sect-1)*size+lat+lng,y:y})
 						}
 					} else {
 						// this is the vertical line between two patches, and the triangle fill.
 						if(alt === 0)
 							out.push( {lat:qlat,lng:qlng, x:(sect+1)*size-lat+lng+1,y:y})
+
 						if( alt === 1 ) {
-							;//out.push( {lat:qlat,lng:qlng, x:(sect-1)*size+lat,y:y})
+							// copy to top?
+							//out.push( {lat:qlat,lng:qlng, x:(sect-1)*size+lat,y:y})
 						}
+
 						if( alt === 1 ) {
 							if( sect === 5 ){
 								out.push( {lat:qlat,lng:qlng, x:0,y:y})
@@ -449,29 +444,33 @@ function makeDrawer( size ) {
 						//out.push( {lat:qlat,lng:qlng, x:(sect+1)*size-lng,y:2+lat})
 					}
 				}else {
+					// even pole sector...
 					//console.log( "do:", lat, long, lng );
 					if( lng === 0 ){
 						// this is the vertical line between two patches
 						if(alt === 0) 
-							out.push( {lat:qlat,lng:qlng, x:1+sect*size+lng,y:y})
+							out.push( {lat:qlat,lng:qlng, x:sect*size+lng,y:y})
 						if( alt === 1 ) {
+							// duplicate left to right... 
 							if( sect === 0 )
-								out.push( {lat:qlat,lng:qlng, x:1+6*size,y:y})
+								out.push( {lat:qlat,lng:qlng, x:6*size,y:y, c:[0,255,0,255]})
 
 						}
 					} else if( lng === (lat-1) ){
 						if(alt === 0) {
 							// 0 is done above...
-							out.push( {lat:qlat,lng:qlng, x:1+sect*size+lng,y:y})
+							out.push( {lat:qlat,lng:qlng, x:sect*size+lng,y:y})
 							//console.log( "point:", out );
 						}
 						if(alt === 1)
-							out.push( {lat:qlat,lng:qlng, x:(sect+2)*size-lng,y:y-1})
+							out.push( {lat:qlat,lng:qlng, x:(sect+2)*size-lng,y:y-1, c:[0,255,255,255]})
 
 					} else // lng > 0 and < lat-1
 					{
 						if(alt === 0)
-							out.push( {lat:qlat,lng:qlng, x:(sect)*size+lng+1,y:y})
+							out.push( {lat:qlat,lng:qlng, x:(sect)*size+lng,y:y})
+						//else
+						//	out.push( {lat:qlat,lng:qlng, x:2+(sect)*size-lat+lng+y,y:y+1})
 					}
 					
 				}
@@ -479,7 +478,6 @@ function makeDrawer( size ) {
 			
 		}
 		else if(  lat <= 2*size ) {
-			//return [];
 			const sect = Math.floor(long/size);
 			const lng  = long%(size);
 			//if( sect != 1 ) return [];
@@ -488,68 +486,66 @@ function makeDrawer( size ) {
 			if( lat === (size*2) ) {
 				// this is the bottom line mirrored to the top to match with south pole.
 				if( alt & 2 ) {
+					//return [];
 					if( long === 0 ) {
 						if(alt === 3)
-							out.push( {lat:qlat,lng:qlng, x:1+6*(size),y:0})
+							out.push( {lat:qlat,lng:qlng, x:6*(size),y:0})
 						if(alt === 2)
-							out.push( {lat:qlat,lng:qlng, x:1+6*(size),y:3+lat})
+							out.push( {lat:qlat,lng:qlng, x:6*(size),y:eqOffset + lat})
 					}else if( long === (size*6-1)) {
 						if(alt === 3)
 							out.push( {lat:qlat,lng:qlng, x:0, y:0})
 						if(alt === 2)
-							out.push( {lat:qlat,lng:qlng, x:0, y:3+lat})
+							out.push( {lat:qlat,lng:qlng, x:0, y:eqOffset + lat})
 					}
 				}else {
-					if(alt === 1) 
-						out.push( {lat:qlat,lng:qlng, x:1+sect*(size)+lng,y:0})
+					if(alt === 1)  {
+						out.push( {lat:qlat,lng:qlng, x:sect*(size)+lng,y:0})
+					}
 					if(alt === 0)
-						out.push( {lat:qlat,lng:qlng, x:1+sect*(size)+lng,y:3+lat})
+						out.push( {lat:qlat,lng:qlng, x:sect*(size)+lng,y:eqOffset + lat})
 				}
 			}else{
 				if(alt === 1){
 					if( long === 0 )
-						out.push( {lat:qlat,lng:qlng, x:1+6*(size),y:3+lat})
+						out.push( {lat:qlat,lng:qlng, x:6*(size),y:eqOffset + lat})
 					else if( long === (size*6-1) ){
-						out.push( {lat:qlat,lng:qlng, x:0,y:3+lat})
+						if(0)  // duplicate right to left... (not anymore)
+							out.push( {lat:qlat,lng:qlng, x:0,y:eqOffset + lat})
 					}
 				}
 				if(alt === 0)
-					out.push( {lat:qlat,lng:qlng, x:1+sect*(size)+lng,y:3+lat})
+					out.push( {lat:qlat,lng:qlng, x:sect*(size)+lng,y:eqOffset + lat})
 			}
 		}
 		else { //if( lat < 3*size ) {
-//return [];
 			let nlat = (3*size-(lat));
-			//const qlat = lat/(size*3)*Math.PI;
 			const sect = Math.floor(long/(nlat));
 			const lng  = long%(nlat);
-			//console.log( "Doing:", nlat, lat, qlat, long, lat, lng)
-//			const qlng = (sect * deg2rad(60)) + lng * (deg2rad(30)/nlat)||1;
 			const qlng = (sect * deg2rad(60)) + lng * (deg2rad(30)/(nlat||1))*2;
 			const y = (size-nlat)-1;// + size*2;
-			//if( sect !== 0 ) return[];
 			{
 
 				if( sect & 1 ) {
 					if( lng === 0 ){
 						// this is a vertical line...
 						if( alt === 0 )
-							out.push( {lat:qlat,lng:qlng, x:1+(sect)*size+lng,y:y+1})
+							out.push( {lat:qlat,lng:qlng, x:(sect)*size+lng,y:y+1})
 						//console.log( "OUT:", lat, long, qlat, qlng)
 					} else if( lng === (nlat-1) ){
 						
 						if( alt === 0 )
-							out.push( {lat:qlat,lng:qlng, x:1+(sect)*size+lng,y:y+1})
+							out.push( {lat:qlat,lng:qlng, x:(sect)*size+lng,y:y+1})
 						if(alt === 1)
 							if( sect === 5 )
-								out.push( {lat:qlat,lng:qlng, x:(sect-4)*size-lng,y:2+y})
+								out.push( {lat:qlat,lng:qlng, x:(sect-4)*size-lng-1,y:2+y})
 							else
-								out.push( {lat:qlat,lng:qlng, x:(sect+2)*size-lng,y:2+y})
+								out.push( {lat:qlat,lng:qlng, x:(sect+2)*size-lng-1,y:2+y})
 							
 					} else // lng > 0 and < lat-1
 					{
 						if( alt === 0 )
-							out.push( {lat:qlat,lng:qlng, x:1+(sect)*size+lng,y:y+1})
+							out.push( {lat:qlat,lng:qlng, x:(sect)*size+lng,y:y+1})
 					}
 				}else {
 					//if( sect != 2 ) return [];
@@ -558,21 +554,21 @@ function makeDrawer( size ) {
 					if( lng === 0 ){
 									
 						if( alt === 0 )
-							out.push( {lat:qlat,lng:qlng, x:2+(sect)*size+y,y:y+1})
+							out.push( {lat:qlat,lng:qlng, x:1+(sect)*size+y,y:y+1})
 						if(alt === 1)
 							if( sect )
-								out.push( {lat:qlat,lng:qlng, x:(sect)*size-lng-y,y:y+1})
+								out.push( {lat:qlat,lng:qlng, x:(sect)*size-lng-y-1,y:y+1})
 							else
-								out.push( {lat:qlat,lng:qlng, x:1+(sect+5)*size-lng+nlat,y:y+1})
+								out.push( {lat:qlat,lng:qlng, x:(sect+5)*size-lng+nlat,y:y+1})
 
 					} else if( lng === (nlat-1) ){
 						if( alt === 0 )
-							out.push( {lat:qlat,lng:qlng, x:1+(sect+1)*size-1,y:y+1})
+							out.push( {lat:qlat,lng:qlng, x:(sect+1)*size-1,y:y+1})
 						//console.log( "OUT2:", nlat, lat, long, qlat, qlng)
 					} else // lng > 0 and < lat-1
 					{
 						if( alt === 0 )
-							out.push( {lat:qlat,lng:qlng, x:2+(sect)*size+lng+y,y:y+1})
+							out.push( {lat:qlat,lng:qlng, x:1+(sect)*size+lng+y,y:y+1})
 					}
 					
 				}
@@ -580,7 +576,6 @@ function makeDrawer( size ) {
 		}
 		return out;
 	}
-
 	function uvPlotTo( lat,long,alt ) {
 		let out = plotTo( lat, long, alt );
 		if( alt && !out.length )
@@ -606,14 +601,14 @@ function draw() {
 	const size = 128;
 	const dr = makeDrawer( size );
 	let lat, long;
-	config.canvas3.width = size*6+2;
+	config.canvas3.width = size*6+1;
 	config.canvas3.height = size*2+5;
 	config.ctx3 = config.canvas3.getContext("2d" );
 	config.ctx3.imageSmoothingEnabled = false;
 	config.ctx3.webkitImageSmoothingEnabled = false;
 	config.ctx3.mozImageSmoothingEnabled = false;
 	config.canvas3.style.width = "512"
-	var _output = config.ctx3.getImageData(0, 0, size*6+2, size*2+4);
+	var _output = config.ctx3.getImageData(0, 0, config.canvas3.width,  config.canvas3.height);
 	var output = _output.data;
 	const lnQ = new lnQuat();
 	
@@ -687,10 +682,12 @@ function draw() {
 			//c1[1] = ((out[0].lng*180/Math.PI) /360)*255;
 			
 			//c1[2] = 0;//(out[0].lat*180/Math.PI - 64) * 3;;
+			if( out[0].c )
+				c1 = out[0].c;
 			const d = c1;//[255/(size*6)*lat,255/size*long,128,255]
 			do {
 				for( let p of out ) {
-					const output_offset = (p.y*(size*6+2)+p.x)*4;
+					const output_offset = (p.y*(config.canvas3.width)+p.x)*4;
 					output[output_offset+0] = d[0]; 
 					output[output_offset+1] = d[1]; 
 					output[output_offset+2] = d[2]; 

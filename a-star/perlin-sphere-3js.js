@@ -114,11 +114,11 @@ function init() {
 	var rect = config.canvas.getBoundingClientRect();
 //	camera = new THREE.PerspectiveCamera( 15, rect.width / rect.height, 0.001, 10000 );
 	camera = new THREE.PerspectiveCamera( 15, window.innerWidth/window.innerHeight, 0.1, 1000 );
-
+	const context = config.canvas.getContext('webgl2');
 	//myPerspective( camera.projectionMatrix, 90, rect.width / rect.height, 0.01, 10000 );
 
 	{
-   	renderer = new THREE.WebGLRenderer( { canvas : config.canvas } );
+   	renderer = new THREE.WebGLRenderer( { canvas : config.canvas, context:context } );
 
 		
 		if(1)
@@ -139,12 +139,12 @@ function init() {
 
 		camera.matrixAutoUpdate = false;
 		camera.position.y = 3.3;
-		camera.position.x = 5.5;
+		camera.position.x = -5.0;//5.5;
 		camera.position.z = 8.5;
 		camera.matrix.origin.copy( camera.position );
 
 		if ( !renderer.extensions.get('WEBGL_depth_texture') ) {
-			supportsExtension = false;
+			//supportsExtension = false;
 			//document.querySelector('#error').style.display = 'block';
 			//return;
 		}
@@ -161,19 +161,12 @@ function init() {
 
 
 //		const geometry = new THREE.BoxGeometry( 1, 1, 1 );
-		const geometry = new THREE.IcosahedronGeometry( 0, 5 );
+		//const geometry = new THREE.IcosahedronGeometry( 0, 5 );
 		const geometryWater = new THREE.Geometry( );
 		const geometrySquare = new THREE.Geometry( );
 		// create the Cube
 				//cube = new THREE.Mesh( new THREE.CubeGeometry( 200, 200, 200 ), new THREE.MeshNormalMaterial() );
 		//				cube.position.y = 150;
-		const update2 = mangleGeometry( geometry, geometryWater );
-		
-		const texture = drawNoiseTexture( 128, 1 );
-
-		// 32 = 13068, 24576, 
-		// 64 = 50700, 98304,
-		const update = computeBall( geometrySquare, 4 );
 
 		sliders[0].addEventListener( "input", getValues );
 		sliders[1].addEventListener( "input", getValues );
@@ -192,7 +185,6 @@ function init() {
 
 		const materialNormal = new THREE.MeshNormalMaterial();
 		const material = new THREE.MeshPhongMaterial( {vertexColors:THREE.VertexColors, color: 0x80808080} );
-		material.map = texture;
 
 		material.transparent = false
 		//material.vertexColors = true;
@@ -209,14 +201,25 @@ function init() {
 
 
 		const ball = new THREE.Mesh( geometrySquare, material );
-		const cube = new THREE.Mesh( geometry, material );
+		//const cube = new THREE.Mesh( geometry, material );
 		const water = new THREE.Mesh( geometryWater, materialWater );
 
+		
+				//const update2 = mangleGeometry( geometry, geometryWater );
+				
+		const texture = drawNoiseTexture( 128, 8 );
+		material.map = texture.map;
+
+				// 32 = 13068, 24576, 
+				// 64 = 50700, 98304,
+				const update = computeBall( geometrySquare, material, 8 );
+		
+
 		scene.add( ball )
-		scene.add( cube )
-		cube.add( water )
-		cube.position.set(1.5, 0.0, 0.0);
-		ball.position.set(-1.5, 0.0, 0.0);
+		//scene.add( cube )
+		ball.add( water )
+		//cube.position.set(1.5, 0.0, 0.0);
+		ball.position.set(0*-1.5, 0.0, 0.0);
 
 
 			// here you add your objects
@@ -255,7 +258,7 @@ function init() {
 			if( updateSphere ){
 				updateSphere = false;
 				update.newSeed();
-				update2.newSeed();
+				//update2.newSeed();
 			}
 			// update stats
 			//stats.update();
@@ -325,95 +328,72 @@ function deg2rad(x) { return x * Math.PI / 180.0 }
 
 function makeDrawer( size, gsize ) {
 
-	const width = size*6+2;
-	const height = size*2+4;
+	const width = size*6+1;
+	const height = size*2+7;
 
 	function plotTo( lat, long, alt ) {
-		
-		if( long < 0 ){
-			console.log( "FIX long:", lat, long );
-			if( lat === 0 )
-				long = 5;
-			else {				
-				long += (size*6);
-			}
-		}else {
-
-		}
-
+		const eqOffset = 5;
 		const out = [];
 		alt = alt || 0;
 		const sect = Math.floor(long/lat);
 		const lng  = long%(lat);
 		const qlat = lat/(size*3)*Math.PI;
 
-		//while( lat > )
-		//lat = lat%(3*size);
-		//const qlat = lat * deg2rad(60)/size;
 		if( lat === 0 ) {
-			if(1) {
-
-				console.log( "pole:", lat, lng, long );
-				if( alt === 0 )
-					out.push( { lat:0,lng:0, x:1+0, y:3 });
-				if( alt === 1 )
-					out.push( { lat:0,lng:Math.PI*2/3, x:1+size*2, y:3 });
-				if( alt === 2 )
-					out.push( { lat:0,lng:Math.PI*4/3, x:1+size*4, y:3 });
-				if( alt === 3 )
-					out.push( { lat:0,lng:0, x:1+size*6, y:3 });
-				//console.log( "output:", out );
-			}
+			// 'north' pole.. 4 peaks
+			if( alt === 0 )
+				out.push( { lat:0,lng:0          , x:0     , y:eqOffset });
+			if( alt === 1 )
+				out.push( { lat:0,lng:Math.PI*2/3, x:size*2, y:eqOffset });
+			if( alt === 2 )
+				out.push( { lat:0,lng:Math.PI*4/3, x:size*4, y:eqOffset });
+			if( alt === 3 )
+				out.push( { lat:0,lng:0          , x:size*6, y:eqOffset });
 		} else if( lat === 3*size ){
-			//console.log( "south pole." );
-			if(1)
-			{
-				console.log( "pole:", lat, lng, long );
-				if( alt === 0 )
-					out.push( { lat:qlat,lng:0, x:1+size*1, y:size-1 + 1 });
-				if( alt === 1 )
-					out.push( { lat:qlat,lng:Math.PI*2/3, x:1+size*3, y:size-1 + 1 });
-				if( alt === 2 )
-					out.push( { lat:qlat,lng:Math.PI*4/3, x:1+size*5, y:size-1 + 1 });
+			// 'south' pole.. 3 peaks
+			if( alt === 0 )
+				out.push( { lat:qlat,lng:0          , x:size*1, y:size-1 + 1 });
+			if( alt === 1 )
+				out.push( { lat:qlat,lng:Math.PI*2/3, x:size*3, y:size-1 + 1 });
+			if( alt === 2 ){
+				out.push( { lat:qlat,lng:Math.PI*4/3, x:size*5, y:size-1 + 1 });
+				console.log( "DING" );
 			}
 		} else if( lat < size ) {
-			//return [];
 			const qlng = (sect * deg2rad(60)) + lng * (deg2rad(30)/(lat||1))*2;
-
-			//const qlng = 
-			//return [];
+			// north polar patches...
 			{
-				const y = lat+3;
-				//const y = y + 3;
-//				if( sect != 1 ) return [];
+				const y = lat+eqOffset;
 				if( sect & 1 ) {
 					//if( sect !== 5 ) return[];
 					
 					if( lng === 0 ){
 						if( sect === 5 && lat == 1 ) {
 							if( alt === 2 ) {
+								if(0) // duplicate right to left (not anymore)
 								out.push( {lat:qlat,lng:qlng, x:0,y:y})
 							}
 						}
-						
-						
 						if( alt === 0 ) {
-							out.push( {lat:qlat,lng:qlng, x:((sect+1)*size) -(lat-1),y:y})
+							out.push( {lat:qlat,lng:qlng, x:((sect+1)*size) -(lat-1),y:y, c:[0,255,0,255]})
 							//console.log( "pushed:", out );
 						}
 						if( alt === 1 ) {
-							out.push( {lat:qlat,lng:qlng, x:(sect-1)*size+lat+lng+1,y:y})
+							// duplicate bottom to top...
+							out.push( {lat:qlat,lng:qlng, x:(sect-1)*size+lat+lng,y:y, c:[255,64,255,255]})
 						}
 					} else {
 						// this is the vertical line between two patches, and the triangle fill.
 						if(alt === 0)
 							out.push( {lat:qlat,lng:qlng, x:(sect+1)*size-lat+lng+1,y:y})
-						if( alt === 1 ) {
-							out.push( {lat:qlat,lng:qlng, x:(sect-1)*size+lat,y:y})
+
+						if( alt === 1 && lng === 1) {
+							//out.push( {lat:qlat,lng:qlng, x:(sect-1)*size+lat,y:y})
 						}
+
 						if( alt === 1 ) {
 							if( sect === 5 ){
-								out.push( {lat:qlat,lng:qlng, x:0,y:y})
+								//out.push( {lat:qlat,lng:qlng, x:0,y:y})
 
 							}
 						}
@@ -424,16 +404,20 @@ function makeDrawer( size, gsize ) {
 					if( lng === 0 ){
 						// this is the vertical line between two patches
 						if(alt === 0) 
-							out.push( {lat:qlat,lng:qlng, x:1+sect*size+lng,y:y})
+							out.push( {lat:qlat,lng:qlng, x:sect*size+lng,y:y})
 						if( alt === 1 ) {
+							// duplicate left to right... 
 							if( sect === 0 )
-								out.push( {lat:qlat,lng:qlng, x:1+6*size,y:y})
+								out.push( {lat:qlat,lng:qlng, x:6*size,y:y})
+							else
+							{
 
+							}
 						}
 					} else if( lng === (lat-1) ){
 						if(alt === 0) {
 							// 0 is done above...
-							out.push( {lat:qlat,lng:qlng, x:1+sect*size+lng,y:y})
+							out.push( {lat:qlat,lng:qlng, x:sect*size+lng,y:y})
 							//console.log( "point:", out );
 						}
 						if(alt === 1)
@@ -442,7 +426,7 @@ function makeDrawer( size, gsize ) {
 					} else // lng > 0 and < lat-1
 					{
 						if(alt === 0)
-							out.push( {lat:qlat,lng:qlng, x:(sect)*size+lng+1,y:y})
+							out.push( {lat:qlat,lng:qlng, x:(sect)*size+lng,y:y})
 						//else
 						//	out.push( {lat:qlat,lng:qlng, x:2+(sect)*size-lat+lng+y,y:y+1})
 					}
@@ -461,91 +445,87 @@ function makeDrawer( size, gsize ) {
 			if( lat === (size*2) ) {
 				// this is the bottom line mirrored to the top to match with south pole.
 				if( alt & 2 ) {
+					//return [];
 					if( long === 0 ) {
 						if(alt === 3)
-							out.push( {lat:qlat,lng:qlng, x:1+6*(size),y:0})
+							out.push( {lat:qlat,lng:qlng, x:6*(size),y:0})
 						if(alt === 2)
-							out.push( {lat:qlat,lng:qlng, x:1+6*(size),y:3+lat})
+							out.push( {lat:qlat,lng:qlng, x:6*(size),y:eqOffset + lat})
 					}else if( long === (size*6-1)) {
 						if(alt === 3)
 							out.push( {lat:qlat,lng:qlng, x:0, y:0})
 						if(alt === 2)
-							out.push( {lat:qlat,lng:qlng, x:0, y:3+lat})
+							out.push( {lat:qlat,lng:qlng, x:0, y:eqOffset + lat})
 					}
 				}else {
-					if(alt === 1) 
-						out.push( {lat:qlat,lng:qlng, x:1+sect*(size)+lng,y:0})
+					if(alt === 1)  {
+						out.push( {lat:qlat,lng:qlng, x:sect*(size)+lng,y:0})
+					}
 					if(alt === 0)
-						out.push( {lat:qlat,lng:qlng, x:1+sect*(size)+lng,y:3+lat})
+						out.push( {lat:qlat,lng:qlng, x:sect*(size)+lng,y:eqOffset + lat})
 				}
 			}else{
 				if(alt === 1){
 					if( long === 0 )
-						out.push( {lat:qlat,lng:qlng, x:1+6*(size),y:3+lat})
+						out.push( {lat:qlat,lng:qlng, x:6*(size),y:eqOffset + lat})
 					else if( long === (size*6-1) ){
-						out.push( {lat:qlat,lng:qlng, x:0,y:3+lat})
+						if(0)  // duplicate right to left... (not anymore)
+							out.push( {lat:qlat,lng:qlng, x:0,y:eqOffset + lat})
 					}
 				}
 				if(alt === 0)
-					out.push( {lat:qlat,lng:qlng, x:1+sect*(size)+lng,y:3+lat})
+					out.push( {lat:qlat,lng:qlng, x:sect*(size)+lng,y:eqOffset + lat})
 			}
 		}
 		else { //if( lat < 3*size ) {
-//return [];
 			let nlat = (3*size-(lat));
-			//const qlat = lat/(size*3)*Math.PI;
 			const sect = Math.floor(long/(nlat));
 			const lng  = long%(nlat);
-			//console.log( "Doing:", nlat, lat, qlat, long, lat, lng)
-//			const qlng = (sect * deg2rad(60)) + lng * (deg2rad(30)/nlat)||1;
 			const qlng = (sect * deg2rad(60)) + lng * (deg2rad(30)/(nlat||1))*2;
 			const y = (size-nlat)-1;// + size*2;
-			//if( sect !== 0 ) return[];
 			{
 
 				if( sect & 1 ) {
 					if( lng === 0 ){
 						// this is a vertical line...
-						if( alt === 0 )
-							out.push( {lat:qlat,lng:qlng, x:1+(sect)*size+lng,y:y+1})
+						//if( alt === 0 )
+							out.push( {lat:qlat,lng:qlng, x:(sect)*size+lng,y:y+1})
+
 						//console.log( "OUT:", lat, long, qlat, qlng)
 					} else if( lng === (nlat-1) ){
 						
 						if( alt === 0 )
-							out.push( {lat:qlat,lng:qlng, x:1+(sect)*size+lng,y:y+1})
+							out.push( {lat:qlat,lng:qlng, x:(sect)*size+lng,y:y+1})
 						if(alt === 1)
 							if( sect === 5 )
-								out.push( {lat:qlat,lng:qlng, x:(sect-4)*size-lng,y:2+y})
+								out.push( {lat:qlat,lng:qlng, x:(sect-4)*size-lng-1,y:2+y})
 							else
-								out.push( {lat:qlat,lng:qlng, x:(sect+2)*size-lng,y:2+y})
+								out.push( {lat:qlat,lng:qlng, x:(sect+2)*size-lng-1,y:2+y})
 							
 					} else // lng > 0 and < lat-1
 					{
 						if( alt === 0 )
-							out.push( {lat:qlat,lng:qlng, x:1+(sect)*size+lng,y:y+1})
+							out.push( {lat:qlat,lng:qlng, x:(sect)*size+lng,y:y+1})
 					}
 				}else {
-					//if( sect != 2 ) return [];
-					//if(0)
-					//console.log( "Blah", sect, lng, lat, nlat );
 					if( lng === 0 ){
 									
 						if( alt === 0 )
-							out.push( {lat:qlat,lng:qlng, x:2+(sect)*size+y,y:y+1})
+							out.push( {lat:qlat,lng:qlng, x:1+(sect)*size+y,y:y+1})
 						if(alt === 1)
 							if( sect )
-								out.push( {lat:qlat,lng:qlng, x:(sect)*size-lng-y,y:y+1})
+								out.push( {lat:qlat,lng:qlng, x:(sect)*size-lng-y-1,y:y+1})
 							else
-								out.push( {lat:qlat,lng:qlng, x:1+(sect+5)*size-lng+nlat,y:y+1})
+								out.push( {lat:qlat,lng:qlng, x:(sect+5)*size-lng+nlat,y:y+1})
 
 					} else if( lng === (nlat-1) ){
 						if( alt === 0 )
-							out.push( {lat:qlat,lng:qlng, x:1+(sect+1)*size-1,y:y+1})
+							out.push( {lat:qlat,lng:qlng, x:(sect+1)*size-1,y:y+1})
 						//console.log( "OUT2:", nlat, lat, long, qlat, qlng)
 					} else // lng > 0 and < lat-1
 					{
 						if( alt === 0 )
-							out.push( {lat:qlat,lng:qlng, x:2+(sect)*size+lng+y,y:y+1})
+							out.push( {lat:qlat,lng:qlng, x:1+(sect)*size+lng+y,y:y+1})
 					}
 					
 				}
@@ -554,31 +534,89 @@ function makeDrawer( size, gsize ) {
 		return out;
 	}
 
-	function uvPlotTo( lat,long,alt ) {
+	function uvPlotTo( lat,long,seg, ispole ) {
+		const _lat = lat;
+		const _long = long;
 		const nlat = (lat / gsize) * size;
+		let alt = 0;
 		if( lat < gsize ) {
-			const sect = Math.floor( long / (lat+1) );
-			
-			if( long < 0 ) long += (lat+1)*6;
-			if( lat === 0 ){
-				// long does not translate.
+			if( !lat ) {
+				//console.log( "NPOLE:", lat, long, seg );
+				if( seg === 1 ) alt =1;
+				if( seg === 2 ) alt =1;
+				if( seg === 3 ) alt =2;
+				if( seg === 4 ) alt =2;
+				if( seg === 5 ) alt =3;
 			}else {
-				long = long * (nlat) / (lat+1);
+				{
+					const len = (lat);
+					if( ( long % (len) ) == 0 )
+					{
+						const lseg = long/(len);
+						console.log( "Boundary:", lat, long, seg, lseg )
+						if(  lseg !== seg ) {
+							alt = 1;
+						}
+					}
+				}
+			}
+		}else if( lat > 2*gsize ) {
+
+			if( lat === 3*gsize ) {
+				//console.log( "SPOLE:", lat, long, seg );
+				if( seg === 2 ) alt =1;
+				if( seg === 3 ) alt =1;
+				if( seg === 4 ) alt =2;
+				if( seg === 5 ) alt =2;
+			}else {
+				{
+					const len = (3*gsize-lat);
+					if( ( long % (len) ) == 0 )
+					{
+						const lseg = long/(len);
+						if( lseg !== seg ) {
+							alt = 1;
+						}
+					}
+				}
+			}
+			 
+		}else {
+			if( lat === 2*gsize  ) {
+				if( ispole ) alt = 1;
+				//console.log( "This is the band?", lat, long, seg, ispole )
+				if( _long === 0 ) {
+					if( seg ===5 ) {
+						console.log( "IS IT THIS INSTEAD?", lat, long, seg, ispole );
+						if( !ispole )
+							alt=2;
+						else 
+							alt=3;
+					}
+				}
+			}
+			else if( long === 0 )
+			{
+				if( seg === 5 ){
+					alt = 1;
+				}
 			}
 		}
-		else
-			long = (long / gsize) * size;
+
+		long = (long / gsize) * size;
 
 		lat = nlat;
 
 		let out = plotTo( lat, long, alt );
-		if( alt && !out.length )
+		if( !out.length ){
+			console.log( "Bad Alternate at", lat, long, seg, ispole );
 			out = plotTo( lat, long, 0 );
-		if( out.length ) {
+		}
+
+
 			out[0].x = out[0].x/width;
 			// y is inverted??
 			out[0].y = 1 - out[0].y /height;
-		}
 		return out[0];
 	}
 
@@ -597,13 +635,16 @@ function drawNoiseTexture( size, gsize ) {
 		const dr = makeDrawer( size,gsize );
 		let lat, long;
 		const canvas = document.createElement( "canvas" );
-		canvas.width = size*6+2;
-		canvas.height = size*2+4;
+		canvas.style.bottom= 0;
+		canvas.style.position ="absolute";
+		canvas.width = size*6+1;
+		canvas.height = size*2+5;
 		document.body.appendChild(canvas);
 		const ctx = canvas.getContext( "2d" );
 		const canvasTexture = new THREE.CanvasTexture( canvas );
 
-		var _output = ctx.getImageData(0, 0, size*6+2, size*2+3);
+		function updateContext() {
+		var _output = ctx.getImageData(0, 0, canvas.width, canvas.height);
 		var output = _output.data;
 
 		const lnQ = new lnQuat();
@@ -634,7 +675,7 @@ function drawNoiseTexture( size, gsize ) {
 				let qlng = out[0].lng;//(pp * deg2rad(120)) + (long%(size*2)) * (deg2rad(60)/((len/6)||1));
 	
 				const up = lnQ.set( {lat:qlat, lng:qlng}, true).update().up();
-				var here = height.get2( up.x*150, up.y*150, up.z*150 );
+				var here = height.get2( (up.x+xOfs)*150, (up.y+yOfs)*150, (up.z+zOfs)*150 );
 				//console.log( "check", here, len, long, size, pp, qlng*180/Math.PI, qlat*180/Math.PI)
 	
 				var c1;
@@ -665,7 +706,7 @@ function drawNoiseTexture( size, gsize ) {
 						c1=ColorAverage255( BASE_COLOR_WHITE,
 														 BASE_COLOR_BLACK, (here-c1r5)/(1.0-c1r5) * 10000, 10000 );
 				}
-				if(1){
+				if(0){
 					if( (long % size) === 0 || lat === size || lat === size*2){
 						//console.log( "BLUE" );
 						c1[0] = 255;
@@ -686,11 +727,12 @@ function drawNoiseTexture( size, gsize ) {
 						c1[2] = 0;//(out[0].lat*180/Math.PI - 64) * 3;;
 					}
 				}
-				
-				const d = c1;//[255/(size*6)*lat,255/size*long,128,255]
+				let d = c1;//[255/(size*6)*lat,255/size*long,128,255]
+				if( out[0].c )
+				   d = out[0].c;				
 				do {
 					for( let p of out ) {
-						const output_offset = (p.y*(size*6+2)+p.x)*4;
+						const output_offset = (p.y*(canvas.width)+p.x)*4;
 						output[output_offset+0] = d[0]; 
 						output[output_offset+1] = d[1]; 
 						output[output_offset+2] = d[2]; 
@@ -699,7 +741,13 @@ function drawNoiseTexture( size, gsize ) {
 					}
 					//alt = 5;
 					out =  dr.plot( lat, long, alt++ );
-					if(1)
+					if( out.length ) {
+						if( out[0].c )
+							d = out[0].c;				
+						else d = c1
+					}
+ 
+					if(0)
 					if( out.length ) {
 						if( (long % size) === 0 ){
 							//console.log( "BLUE" );
@@ -722,19 +770,26 @@ function drawNoiseTexture( size, gsize ) {
 						}
 						}
 		
-				} while( out.length && alt < 3 );
+				} while( out.length && alt < 6 );
 			}
 		}
-	
+
+		
 		ctx.putImageData(_output, 0,0);
+		}
 		canvasTexture.needsUpdate = true;
-		return canvasTexture;
-	
+		return {
+			update() {
+				updateContext();
+				canvasTexture.needsUpdate = true;
+			},
+			map:canvasTexture
+		};
 	}	
 }
 
 
-function computeBall( geometry, size ) {
+function computeBall( geometry, material, size ) {
 	const vertices = geometry.vertices;
 	const faces = geometry.faces;
 	geometry.faceVertexUvs[0] = [];
@@ -767,7 +822,7 @@ function computeBall( geometry, size ) {
 			//const r = rough.get2( 10+x*r_spanx, y*r_spanz, z*r_spanz, 0 );
 			//const r2 = ( Math.acos( r*2-1 ) ) /Math.PI;
 			//const h = (height.get2( x*spanx, y*spany, z*spanz, 0 )-0.44)*(r2)+0.44;
-			const h = height.get2( (x+xOfs)*90, (y+yOfs)*90, (z+zOfs)*90, 0 );
+			const h = height.get2( (x+xOfs)*150, (y+yOfs)*150, (z+zOfs)*150, 0 );
 			const out = (1-Math.cos( h * Math.PI )) /2;
 			const r = (1.0-heightScalar) + ( out * (heightScalar*2) );
 			return r + heightOffset;//0.8 + ( out * 0.4 );
@@ -776,13 +831,13 @@ function computeBall( geometry, size ) {
 
 		let v = 0;
 
-		function addFace( fp1, fp2, fp3, seg ) {
-			console.log( "Adding:", fp1, fp2, fp3 )
+		function addFace( fp1, fp2, fp3, seg, ispole ) {
+			//if( seg != 1 ) return;
 			faces.push( f = new THREE.Face3( fp1, fp2, fp3 ) );
 			{
-				const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, seg );
-				const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, seg );
-				const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, seg );
+				const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, seg, ispole );
+				const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, seg, ispole );
+				const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, seg, ispole );
 				uvs.push( [
 					new THREE.Vector2(uv1.x,uv1.y),
 					new THREE.Vector2(uv2.x,uv2.y),
@@ -810,12 +865,12 @@ function computeBall( geometry, size ) {
 					basis = lnQ.set( {lat:qlat, lng:qlng}, true ).getBasis();
 
 					const h = fn( basis.up.x, basis.up.y, basis.up.z, 0 );
-					const color1 = getColor2( h );
+					const color1 = material.map?[1,1,1]:getColor2( h );
 					const h2 = fn( basis.up.x, -basis.up.y, basis.up.z, 0 );
-					const color2 = getColor2( h2 );
+					const color2 = material.map?[1,1,1]:getColor2( h2 );
 			
 					if( addFaces ) {	
-						const p = { lat:qlat, lng:qlng, lt:lat, lg:lng+(seg*(lat+1)), alt:0 };
+						const p = { lat:qlat, lng:qlng, lt:lat, lg:lng+(seg*(lat)), alt:0 };
 						norms.push( p );
 						vertices.push( new THREE.Vector3( basis.up.x, basis.up.y, basis.up.z  ).multiplyScalar(h) );
 						colors.push( new THREE.Color( color1[0], color1[1],color1[2]))
@@ -827,9 +882,9 @@ function computeBall( geometry, size ) {
 						const basis2 = lnQ.set( {lat:qlat2, lng:qlng2}, true ).getBasis();
 						
 						if( lat === size ) // this 'near point' is on the top of the image...
-							norms.push( { lat:qlat2, lng:qlng2, lt:size*3-lat, lg:(lng+seg*(lat))+1, alt:1 } );
+							norms.push( { lat:qlat2, lng:qlng2, lt:size*3-lat, lg:(lng+seg*(lat)), alt:1 } );
 						else
-							norms.push( { lat:qlat2, lng:qlng2, lt:size*3-lat, lg:(lng+seg*(lat))+1, alt:0 } );
+							norms.push( { lat:qlat2, lng:qlng2, lt:size*3-lat, lg:(lng+seg*(lat)), alt:0 } );
 						//console.log( "pushed second norm:", norms[norms.length-1])
 						//norms.push( {x:lnQ.x, y:lnQ.y, z:lnQ.z } );
 						vertices.push( new THREE.Vector3( basis2.up.x, basis2.up.y, basis2.up.z  ).multiplyScalar(h2) );
@@ -871,10 +926,10 @@ function computeBall( geometry, size ) {
 					// 0, 2  (1, 3)  120, 40
 					const qlat = deg2rad(60) + sqStep * lat;
 					const qlng = deg2rad(60)*eqp + lng*sqStep;
-					const basis = lnQ.set( {lat:qlat, lng:qlng }, true ).getBasis();
+					basis = lnQ.set( {lat:qlat, lng:qlng }, true ).getBasis();
 
 					const h = fn( basis.up.x, basis.up.y, basis.up.z, 0 );
-					const color1 = [1,1,1];//getColor2( h );
+					const color1 = material.map? [1,1,1]:getColor2( h );
 					if( addFaces ){
 						norms.push( { lat:qlat, lng:qlng, lt:lat+size, lg:eqp*size+lng } );
 						vertices.push( new THREE.Vector3( basis.up.x, basis.up.y, basis.up.z  ).multiplyScalar(h) );
@@ -903,171 +958,194 @@ function computeBall( geometry, size ) {
 
 					for( let lng = 0; lng <= lat; lng++ ){
 						if( lat === (size-1) ) {
-							if( lng === (size-1))
+							const base2 = ((size*(size+1))*seg) + eqStart;
+							if( lng === (size-1)) {
 								if( seg === 5 ) {
-									if(1)
-										addFace( (base +lng)*2
-										, (base2 +lng)
-										, (eqStart+lat*size), seg) ;
+									if( lat === 0 ) {
+										addFace( 0
+											, (eqStart + 5*(size*(size+1))+lng)
+											, (eqStart ), seg, false ) ;
+									}
+ 									else
+										addFace( ( (((lat) * (lat-1))/2)*6 +1 )*2
+											, (eqStart + 5*(size*(size+1))+lng)
+											, (eqStart ), seg, false ) ;
 
 								}else {
 									addFace( (base +lng)*2
-									, (base2 +lng)
-									, (base2 +(size*(size+1))), seg) ;
+										, (base2 +lng)
+										, (base2 +(size*(size+1))), seg, false) ;
 								}
-							else
-								addFace( (base +lng)*2
-									, (base2 +lng)
-									, (base2 +lng+(1)), seg) ;
+							}else{
+								addFace( (base2 +lng+1)
+									, (base +lng)*2
+									, (base2 +lng), seg, false) ;
+							}
 							if( lng < lat ) {
-								addFace( (base +lng+1)*2
-								, (base +lng)*2
-								, (base2 +lng+1), seg ) ;
+								if( seg === 5 && (lng === lat-1) ) {
+									addFace( (base +lng+1-6*(lat))*2
+										, (base +lng)*2
+										, (base2 +lng+1), seg, false ) ;
+								}else
+									addFace( (base +lng+1)*2
+										, (base +lng)*2
+										, (base2 +lng+1), seg, false ) ;
 							}
 
 						}else {
-							addFace( (base +lng)*2
-								, (base2 +lng)*2
-								, (base2 +lng+1)*2, seg) ;
 							if( lng < lat ) {
-								addFace( (base +lng+1)*2
-								, (base +lng)*2
-								, (base2 +lng+1)*2, seg ) ;
+								if( seg === 5 && ( lng === (lat-1)) ) {
+									addFace( (base +lng+1 - lat*6)*2
+										, (base +lng)*2
+										, (base2 +lng+1)*2, seg, false ) ;
+								}else {
+									addFace( (base +lng+1)*2
+										, (base +lng)*2
+										, (base2 +lng+1)*2, seg , false) ;
+								}
+							}
+							if( seg === 5 && ( lng === lat) ) {
+								if( lat ) {
+									addFace( (base2 +lng)*2
+										, (base +lng)*2
+										, (base+lng-6*(lat))*2, seg, false) ;
+								}else {
+									// the top polar cap triangle...
+									addFace( (base +lng)*2
+										, (base2 +lng)*2
+										, (base+lng+1)*2, seg, false) ;
+
+								}
+							} else {
+								addFace( (base +lng)*2
+									, (base2 +lng)*2
+									, (base2 +lng+1)*2, seg, false) ;
 							}
 						}
 						if(1){
+
 						/* south pole */
-							if( lat === (size-1) ) {
-								const base2 = ((size*(size+1))*seg) + eqStart  + (size*(size)) ;
-								if( lng === (size-1))
-									if( seg === 5 ) {
-										const base2 = eqStart + (size*(size-1));
-										if(1)
-										addFace( (base2 +lng)
-										, (base +lng)*2+1
-										, (base2 +lng), seg) ;
+						const base2 = (lat<(size-1))
+						? 1 + ((lat+1)*seg) + (((lat+1) * (lat))/2)*6
+						: (((size*(size+1))*seg) + eqStart+ size*size);
+						if( lat === (size-1) ) {
+							const base2 = ((size*(size+1))*seg) + eqStart+ size*size;
+							if( lng === (size-1)) {
+								
+								if( seg === 5 ) {
+									if( lat == 0 )
+										addFace( (eqStart + 5*(size*(size+1))+lng) + size*size
+											, 1
+											, (eqStart )+ size*size, seg, true) ;
+									else
+										addFace( (eqStart + 5*(size*(size+1))+lng) + size*size
+											, ( (((lat) * (lat-1))/2)*6 +1 )*2+1
+											, (eqStart )+ size*size, seg, true) ;
 
-									}else {
-										addFace( (base2 +lng)
+								}else {
+									addFace( (base2 +lng)
 										, (base +lng)*2+1
-										, (base2 +(size*(size+1))), seg) ;
-									}
-								else {
-									{
-										addFace( (base2 +lng)
-										, (base +lng)*2+1
-											, (base2 +lng+(1)), seg) ;
-									}
+										, (base2 +(size*(size+1))), seg, true) ;
 								}
-								if( lng < lat ) {
-									if( seg === 5 && lng == (size-2))
-									{
-										addFace( (base +lng)*2+1
-											, (base +lng+1)*2+1
-											, (eqStart + lat*size)
-											, seg ) ;
-	
-									}else
-										addFace( (base +lng)*2+1
-											, (base +lng+1)*2+1
-											, (base2 +lng+1), seg ) ;
-								}
-
-							}else {
-								addFace( (base2 +lng)*2+1
-									, (base +lng)*2+1
-									, (base2 +lng+1)*2+1, seg) ;
-								if( lng < lat ) {
+							}else{
+								addFace( (base +lng)*2+1
+									, (base2 +lng+1)
+									, (base2 +lng), seg, true) ;
+							}
+							if( lng < lat ) {
+								if( seg === 5 && (lng === lat-1) ) {
 									addFace( (base +lng)*2+1
-									, (base +lng+1)*2+1
-									, (base2 +lng+1)*2+1, seg ) ;
+									, (base +lng+1-6*(lat))*2+1
+									, (base2 +lng+1), seg, true ) ;
+									
+								}else
+									addFace( (base +lng)*2+1
+										, (base +lng+1)*2+1
+										, (base2 +lng+1), seg, true ) ;
+							}
+
+						}else {
+							if( lng < lat ) {
+								if( seg === 5 && ( lng === (lat-1)) ) {
+									addFace( (base +lng)*2+1
+										, (base +lng+1 - lat*6)*2+1
+										, (base2 +lng+1)*2+1, seg, true ) ;
+								}else {
+									addFace( (base +lng)*2+1
+										, (base +lng+1)*2+1
+										, (base2 +lng+1)*2+1, seg, true ) ;
 								}
 							}
+							if( seg === 5 && ( lng === lat) ) {
+								if( lat ) {
+									addFace( (base +lng)*2+1
+										, (base2 +lng)*2+1
+										, (base+lng-6*(lat))*2+1, seg, true) ;
+								}else {
+									// the top polar cap triangle...
+									addFace( (base2 +lng)*2+1
+										, (base +lng)*2+1
+										, (base+lng+1)*2+1, seg, true) ;
+								}
+							} else {
+								addFace( (base2 +lng)*2+1
+									, (base +lng)*2+1
+									, (base2 +lng+1)*2+1, seg, true) ;
+							}
+						}
 						}
 					}
 				}
 			}
 		}
 
-		if(1)
-		for( let eqp = 0; eqp < 6; eqp++ ) {
-			//console.log( "vertices start at:", eqStart );
-			for( let lat = 0; lat < size; lat++ ) {
-				
-				const thisRow = eqStart + (lat)*(size) + eqp*((size+1)*size);
-				const nextRow = eqStart + (lat+1)*(size)+ eqp*((size+1)*size);
-				for( let lng = 0; lng < size; lng++ ) {
-					// 0, 2  (1, 3)  120, 40
-					const x = {lat:deg2rad(60) + sqStep * lat, lng:deg2rad(60)*eqp + lng*sqStep };
-					const qlat = deg2rad(60) + sqStep * lat;
-					const qlng = deg2rad(60)*eqp + lng*sqStep;
-					const basis = lnQ.set( {lat:qlat, lng:qlng }, true ).getBasis();
-					//if( lng == 0 || lng == 1 || lng == 2 ) {
-					//	console.log( "GOT:", lat, lng, lnQ.x, lnQ.y, lnQ.z, x )
-					//}
-					const h = fn( basis.up.x, basis.up.y, basis.up.z, 0 );
-					const color1 = [1,1,1];//getColor2( h );
+		if( addFaces ){
+			for( let eqp = 0; eqp < 6; eqp++ ) {
+				//console.log( "vertices start at:", eqStart );
+				for( let lat = 0; lat < size; lat++ ) {
+					
+					const thisRow = eqStart + (lat)*(size) + eqp*((size+1)*size);
+					const nextRow = eqStart + (lat+1)*(size)+ eqp*((size+1)*size);
+					for( let lng = 0; lng < size; lng++ ) {
 
-					//if( lng < 3 )
-					if( addFaces ){
-						let f, fp1,fp2,fp3;
+						//const x = {lat:deg2rad(60) + sqStep * lat, lng:deg2rad(60)*eqp + lng*sqStep };
+						const qlat = deg2rad(60) + sqStep * lat;
+						const qlng = deg2rad(60)*eqp + lng*sqStep;
+						basis = lnQ.set( {lat:qlat, lng:qlng }, true ).getBasis();
 
-						// 0, 2  (1, 3)  120, 40
-						//const v1 = vertices[eqStart + lat*size*6 + lng]
-						if( 1 ) {
-							
-							faces.push( f = new THREE.Face3(  fp1 = thisRow+lng
-									, fp2 = nextRow+lng
-									, fp3 = thisRow+(lng+1)  ) );
-							{
-								const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, norms[fp1].alt );
-								const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, norms[fp2].alt );
-								const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, norms[fp3].alt );
-			
-								uvs.push( [
-									new THREE.Vector2(uv1.x,uv1.y),
-									new THREE.Vector2(uv2.x,uv2.y),
-									new THREE.Vector2(uv3.x,uv3.y)
-									] )
-							}
-							f.vertexColors.push( colors[fp1] );
-							f.vertexColors.push( colors[fp2] );
-							f.vertexColors.push( colors[fp3] );
-							f.normal.copy( basis.up );
-						}
-						if(1) {
-							if( eqp === 5 && lng === size-1 ){
-								continue;
-								faces.push( f = new THREE.Face3(  fp1 = nextRow+lng
-									, fp2 = eqStart + lat*(6*size)
-									, fp3 = thisRow+(lng+1)  ) );
-
-							}else{
-								faces.push( f = new THREE.Face3(  fp1 = nextRow+lng
-										, fp2 = nextRow+(lng+1)
-										, fp3 = thisRow+(lng+1)  ) );
-								}
-							{
-								const uv1 = drawer.uvPlot( norms[fp1].lt, norms[fp1].lg, norms[fp1].alt );
-								const uv2 = drawer.uvPlot( norms[fp2].lt, norms[fp2].lg, norms[fp2].alt );
-								const uv3 = drawer.uvPlot( norms[fp3].lt, norms[fp3].lg, norms[fp3].alt );
-			
-								uvs.push( [
-									new THREE.Vector2(uv1.x,uv1.y),
-									new THREE.Vector2(uv2.x,uv2.y),
-									new THREE.Vector2(uv3.x,uv3.y)
-									] )
-							}
-							f.vertexColors.push( colors[fp1] );
-							f.vertexColors.push( colors[fp2] );
-							f.vertexColors.push( colors[fp3] );
-							f.normal.copy( basis.up );
+						if( lng === (size-1) ) {
+							if( eqp === 5 ) {
+								addFace( thisRow+lng
+									, nextRow+lng
+									, eqStart + lat*size 
+									, eqp) ;
+								addFace( nextRow+lng
+									, eqStart + (lat+1)*size 
+									, eqStart + lat*size
+									, eqp ) ;
+							}else {
+								addFace( thisRow+lng
+									, nextRow+lng
+									, thisRow +  size*(size+1)
+									, eqp) ;
+								addFace( nextRow+lng
+									, nextRow + size*(size+1)
+									, thisRow + size*(size+1)
+									, eqp) ;
+							}	
+						}else {
+							addFace( thisRow+lng
+								, nextRow+lng
+								, thisRow+(lng+1) 
+								, eqp) ;
+							addFace( nextRow+lng
+								, nextRow+(lng+1)
+								, thisRow+(lng+1) 
+								, eqp) ;
 						}
 					}
-		
 				}
 			}
-
 		}
 
 		if( 0 )
@@ -1143,6 +1221,7 @@ function computeBall( geometry, size ) {
 			geometry.uvsNeedUpdate = true;
 		},
 		newSeed() {
+			texture.update();
 			//faces.length = 0;
 			//vout.length = 0;
 			//vertices.length = 0;
@@ -1362,6 +1441,7 @@ function mangleGeometry( land, water ) {
 			updateVerts();
 		},
 		newSeed() {
+			material.map = texture;
 			faces_w.length = 0;
 			vout.length = 0;
 			verts_w.length = 0;

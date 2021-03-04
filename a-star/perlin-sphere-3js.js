@@ -207,12 +207,12 @@ function init() {
 		
 				//const update2 = mangleGeometry( geometry, geometryWater );
 				
-		const texture = drawNoiseTexture( 128, 8 );
+		const texture = drawNoiseTexture( 128, 128 );
 		material.map = texture.map;
 
 				// 32 = 13068, 24576, 
 				// 64 = 50700, 98304,
-				const update = computeBall( geometrySquare, material, 8 );
+				const update = computeBall( geometrySquare, material, 128 );
 		
 
 		scene.add( ball )
@@ -375,12 +375,12 @@ function makeDrawer( size, gsize ) {
 							}
 						}
 						if( alt === 0 ) {
-							out.push( {lat:qlat,lng:qlng, x:((sect+1)*size) -(lat-1),y:y, c:[0,255,0,255]})
+							out.push( {lat:qlat,lng:qlng, x:((sect+1)*size) -(lat-1),y:y/*, c:[0,255,0,255]*/})
 							//console.log( "pushed:", out );
 						}
 						if( alt === 1 ) {
 							// duplicate bottom to top...
-							out.push( {lat:qlat,lng:qlng, x:(sect-1)*size+lat+lng,y:y, c:[255,64,255,255]})
+							out.push( {lat:qlat,lng:qlng, x:(sect-1)*size+lat+lng,y:y /*, c:[255,64,255,255]*/})
 						}
 					} else {
 						// this is the vertical line between two patches, and the triangle fill.
@@ -613,10 +613,15 @@ function makeDrawer( size, gsize ) {
 			out = plotTo( lat, long, 0 );
 		}
 
-
-			out[0].x = out[0].x/width;
+		if( seg&1 ) { 
+			out[0].x = (out[0].x+0.5)/width;
 			// y is inverted??
-			out[0].y = 1 - out[0].y /height;
+			out[0].y = 1 - (out[0].y+0.5) /height;
+		}else {
+			out[0].x = (out[0].x+0.5)/width;
+			// y is inverted??
+			out[0].y = 1 - (out[0].y+0.5) /height;
+		}
 		return out[0];
 	}
 

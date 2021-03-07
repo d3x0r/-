@@ -69,6 +69,7 @@ let heightOffset = 0;
 let xOfs = 0;
 let yOfs = 0;
 let zOfs = 0;
+let points = 0;
 let updateSphere = true;
 init();
 
@@ -553,7 +554,7 @@ function makeDrawer( size, gsize ) {
 					if( ( long % (len) ) == 0 )
 					{
 						const lseg = long/(len);
-						console.log( "Boundary:", lat, long, seg, lseg )
+						//console.log( "Boundary:", lat, long, seg, lseg )
 						if(  lseg !== seg ) {
 							alt = 1;
 						}
@@ -609,7 +610,7 @@ function makeDrawer( size, gsize ) {
 
 		let out = plotTo( lat, long, alt );
 		if( !out.length ){
-			console.log( "Bad Alternate at", lat, long, seg, ispole );
+			//console.log( "Bad Alternate at", lat, long, seg, ispole );
 			out = plotTo( lat, long, 0 );
 		}
 
@@ -618,7 +619,7 @@ function makeDrawer( size, gsize ) {
 			// y is inverted??
 			out[0].y = 1 - (out[0].y+0.5) /height;
 		}else {
-			out[0].x = (out[0].x+0.5)/width;
+			out[0].x = (out[0].x-0.5)/width;
 			// y is inverted??
 			out[0].y = 1 - (out[0].y+0.5) /height;
 		}
@@ -639,6 +640,8 @@ function drawNoiseTexture( size, gsize ) {
 		//const size = 64;
 		const dr = makeDrawer( size,gsize );
 		let lat, long;
+let totlen = 0;
+points = 0;
 		const canvas = document.createElement( "canvas" );
 		canvas.style.bottom= 0;
 		canvas.style.position ="absolute";
@@ -680,6 +683,7 @@ function drawNoiseTexture( size, gsize ) {
 				let qlng = out[0].lng;//(pp * deg2rad(120)) + (long%(size*2)) * (deg2rad(60)/((len/6)||1));
 	
 				const up = lnQ.set( {lat:qlat, lng:qlng}, true).update().up();
+
 				var here = height.get2( (up.x+xOfs)*150, (up.y+yOfs)*150, (up.z+zOfs)*150 );
 				//console.log( "check", here, len, long, size, pp, qlng*180/Math.PI, qlat*180/Math.PI)
 	
@@ -773,13 +777,13 @@ function drawNoiseTexture( size, gsize ) {
 							
 							c1[2] = 0;//(out[0].lat*180/Math.PI - 64) * 3;;
 						}
-						}
+					}
 		
 				} while( out.length && alt < 6 );
 			}
 		}
 
-		
+		//console.log( "Used points to create texture:", points, totlen );
 		ctx.putImageData(_output, 0,0);
 		}
 		canvasTexture.needsUpdate = true;
@@ -868,6 +872,7 @@ function computeBall( geometry, material, size ) {
 					const qlng = (seg * deg2rad(60)) + lng * (deg2rad(60)/(lat||1));
 
 					basis = lnQ.set( {lat:qlat, lng:qlng}, true ).getBasis();
+points++;
 
 					const h = fn( basis.up.x, basis.up.y, basis.up.z, 0 );
 					const color1 = material.map?[1,1,1]:getColor2( h );
@@ -885,6 +890,7 @@ function computeBall( geometry, material, size ) {
 						const qlat2 = (deg2rad(180)-qlat);
 						const qlng2 = qlng;
 						const basis2 = lnQ.set( {lat:qlat2, lng:qlng2}, true ).getBasis();
+points++;
 						
 						if( lat === size ) // this 'near point' is on the top of the image...
 							norms.push( { lat:qlat2, lng:qlng2, lt:size*3-lat, lg:(lng+seg*(lat)), alt:1 } );
@@ -932,6 +938,7 @@ function computeBall( geometry, material, size ) {
 					const qlat = deg2rad(60) + sqStep * lat;
 					const qlng = deg2rad(60)*eqp + lng*sqStep;
 					basis = lnQ.set( {lat:qlat, lng:qlng }, true ).getBasis();
+points++;
 
 					const h = fn( basis.up.x, basis.up.y, basis.up.z, 0 );
 					const color1 = material.map? [1,1,1]:getColor2( h );
@@ -1117,6 +1124,7 @@ function computeBall( geometry, material, size ) {
 						const qlat = deg2rad(60) + sqStep * lat;
 						const qlng = deg2rad(60)*eqp + lng*sqStep;
 						basis = lnQ.set( {lat:qlat, lng:qlng }, true ).getBasis();
+points++;
 
 						if( lng === (size-1) ) {
 							if( eqp === 5 ) {
@@ -1226,12 +1234,17 @@ function computeBall( geometry, material, size ) {
 			geometry.uvsNeedUpdate = true;
 		},
 		newSeed() {
+			let start = Date.now();
+			console.log( "Build texture");
 			texture.update();
 			//faces.length = 0;
+			console.log( "geometry", Date.now()-start);
 			//vout.length = 0;
 			//vertices.length = 0;
 			//uvs[0].length = 0;
+			start = Date.now();
 			addVerts( false );
+			console.log( "Finish at:", Date.now()-start );
 			geometry.colorsNeedUpdate = true;
 			geometry.verticesNeedUpdate  = true;
 			geometry.elementsNeedUpdate   = true;

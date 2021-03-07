@@ -629,7 +629,7 @@ function draw() {
 			else len = (((3*size))-lat) * 6;
 		}
 		if( !len ) len = 1;
-		console.log( "lat len:", lat, len,)
+		//console.log( "lat len:", lat, len,)
 		for( long = 0; long < len; long++ ) {
 			let alt = 0;
 			//console.log( "doing:", lat, long );

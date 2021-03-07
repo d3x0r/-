@@ -43,7 +43,7 @@ function noise( s, opts ) {
 		//gen.scalar *= 1;
 		maxtot += gen.scalar;
 	}
-	console.log( "tot:", maxtot );
+	//console.log( "tot:", maxtot );
 
 	var data;
 	var RNG = SaltyRNG( arr=>arr.push( data ), {mode:1} );

@@ -62,11 +62,11 @@ var wO = 0;
 var hO = 0;
 
 
-const wstride = ( 50 * Math.random() - 25 ) ;
-const hstride = ( 50 * Math.random() - 25 ) ;
-const slen = Math.sqrt(wstride*wstride+hstride*hstride);
+let wstride = ( 20 * Math.random() - 10 ) ;
+let hstride = ( 20 * Math.random() - 10 ) ;
+let slen = Math.sqrt(wstride*wstride+hstride*hstride);
 const stridea = Math.acos( hstride/slen );
-const strideangle = (wstride<0?(2*Math.PI-stridea):stridea)/(2*Math.PI);
+let strideangle = (wstride<0?(2*Math.PI-stridea):stridea)/(2*Math.PI);
 const nwstride = wstride/slen;
 const nhstride = hstride/slen;
 
@@ -119,37 +119,133 @@ function drawData( noise, config ) {
 
     function plot(b,c,d) { 
 		//console.log( "output at", output_offset, d )
+		const output_offset = (c*_output.width+b)*4;
         output[output_offset+0] = d[0]; 
         output[output_offset+1] = d[1]; 
         output[output_offset+2] = d[2]; 
         output[output_offset+3] = d[3]; 
-        output_offset+=4
+        //output_offset+=4
         //output++;
     }
 
 var lastTick = Date.now();
 
+const drawNodes = {
+root:null,
+length:0,
+push(n){
+	drawNodes.length++;
+	n.next = drawNodes.root;
+	drawNodes.root = n;
+},
+pop(){
+	const n = drawNodes.root;
+	if( n ) {
+		drawNodes.length--;
+		drawNodes.root = drawNodes.root.next;
+		return n;
+	}
+	return null;
+}
+
+};
+const nodesChecked = [];
+
+for( let i = 0; i < _output.height; i++ ) {
+	const row = [];
+	nodesChecked.push( row );
+	for( let i = 0; i < _output.width; i++ ) {
+		row.push(false);
+	}
+}
+
+const dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+
 function stepDraw() {
 	//var h;
 	var start = Date.now();
 	//if
+	const drawList = {
+		root:null,
+		length:0,
+		push(n){
+			const x = n.x - 64;
+			const y = n.y - 64;
+			const l =  Math.sqrt(x*x+y*y);
+			n.dist = l;
+			let cur = drawList.root;
+			let prior = null;
+			while( cur && cur.dist < l ) {
+				prior = cur;
+				cur= cur.next;
+			}
+			drawList.length++;
+			if( cur ) {
+				if( prior )
+					prior.next = n;
+				else
+					drawList.root = n;
+					n.next = cur;
+			} else {
+				if( prior ) {
+					prior.next = n;
+					n.next = null;
+				} else {
+					drawList.root = n;
+					n.next = null;
+				}
+			}
+		},
+		shift() {
+			if( drawList.length ) {
+				const n = drawList.root;
+				drawList.root = n.next;
+				drawList.length--;
+				return n;
+			}
+			return null;
+		}
+	};
+	for( let i = 0; i < _output.height; i++ ) {
+		const row = nodesChecked[i];
+		for( let i = 0; i < _output.width; i++ ) {
+			row[i] = (false);
+		}
+	}
+
 	output_offset = 0;//config.patchSize *h;
 	const halfh = _output.height/2;
 	const halfw = _output.width/2;
-	for( h = -_output.height; h < 0; h++ )
+
+	let drawNode = drawNodes.length?drawNodes.pop():{x:halfw, y:halfh,len:0, dist : 0, next:null };
+	nodesChecked[drawNode.y][drawNode.x] = true;
+	drawList.push( drawNode );
+
+	
+	function doDrawNode(node) {
+
+	}
+
+	while( drawNode = drawList.shift() ) {
+		//nodesChecked[drawNode.y][drawNode.x] = true;
+
+		const h = drawNode.y;
+		const w = drawNode.x;
+
+//	for( h = -_output.height; h < 0; h++ )
 	{
 		//output_offset =  + ( surface.height - h - 1 ) * surface.width;
-		for( w = -_output.width; w < 0; w++ )
+//		for( w = -_output.width; w < 0; w++ )
 		{
-			let here = noise.get( 5*13*w/_output.width +wO, 5*13*h/_output.height+hO, h2 );
+			let here = noise.get( 128*w/_output.width +wO, 128*h/_output.height+hO, h2 );
 			var c1,c2,c3;
 const c1r1 = 0.10;
 const c1r2 = 0.36;
 const c1r3 = 0.50;
 const c1r4 = 0.63;
 const c1r5 = 0.90;
-			let toHerex = w + halfw;
-			let toHerey = h + halfh;
+			let toHerex = w - halfw;
+			let toHerey = h - halfh;
 			let del = toHerex*toHerex + toHerey*toHerey;
 			if( del ) {
 				del = Math.sqrt(del );
@@ -164,128 +260,90 @@ const c1r5 = 0.90;
 			
 			let angle_view = (Math.acos( toHerey ))/(Math.PI);
 			if( toHerex < 0 ) angle_view = 1 - angle_view;
+			//angle_view += strideangle;
 
-	      const hx = Math.sin((here+strideangle)*2*Math.PI);
-			const hy = Math.cos((here+strideangle)*2*Math.PI);
+	      const hx = Math.cos((here)*4*Math.PI);
+			const hy = Math.sin((here)*4*Math.PI);
+
+	      //const hx = Math.cos((here-(angle_view+strideangle))*2*Math.PI);
+			//const hy = Math.sin((here-(angle_view+strideangle))*2*Math.PI);
+
+	      //const hx = Math.cos((here+strideangle)*2*Math.PI);
+			//const hy = Math.sin((here+strideangle)*2*Math.PI);
+
 
 			//const dot = toHerex*nwstride + toHerey*nhstride;
 			const dot = toHerex*hx + toHerey*hy;
 			
-			let angle = (Math.acos( dot ));
+			let angle = (	Math.acos( dot ))/(Math.PI);
+
+	      const hx2 = Math.sin(strideangle);
+			const hy2 = Math.cos(strideangle);
+			const dot2 = hx*hx2 + hy*hy2;
+			
+			let angle2 = (	Math.acos( dot2 ))/(Math.PI);
+			
 			//if( toHerex < 0 ) angle = Math.PI*2 - angle;
 
-			here = ((angle/(Math.PI))+0.5)%1;
+			here = ((angle)*1);
+			c1 = [here*255,angle2*255,0,255 - ( 5*drawNode.len )];
+
 			//here = (here + angle/(2*Math.PI))%1;
 			//here = ( here+strideangle)%1;
 			//here = (here + (angle/(2*Math.PI)) - strideangle)%1
 
-if (true) {
+
+if (false) {
 	for( var r = 1; r < RANGES_THRESH.length; r++ ) {
 			if( here <= RANGES_THRESH[r] ) {
 				c1 =ColorAverage( RANGES[r-1], RANGES[r+0], (here-RANGES_THRESH[r-1])/(RANGES_THRESH[r+0]-RANGES_THRESH[r-1]) * 1000, 1000 );
 				break;
 			}
 	}
+	if( r === RANGES_THRESH.length ) continue;
 
-	if(0)
-			if( here <= 0.10 )
-				c1 = ColorAverage( BASE_COLOR_WHITE,
-												 BASE_COLOR_BLACK, (here)/(c1r1) * 1000, 1000 );
-			else if( here <= 0.36 )
-				c1=ColorAverage( BASE_COLOR_BLACK,
-												 BASE_COLOR_LIGHTBLUE, (here-c1r1)/(c1r2-c1r1) * 1000, 1000 );
-			else if( here <= 0.5 )
-				c1=ColorAverage( BASE_COLOR_LIGHTBLUE,
-												 BASE_COLOR_LIGHTGREEN, (here-c1r2)/(c1r3-c1r2) * 1000, 1000 );
-			else if( here <= 0.63 )
-				c1=ColorAverage( BASE_COLOR_LIGHTGREEN,
-												 BASE_COLOR_LIGHTRED, (here-c1r3)/(c1r4-c1r3) * 1000, 1000 ) ;
-			else if( here <= 0.90 )
-				c1=ColorAverage( BASE_COLOR_LIGHTRED,
-												 BASE_COLOR_WHITE, (here-c1r4)/(c1r5-c1r4) * 1000, 1000 ) ;
-			else //if( here <= 4.0 / 4 )
-				c1=ColorAverage( BASE_COLOR_WHITE,
-												 BASE_COLOR_BLACK, (here-c1r5)/(1.0-c1r5) * 10000, 10000 );
 }
 
-if (false) {
-			var here1 = noise.get( w+wO+1000, h+hO, h2 );
-			if( here1 <= 0.01 )
-				c2 = ColorAverage( BASE_COLOR_WHITE,
-												 BASE_COLOR_BLACK, (here)/(0.01) * 1000, 1000 );
-			else if( here1 <= 0.25 )
-				c2=ColorAverage( BASE_COLOR_BLACK,
-												 BASE_COLOR_LIGHTBLUE, (here-0.01)/(0.25-0.01) * 1000, 1000 );
-			else if( here1 <= 0.5 )
-				c2=ColorAverage( BASE_COLOR_LIGHTBLUE,
-												 BASE_COLOR_LIGHTGREEN, (here-0.25)/(0.5-0.25) * 1000, 1000 );
-			else if( here1 <= 0.75 )
-				c2=ColorAverage( BASE_COLOR_LIGHTGREEN,
-												 BASE_COLOR_LIGHTRED, (here-0.5)/(0.75-0.5) * 1000, 1000 ) ;
-			else if( here1 <= 0.99 )
-				c2=ColorAverage( BASE_COLOR_LIGHTRED,
-												 BASE_COLOR_WHITE, (here-0.75)/(0.99-0.75) * 1000, 1000 ) ;
-			else //if( here <= 4.0 / 4 )
-				c2=ColorAverage( BASE_COLOR_WHITE,
-												 BASE_COLOR_BLACK, (here-0.99)/(1.0-0.99) * 10000, 10000 );
-}
 
-if (false) {
-			//var here2 = noise.get( w+wO, h+hO+1000, h2 );
-			if( here2 <= 0.01 )
-				c3 = ColorAverage( BASE_COLOR_WHITE,
-												 BASE_COLOR_BLACK, (here)/(0.01) * 1000, 1000 );
-			else if( here2 <= 0.25 )
-				c3=ColorAverage( BASE_COLOR_BLACK,
-												 BASE_COLOR_LIGHTBLUE, (here-0.01)/(0.25-0.01) * 1000, 1000 );
-			else if( here2 <= 0.5 )
-				c3=ColorAverage( BASE_COLOR_LIGHTBLUE,
-												 BASE_COLOR_LIGHTGREEN, (here-0.25)/(0.5-0.25) * 1000, 1000 );
-			else if( here2 <= 0.75 )
-				c3=ColorAverage( BASE_COLOR_LIGHTGREEN,
-												 BASE_COLOR_LIGHTRED, (here-0.5)/(0.75-0.5) * 1000, 1000 ) ;
-			else if( here2 <= 0.99 )
-				c3=ColorAverage( BASE_COLOR_LIGHTRED,
-												 BASE_COLOR_WHITE, (here-0.75)/(0.99-0.75) * 1000, 1000 ) ;
-			else //if( here <= 4.0 / 4 )
-				c3=ColorAverage( BASE_COLOR_WHITE,
-												 BASE_COLOR_BLACK, (here-0.99)/(1.0-0.99) * 10000, 10000 );
-}
-if( false ) {
-			c1[0] = (c1[0]+c2[0]+c3[0])/4;	
-			c1[1] = (c1[1]+c2[1]+c3[1])/4;	
-			c1[2] = (c1[2]+c2[2]+c3[2])/4;
-			c1[3] = 255;
-;
-}
-if (true) {
-			if( here <= 0.01 )
 				plot( w, h, c1 );//ColorAverage( BASE_COLOR_WHITE,
-						//						 BASE_COLOR_BLACK, (here)/(0.01) * 1000, 1000 ) );
-			else if( here <= 0.25 )
-				plot( w, h, c1 );//ColorAverage( BASE_COLOR_BLACK,
-						//						 BASE_COLOR_LIGHTBLUE, (here-0.01)/(0.25-0.01) * 1000, 1000 ) );
-			else if( here <= 0.5 )
-				plot( w, h, c1 );//ColorAverage( BASE_COLOR_LIGHTBLUE,
-						//						 BASE_COLOR_LIGHTGREEN, (here-0.25)/(0.5-0.25) * 1000, 1000 ) );
-			else if( here <= 0.75 )
-				plot( w, h, c1 );//ColorAverage( BASE_COLOR_LIGHTGREEN,
-						//						 BASE_COLOR_LIGHTRED, (here-0.5)/(0.75-0.5) * 1000, 1000 ) );
-			else if( here <= 0.99 )
-				plot( w, h, c1 );//ColorAverage( BASE_COLOR_LIGHTRED,
-						//						 BASE_COLOR_WHITE, (here-0.75)/(0.99-0.75) * 1000, 1000 ) );
-			else //if( here <= 4.0 / 4 )
-				plot( w, h, c1 );//ColorAverage( BASE_COLOR_WHITE,
-						//						 BASE_COLOR_BLACK, (here-0.99)/(1.0-0.99) * 10000, 10000 ) );
-}
 			//plot( w, h, ColorAverage( BASE_COLOR_BLACK,
 			//									 BASE_COLOR_LIGHTRED, (here) * 1000, 1000 ) );
 			//console.log( "%d,%d  %g", w, h, data[ h * surface.width + w ] );
+
+		for( let dir of dirs ) {
+			
+			if( (drawNode.x+dir[0]) >= 0 
+			  && (drawNode.x+dir[0]) < _output.width
+				&& (drawNode.y+dir[1]) >= 0 
+			  && (drawNode.y+dir[1]) < _output.height ){
+			 	if( !nodesChecked[drawNode.y+dir[1]][drawNode.x+dir[0]] ){
+					let newDrawNode;
+					if( drawNodes.length ){
+						newDrawNode = drawNodes.pop();
+						newDrawNode.x = drawNode.x+dir[0];
+						newDrawNode.y = drawNode.y+dir[1];
+						newDrawNode.len = drawNode.len+here;
+					} else  {
+						newDrawNode = {x:drawNode.x+dir[0], y:drawNode.y+dir[1],len:drawNode.len+angle2, dist: 0, next:null };
+					}
+					nodesChecked[newDrawNode.y][newDrawNode.x] = true;
+					if( newDrawNode.len < 25 ) 
+						drawList.push( newDrawNode );
+					else
+						drawNodes.push(newDrawNode );
+				}
+			}
+		}
+		drawNodes.push( drawNode ); 
+
 		}
 		
 	}
 	//console.log( "Rendered in:", h2, Date.now() - start );
 	//h2+=1;
+
+	}
+
 
 	var now = Date.now();
 	var delta = ( now - lastTick );
@@ -306,6 +364,16 @@ if (true) {
 	//if( h == 0 )
 		stepDraw();
 //	console.log( "Result is %g,%g", min, max );
+	config.ctx.clearRect(0,0,128,128);
+	{
+		config.ctx.moveTo( 64,64);
+		const x = Math.sin( strideangle);
+		const y = Math.cos( strideangle);
+
+		config.ctx.lineTo( 64+32*x, 64+32*y );  
+
+		config.ctx.stroke();
+	}
 	config.ctx.putImageData(_output, 0,0);
 
 
@@ -313,6 +381,41 @@ if (true) {
 
 
 export {noise}
+
+document.body.addEventListener( "keydown", (evt)=> {
+	if( evt.keyCode == 65 ) {
+		strideangle += 0.02;
+	      const hx = Math.sin(strideangle);
+			const hy = Math.cos(strideangle);
+			wstride = slen * hx;
+			hstride = slen * hy;
+	}
+	if( evt.keyCode == 68 ) {
+		strideangle -= 0.02;
+	      const hx = Math.sin(strideangle);
+			const hy = Math.cos(strideangle);
+			wstride = slen * hx;
+			hstride = slen * hy;
+	}
+	if( evt.keyCode == 83 ) {
+		if( slen > 0.2 )
+			slen -= 0.2;
+		else
+			slen = 0;
+	      const hx = Math.sin(strideangle);
+			const hy = Math.cos(strideangle);
+			wstride = slen * hx;
+			hstride = slen * hy;
+	}
+	if( evt.keyCode == 87 ) {
+			slen += 0.02;
+	      const hx = Math.sin(strideangle);
+			const hy = Math.cos(strideangle);
+			wstride = slen * hx;
+			hstride = slen * hy;
+	}
+	console.log( "ke:", evt );
+} );
 
 // find nearest does a recusive search and finds nodes
 // which may qualify for linking to the new node (to).

@@ -164,10 +164,12 @@ function drawData( s, noise, config ) {
 				const c1r5 = 0.90;
 
 		output_offset = 0;//config.patchSize *h;
-		for( var h = 0; h < _output.height; h++ )
+		const oh = _output.height;
+		const ow = _output.width;
+		for( var h = 0; h < oh; h++ )
 		{
 			//output_offset =  + ( surface.height - h - 1 ) * surface.width;
-			for( var w = 0; w < _output.width; w++ )
+			for( var w = 0; w < ow; w++ )
 			{
 				var here = noise.get( (w+wO), (h+hO), h2, s );
 				//var here1 = noise.get( w+wO+1000, h+hO, h2, s );
@@ -417,7 +419,6 @@ function makeDrawer( size ) {
 						}
 						
 						if( alt === 1 ) {
-													
 							out.push( {lat:qlat,lng:qlng, x:((sect+1)*size) -(lat-1),y:y})
 							//console.log( "pushed:", out );
 						}
@@ -607,13 +608,13 @@ function draw() {
 	config.ctx3.imageSmoothingEnabled = false;
 	config.ctx3.webkitImageSmoothingEnabled = false;
 	config.ctx3.mozImageSmoothingEnabled = false;
-	config.canvas3.style.width = "512"
+	//config.canvas3.style.width = "512"
 	var _output = config.ctx3.getImageData(0, 0, config.canvas3.width,  config.canvas3.height);
 	var output = _output.data;
 	const lnQ = new lnQuat();
-	
+	const latlen = size*3;
 
-	for( lat = 0; lat <= size*3; lat++ ) {
+	for( lat = 0; lat <= latlen; lat++ ) {
 		let len;
 		// real angle for said line
 
@@ -695,6 +696,7 @@ function draw() {
 			
 				}
 				//alt = 5;
+				break;
 				out =  dr.plot( lat, long, alt++ );
 				if( out.length ) {
 				//c1[0] = (out[0].lat*255/Math.PI);;

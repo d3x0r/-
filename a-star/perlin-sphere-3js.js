@@ -645,7 +645,7 @@ points = 0;
 		const canvas = document.createElement( "canvas" );
 		canvas.style.bottom= 0;
 		canvas.style.position ="absolute";
-		canvas.width = size*6+1;
+		const ow = canvas.width = size*6+1;
 		canvas.height = size*2+5;
 		document.body.appendChild(canvas);
 		const ctx = canvas.getContext( "2d" );
@@ -656,8 +656,8 @@ points = 0;
 		var output = _output.data;
 
 		const lnQ = new lnQuat();
-	
-		for( lat = 0; lat <= size*3; lat++ ) {
+			const latlen = size*3;
+		for( lat = 0; lat <= latlen; lat++ ) {
 			let len;
 			// real angle for said line
 	
@@ -741,7 +741,7 @@ points = 0;
 				   d = out[0].c;				
 				do {
 					for( let p of out ) {
-						const output_offset = (p.y*(canvas.width)+p.x)*4;
+						const output_offset = (p.y*(ow)+p.x)*4;
 						output[output_offset+0] = d[0]; 
 						output[output_offset+1] = d[1]; 
 						output[output_offset+2] = d[2]; 

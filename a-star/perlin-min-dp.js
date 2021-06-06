@@ -30,6 +30,11 @@ if( typeof document !== "undefined" ) {
 }
 
 
+let turnDown = false;
+let turnLeft = false;
+let speedDown = false;
+let speedUp = false;
+
 const BASE_COLOR_WHITE = [255,255,255,255];
 const BASE_COLOR_BLACK = [0,0,0,255];
 const BASE_COLOR_DARK_BLUE = [0,0,132,255];
@@ -62,13 +67,11 @@ var wO = 0;
 var hO = 0;
 
 
-let wstride = ( 20 * Math.random() - 10 ) ;
-let hstride = ( 20 * Math.random() - 10 ) ;
-let slen = Math.sqrt(wstride*wstride+hstride*hstride);
-const stridea = Math.acos( hstride/slen );
-let strideangle = (wstride<0?(2*Math.PI-stridea):stridea)/(2*Math.PI);
-const nwstride = wstride/slen;
-const nhstride = hstride/slen;
+let wstride = 0;//( 20 * Math.random() - 10 ) ;
+let hstride = 0;//( 20 * Math.random() - 10 ) ;
+let slen = 0;//Math.sqrt(wstride*wstride+hstride*hstride);
+const stridea = 0;//Math.acos( hstride/slen );
+let strideangle = Math.random()*(2*Math.PI);
 
 
 init( config );
@@ -111,8 +114,6 @@ function ColorAverage( a, b, i,m) {
 
 function drawData( noise, config ) {
 
-	
-	config.ctx.clearRect(0,0,128,128);
     var _output = config.ctx.getImageData(0, 0, config.patchSize, config.patchSize);
     var output = _output.data;
 	var surface = null;
@@ -161,11 +162,12 @@ for( let i = 0; i < _output.height; i++ ) {
 	}
 }
 
-const dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+const dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],,[0,1],[1,-1],[1,0],[1,1]];
 
 function stepDraw() {
 	//var h;
 	var start = Date.now();
+	updateMotion();
 	//if
 	const drawList = {
 		root:null,
@@ -223,10 +225,16 @@ function stepDraw() {
 	nodesChecked[drawNode.y][drawNode.x] = true;
 	drawList.push( drawNode );
 
+
 	
 	function doDrawNode(node) {
 
 	}
+
+const white = [0,30,0,255];
+const tmpC = [0,0,0,255];
+	      const hx2 = Math.sin(strideangle);
+			const hy2 = Math.cos(strideangle);
 
 	while( drawNode = drawList.shift() ) {
 		//nodesChecked[drawNode.y][drawNode.x] = true;
@@ -241,6 +249,9 @@ function stepDraw() {
 		{
 			let here = noise.get( 128*w/_output.width +wO, 128*h/_output.height+hO, h2 );
 			var c1,c2,c3;
+
+			const isHere = ( w == halfw && h == halfh );
+
 const c1r1 = 0.10;
 const c1r2 = 0.36;
 const c1r3 = 0.50;
@@ -260,60 +271,111 @@ const c1r5 = 0.90;
 			}
 
 			
-			let angle_view = (Math.acos( toHerey ))/(Math.PI);
-			if( toHerex < 0 ) angle_view = 1 - angle_view;
+//			let angle_view = (Math.acos( toHerey ))/(Math.PI);
+//			if( toHerex < 0 ) angle_view = 1 - angle_view;
+
 			//angle_view += strideangle;
 
-	      const hx = Math.cos((here)*4*Math.PI);
-			const hy = Math.sin((here)*4*Math.PI);
-
-	      //const hx = Math.cos((here-(angle_view+strideangle))*2*Math.PI);
-			//const hy = Math.sin((here-(angle_view+strideangle))*2*Math.PI);
-
-	      //const hx = Math.cos((here+strideangle)*2*Math.PI);
-			//const hy = Math.sin((here+strideangle)*2*Math.PI);
-
+	      const hx = Math.sin((here)*6*Math.PI);
+			const hy = Math.cos((here)*6*Math.PI);
 
 			//const dot = toHerex*nwstride + toHerey*nhstride;
+			// angle between here to 
 			const dot = toHerex*hx + toHerey*hy;
-			
-			let angle = (	Math.acos( dot ))/(Math.PI);
+			// angle between my position and the direction of here
+			const angle = (	Math.acos( dot ))/(Math.PI);
 
-	      const hx2 = Math.sin(strideangle);
-			const hy2 = Math.cos(strideangle);
 			const dot2 = hx*hx2 + hy*hy2;
 			
-			let angle2 = (	Math.acos( dot2 ))/(Math.PI);
-			
+			// angle between my forward and here
+			const angle2 = (	Math.acos( dot2 ))/(Math.PI);
+			const dot3 = Math.sin( (angle2-angle) * Math.PI );
 			//if( toHerex < 0 ) angle = Math.PI*2 - angle;
 
-			here = ((angle)*1);
-			c1 = [here*255,angle2*255,0,255 - ( 5*drawNode.len )];
+			here = angle;
+
+			if( drawNode.len > 15 )
+				c1 = white;
+			else{
+				c1 = tmpC;
+				//if(0)
+				if( dot < 0 ) {
+					tmpC[0] =  100;//-dot*100;
+					tmpC[1] =  0;//-dot*100;
+					tmpC[2] =  0;//-dot*100;
+					//tmpC[1] =  0;
+				}else {
+					tmpC[0] =  0;//-dot*100;
+					tmpC[2] =  dot*100;
+					//tmpC[0] =  0;
+					
+					tmpC[1] =  + (15-drawNode.len) *10 ;
+				}
+				//if( dot < 0 )
+				//	tmpC[0] =  0 ;
+				//else
+				//tmpC[0] =  0;//dot*64 +128 ;
+				if(1)
+				if( dot2 < 0 ) {
+					if( angle2 < 0 ) {
+						//tmpC[0] +=  100-(1+dot2)*100;
+						//tmpC[2] +=  0;
+						tmpC[1] +=  100-(1+dot2)*100;
+					}
+					else{
+						tmpC[0] +=  100-(1+dot2)*100;
+						tmpC[2] +=  0;
+					}
+				}else {
+					if( dot < 0 ){
+						tmpC[0] +=  100-(1-dot2)*100;
+						tmpC[1] +=  100-(1-dot2)*100;
+						//tmpC[2] +=  100-(1-dot2)*100;
+					} else {
+						tmpC[0] +=  0;
+						tmpC[1] +=  50-(1-dot2)*50;
+					}
+				}	
+
+			if(0)
+			if(dot > 0)
+				if( dot3 < 0 ) {
+					tmpC[2] +=  +(-dot3)*50;
+					tmpC[1] += 0;
+					tmpC[0] +=  0;
+				}else {
+					tmpC[2] +=  0;
+					tmpC[1] += 0;
+					tmpC[0] +=  +(1-dot3)*50;
+				}	
+				//tmpC[2] = drawNode.len*13 ;
+			}
+
+
+			if( isHere ) {
+				if( dot2 < 0 )
+					slen += -0.03 + dot2 * 0.02;
+				else
+					slen += dot2 * 0.01;
+				if( slen< 0 ) slen = 0;
+			}
 
 			//here = (here + angle/(2*Math.PI))%1;
 			//here = ( here+strideangle)%1;
 			//here = (here + (angle/(2*Math.PI)) - strideangle)%1
 
-
-if (false) {
-	for( var r = 1; r < RANGES_THRESH.length; r++ ) {
-			if( here <= RANGES_THRESH[r] ) {
-				c1 =ColorAverage( RANGES[r-1], RANGES[r+0], (here-RANGES_THRESH[r-1])/(RANGES_THRESH[r+0]-RANGES_THRESH[r-1]) * 1000, 1000 );
-				break;
-			}
-	}
-	if( r === RANGES_THRESH.length ) continue;
-
-}
-
-
-				plot( w, h, c1 );//ColorAverage( BASE_COLOR_WHITE,
+			plot( w, h, c1 );//ColorAverage( BASE_COLOR_WHITE,
 			//plot( w, h, ColorAverage( BASE_COLOR_BLACK,
 			//									 BASE_COLOR_LIGHTRED, (here) * 1000, 1000 ) );
 			//console.log( "%d,%d  %g", w, h, data[ h * surface.width + w ] );
 
-		for( let dir of dirs ) {
-			
+		for( let d = 0; d < dirs.length; d++ ) {
+			if( d ==4 ) continue;
+			const dir = dirs[d];
+			let zz = 1;
+			if( !(d & 1 ) )
+				zz = 1.414;
+			//(dir,id) of dirs )
 			if( (drawNode.x+dir[0]) >= 0 
 			  && (drawNode.x+dir[0]) < _output.width
 				&& (drawNode.y+dir[1]) >= 0 
@@ -324,12 +386,15 @@ if (false) {
 						newDrawNode = drawNodes.pop();
 						newDrawNode.x = drawNode.x+dir[0];
 						newDrawNode.y = drawNode.y+dir[1];
-						newDrawNode.len = drawNode.len+here;
+						newDrawNode.len = drawNode.len+(here*zz/2);
 					} else  {
-						newDrawNode = {x:drawNode.x+dir[0], y:drawNode.y+dir[1],len:drawNode.len+angle2, dist: 0, next:null };
+						newDrawNode = {x:drawNode.x+dir[0]
+								, y:drawNode.y+dir[1]
+								, len:drawNode.len+(here*zz/2)
+								, dist: 0, next:null };
 					}
 					nodesChecked[newDrawNode.y][newDrawNode.x] = true;
-					if( drawNode.len < 12 ) 
+					if( drawNode.len < 52 ) 
 						drawList.push( newDrawNode );
 					else
 						drawNodes.push(newDrawNode );
@@ -366,9 +431,12 @@ if (false) {
 	//if( h == 0 )
 		stepDraw();
 //	console.log( "Result is %g,%g", min, max );
-	config.ctx.clearRect(0,0,128,128);
+	config.ctx.putImageData(_output, 0,0);
+
+//	if(0)
 	{
-		config.ctx.moveTo( 64,64);
+		config.ctx.beginPath();
+				config.ctx.moveTo( 64,64);
 		const x = Math.sin( strideangle);
 		const y = Math.cos( strideangle);
 
@@ -376,7 +444,6 @@ if (false) {
 
 		config.ctx.stroke();
 	}
-	config.ctx.putImageData(_output, 0,0);
 
 
 }
@@ -384,39 +451,74 @@ if (false) {
 
 export {noise}
 
-document.body.addEventListener( "keydown", (evt)=> {
-	if( evt.keyCode == 65 ) {
-		strideangle += 0.02;
-	      const hx = Math.sin(strideangle);
-			const hy = Math.cos(strideangle);
-			wstride = slen * hx;
-			hstride = slen * hy;
-	}
-	if( evt.keyCode == 68 ) {
-		strideangle -= 0.02;
-	      const hx = Math.sin(strideangle);
-			const hy = Math.cos(strideangle);
-			wstride = slen * hx;
-			hstride = slen * hy;
-	}
-	if( evt.keyCode == 83 ) {
-		if( slen > 0.2 )
+
+updateMotion();
+function updateMotion() {
+	if( speedDown ) {
+		if( !speedUp ) {
+			if( slen > 0.2 )
 			slen -= 0.2;
 		else
 			slen = 0;
-	      const hx = Math.sin(strideangle);
+		}else {
+			slen += 0.05;
+	
+
+		}
+	}
+	if( turnDown ){
+		if( turnLeft ) {
+			strideangle += 0.06;
+		
+		}else {
+
+			strideangle -= 0.06;
+		}
+	}
+		const hx = Math.sin(strideangle);
 			const hy = Math.cos(strideangle);
 			wstride = slen * hx;
 			hstride = slen * hy;
+ }
+
+document.body.addEventListener( "keydown", (evt)=> {
+	if( evt.keyCode == 65 ) {
+		turnDown = true;
+		turnLeft = true;
+	}
+	if( evt.keyCode == 68 ) {
+		turnDown = true;
+		turnLeft = false;
+	}
+	if( evt.keyCode == 83 ) {
+		speedDown = true;
+		speedUp = false;
 	}
 	if( evt.keyCode == 87 ) {
-			slen += 0.02;
-	      const hx = Math.sin(strideangle);
-			const hy = Math.cos(strideangle);
-			wstride = slen * hx;
-			hstride = slen * hy;
+			speedDown = true;
+			speedUp = true;
 	}
-	console.log( "ke:", evt );
+	//console.log( "ke:", evt );
+} );
+
+document.body.addEventListener( "keyup", (evt)=> {
+	if( evt.keyCode == 65 ) {
+		turnDown = false;
+		turnLeft = true;
+	}
+	if( evt.keyCode == 68 ) {
+		turnDown = false;
+		turnLeft = false;
+	}
+	if( evt.keyCode == 83 ) {
+		speedDown = false;
+		speedUp = false;
+	}
+	if( evt.keyCode == 87 ) {
+			speedDown = false;
+			speedUp = true;
+	}
+	//console.log( "ke:", evt );
 } );
 
 // find nearest does a recusive search and finds nodes

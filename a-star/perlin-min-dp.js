@@ -111,6 +111,8 @@ function ColorAverage( a, b, i,m) {
 
 function drawData( noise, config ) {
 
+	
+	config.ctx.clearRect(0,0,128,128);
     var _output = config.ctx.getImageData(0, 0, config.patchSize, config.patchSize);
     var output = _output.data;
 	var surface = null;
@@ -327,7 +329,7 @@ if (false) {
 						newDrawNode = {x:drawNode.x+dir[0], y:drawNode.y+dir[1],len:drawNode.len+angle2, dist: 0, next:null };
 					}
 					nodesChecked[newDrawNode.y][newDrawNode.x] = true;
-					if( newDrawNode.len < 25 ) 
+					if( drawNode.len < 12 ) 
 						drawList.push( newDrawNode );
 					else
 						drawNodes.push(newDrawNode );

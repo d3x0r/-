@@ -57,6 +57,87 @@ const RANGES_THRESH = [0, 0.02, 0.20, 0.24, 0.29, 0.50, 0.75, 0.99, 1.0 ];
 	];
 	var updatedNoiseGenerators = false;
 
+function dist( a, b ) {
+	var x = {};
+	sub2( x, a, b );
+	return len(x);
+}
+
+
+
+function h1( here ) {
+	//return dist( here, to ) * maxH;//( ( minH + maxH ) / 2);
+	return dist( here, config.to ) * config.maxH/3.5;//18;// *( ( minH + maxH ) / 2);
+}
+
+
+class SortedListNode {
+
+					node= null;
+					checked = false;
+					final = false;
+					f=0; // dist to target, plus g (g is sum of all to here + myself hard )
+					g=0;
+					h=0;
+					_draw = 0;
+					next = null;  // link in set
+					parent = null;   // link backward from success
+	constructor( n,g,h ){
+		this.node = n;
+		this.g = g;
+		this.h = h;
+		this.f = h1(n )+g;
+	}
+
+}
+
+
+class SortedList {
+			first = null;
+			length = 0;
+
+			add(n, g, h) {
+				const newNode = new SortedListNode( n,g,h)
+
+				this.link( newNode );
+				this.length++;
+				return newNode;
+			}
+			link(newNode) {
+				if(!newNode ) debugger;
+				if( !this.first )
+					this.first = newNode;
+				else {
+					if( newNode.f < this.first.f ) {
+						newNode.next = this.first;
+						this.first = newNode;
+					} else {
+						for( var cur = this.first; cur.next && ( cur.f < newNode.f ); cur = cur.next );
+						newNode.next = cur.next;
+						cur.next = newNode;
+					}
+				}
+			}
+			find(n) {
+				var c, _c = null;
+				for( c = this.first; c && ( c.node.x != n.x || c.node.y != n.y ); (_c = c), (c = c.next) );
+				if( c )
+					return { node:c, prior:_c};
+				return null;
+			}
+			pop() {
+				var n = this.first;
+				if( n ) {
+					this.length--;
+					if( !this.first.next === undefined ) debugger;
+					this.first = this.first.next;
+				}
+				return n;
+			}
+
+}
+
+
 init( config );
 
 function init( config ) {
@@ -71,7 +152,6 @@ function init( config ) {
 	config.neighbors.push( { x:0, y:-1, z:0 } );
 
 	// allow diagonal?
-
 	config.neighbors.push( { x:1, y:1, z:0 } );
 	config.neighbors.push( { x:-1, y:1, z:0 } );
 	config.neighbors.push( { x:1, y:-1, z:0 } );
@@ -472,14 +552,14 @@ if (true) {
 
 function AStar( config ) {
 	var from = { x:0, y:(Math.random()*config.patchSize)|0, z:0 };
-	var to = { x : config.patchSize-1, y : (Math.random()*config.patchSize)|0, z: 0 };
-	return doAStar( config.nodes, [], null, from, to, 0 );
+	config.to = { x : config.patchSize-1, y : (Math.random()*config.patchSize)|0, z: 0 };
+	return doAStar( config.nodes, [], null, from, config.to, 0 );
 }
 
+	var __clearTick = 0;
 function doAStar( nodes, came_from, targetNode, from,  to )
 {
 
-	var __clearTick = 0;
 	var __drawTick = 0;
 	function drawAStar( config, path, minpath, minH, maxH ) {
 		maxH -= minH;
@@ -536,72 +616,15 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 		} );
 
 	}
-
-
-	function dist( a, b ) {
-		var x = {};
-		sub2( x, a, b );
-		return len(x);
-	}
-	function h1( here ) {
-		//return dist( here, to ) * maxH;//( ( minH + maxH ) / 2);
-		return dist( here, to ) * maxH/3.5;//18;// *( ( minH + maxH ) / 2);
-	}
+	config.maxH = 0;
+	config.minH = Infinity;
 
 
 	var openSet = makeOpenSet();
 	var _openSet = makeOpenSet();
 	var __openSet = null;
 	function makeOpenSet() {
-		return {
-			first : null,
-			length : 0,
-			add(n, g, h) {
-				var newNode = { 
-					node: n, 
-					checked : false, 
-					final : false,
-					f:h1(n) + g, // dist to target, plus g (g is sum of all to here + myself hard )
-					g:g, 
-					h:h,
-					_draw : 0,
-					next : null,  // link in set
-					parent : null   // link backward from success
-				};
-				this.link( newNode );
-				this.length++;
-				return newNode;
-			},
-			link(newNode) {
-				if( !this.first )
-					this.first = newNode;
-				else {
-					if( newNode.f < this.first.f ) {
-						newNode.next = this.first;
-						this.first = newNode;
-					} else {
-						for( var cur = this.first; cur.next && ( cur.f < newNode.f ); cur = cur.next );
-						newNode.next = cur.next;
-						cur.next = newNode;
-					}
-				}
-			},
-			find(n) {
-				var c, _c = null;
-				for( c = this.first; c && ( c.node.x != n.x || c.node.y != n.y ); (_c = c), (c = c.next) );
-				if( c )
-					return { node:c, prior:_c};
-				return null;
-			},
-			pop() {
-				var n = this.first;
-				if( n ) {
-					this.length--;
-					this.first = this.first.next;
-				}
-				return n;
-			}
-		};
+		return new SortedList();
 	}
 	var closedSet = {
 			first : null,
@@ -640,9 +663,9 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 	//var min_len = Infinity;
 	//var min_node = null;
 	var _node;
-	var maxH = 0;
-	var minH = Infinity;
 	var fix = 0;
+	let tmpNeighbor = {x:0,y:0,z:0};
+//	let neigbor = {x:0,y:0,z:0};
 	//while( check = openSet.pop() ) 
 	//	tick( check );
 	function scaleHeight(here) {
@@ -674,25 +697,25 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 			//break;
 		}
 		//if( check.h > 15 ) return;
-		if( draw_skips++ > 50 ) {
-				draw_skips = 0;
+		if( draw_skips++ > 150 ) {
+			draw_skips = 0;
 
-		if( _node ) {
-			var path = [];
-			for( var back = _node; back; back = back.parent ) {
-				path.push( back );
+			if( _node ) {
+				var path = [];
+				for( var back = _node; back; back = back.parent ) {
+					path.push( back );
+				}
+				var minpath = [];
+				for( var back = minPath.node; back; back = back.parent ) {
+					minpath.push( back );
+				}
+				var finalpath = [];
+				//if( check.
+				for( var back = finalNode; back; back = back.parent ) {
+					finalpath.push( back );
+				}
+				drawAStar( config, path, finalpath, config.minH, config.maxH );
 			}
-			var minpath = [];
-			for( var back = minPath.node; back; back = back.parent ) {
-				minpath.push( back );
-			}
-			var finalpath = [];
-			//if( check.
-			for( var back = finalNode; back; back = back.parent ) {
-				finalpath.push( back );
-			}
-			drawAStar( config, path, finalpath, minH, maxH );
-		}
 		}
 
 		var nearness = check.f;
@@ -706,6 +729,7 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 			minPath.len = check.f;
 			minPath.node = check;
 		}
+
 		// win condition is tough.... there is no exact answer.... 		
 		closedSet.add( check );
 
@@ -751,17 +775,18 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 			         + ( resistence );
 			var newg = newdelg
 			         + check.g;
-			if( newdelg > maxH ) {
+			if( newdelg > config.maxH ) {
 				maxH = newdelg;
-				console.log( "Rnage:", minH, maxH, resistence, here, here-fromValue) ;
+				console.log( "Rnage:", config.minH, config.maxH, resistence, here, here-fromValue) ;
 			}
-			if( newdelg < minH ) {
+			if( newdelg < config.minH ) {
 				minH = newdelg;
-				console.log( "Rnage:", minH, maxH, resistence, here, here-fromValue) ;
+				console.log( "Rnage:", config.minH, config.maxH, resistence, here, here-fromValue) ;
 			}
-
-
-			if( find = closedSet.find( neighbor = {x:testX,y:testY,z:0} ) ) {
+			neighbor = tmpNeighbor;
+	      		neighbor.x = testX;
+			neighbor.y = testY;
+			if( find = closedSet.find( neighbor  ) ) {
 				var node = find.node;
 				if( newg < node.g ) {
 					node.f = ( newg + h1( neighbor ) )
@@ -798,7 +823,7 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 				 return;
 			}
 				
-			if( find = openSet.find( neighbor ) || ( __openSet && __openSet.find( neighbor ) ) ) {
+			if( find = openSet.find( neighbor ) || ( __openSet && ( find = __openSet.find( neighbor ) ) ) ) {
 				node = find.node;
 				if( newg < find.node.g ) {
 					node.f = ( newg + h1( neighbor ) )
@@ -834,7 +859,9 @@ function doAStar( nodes, came_from, targetNode, from,  to )
 					}
 				}
 			} else {
+				// wasn't found in either list, add into open.
 				node = openSet.add( neighbor, newg, newdelg );
+				tmpNeighbor = {x:0,y:0,z:0};
 				//	console.log( "node:", node.g, newdelg );
 				node.parent = check;
 				_node = node;

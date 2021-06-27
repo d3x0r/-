@@ -7,7 +7,7 @@ const generate_3D = false;
 
 var config = {
 	patchSize : 128,
-	generations : 7,
+	generations : 4,
 	"2D" : true,
 	left : 32,    // default left side (entry)
 	right : 96,   // default right side (exit)

@@ -1,4 +1,12 @@
 
+//import THREE from "../three.js/three.js/build/three.js";
+import {NodeIndex,Web,FindNearest} from "./webcore.js";
+const Vector = Web.Vector;
+
+const DEBUG_ALL=false;
+//<SCRIPT src="../three.js/three.js/build/three.js"></script>
+//<SCRIPT src="webcore.js"></script>
+
 
 var c = document.getElementById( "testSurface");
 var ctx = c.getContext("2d");
@@ -10,7 +18,7 @@ var ctx = c.getContext("2d");
 //--------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------
 
-
+let update_pause  = true;
 const BASE_COLOR_RED=[127,0,0];
 const BASE_COLOR_GREEN=[0,127,0];
 const BASE_COLOR_YELLOW=[255,255,0];
@@ -23,7 +31,7 @@ var had_lines = 0;
 var test = {
 	 web : null,
 	 scale : 0,
-     origin : {x:0,y:0,z:0},
+     origin : new Vector(),
 	 control : null,
      nodes:[],
 	 tester:null,
@@ -56,7 +64,8 @@ function mouse( x, y, b )
 	{
 		// it's an array in some context, and a pointer in most...
 		// the size is the sizeof [nDimensions] but address of that is not PVECTOR
-        var v = {x:x,y:0,z:y};
+	        var v = new Vector().set(x,0,y);
+
 		console.log( ("----------------- NEW NODE -----------------------") );
 		//fprintf( test.file, ("%d,%d\n"), x, y );
 		//fflush( test.file );
@@ -92,8 +101,8 @@ function DrawLine(  a, b, c )
 {
     ctx.strokeStyle = c;
 	ctx.beginPath();
-    ctx.moveTo(a[vRight],a[vForward]);
-    ctx.lineTo(b[vRight],b[vForward]);
+    ctx.moveTo(a.x,a.z);
+    ctx.lineTo(b.x,b.z);
     ctx.stroke();
 	//console.trace( "did line.");
 }
@@ -122,7 +131,7 @@ function drawData( node, data, v )
 		ctx.fillStyle = "white";
 		//ctx.textAlign = "center";
 		//console.log( "output a point?")
-		ctx.fillText(`${node.paint}[${NodeIndex(node)}]`,node.point[vRight],node.point[vForward]) ;
+		ctx.fillText(`${node.paint}[${NodeIndex(node)}]`,node.point.x,node.point.z) ;
 	}
 	ctx.fillStyle = "green";
 	ctx.fillRect(node.point[vRight], node.point[vForward], 1, 1 );
@@ -138,6 +147,7 @@ function drawData( node, data, v )
 			data.step = 0;
 	}
 
+
 	{
 		var lines = 0;
 		var idx;
@@ -145,6 +155,8 @@ function drawData( node, data, v )
 		var link;
 		//console.log( "--- Draw from node ", NodeIndex( node ) );
 		ctx.lineWidth = 3;
+
+
 		node.links.forEach( (link)=>{
 			n[0]++;
 			if( !link ) return;
@@ -155,21 +167,16 @@ function drawData( node, data, v )
 				return;
 			}
 
-			var o = {x:link.data.plane.o.x + link.data.plane.t.x*0.1
-					,y:link.data.plane.o.y + link.data.plane.t.y*0.1
-					,z:link.data.plane.o.z + link.data.plane.t.z*0.1
-					}
-			var oo = {x :link.data.plane.o.x - link.data.plane.t.x*0.5, y:link.data.plane.o.y - link.data.plane.t.y*0.5, z:link.data.plane.o.z - link.data.plane.t.z*0.5 };
+			var o = new Vector().addscaled( link.data.plane.o, link.data.plane.t.x, 0.1 );
+
+			var oo = new Vector().addscaled( link.data.plane.o, link.data.plane.t, 0.5 );
 			DrawLine( oo, o, "#000000" );
 
-			var o = {x:link.data.plane.o.x + link.data.plane.t.x*link.data.plane.ends.to
-					,y:link.data.plane.o.y + link.data.plane.t.y*link.data.plane.ends.to
-					,z:link.data.plane.o.z + link.data.plane.t.z*link.data.plane.ends.to
-					}
-			var oo = {x :link.data.plane.o.x - link.data.plane.t.x*link.data.plane.ends.from
-				, y:link.data.plane.o.y - link.data.plane.t.y*link.data.plane.ends.from
-				, z:link.data.plane.o.z - link.data.plane.t.z*link.data.plane.ends.from };
+			var o = new Vector().addscaled( link.data.plane.o,  link.data.plane.t , link.data.plane.ends.to );
+			var oo = new Vector().addscaled( link.data.plane.o,  link.data.plane.t, link.data.plane.ends.from );
+
 			DrawLine( oo, o, "#FFFFFF" );
+
 
 			//console.log( "links")
 			link.data.paint = data.paint;
@@ -192,11 +199,11 @@ function drawData( node, data, v )
 		
 			// draw the perpendicular lines at caps ( 2d perp only)
 			{
-				var m;
+				var m = new Vector();
 				var tmp;
-				var p1={x:0,y:0,z:0}, p2={x:0,y:0,z:0};
+				var p1=new Vector(), p2=new Vector();
 				// get the slop...
-				m = sub( node.point, dest.point );
+				m.sub( node.point, dest.point );
 				// inverse it (sorta)
 				m[vRight] = -m[vRight];
 				// and swap x/y
@@ -204,11 +211,11 @@ function drawData( node, data, v )
 				m[vForward] = m[vRight];
 				m[vRight] = tmp;
 				ctx.lineWidth = 1;
-				addscaled( p1, node.point, m, 0.125 );
-				addscaled( p2, node.point, m, -0.125 );
+				p1.addscaled( node.point, m, 0.125 );
+				p2.addscaled( node.point, m, -0.125 );
 				DrawLine( p1, p2, c2  );
-				addscaled( p1, dest.point, m, 0.125 );
-				addscaled( p2, dest.point, m, -0.125 );
+				p1.addscaled( dest.point, m, 0.125 );
+				p2.addscaled( dest.point, m, -0.125 );
 				DrawLine( p1, p2, c2  );
 			}
 
@@ -216,16 +223,18 @@ function drawData( node, data, v )
 
 		})
 		//console.log( "found path:", data.path )
+
+		// these are the possible nearest nodes found.
 		if( data )
 		data.path.forEach( (is_path)=>{
 			n[1]++;
 
-			var p1, p2;
-			p1 = { x:  is_path.point[vRight], y:is_path.point[vUp], z:is_path.point[vForward] };
+			var p1 = new Vector(), p2 = new Vector();
+			p1 = new Vector().set( is_path.point );
 			const AAA = 8;
 			p1[vRight] -= AAA;
 			p1[vForward] -= AAA;
-			p2 = SetPoint( p1 );
+			p2.set( p1 );
 			p2[vRight] += AAA;
 			p2[vForward] += AAA;
 			//console.log( p1, p2 )
@@ -241,6 +250,7 @@ function drawData( node, data, v )
 			ctx.lineWidth = 1;
 			DrawLine( v, is_path.point, "green" ); 
 		})
+
 		if( data )
 		{
 
@@ -248,10 +258,10 @@ function drawData( node, data, v )
 			data.pathway.forEach( (is_path)=>{
                                 n[2]++;
 				var p1, p2;
-				p1 = SetPoint( is_path.point );
+				p1.set( is_path.point );
 				p1[vRight] -= 9;
 				p1[vForward] -= 10;
-				p2 = SetPoint( p1 );
+				p2.set( p1 );
 				p2[vRight] += 9;
 				p2[vForward] += 10;
 				//console.log( ("path %d,%d"), is_path.point[vRight], is_path.point[vForward] );
@@ -274,10 +284,10 @@ function drawData( node, data, v )
 			data.bounds.forEach( (bound)=>{
 				n[3]++;
 				var p1, p2;
-				p1 = SetPoint( bound.node.point );
+				p1 .set( bound.node.point );
 				p1[vRight] -= 3;
 				p1[vForward] -= 4;
-				p2 = SetPoint( (bound.invert?bound.data.from:bound.data.to).node.point );
+				p2.set( (bound.invert?bound.data.from:bound.data.to).node.point );
 				p2[vRight] += 3;
 				p2[vForward] += 4;
 				//console.log( ("path %d,%d"), is_path.point[vRight], is_path.point[vForward] );
@@ -326,15 +336,91 @@ function doDraw( )
 		data.bounds = [];
 		data.checked = [];
 		//console.log( "something..." );
+		      //if(0)
+		test.web.extents.forEach( ext=>{
+				var p1 = new Vector(), p2 = new Vector();
+				p1.set( ext.point );
+				p2.set( ext.point );
+				p1[vRight] -= 9;
+				p1[vForward] -= 9;
+				p2[vRight] += 9;
+				p2[vForward] -= 9;
+				//console.log( ("path %d,%d"), is_path.point[vRight], is_path.point[vForward] );
+	        
+	                        DrawLine( p1, p2, "lightblue" );
+				//p1[vRight] += 9;
+				p1[vForward] += 18;
+				//p2[vRight] += 9;
+				p2[vForward] += 18;
+				//console.log( ("path %d,%d"), is_path.point[vRight], is_path.point[vForward] );
+	        
+	                        DrawLine( p1, p2, "lightblue" );
+				//p1[vRight] -= 9;
+				p1[vForward] -= 18;
+				p2[vRight] -= 18;
+				//p2[vForward] += 10;
+				//console.log( ("path %d,%d"), is_path.point[vRight], is_path.point[vForward] );
+	        
+	                        DrawLine( p1, p2, "lightblue" );
+				p1[vRight] += 18;
+				//p1[vForward] -= 10;
+				p2[vRight] += 18;
+				//p2[vForward] += 10;
+				//console.log( ("path %d,%d"), is_path.point[vRight], is_path.point[vForward] );
+	        
+	                        DrawLine( p1, p2, "lightblue" );
 
-		if( !test.pRoot )
+		} );
+
+
+		[test.pRoot].forEach( ext=>{     if( !ext ) return;
+				var p1 = new Vector(), p2 = new Vector();
+				const R=11;
+				p1.set( ext.point );
+				p2.set( ext.point );
+				p1[vRight] -= R;
+				p1[vForward] -= R;
+				p2[vRight] += R;
+				p2[vForward] -= R;
+				//console.log( ("path %d,%d"), is_path.point[vRight], is_path.point[vForward] );
+	        
+	                        DrawLine( p1, p2, "#E44" );
+				//p1[vRight] += R;
+				p1[vForward] += 2*R;
+				//p2[vRight] += R;
+				p2[vForward] += 2*R;
+				//console.log( ("path %d,%d"), is_path.point[vRight], is_path.point[vForward] );
+	        
+	                        DrawLine( p1, p2, "#E44" );
+				//p1[vRight] -= R;
+				p1[vForward] -= 2*R;
+				p2[vRight] -= 2*R;
+				//p2[vForward] += 10;
+				//console.log( ("path %d,%d"), is_path.point[vRight], is_path.point[vForward] );
+	        
+	                        DrawLine( p1, p2, "#E44" );
+				p1[vRight] += 2*R;
+				//p1[vForward] -= 10;
+				p2[vRight] += 2*R;
+				//p2[vForward] += 10;
+				//console.log( ("path %d,%d"), is_path.point[vRight], is_path.point[vForward] );
+	        
+	                        DrawLine( p1, p2, "#E44" );
+
+		} );
+
+
+		if( !test.pRoot ) 
 			test.pRoot = test.web.nodes[test.root];
-		{
-			var v = {x:test.x,y:0,z:test.y};
-			if( test.web.root ) {
+
+
+
+		if( test.web.root ) {
+			{
+				var v = new Vector().set(test.x,0,test.y);
 				//console.log( "begin finding..." );
-				FindNearest2( data.path, data.pathway, data.bounds, data.checked
-							, test.pRoot
+				FindNearest( data.path, data.pathway, data.bounds, null /*data.checked*/
+							, test.web.extents
 							, v, 0 );
 				//console.log( "end finding..." );
 			}
@@ -398,7 +484,7 @@ document.body.onkeydown = (key )=>
 function MoveWeb( )
 {
 	var node;
-	var v = {x:0,y:0,z:0};
+	var v = new Vector();
 	var idx;
 	if( update_pause ) {
 		setTimeout( MoveWeb, 250 )
@@ -427,7 +513,7 @@ function MoveWeb( )
 			v[vRight] = (Math.random()*13)-6.5;
 			v[vForward] = (Math.random()*13)-6.5;
 			v[vUp] = 0;// (Math.random()*13)-6;
-			node.point = add( v, node.point );
+			node.point.add( v, node.point );
 			localStorage.setItem( "Node" + idx, JSON.stringify( node.point ) );
 		}
 	} );
@@ -455,7 +541,7 @@ function animate() {
 function loadOneNode(n) {
 	var node = localStorage.getItem( "Node"+n );
 		if( !node ) { doDraw(); return; }
-		start = Date.now();
+		let start = Date.now();
 		console.log( "adding ", n );
 		test.nodes.push( test.web.insert( JSON.parse( node ), 0  ) );
 		console.log( "added ", n, Date.now() - start );
@@ -467,7 +553,7 @@ function loadOneNode(n) {
 
 function main()
 {
-	test.web = exports.Web();
+	test.web = Web();
 
 	loadOneNode( 0 );
 	setTimeout( MoveWeb, 250 )

@@ -1,0 +1,13 @@
+Node0	{"x":647,"y":0,"z":757}	
+Node1	{"x":435,"y":0,"z":755}	
+Node2	{"x":262,"y":0,"z":605}	
+Node3	{"x":268,"y":0,"z":368}	
+Node4	{"x":341,"y":0,"z":245}	
+Node5	{"x":831,"y":0,"z":655}	
+Node6	{"x":839,"y":0,"z":398}	
+Node7	{"x":739,"y":0,"z":233}	
+
+for( var n = 0; n < 8; n++ ) localStorage.setItem( "saveNode" + n, localStorage.getItem( "Node" + n ) )
+for( var n = 0; n < 8; n++ ) localStorage.setItem( "Node" + n, localStorage.getItem( "saveNode" + n ) )
+
+for( var n = 0; n < 8; n++ ) localStorage.removeItem( "Node" + n );

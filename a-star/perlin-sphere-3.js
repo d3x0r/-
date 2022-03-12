@@ -1,4 +1,6 @@
-import {SaltyRNG} from "./salty_random_generator.js"
+//import {SaltyRNG} from "./salty_random_generator.js"
+import {JSF32} from "./prng_short.mjs"
+
 import {SpacialCache} from "./space_cache.js"
 const CUBE_ELEMENT_BITS = 6
 const CUBE_ELEMENT_SIZE = 1 << CUBE_ELEMENT_BITS
@@ -46,40 +48,35 @@ function noise( s, opts ) {
 	console.log( "tot:", maxtot );
 
 	var data;
-	var RNG = SaltyRNG( arr=>arr.push( data ), {mode:1} );
+	//var RNG = JSF32( "test" );//SaltyRNG( arr=>arr.push( data ), {mode:1} );
 
 
 	function myRandom(node) {
-		RNG.reset();
 		if(  _2d ) {
-			var n = 0;
 			const arr = [];
 			data = `${node.sx} ${node.sy} ${opts.seed}`
-			const arrb = RNG.getBuffer( 8*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE );
-			const buf = new Uint8Array( arrb );
-			
-			//for( var nz = 0; nz< CUBE_ELEMENT_SIZE; nz++ ) 
-				for( var ny = 0; ny < CUBE_ELEMENT_SIZE; ny++ ) 
-					for( var nx = 0; nx < CUBE_ELEMENT_SIZE; nx++ )  {
-						var val = buf[n++] / 255; // 0 < 1 
-						arr.push(val);
+			const RNG = JSF32( data );//RNG.reset();
+				for( let ny = 0; ny < CUBE_ELEMENT_SIZE; ny++ ) 
+					for( let nx = 0; nx < CUBE_ELEMENT_SIZE; nx++ )  {
+						//var val = ;//buf[n++] / 255; // 0 < 1 
+						arr.push(RNG());
 						//arr.push( Math.random() );
 					}
 			return arr;
 
 		}
 		else {
-			let n = 0;
 			const arr = [];
 			data = `${node.sx} ${node.sy} ${node.sz} ${opts.seed}`
-			const arrb = RNG.getBuffer( 8*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE );
-			const buf = new Uint8Array( arrb );
+			const RNG = JSF32( data );//RNG.reset();
+			//const arrb = RNG.getBuffer( 8*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE*CUBE_ELEMENT_SIZE );
+			//const buf = new Uint8Array( arrb );
 			
 			for( var nz = 0; nz< CUBE_ELEMENT_SIZE; nz++ ) 
 				for( var ny = 0; ny < CUBE_ELEMENT_SIZE; ny++ ) 
 					for( var nx = 0; nx < CUBE_ELEMENT_SIZE; nx++ )  {
-						var val = buf[n++] / 255; // 0 < 1 
-						arr.push(val);
+						//var val = buf[n++] / 255; // 0 < 1 
+						arr.push(RNG());
 						//arr.push( Math.random() );
 					}
 			return arr;

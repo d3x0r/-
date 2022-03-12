@@ -213,7 +213,7 @@ function init() {
 
 				// 32 = 13068, 24576, 
 				// 64 = 50700, 98304,
-				const update = computeBall( geometrySquare, material, 128 );
+				const update = computeBall( geometrySquare, material, 32 );
 		
 
 		scene.add( ball )

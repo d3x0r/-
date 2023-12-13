@@ -93,11 +93,11 @@ function noise( s, opts ) {
 			noiseGen[g].oy = oy||0;
 			noiseGen[g].oz = oz||0;
 		}, 
-		get3(x,y,z,s) {
+		get(x,y,z,s) {
 			return this.get2(x,y,z,s);
 		},
 
-		get(x,y,z,s) {
+		get2(x,y,z,s) {
 			z = z || 0;
 
 			// Y will be 0 at the same time this changes...  which will update all anyway
@@ -143,20 +143,20 @@ function noise( s, opts ) {
 					//console.log( "noise is...", n, x, y, z, nx, ny, nz, gen.cx, gen.cy, gen.cz );
 					gen.nx = nx; gen.ny =ny; gen.nz = nz;
 
-					const	noise1 = cache.findOrAdd( nx, ny, nz, myRandom );//getRandom( nx   , ny   , nz );
-					const	noise2 = cache.findOrAdd( npx, ny, nz, myRandom );//getRandom( (npx), ny   , nz );
-					const	noise3 = cache.findOrAdd( nx, npy, nz, myRandom );//getRandom( nx   , (npy), nz );
-					const	noise4 = cache.findOrAdd( npx, npy, nz, myRandom );//getRandom( (npx), (npy), nz );
+					const	noise1 = getRandom( nx   , ny   , nz );
+					const	noise2 = getRandom( (npx), ny   , nz );
+					const	noise3 = getRandom( nx   , (npy), nz );
+					const	noise4 = getRandom( (npx), (npy), nz );
 					let	noise5 = null;
 					let	noise6 = null;
 					let	noise7 = null;
 					let	noise8 = null;
 
 					if( ! _2d ) {
-						noise5 = cache.findOrAdd( nx, ny, npz, myRandom );//getRandom( nx   , ny , (npz) );
-						noise6 = cache.findOrAdd( npx, ny, npz, myRandom );//getRandom( (npx), ny , (npz) );
-						noise7 = cache.findOrAdd( nx, npy, npz, myRandom );//getRandom( nx   , npy, (npz) );
-						noise8 = cache.findOrAdd( npx, npy, npz, myRandom );//getRandom( (npx), npy, (npz) );
+						noise5 = getRandom( nx   , ny , (npz) );
+						noise6 = getRandom( (npx), ny , (npz) );
+						noise7 = getRandom( nx   , npy, (npz) );
+						noise8 = getRandom( (npx), npy, (npz) );
 					}
 
 					gen.ix = nx % CUBE_ELEMENT_SIZE;

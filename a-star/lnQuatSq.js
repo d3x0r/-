@@ -11,19 +11,17 @@ const np = -Math.PI;
 const pp = Math.PI;
 const p2 = 2*Math.PI;
 //           4-3 3-2 2-1 1-0  0  0-1 1-2 2-3 3-4
-const grid =[[ 0, p2, p2, 0,  0,  0, p2, p2,  0 ] // -4- -3
-			   ,[p2,  0,  0, p2,p2, p2,  0,  0, p2 ] // 2-1
-//			   ,[np, np, pp, pp,p2, np, np, pp, pp ] // 3-2
-			   ,[p2,  0,  0, p2,p2, p2,  0,  0, p2 ] // 2-1
-			   ,[pp, pp, np, np, 0, pp, pp, np, np ] // 1-0
+const grid =[[ 0, p2, p2,  0, 0,  0, p2, p2,  0 ] // -4- -3
+			,[np, np, pp, pp,p2, np, np, pp, pp ] // 3-2
+			,[p2,  0,  0, p2, 0, p2,  0,  0, p2 ] // 2-1
+			,[pp, pp, np, np, 0, pp, pp, np, np ] // 1-0
 
-			   ,[ 0,  0,  0,  0, 0,  0,  0,  0,  0 ]  //0-1
+			,[ 0,  0,  0,  0, 0,  0,  0,  0,  0 ]  //0-1
 
-			   ,[ 0, p2, p2,  0, 0,  0, p2, p2,  0 ]  //0-1
-			   ,[np, np, pp, pp,p2, np, np, pp, pp ]  //1-2
-			   ,[p2,  0,  0, p2,p2, p2,  0,  0, p2 ]  //2-3
-			   ,[0,  p2,  0, 0, 0, 0,  0,  p2, 0 ]  //2-3
-			  // ,[pp, pp, np, np, 0, pp, pp, np, np ]  //3-4
+			,[ 0, p2, p2,  0, 0,  0, p2, p2,  0 ]  //0-1
+			,[np, np, pp, pp,p2, np, np, pp, pp ]  //1-2
+			,[p2,  0,  0, p2, 0, p2,  0,  0, p2 ]  //2-3
+			,[pp, pp, np, np,p2, pp, pp, np, np ]  //3-4
 			];
 
 // 'fixed' acos for inputs > 1
@@ -219,6 +217,7 @@ lnQuat.prototype.set = function(theta,d,a,b,e)
 					return this.fromBasis( theta );
 				}
 				if( "lat" in theta ) {
+					let spin = 0;
 					let lat = theta.lat % (Math.PI*4);
 					let lng = theta.lng % (Math.PI*4)
 					
@@ -249,170 +248,50 @@ lnQuat.prototype.set = function(theta,d,a,b,e)
 						:( lng > Math.PI*1 ) ?6
 						:/*( lng > Math.PI*0 ) ?*/ 5;
 
-					switch( gridlat ) {
-					case 0: // -3
-						lat += Math.PI*4;
-						break;
-					case 1: // -2
-						lat = Math.PI*2+lat;
-						break;
-					case 2:  // -1
+
+					if( lat < 0 ) {
+						if( lat < -Math.PI*3 ) {
+							lat += Math.PI*4;
+						} else if( lat < -Math.PI*2 ) {
 							lat = Math.PI*2+lat;
-							break;
-					case 3: // < 0
+						} else if( lat < -Math.PI ) {
+							lat = (Math.PI-(lat+Math.PI));
+						} else {
 							lng += Math.PI;
 							lat = -lat;
-							break;
-					case 4: // == 0
-					case 5: // > 0
-							break;
-					case 6: // > 1
+						}
+					}
+					else {
+						if( lat > Math.PI*3 ) {
+							lat -= Math.PI*4;
+						} else if( lat > Math.PI*2 ) {
+							lat = lat-Math.PI*2;
+						} else if( lat > Math.PI ) {
 							lng += Math.PI;
 							lat = Math.PI*2-lat;
-							break;
-					case 7: // > 2
-							lat = lat-Math.PI*2;
-							break;
-					case 8: // > 3
-							lat -= Math.PI*4;
-							break;
+						}else{
+							// 0 to Math.PI (no adjustment)
+						}
 					}
-					const spin = grid[gridlat][gridlng];
+					spin = grid[gridlat][gridlng];
 
 					const x = Math.sin(lng);
 					const z = Math.cos(lng);
 					this.x = x * lat; this.y = 0; this.z = z * lat;
 					this.dirty = true;
-					if(d)
-					{
-						const q = this;
-
-						const ty = Math.cos( lat );
-						const txn = -z;
-						
-						{
-							const s = Math.sin( lat ); // double angle substituted
-							const c = 1- Math.cos( lat ); // double angle substituted
-							
-							// determinant coordinates
-							let angle = txn===1?acos( ( ty )  )
-									:acos( ( ty + 1 ) * ( 1 + z ) / 2 - 1 );
-							
-							// compute the axis
-							const yz = s * x;
-							const xz = ( 2 - c * (x*x + z*z)) * x;
-							const xy = txn===1?(s * x * x + s * z * (1) )
-								              :(s * x * x + s * z * (1+z) );
-		               
-							const newlen = Math.sqrt(yz*yz + xz*xz + xy*xy );
-							if( Math.abs(newlen)>0.00000001){
-								const tmp = 1 /newlen;
-								q.nx = yz *tmp;
-								q.ny = xz *tmp;
-								q.nz = xy *tmp;
-							}else{
-								q.nx = 0;
-								q.ny = 1;
-								q.nz = 0;
-							}
-							
-							q.x = q.nx * angle;
-							q.y = q.ny * angle;
-							q.z = q.nz * angle;
-		               
-							// the remining of this is update()
-							//q.θ = angle;
-							//q.s = Math.sin( q.θ/2);
-							//q.qw = Math.cos( q.θ/2);
-							//q.dirty = false;
-
-							{
-								// input angle...
-								const s = Math.sin( angle ); // double angle sin
-								const c1 = Math.cos( angle ); // sin/cos are the function of exp()
-								const c = 1-c1;
-								const cny = c * this.ny;
-								const ax = (cny*this.nx) - s*this.nz;
-								const ay = (cny*this.ny) + c1;
-								const az = (cny*this.nz) + s*this.nx;
-								//console.log( "Rotate ", q.nx, q.ny, q.nz, ax, ay, az, th );
-
-								const AdotB = (q.nx*ax + q.ny*ay + q.nz*az);
-
-								const xmy = (spin+twistDelta - angle)/2; // X - Y  (x minus y)
-								const xpy = (spin+twistDelta + angle)/2  // X + Y  (x plus y )
-								const cxmy = Math.cos(xmy);
-								const cxpy = Math.cos(xpy);
-								const cosCo2 = ( ( 1-AdotB )*cxmy + (1+AdotB)*cxpy )/2;
-
-								let ang = acos( cosCo2 )*2;
-								// only good for rotations between 0 and pi.
-
-								if( ang ) {
-									const sxmy = Math.sin(xmy);
-									const sxpy = Math.sin(xpy);
-
-									const ss1 = sxmy + sxpy
-									const ss2 = sxpy - sxmy
-									const cc1 = cxmy - cxpy
-
-									const sAng = Math.sin(ang/2);
-
-									const crsX = (ay*q.nz-az*q.ny);
-									const Cx = ( crsX * cc1 +  ax * ss1 + q.nx * ss2 );
-
-									const crsY = (az*q.nx-ax*q.nz);
-									const Cy = ( crsY * cc1 +  ay * ss1 + q.ny * ss2 );
-
-									const crsZ = (ax*q.ny-ay*q.nx);
-									const Cz = ( crsZ * cc1 +  az * ss1 + q.nz * ss2 );
-
-									const Clx = 1/Math.sqrt(Cx*Cx+Cy*Cy+Cz*Cz);
-
-									q.θ  = ang;
-									q.qw = cosCo2;
-									q.s  = sAng;
-									q.nx = Cx*Clx;
-									q.ny = Cy*Clx;
-									q.nz = Cz*Clx;
-
-									q.x  = q.nx*ang;
-									q.y  = q.ny*ang;
-									q.z  = q.nz*ang;
-
-									q.dirty = false;
-								} else {
-									// two axles are coincident, add...
-									if( AdotB > 0 ) {
-										q.x = q.nx * (q.θ+spin+twistDelta);
-										q.y = q.ny * (q.θ+spin+twistDelta);
-										q.z = q.nz * (q.θ+spin+twistDelta);
-									}else {
-										q.x = q.nx * (q.θ-spin+twistDelta);
-										q.y = q.ny * (q.θ-spin+twistDelta);
-										q.z = q.nz * (q.θ-spin+twistDelta);
-									}
-									q.dirty = true;
-								}
-							}
-							return this;
-						}
-					}else {
+					if( d ) {
 						this.update();
+						alignZero(this);
 
-						{
-							// input angle...
-							const s = Math.sin( this.θ ); // double angle sin
-							const c1 = Math.cos( this.θ ); // sin/cos are the function of exp()
-							const c = 1-c1;
-							const cny = c * this.ny;
-							const ax = (cny*this.nx) - s*this.nz;
-							const ay = (cny*this.ny) + c1;
-							const az = (cny*this.nz) + s*this.nx;
-							//console.log( "Rotate ", q.nx, q.ny, q.nz, ax, ay, az, th );
-							return finishRodrigues( this, 0, ax, ay, az, spin+twistDelta );
-						}
 					}
+
+					if( twistDelta ) {
+						yaw( this.update(), spin+twistDelta /*+ angle*/ );
+					}
+					else
+						yaw( this.update(), spin /*+ angle*/ );
+
+					return this;
 				}
 				if( "a" in theta ) {
 // angle-angle-angle  {a:,b:,c:}

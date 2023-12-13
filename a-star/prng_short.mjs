@@ -1,7 +1,4 @@
 
-// Implemented from: https://stackoverflow.com/questions/521295/seeding-the-random-number-generator-in-javascript
-// more https://github.com/bryc/code/blob/master/jshash/PRNGs.md#lcg-lehmer-rng
-
 // used to get a seed from a string.
 
 export function xmur3(str) {

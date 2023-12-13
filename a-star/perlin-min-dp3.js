@@ -339,10 +339,12 @@ if(0) {
 if(1) {		
 
 
-			if( drawNode.len > 15 )
+			if( drawNode.len > 7 ) {
 				c1 = white;
-			else{
+			//tmpC[3] = 32;
+     }			else{
 				c1 = tmpC;
+			tmpC[3] = 255;
 				//if(0)
 				if( dot < 0 ) {
 					tmpC[0] =  100;//-dot*100;
@@ -440,7 +442,7 @@ if(1) {
 								, dist: 0, next:null };
 					}
 					nodesChecked[newDrawNode.y][newDrawNode.x] = true;
-					if( drawNode.len < 52 ) 
+					if( drawNode.len < 35 ) 
 						drawList.push( newDrawNode );
 					else
 						drawNodes.push(newDrawNode );
